@@ -9,7 +9,16 @@ const state = {
   currentSelectionPath: null,
   expanded: new Set(),
   nodeByPath: new Map(),
+  sidebarOpen: false,
 };
+
+function isMobileLayout() {
+  return window.matchMedia("(max-width: 1020px)").matches;
+}
+
+function treeIndentStep() {
+  return window.matchMedia("(max-width: 640px)").matches ? 10 : 14;
+}
 
 function formatDate(iso) {
   if (!iso) {
@@ -125,6 +134,11 @@ function applyRoute() {
     state.expanded.add(project.path);
   }
 
+  if (isMobileLayout()) {
+    const selectedNode = state.nodeByPath.get(state.currentSelectionPath);
+    state.sidebarOpen = !selectedNode || selectedNode.type === "dir";
+  }
+
   renderProject(project);
 }
 
@@ -162,7 +176,7 @@ function makeTreeNode(node, depth = 0) {
 
   const row = document.createElement("div");
   row.className = "tree-row";
-  row.style.paddingLeft = `${depth * 14}px`;
+  row.style.paddingLeft = `${depth * treeIndentStep()}px`;
 
   if (node.type === "dir") {
     const isExpanded = state.expanded.has(node.path);
@@ -188,6 +202,9 @@ function makeTreeNode(node, depth = 0) {
     btn.title = node.path;
     btn.addEventListener("click", () => {
       state.expanded.add(node.path);
+      if (isMobileLayout()) {
+        state.sidebarOpen = true;
+      }
       setRoute(state.currentProjectId, node.path);
     });
 
@@ -216,6 +233,9 @@ function makeTreeNode(node, depth = 0) {
   fileBtn.textContent = `📄 ${node.name}`;
   fileBtn.title = node.path;
   fileBtn.addEventListener("click", () => {
+    if (isMobileLayout()) {
+      state.sidebarOpen = false;
+    }
     setRoute(state.currentProjectId, node.path);
   });
   row.appendChild(fileBtn);
@@ -289,7 +309,7 @@ function renderProject(project) {
   appEl.innerHTML = "";
 
   const workspace = document.createElement("section");
-  workspace.className = "workspace";
+  workspace.className = `workspace${state.sidebarOpen ? " sidebar-open" : ""}`;
 
   const sidebar = document.createElement("aside");
   sidebar.className = "panel sidebar";
@@ -305,6 +325,16 @@ function renderProject(project) {
   title.className = "viewer-title";
   title.textContent = state.currentSelectionPath || project.path;
   head.appendChild(title);
+
+  const treeToggle = document.createElement("button");
+  treeToggle.type = "button";
+  treeToggle.className = "btn tree-toggle";
+  treeToggle.innerHTML = '<span class="label-open">Browse Files</span><span class="label-close">Hide Files</span>';
+  treeToggle.addEventListener("click", () => {
+    state.sidebarOpen = !state.sidebarOpen;
+    workspace.classList.toggle("sidebar-open", state.sidebarOpen);
+  });
+  head.appendChild(treeToggle);
 
   const body = document.createElement("div");
   body.className = "viewer-body";
@@ -339,6 +369,21 @@ async function init() {
 
   homeBtn.addEventListener("click", () => {
     setRoute(null);
+  });
+
+  window.addEventListener("resize", () => {
+    if (!state.currentProjectId) {
+      return;
+    }
+
+    if (!isMobileLayout()) {
+      state.sidebarOpen = false;
+    }
+
+    const project = getProject(state.currentProjectId);
+    if (project) {
+      renderProject(project);
+    }
   });
 
   window.addEventListener("hashchange", applyRoute);
