@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Karnot Atlas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="bg-glow"></div>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-dot"></span>
+      <div>
+        <h1>Karnot Atlas</h1>
+        <p class="subtitle">Static knowledge hub for projects, research, architecture, and case studies.</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button id="homeBtn" class="btn secondary">All Projects</button>
+      <span id="generatedAt" class="stamp"></span>
+    </div>
+  </header>
+
+  <main id="app" class="app"></main>
+
+  <template id="projectCardTemplate">
+    <button class="project-card" type="button">
+      <div class="project-name"></div>
+      <div class="project-meta"></div>
+    </button>
+  </template>
+
+  <script src="app.js" defer></script>
+</body>
+</html>

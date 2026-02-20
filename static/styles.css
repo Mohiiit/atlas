@@ -1,0 +1,342 @@
+:root {
+  --bg: #f6fafc;
+  --surface: #ffffff;
+  --surface-2: #edf5fb;
+  --border: rgba(3, 41, 72, 0.14);
+  --border-strong: rgba(3, 41, 72, 0.28);
+  --text: #0f2a42;
+  --text-dim: #5f7991;
+  --accent: #0076d6;
+  --accent-2: #15a37a;
+  --danger: #d4583f;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --body: "Sora", system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #07121f;
+    --surface: #0f1f31;
+    --surface-2: #122941;
+    --border: rgba(198, 220, 242, 0.14);
+    --border-strong: rgba(198, 220, 242, 0.3);
+    --text: #deefff;
+    --text-dim: #8eb2d2;
+    --accent: #53b7ff;
+    --accent-2: #6ee7be;
+    --danger: #ff9e85;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--body);
+  color: var(--text);
+  background:
+    radial-gradient(circle at 95% -10%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 33%),
+    radial-gradient(circle at -10% 100%, color-mix(in srgb, var(--accent-2) 14%, transparent), transparent 36%),
+    var(--bg);
+  padding: 26px;
+}
+
+.bg-glow {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 28px 28px;
+  opacity: 0.35;
+}
+
+.topbar {
+  position: relative;
+  z-index: 2;
+  max-width: 1380px;
+  margin: 0 auto 16px;
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.brand {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.brand-dot {
+  margin-top: 10px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(26px, 3vw, 40px);
+  line-height: 1.08;
+  letter-spacing: -0.04em;
+}
+
+.subtitle {
+  margin: 7px 0 0;
+  color: var(--text-dim);
+  max-width: 760px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stamp {
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--text-dim);
+}
+
+.btn {
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: var(--surface-2);
+}
+
+.app {
+  position: relative;
+  z-index: 2;
+  max-width: 1380px;
+  margin: 0 auto;
+  min-height: 70vh;
+}
+
+.home-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.project-card {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  color: inherit;
+  padding: 14px;
+  cursor: pointer;
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+}
+
+.project-card:hover {
+  transform: translateY(-1px);
+  border-color: var(--border-strong);
+  background: color-mix(in srgb, var(--surface) 84%, transparent);
+}
+
+.project-name {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.project-meta {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-family: var(--mono);
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+}
+
+.panel {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  min-width: 0;
+}
+
+.sidebar {
+  max-height: calc(100vh - 180px);
+  overflow: auto;
+  padding: 10px;
+}
+
+.viewer {
+  padding: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 560px;
+}
+
+.viewer-head {
+  border-bottom: 1px solid var(--border);
+  padding: 10px 12px;
+}
+
+.viewer-title {
+  margin: 0;
+  font-size: 13px;
+  font-family: var(--mono);
+  color: var(--text-dim);
+  word-break: break-word;
+}
+
+.viewer-body {
+  min-height: 0;
+}
+
+.empty {
+  padding: 22px;
+  color: var(--text-dim);
+  line-height: 1.65;
+}
+
+.file-toolbar {
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.file-toolbar a {
+  text-decoration: none;
+}
+
+iframe.preview {
+  border: none;
+  width: 100%;
+  height: 70vh;
+  background: #fff;
+}
+
+pre.source {
+  margin: 0;
+  padding: 14px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.tree {
+  display: grid;
+  gap: 2px;
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tree-btn {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 5px 6px;
+  border-radius: 8px;
+  text-align: left;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tree-btn:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.tree-btn.active {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  color: var(--text);
+}
+
+.twisty {
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-family: var(--mono);
+}
+
+.twisty:hover {
+  background: var(--surface-2);
+}
+
+.tree-children {
+  display: grid;
+}
+
+.folder-chip {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  margin: 8px 12px;
+  font-size: 12px;
+  font-family: var(--mono);
+  color: var(--text-dim);
+}
+
+@media (max-width: 1020px) {
+  body {
+    padding: 12px;
+  }
+
+  .topbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .top-actions {
+    justify-content: space-between;
+  }
+
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    max-height: 42vh;
+  }
+
+  iframe.preview {
+    height: 56vh;
+  }
+}
