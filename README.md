@@ -70,6 +70,28 @@ Options:
 - `--dry-run` (optional): sync only, skip build/commit/push
 - `--message <text>` (optional): commit message
 
+## Agent Skill
+
+This repo includes a reusable skill definition:
+
+- `skills/atlas-publish-visuals/SKILL.md`
+
+Install for Codex:
+
+```bash
+mkdir -p ~/.codex/skills/atlas-publish-visuals
+cp skills/atlas-publish-visuals/SKILL.md ~/.codex/skills/atlas-publish-visuals/SKILL.md
+```
+
+Install for Claude:
+
+```bash
+mkdir -p ~/.claude/skills/atlas-publish-visuals
+cp skills/atlas-publish-visuals/SKILL.md ~/.claude/skills/atlas-publish-visuals/SKILL.md
+```
+
+After install, ask the agent to use `atlas-publish-visuals` to sync and push visuals.
+
 ## Deploy
 
 Push to `main` and GitHub Actions deploys `dist/` to GitHub Pages.
