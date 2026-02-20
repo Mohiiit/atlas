@@ -313,7 +313,33 @@ function renderProject(project) {
 
   const sidebar = document.createElement("aside");
   sidebar.className = "panel sidebar";
-  sidebar.appendChild(makeTreeNode(project.tree, 0));
+
+  const sidebarHead = document.createElement("div");
+  sidebarHead.className = "sidebar-head";
+
+  const sidebarTitle = document.createElement("p");
+  sidebarTitle.className = "sidebar-title";
+  sidebarTitle.textContent = `${project.name} files`;
+  sidebarHead.appendChild(sidebarTitle);
+
+  const closeSidebarBtn = document.createElement("button");
+  closeSidebarBtn.type = "button";
+  closeSidebarBtn.className = "btn";
+  closeSidebarBtn.textContent = "Close";
+  closeSidebarBtn.addEventListener("click", () => {
+    state.sidebarOpen = false;
+    workspace.classList.remove("sidebar-open");
+    if (isMobileLayout()) {
+      renderProject(project);
+    }
+  });
+  sidebarHead.appendChild(closeSidebarBtn);
+  sidebar.appendChild(sidebarHead);
+
+  const sidebarTree = document.createElement("div");
+  sidebarTree.className = "sidebar-tree";
+  sidebarTree.appendChild(makeTreeNode(project.tree, 0));
+  sidebar.appendChild(sidebarTree);
 
   const viewer = document.createElement("section");
   viewer.className = "panel viewer";
@@ -333,6 +359,9 @@ function renderProject(project) {
   treeToggle.addEventListener("click", () => {
     state.sidebarOpen = !state.sidebarOpen;
     workspace.classList.toggle("sidebar-open", state.sidebarOpen);
+    if (isMobileLayout()) {
+      renderProject(project);
+    }
   });
   head.appendChild(treeToggle);
 
