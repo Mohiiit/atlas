@@ -6,6 +6,7 @@
   "license": "MIT",
   "scripts": {
     "sync:local": "node scripts/sync-from-local.mjs",
+    "publish:visuals": "node scripts/publish-visuals.mjs",
     "build": "node scripts/build-site.mjs",
     "dev": "npm run build && npx serve dist -l 4173"
   },

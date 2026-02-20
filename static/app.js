@@ -172,6 +172,46 @@ function renderHome() {
   appEl.appendChild(grid);
 }
 
+function renderProjectSwitcher(currentProjectId) {
+  const wrapper = document.createElement("section");
+  wrapper.className = "project-switcher";
+
+  const title = document.createElement("p");
+  title.className = "project-switcher-title";
+  title.textContent = "Projects";
+  wrapper.appendChild(title);
+
+  const list = document.createElement("div");
+  list.className = "project-switcher-list";
+
+  for (const project of state.manifest.projects) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = `project-switch-btn${project.id === currentProjectId ? " active" : ""}`;
+
+    const name = document.createElement("span");
+    name.className = "project-switch-name";
+    name.textContent = project.name;
+    btn.appendChild(name);
+
+    const meta = document.createElement("span");
+    meta.className = "project-switch-meta";
+    meta.textContent = `${project.fileCount}f`;
+    btn.appendChild(meta);
+
+    btn.addEventListener("click", () => {
+      state.focusViewer = false;
+      state.sidebarOpen = isMobileLayout();
+      setRoute(project.id, project.path);
+    });
+
+    list.appendChild(btn);
+  }
+
+  wrapper.appendChild(list);
+  return wrapper;
+}
+
 function makeTreeNode(node, depth = 0) {
   const wrapper = document.createElement("div");
   wrapper.className = "tree";
@@ -337,6 +377,7 @@ function renderProject(project) {
   });
   sidebarHead.appendChild(closeSidebarBtn);
   sidebar.appendChild(sidebarHead);
+  sidebar.appendChild(renderProjectSwitcher(project.id));
 
   const sidebarTree = document.createElement("div");
   sidebarTree.className = "sidebar-tree";

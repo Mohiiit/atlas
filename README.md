@@ -52,6 +52,24 @@ Options:
 - `--types <csv>` (optional): default `html,md,pdf,png,jpg,jpeg,svg`
 - `--clean` (optional): remove destination before importing
 
+## Publish Visuals (One Command)
+
+Sync visuals from local project folders, rebuild, commit, and push:
+
+```bash
+npm run publish:visuals -- --source /path/to/local/content-root --projects Madara,yapcode --types html --clean --message \"content: sync visuals\"
+```
+
+Options:
+- `--source <path>` (required): local root containing project folders
+- `--projects <csv>` (optional): e.g. `Madara,yapcode`; if omitted, syncs all folders under source
+- `--types <csv>` (optional): default `html`
+- `--clean` (optional): clean destination before sync
+- `--no-commit` (optional): stage changes without committing
+- `--no-push` (optional): commit but skip push
+- `--dry-run` (optional): sync only, skip build/commit/push
+- `--message <text>` (optional): commit message
+
 ## Deploy
 
 Push to `main` and GitHub Actions deploys `dist/` to GitHub Pages.
