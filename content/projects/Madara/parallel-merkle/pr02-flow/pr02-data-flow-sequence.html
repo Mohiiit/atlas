@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PR02 Data Flow — Parallel Merkle In-Memory Trie</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f7fbff;
+    --surface: #ffffff;
+    --surface2: #eff6ff;
+    --border: rgba(0, 0, 0, 0.1);
+    --text: #0f172a;
+    --dim: #475569;
+    --accent: #0b61ff;
+    --accent-dim: rgba(11, 97, 255, 0.1);
+    --ok: #02846b;
+    --warn: #9a5800;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #061325;
+      --surface: #0b1b33;
+      --surface2: #112546;
+      --border: rgba(255, 255, 255, 0.12);
+      --text: #dbeafe;
+      --dim: #93b4dd;
+      --accent: #6ea3ff;
+      --accent-dim: rgba(110, 163, 255, 0.15);
+      --ok: #36cda9;
+      --warn: #f5bc67;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 28px;
+    font-family: Outfit, sans-serif;
+    color: var(--text);
+    background:
+      radial-gradient(circle at 10% 0%, var(--accent-dim), transparent 40%),
+      radial-gradient(circle at 90% 100%, rgba(2,132,107,0.08), transparent 35%),
+      var(--bg);
+  }
+
+  .container { max-width: 1200px; margin: 0 auto; }
+
+  h1 {
+    font-size: 34px;
+    margin: 0 0 8px;
+    letter-spacing: -0.6px;
+  }
+
+  .subtitle {
+    margin: 0 0 18px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    color: var(--dim);
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-bottom: 14px;
+  }
+
+  .card h2 {
+    font-size: 18px;
+    margin: 0 0 8px;
+  }
+
+  .card p {
+    margin: 0;
+    color: var(--dim);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  code {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1px 6px;
+    color: var(--text);
+  }
+
+  ul { margin: 8px 0 0; padding-left: 18px; }
+  li { color: var(--dim); margin: 6px 0; line-height: 1.5; }
+
+  .diagram {
+    position: relative;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    overflow: auto;
+  }
+
+  .mermaid {
+    min-width: 760px;
+    display: flex;
+    justify-content: center;
+    transform-origin: top center;
+    transition: transform 0.16s ease;
+  }
+
+  .zoom-controls {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 4;
+    display: flex;
+    gap: 2px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 2px;
+    background: var(--surface);
+  }
+
+  .zoom-controls button {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--dim);
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+  }
+
+  .zoom-controls button:hover {
+    background: var(--surface2);
+    color: var(--text);
+  }
+
+  .legend {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .legend .mini {
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    border-radius: 10px;
+    padding: 10px;
+  }
+
+  .legend .mini h3 {
+    margin: 0 0 6px;
+    font-size: 12px;
+    font-family: "JetBrains Mono", monospace;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+
+  .legend .mini p { margin: 0; font-size: 13px; color: var(--dim); line-height: 1.5; }
+
+  .mermaid .nodeLabel { font-family: Outfit !important; font-size: 15px !important; }
+  .mermaid .edgeLabel { font-family: "JetBrains Mono" !important; font-size: 12px !important; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>PR02 Data Flow<br/>Parallel Merkle In-Memory Trie Compute</h1>
+  <p class="subtitle">branch: <code>codex/pr02-trie-compute-subsystem</code> · focus: <code>global_trie/in_memory.rs</code> + checkpoint metadata</p>
+
+  <section class="card">
+    <h2>What PR02 adds</h2>
+    <p>PR02 introduces an in-memory trie compute path over a RocksDB snapshot, returning per-block roots and optional overlay deltas, plus checkpoint metadata writes. In PR02 this is primarily subsystem-level + tests; orchestration wiring lands in later stacked PRs.</p>
+    <ul>
+      <li>Entry compute APIs: <code>compute_root_from_snapshot</code>, <code>compute_roots_in_parallel_from_snapshot</code></li>
+      <li>Persistence APIs: <code>flush_overlay_and_checkpoint</code>, <code>parallel_merkle_mark_checkpoint_in_batch</code></li>
+      <li>Data reduction: <code>squash_state_diffs</code>, <code>cumulative_squashed_state_diffs</code></li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Function-level Sequence (with data movement)</h2>
+    <div class="diagram" id="seq-wrap">
+      <div class="zoom-controls">
+        <button data-target="seq" data-act="out">−</button>
+        <button data-target="seq" data-act="reset">⟲</button>
+        <button data-target="seq" data-act="in">+</button>
+      </div>
+      <div class="mermaid" id="seq">
+sequenceDiagram
+  autonumber
+  participant C as Caller
+  participant IM as InMemoryModule
+  participant S as Snapshot
+  participant O as OverlayDB
+  participant T as Tries
+  participant DB as RocksDBBatch
+  participant M as MetaCheckpoint
+
+  C->>IM: compute_roots_in_parallel_from_snapshot
+  IM->>IM: cumulative_squashed_state_diffs
+  Note over IM: outputs cumulative state diff list
+
+  loop each cumulative diff in parallel
+    IM->>IM: compute_root_from_snapshot
+    IM->>S: read base trie keys
+    IM->>O: build contract and class overlays
+    IM->>T: run contract and class trie paths in parallel
+    T->>T: apply inserts and commits
+    T-->>IM: contract root class root timings
+    IM->>IM: calculate_state_root
+    IM-->>C: return InMemoryRootComputation
+  end
+
+  alt boundary block has overlay
+    C->>IM: flush_overlay_and_checkpoint
+    IM->>DB: apply_changed_map_to_batch contract
+    IM->>DB: apply_changed_map_to_batch contract_storage
+    IM->>DB: apply_changed_map_to_batch class
+    IM->>M: parallel_merkle_mark_checkpoint_in_batch
+    M->>DB: write checkpoint keys in one batch
+    DB-->>C: atomic write complete
+  end
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Data Objects at Each Stage</h2>
+    <div class="legend">
+      <div class="mini">
+        <h3>Input</h3>
+        <p><code>state_diffs: &[StateDiff]</code><br/><code>start_block_n: u64</code><br/><code>boundary_block_n: Option&lt;u64&gt;</code><br/><code>trie_log_mode: Off | Checkpoint</code></p>
+      </div>
+      <div class="mini">
+        <h3>Derived</h3>
+        <p><code>Vec&lt;StateDiff&gt;</code> cumulative squashed view<br/><code>InMemoryRootComputation</code> per block<br/><code>overlay: Option&lt;BonsaiOverlay&gt;</code></p>
+      </div>
+      <div class="mini">
+        <h3>Overlay Shape</h3>
+        <p><code>OverlayMap = DashMap&lt;(column_id,key), Option&lt;value&gt;&gt;</code><br/>Some(value) = put<br/>None = delete</p>
+      </div>
+      <div class="mini">
+        <h3>Persisted</h3>
+        <p>Bonsai trie columns (flat/trie/log for contract, storage, class) + META checkpoint keys:<br/><code>PARALLEL_MERKLE_CHECKPOINT/&lt;n&gt;</code><br/><code>PARALLEL_MERKLE_LATEST_CHECKPOINT</code></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Compact Function Call Graph</h2>
+    <div class="diagram" id="flow-wrap">
+      <div class="zoom-controls">
+        <button data-target="flow" data-act="out">−</button>
+        <button data-target="flow" data-act="reset">⟲</button>
+        <button data-target="flow" data-act="in">+</button>
+      </div>
+      <div class="mermaid" id="flow">
+flowchart TD
+  A[compute_roots_in_parallel_from_snapshot] --> B[cumulative_squashed_state_diffs]
+  A --> C[compute_root_from_snapshot]
+  C --> D[in_memory_contract_trie_root]
+  C --> E[in_memory_class_trie_root]
+  D --> F[calculate_state_root]
+  E --> F
+  C --> G[InMemoryRootComputation]
+  G --> H{overlay present?}
+  H -- yes --> I[flush_overlay_and_checkpoint]
+  I --> J[apply_changed_map_to_batch x3]
+  I --> K[parallel_merkle_mark_checkpoint_in_batch]
+  K --> L[write_opt single batch]
+      </div>
+    </div>
+  </section>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    look: 'classic',
+    themeVariables: {
+      fontFamily: 'Outfit',
+      primaryColor: getComputedStyle(document.documentElement).getPropertyValue('--surface').trim(),
+      primaryTextColor: getComputedStyle(document.documentElement).getPropertyValue('--text').trim(),
+      primaryBorderColor: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim(),
+      lineColor: getComputedStyle(document.documentElement).getPropertyValue('--dim').trim(),
+      actorBkg: getComputedStyle(document.documentElement).getPropertyValue('--surface').trim(),
+      actorBorder: getComputedStyle(document.documentElement).getPropertyValue('--border').trim(),
+      actorTextColor: getComputedStyle(document.documentElement).getPropertyValue('--text').trim(),
+      signalColor: getComputedStyle(document.documentElement).getPropertyValue('--text').trim(),
+      signalTextColor: getComputedStyle(document.documentElement).getPropertyValue('--text').trim(),
+      noteBkgColor: getComputedStyle(document.documentElement).getPropertyValue('--surface2').trim(),
+      noteTextColor: getComputedStyle(document.documentElement).getPropertyValue('--text').trim(),
+      noteBorderColor: getComputedStyle(document.documentElement).getPropertyValue('--border').trim()
+    }
+  });
+</script>
+
+<script>
+(function() {
+  const scales = { seq: 1, flow: 1 };
+  const min = 0.6, max = 2.2;
+  function apply(id, next) {
+    const el = document.getElementById(id);
+    scales[id] = Math.min(max, Math.max(min, next));
+    el.style.transform = `scale(${scales[id]})`;
+  }
+  document.querySelectorAll('.zoom-controls button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.target;
+      const act = btn.dataset.act;
+      if (act === 'in') apply(id, scales[id] + 0.12);
+      if (act === 'out') apply(id, scales[id] - 0.12);
+      if (act === 'reset') apply(id, 1);
+    });
+  });
+})();
+</script>
+</body>
+</html>

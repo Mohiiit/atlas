@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Madara SALT-Like Upgrade - Visual Explainer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --font-body: 'Space Grotesk', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+
+    --bg: #f3f7ff;
+    --surface: #ffffff;
+    --surface2: #eef3ff;
+    --surface3: #e7edff;
+    --border: rgba(14, 42, 92, 0.14);
+    --text: #102043;
+    --text-dim: #4e5f86;
+
+    --accent: #1b4fd8;
+    --accent-dim: rgba(27, 79, 216, 0.1);
+    --good: #0f8f6f;
+    --good-dim: rgba(15, 143, 111, 0.1);
+    --warn: #d98417;
+    --warn-dim: rgba(217, 132, 23, 0.1);
+    --risk: #cf2d4f;
+    --risk-dim: rgba(207, 45, 79, 0.1);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b1223;
+      --surface: #121b33;
+      --surface2: #172344;
+      --surface3: #1b2a52;
+      --border: rgba(173, 194, 255, 0.2);
+      --text: #e7efff;
+      --text-dim: #9fb1df;
+
+      --accent: #6ea2ff;
+      --accent-dim: rgba(110, 162, 255, 0.14);
+      --good: #37c6a1;
+      --good-dim: rgba(55, 198, 161, 0.14);
+      --warn: #f3b04f;
+      --warn-dim: rgba(243, 176, 79, 0.15);
+      --risk: #ff6f8e;
+      --risk-dim: rgba(255, 111, 142, 0.16);
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--font-body);
+    background:
+      radial-gradient(circle at 10% 10%, rgba(27, 79, 216, 0.12), transparent 35%),
+      radial-gradient(circle at 90% 0%, rgba(15, 143, 111, 0.08), transparent 30%),
+      var(--bg);
+    color: var(--text);
+    padding: 34px;
+    line-height: 1.5;
+  }
+
+  .wrap {
+    max-width: 1360px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 190px 1fr;
+    gap: 0 34px;
+  }
+
+  .main { min-width: 0; }
+
+  .toc {
+    position: sticky;
+    top: 22px;
+    align-self: start;
+    padding: 12px 0;
+    max-height: calc(100dvh - 44px);
+    overflow-y: auto;
+  }
+
+  .toc-title {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding-bottom: 10px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .toc a {
+    display: block;
+    text-decoration: none;
+    color: var(--text-dim);
+    font-size: 11px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border-left: 2px solid transparent;
+    transition: 140ms ease;
+    margin-bottom: 2px;
+  }
+
+  .toc a:hover { background: var(--surface2); color: var(--text); }
+  .toc a.active { border-left-color: var(--accent); color: var(--text); background: var(--accent-dim); }
+
+  .hero {
+    background: linear-gradient(160deg, var(--surface), var(--surface2));
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 26px 24px;
+    margin-bottom: 18px;
+    box-shadow: 0 16px 30px rgba(13, 28, 66, 0.08);
+  }
+
+  h1 {
+    font-size: clamp(30px, 4.6vw, 50px);
+    line-height: 1.05;
+    letter-spacing: -1px;
+    margin-bottom: 10px;
+    text-wrap: balance;
+  }
+
+  .subtitle {
+    font-family: var(--font-mono);
+    color: var(--text-dim);
+    font-size: 12px;
+  }
+
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 18px;
+  }
+
+  .kpi {
+    background: var(--surface3);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    min-width: 0;
+  }
+
+  .kpi .label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1.3px;
+    margin-bottom: 6px;
+  }
+
+  .kpi .value {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.15;
+  }
+
+  .sec-head {
+    margin: 26px 0 12px;
+    font-size: 19px;
+    letter-spacing: -0.3px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    scroll-margin-top: 70px;
+  }
+
+  .sec-head .tag {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--accent);
+    background: var(--accent-dim);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 4px 8px;
+    white-space: nowrap;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 12px;
+    min-width: 0;
+  }
+
+  .bullets {
+    display: grid;
+    gap: 8px;
+    padding-left: 18px;
+  }
+
+  .bullets li { color: var(--text-dim); overflow-wrap: break-word; }
+  .bullets strong { color: var(--text); }
+
+  .pill-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .pill {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 6px 10px;
+    background: var(--surface2);
+    color: var(--text-dim);
+  }
+
+  .pill.good { background: var(--good-dim); color: var(--good); }
+  .pill.warn { background: var(--warn-dim); color: var(--warn); }
+  .pill.risk { background: var(--risk-dim); color: var(--risk); }
+
+  .mermaid-wrap {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 34px 16px 16px;
+    overflow: auto;
+    min-width: 0;
+    margin-bottom: 12px;
+  }
+
+  .mermaid-wrap .mermaid {
+    display: flex;
+    justify-content: center;
+    transition: transform 0.16s ease;
+    transform-origin: top center;
+  }
+
+  .zoom-controls {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    gap: 3px;
+    z-index: 10;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 2px;
+  }
+
+  .zoom-controls button {
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 14px;
+  }
+
+  .zoom-controls button:hover { background: var(--surface2); color: var(--text); }
+
+  .mermaid-wrap.is-zoomed { cursor: grab; }
+  .mermaid-wrap.is-panning { cursor: grabbing; user-select: none; }
+
+  .mermaid .nodeLabel { font-family: var(--font-body) !important; font-size: 14px !important; }
+  .mermaid .edgeLabel { font-family: var(--font-mono) !important; font-size: 12px !important; }
+
+  .phase-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .phase {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    background: var(--surface);
+    min-width: 0;
+  }
+
+  .phase h3 {
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+
+  .phase p {
+    color: var(--text-dim);
+    font-size: 13px;
+    overflow-wrap: break-word;
+  }
+
+  .table-wrap { overflow-x: auto; min-width: 0; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 680px;
+    font-size: 13px;
+  }
+
+  th, td {
+    border: 1px solid var(--border);
+    padding: 10px 11px;
+    text-align: left;
+    vertical-align: top;
+    overflow-wrap: break-word;
+  }
+
+  th {
+    background: var(--surface2);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  tr:nth-child(even) td { background: rgba(27, 79, 216, 0.03); }
+
+  code {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+    color: var(--text);
+  }
+
+  @media (max-width: 1040px) {
+    body { padding: 0; }
+    .wrap { grid-template-columns: 1fr; gap: 0; }
+
+    .toc {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      gap: 5px;
+      align-items: center;
+      overflow-x: auto;
+      white-space: nowrap;
+      max-height: none;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 14px;
+    }
+
+    .toc-title { display: none; }
+
+    .toc a {
+      border-left: none;
+      border-bottom: 2px solid transparent;
+      margin-bottom: 0;
+      padding: 6px 9px;
+      font-size: 10px;
+    }
+
+    .toc a.active { border-left: none; border-bottom-color: var(--accent); }
+
+    .main { padding: 14px; }
+
+    .summary-grid,
+    .phase-grid { grid-template-columns: 1fr; }
+
+    .sec-head { scroll-margin-top: 58px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="toc" id="toc">
+    <div class="toc-title">Contents</div>
+    <a href="#s1">1. Why Upgrade</a>
+    <a href="#s2">2. Current Path</a>
+    <a href="#s3">3. Target Architecture</a>
+    <a href="#s4">4. Finalization Flow</a>
+    <a href="#s5">5. Rollout Plan</a>
+    <a href="#s6">6. KPI + Risks</a>
+  </nav>
+
+  <div class="main">
+    <section class="hero">
+      <h1>Madara SALT-Like Upgrade</h1>
+      <p class="subtitle">Compatibility-first state-engine redesign built around dense RAM indexing + bucketized sparse storage</p>
+      <div class="summary-grid">
+        <div class="kpi">
+          <div class="label">Canonical output</div>
+          <div class="value">Unchanged</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Near-term target</div>
+          <div class="value">Mode 1</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Main objective</div>
+          <div class="value">Lower p95 trie apply latency</div>
+        </div>
+      </div>
+    </section>
+
+    <h2 id="s1" class="sec-head"><span class="tag">Section 1</span>Why this upgrade exists</h2>
+    <div class="card">
+      <ul class="bullets">
+        <li><strong>Problem:</strong> current sparse state writes can trigger repeated random I/O and repeated commit overhead per block.</li>
+        <li><strong>Constraint:</strong> Starknet-compatible <code>global_state_root</code> must remain canonical in production mode.</li>
+        <li><strong>Approach:</strong> borrow SALT-style separation (dense top tier + flat sparse buckets) while keeping Bonsai-root parity.</li>
+      </ul>
+      <div class="pill-row">
+        <span class="pill good">Root compatibility first</span>
+        <span class="pill warn">Performance focus: p95/p99</span>
+        <span class="pill risk">Protocol changes deferred</span>
+      </div>
+    </div>
+
+    <h2 id="s2" class="sec-head"><span class="tag">Section 2</span>Current Madara merklization path</h2>
+    <div class="mermaid-wrap">
+      <div class="zoom-controls">
+        <button onclick="zoomDiagram(this,1.2)">+</button>
+        <button onclick="zoomDiagram(this,0.8)">&minus;</button>
+        <button onclick="resetZoom(this)">&#8634;</button>
+      </div>
+      <pre class="mermaid">
+flowchart LR
+    A[Execution Layer\nStateDiffs] --> B[apply_to_global_trie]
+    B --> C[Contract Storage Trie\ninsert + commit]
+    B --> D[Contract Trie\ninsert + commit]
+    B --> E[Class Trie\ninsert + commit]
+    C --> F[contract_root]
+    D --> F
+    E --> G[class_root]
+    F --> H[calculate_state_root]
+    G --> H
+    H --> I[Header global_state_root]
+      </pre>
+    </div>
+
+    <h2 id="s3" class="sec-head"><span class="tag">Section 3</span>Target MSL architecture (Mode 1)</h2>
+    <div class="mermaid-wrap">
+      <div class="zoom-controls">
+        <button onclick="zoomDiagram(this,1.2)">+</button>
+        <button onclick="zoomDiagram(this,0.8)">&minus;</button>
+        <button onclick="resetZoom(this)">&#8634;</button>
+      </div>
+      <pre class="mermaid">
+flowchart TB
+    subgraph Exec[Execution Pipeline]
+      X[Tx Execution + LayeredStateAdapter] --> Y[Deterministic StateDiff]
+    end
+
+    subgraph MSL[MSL Compatibility Engine]
+      A1[Hot Index Layer RAM\nDense top-tier frontier]
+      A2[BlockWriteSet RAM\nTouched keys grouped by bucket]
+      A3[Bucket Store Disk\nFlat sparse segments]
+      A4[Reorg Journal\nReverse delta checkpoints]
+      A1 <--> A2
+      A2 --> A3 --> A4
+    end
+
+    subgraph Canon[Canonical Commitment]
+      B1[Bonsai Bridge Adapter]
+      B2[Bonsai Contract/Class Tries]
+      B3[Canonical global_state_root]
+      B1 --> B2 --> B3
+    end
+
+    Y --> MSL
+    MSL --> B1
+      </pre>
+    </div>
+
+    <h2 id="s4" class="sec-head"><span class="tag">Section 4</span>Block finalization sequence in compatibility mode</h2>
+    <div class="mermaid-wrap">
+      <div class="zoom-controls">
+        <button onclick="zoomDiagram(this,1.2)">+</button>
+        <button onclick="zoomDiagram(this,0.8)">&minus;</button>
+        <button onclick="resetZoom(this)">&#8634;</button>
+      </div>
+      <pre class="mermaid">
+sequenceDiagram
+    participant Exec as Execution
+    participant MSL as MSL Engine
+    participant Bucket as Bucket Store
+    participant Bridge as Bonsai Bridge
+    participant Bonsai as Bonsai Tries
+    participant DB as Block DB
+
+    Exec->>MSL: StateDiff(block_n)
+    MSL->>MSL: Build deterministic BlockWriteSet
+    MSL->>Bucket: Flush grouped bucket deltas
+    Bucket-->>MSL: Updated digests + journal pointer
+    MSL->>Bridge: Canonicalized trie updates
+    Bridge->>Bonsai: insert/commit
+    Bonsai-->>Bridge: contract_root + class_root
+    Bridge-->>MSL: global_state_root
+    MSL->>DB: Persist confirmed block header
+      </pre>
+    </div>
+
+    <h2 id="s5" class="sec-head"><span class="tag">Section 5</span>Phased rollout</h2>
+    <div class="phase-grid">
+      <article class="phase">
+        <h3>Phase A: Safe Wins</h3>
+        <p>Skip no-op commits, improve hot read caching, add stage-level metrics around trie apply.</p>
+      </article>
+      <article class="phase">
+        <h3>Phase B: MSL Prototype</h3>
+        <p>Implement bucket store + hot index + Bonsai bridge behind feature flag.</p>
+      </article>
+      <article class="phase">
+        <h3>Phase C: Shadow Validation</h3>
+        <p>Dual-run for parity checks, stress reorg paths, build observability and alerting.</p>
+      </article>
+      <article class="phase">
+        <h3>Phase D: Protocol Option</h3>
+        <p>Only evaluate native commitment migration if Starknet spec allows it.</p>
+      </article>
+    </div>
+
+    <h2 id="s6" class="sec-head"><span class="tag">Section 6</span>Success criteria and risk controls</h2>
+    <div class="card table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Dimension</th>
+            <th>Target</th>
+            <th>Guardrail</th>
+            <th>Validation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Trie apply latency</td>
+            <td>&gt;=25% p95 improvement on storage-heavy traces</td>
+            <td>No regression in canonical import correctness</td>
+            <td>Replay benchmark harness + CI trend chart</td>
+          </tr>
+          <tr>
+            <td>RocksDB pressure</td>
+            <td>&gt;=30% reduction in point reads during apply</td>
+            <td>Write amplification does not increase materially</td>
+            <td>Per-block DB metrics + sampling</td>
+          </tr>
+          <tr>
+            <td>Root correctness</td>
+            <td>Zero mismatches in long shadow runs</td>
+            <td>Automatic fallback to canonical engine</td>
+            <td>Dual-commit parity checker</td>
+          </tr>
+          <tr>
+            <td>Reorg behavior</td>
+            <td>Deterministic rollback within acceptable SLO</td>
+            <td>No stale bucket manifest after revert</td>
+            <td>Fault-injection reorg tests</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  import elkLayouts from 'https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk/dist/mermaid-layout-elk.esm.min.mjs';
+
+  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.registerLayoutLoaders(elkLayouts);
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    look: 'classic',
+    layout: 'elk',
+    themeVariables: {
+      primaryColor: isDark ? '#1b2a52' : '#e7edff',
+      primaryBorderColor: isDark ? '#6ea2ff' : '#1b4fd8',
+      primaryTextColor: isDark ? '#e7efff' : '#102043',
+      secondaryColor: isDark ? '#18362d' : '#e8f7f2',
+      secondaryBorderColor: isDark ? '#37c6a1' : '#0f8f6f',
+      secondaryTextColor: isDark ? '#e7efff' : '#102043',
+      tertiaryColor: isDark ? '#3b2c18' : '#fff4e6',
+      tertiaryBorderColor: isDark ? '#f3b04f' : '#d98417',
+      tertiaryTextColor: isDark ? '#e7efff' : '#102043',
+      lineColor: isDark ? '#9fb1df' : '#4e5f86',
+      fontSize: '14px',
+      fontFamily: "'Space Grotesk', system-ui, sans-serif"
+    }
+  });
+</script>
+<script>
+  function updateZoomState(wrap) {
+    const target = wrap.querySelector('.mermaid');
+    const zoom = parseFloat(target.dataset.zoom || '1');
+    wrap.classList.toggle('is-zoomed', zoom > 1);
+  }
+
+  function zoomDiagram(btn, factor) {
+    const wrap = btn.closest('.mermaid-wrap');
+    const target = wrap.querySelector('.mermaid');
+    const current = parseFloat(target.dataset.zoom || '1');
+    const next = Math.min(Math.max(current * factor, 0.3), 5);
+    target.dataset.zoom = String(next);
+    target.style.transform = 'scale(' + next + ')';
+    updateZoomState(wrap);
+  }
+
+  function resetZoom(btn) {
+    const wrap = btn.closest('.mermaid-wrap');
+    const target = wrap.querySelector('.mermaid');
+    target.dataset.zoom = '1';
+    target.style.transform = 'scale(1)';
+    updateZoomState(wrap);
+  }
+
+  document.querySelectorAll('.mermaid-wrap').forEach((wrap) => {
+    wrap.addEventListener('wheel', (e) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      const target = wrap.querySelector('.mermaid');
+      const current = parseFloat(target.dataset.zoom || '1');
+      const factor = e.deltaY < 0 ? 1.1 : 0.9;
+      const next = Math.min(Math.max(current * factor, 0.3), 5);
+      target.dataset.zoom = String(next);
+      target.style.transform = 'scale(' + next + ')';
+      updateZoomState(wrap);
+    }, { passive: false });
+
+    let startX = 0;
+    let startY = 0;
+    let scrollL = 0;
+    let scrollT = 0;
+
+    wrap.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.zoom-controls')) return;
+      const target = wrap.querySelector('.mermaid');
+      if (parseFloat(target.dataset.zoom || '1') <= 1) return;
+      wrap.classList.add('is-panning');
+      startX = e.clientX;
+      startY = e.clientY;
+      scrollL = wrap.scrollLeft;
+      scrollT = wrap.scrollTop;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!wrap.classList.contains('is-panning')) return;
+      wrap.scrollLeft = scrollL - (e.clientX - startX);
+      wrap.scrollTop = scrollT - (e.clientY - startY);
+    });
+
+    window.addEventListener('mouseup', () => {
+      wrap.classList.remove('is-panning');
+    });
+  });
+
+  (function() {
+    const toc = document.getElementById('toc');
+    const links = toc.querySelectorAll('a');
+    const sections = [];
+
+    links.forEach((link) => {
+      const id = link.getAttribute('href').slice(1);
+      const el = document.getElementById(id);
+      if (el) sections.push({ id, el, link });
+    });
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        links.forEach((l) => l.classList.remove('active'));
+        const match = sections.find((s) => s.el === entry.target);
+        if (!match) return;
+        match.link.classList.add('active');
+        if (window.innerWidth <= 1040) {
+          match.link.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        }
+      });
+    }, { rootMargin: '-10% 0px -80% 0px' });
+
+    sections.forEach((s) => observer.observe(s.el));
+
+    links.forEach((link) => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const id = link.getAttribute('href').slice(1);
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        history.replaceState(null, '', '#' + id);
+      });
+    });
+  })();
+</script>
+</body>
+</html>

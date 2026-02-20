@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PR02 vs PR01 — Parallel Merkle Stack Diff</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --font-body: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+    --font-mono: 'IBM Plex Mono', 'SF Mono', Consolas, monospace;
+
+    --bg: #f6fbff;
+    --bg-grid: rgba(14, 91, 181, 0.08);
+    --surface: #ffffff;
+    --surface-2: #f1f7ff;
+    --surface-3: #e9f2ff;
+    --border: rgba(10, 37, 71, 0.12);
+    --border-strong: rgba(10, 37, 71, 0.2);
+    --text: #0d2038;
+    --text-dim: #4e647f;
+
+    --blue: #0b5fff;
+    --blue-dim: rgba(11, 95, 255, 0.1);
+    --teal: #0f9f8f;
+    --teal-dim: rgba(15, 159, 143, 0.1);
+    --amber: #c17207;
+    --amber-dim: rgba(193, 114, 7, 0.1);
+    --rose: #b42863;
+    --rose-dim: rgba(180, 40, 99, 0.1);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #071527;
+      --bg-grid: rgba(106, 163, 255, 0.1);
+      --surface: #0d1f35;
+      --surface-2: #102845;
+      --surface-3: #133155;
+      --border: rgba(204, 228, 255, 0.13);
+      --border-strong: rgba(204, 228, 255, 0.22);
+      --text: #d9e8ff;
+      --text-dim: #9eb6d6;
+
+      --blue: #77a7ff;
+      --blue-dim: rgba(119, 167, 255, 0.14);
+      --teal: #42d8c5;
+      --teal-dim: rgba(66, 216, 197, 0.14);
+      --amber: #f4b354;
+      --amber-dim: rgba(244, 179, 84, 0.14);
+      --rose: #ff7fb7;
+      --rose-dim: rgba(255, 127, 183, 0.14);
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font-body);
+    color: var(--text);
+    background: var(--bg);
+    background-image:
+      linear-gradient(var(--bg-grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px),
+      radial-gradient(circle at 12% 0%, var(--blue-dim) 0%, transparent 40%),
+      radial-gradient(circle at 88% 100%, var(--teal-dim) 0%, transparent 40%);
+    background-size: 26px 26px, 26px 26px, 100% 100%, 100% 100%;
+    min-height: 100vh;
+    padding: 28px;
+  }
+
+  .wrap {
+    max-width: 1380px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: 0 34px;
+  }
+
+  .main { min-width: 0; }
+
+  .toc {
+    position: sticky;
+    top: 20px;
+    align-self: start;
+    max-height: calc(100dvh - 40px);
+    overflow-y: auto;
+    padding: 12px 0;
+    border-right: 1px dashed var(--border);
+  }
+
+  .toc-title {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 1.7px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+    padding-right: 10px;
+  }
+
+  .toc a {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    text-decoration: none;
+    padding: 6px 10px 6px 0;
+    border-left: 2px solid transparent;
+    transition: all 0.16s ease;
+  }
+
+  .toc a:hover { color: var(--text); }
+  .toc a.active {
+    color: var(--text);
+    border-left-color: var(--blue);
+    padding-left: 8px;
+  }
+
+  h1 {
+    font-size: 36px;
+    letter-spacing: -0.9px;
+    line-height: 1.1;
+    margin-bottom: 8px;
+  }
+
+  .subtitle {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-bottom: 20px;
+  }
+
+  .hero {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 22px;
+    margin-bottom: 22px;
+    box-shadow: 0 8px 24px rgba(5, 20, 45, 0.08);
+  }
+
+  .hero p {
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text-dim);
+    max-width: 980px;
+  }
+
+  .hero code, td code, .mono {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1px 6px;
+    color: var(--text);
+    white-space: nowrap;
+  }
+
+  .sec-head {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.6px;
+    color: var(--text-dim);
+    margin: 16px 0 10px;
+    scroll-margin-top: 80px;
+  }
+
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  .kpi {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+  }
+
+  .kpi .label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.1px;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+
+  .kpi .value {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.7px;
+  }
+
+  .value.blue { color: var(--blue); }
+  .value.teal { color: var(--teal); }
+  .value.amber { color: var(--amber); }
+  .value.rose { color: var(--rose); }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 16px;
+    min-width: 0;
+  }
+
+  .panel h2 {
+    font-size: 19px;
+    margin-bottom: 10px;
+    letter-spacing: -0.3px;
+  }
+
+  .panel p {
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--text-dim);
+  }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .chip {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 5px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text);
+  }
+
+  .chip.blue { background: var(--blue-dim); border-color: color-mix(in srgb, var(--blue) 35%, var(--border)); }
+  .chip.teal { background: var(--teal-dim); border-color: color-mix(in srgb, var(--teal) 35%, var(--border)); }
+  .chip.amber { background: var(--amber-dim); border-color: color-mix(in srgb, var(--amber) 35%, var(--border)); }
+  .chip.rose { background: var(--rose-dim); border-color: color-mix(in srgb, var(--rose) 35%, var(--border)); }
+
+  .list {
+    margin-top: 8px;
+    padding-left: 16px;
+  }
+
+  .list li {
+    margin: 8px 0;
+    color: var(--text-dim);
+    line-height: 1.6;
+    font-size: 14px;
+  }
+
+  .table-wrap {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+
+  .table-scroll { overflow-x: auto; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 860px;
+  }
+
+  thead th {
+    text-align: left;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border-strong);
+    padding: 12px 14px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+  }
+
+  tbody td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text-dim);
+  }
+
+  tbody tr:nth-child(even) { background: var(--surface-2); }
+  tbody tr:last-child td { border-bottom: none; }
+
+  td.path {
+    font-family: var(--font-mono);
+    color: var(--text);
+    font-size: 12px;
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .mini {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+  }
+
+  .mini h3 {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+
+  .mini ul { padding-left: 16px; }
+  .mini li {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-dim);
+    margin: 6px 0;
+  }
+
+  .mermaid-wrap {
+    position: relative;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 16px 16px;
+    overflow: auto;
+  }
+
+  .mermaid {
+    display: flex;
+    justify-content: center;
+    transform-origin: top center;
+    transition: transform 0.18s ease;
+    min-width: 720px;
+  }
+
+  .zoom-controls {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 5;
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: var(--surface);
+  }
+
+  .zoom-controls button {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .zoom-controls button:hover {
+    background: var(--surface-3);
+    color: var(--text);
+  }
+
+  .mermaid .nodeLabel {
+    font-family: var(--font-body) !important;
+    font-size: 15px !important;
+  }
+
+  .mermaid .edgeLabel {
+    font-family: var(--font-mono) !important;
+    font-size: 12px !important;
+  }
+
+  .footer {
+    margin-top: 16px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  @media (max-width: 1050px) {
+    body { padding: 16px; }
+    .wrap { grid-template-columns: 1fr; gap: 0; }
+
+    .toc {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+      display: flex;
+      gap: 4px;
+      overflow-x: auto;
+      margin: 0 -16px 12px;
+      padding: 10px 16px;
+      max-height: none;
+    }
+
+    .toc-title { display: none; }
+
+    .toc a {
+      white-space: nowrap;
+      border-left: none;
+      border-bottom: 2px solid transparent;
+      padding: 6px 10px;
+      background: var(--surface);
+      border-radius: 6px;
+      flex-shrink: 0;
+    }
+
+    .toc a.active {
+      border-bottom-color: var(--blue);
+      padding-left: 10px;
+    }
+
+    .kpis { grid-template-columns: 1fr 1fr; }
+    .grid-2 { grid-template-columns: 1fr; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <nav class="toc" id="toc">
+      <div class="toc-title">Contents</div>
+      <a href="#s1">Summary</a>
+      <a href="#s2">Commit Delta</a>
+      <a href="#s3">File Delta</a>
+      <a href="#s4">Runtime Flow</a>
+      <a href="#s5">Reviewer Notes</a>
+    </nav>
+
+    <main class="main">
+      <h1>PR02 vs PR01<br />Parallel Merkle Stack Diff</h1>
+      <p class="subtitle">
+        base <code>origin/codex/pr01-parallel-merkle-contract-surface</code> @ <span class="mono">a2d97e362</span> | compare <code>origin/codex/pr02-trie-compute-subsystem</code> @ <span class="mono">8ef79fc5e</span>
+      </p>
+
+      <section id="s1" class="sec-head">1 · Summary</section>
+      <div class="hero">
+        <p>
+          This view isolates what <code>pr02</code> adds on top of <code>pr01</code> for the stacked parallel-merkle rollout. The dominant addition is the in-memory trie compute subsystem (<code>global_trie/in_memory.rs</code>) plus supporting DB/meta glue and small cleanup commits.
+        </p>
+      </div>
+
+      <div class="kpis">
+        <article class="kpi">
+          <div class="label">PR02-only Commits</div>
+          <div class="value blue">6</div>
+        </article>
+        <article class="kpi">
+          <div class="label">Files Changed</div>
+          <div class="value teal">7</div>
+        </article>
+        <article class="kpi">
+          <div class="label">Added Lines</div>
+          <div class="value amber">1099</div>
+        </article>
+        <article class="kpi">
+          <div class="label">Deleted Lines</div>
+          <div class="value rose">12</div>
+        </article>
+      </div>
+
+      <section id="s2" class="sec-head">2 · Commit Delta</section>
+      <article class="panel">
+        <h2>Commits in <code>pr02</code> not in <code>pr01</code></h2>
+        <ul class="list">
+          <li><code>573298bd3</code> feat(parallel-merkle): add in-memory trie compute subsystem</li>
+          <li><code>d8b6d013c</code> refactor(db): scope preconfirmed keys by block</li>
+          <li><code>d122b418f</code> test: tighten parallel merkle coverage and remove duplicate cases</li>
+          <li><code>4c9bfaf32</code> refactor(db): remove unused batch-only helpers</li>
+          <li><code>ddfdbd5a6</code> merge origin/main into pr02</li>
+          <li><code>8ef79fc5e</code> merge origin/pr01 into pr02</li>
+        </ul>
+        <div class="chips">
+          <span class="chip blue">stacked diff view: <code>pr01..pr02</code></span>
+          <span class="chip amber">left-right count: <code>2 | 6</code></span>
+          <span class="chip teal">focus: trie compute + staged data scoping</span>
+        </div>
+      </article>
+
+      <section id="s3" class="sec-head">3 · File Delta</section>
+      <article class="panel">
+        <h2>File-level Change Surface</h2>
+        <div class="table-wrap">
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>File</th>
+                  <th>Add</th>
+                  <th>Del</th>
+                  <th>Role in PR02</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="path">madara/crates/client/db/src/rocksdb/global_trie/in_memory.rs</td>
+                  <td>1069</td>
+                  <td>0</td>
+                  <td>New in-memory trie compute pipeline, overlay handling, checkpoint flush logic.</td>
+                </tr>
+                <tr>
+                  <td class="path">madara/crates/client/db/src/rocksdb/meta.rs</td>
+                  <td>19</td>
+                  <td>2</td>
+                  <td>Checkpoint batching and monotonic checkpoint metadata update path.</td>
+                </tr>
+                <tr>
+                  <td class="path">madara/crates/client/db/src/rocksdb/trie.rs</td>
+                  <td>7</td>
+                  <td>2</td>
+                  <td>Overlay-aware read/insert/remove semantics adjusted for staged compute flow.</td>
+                </tr>
+                <tr>
+                  <td class="path">madara/crates/client/db/src/rocksdb/rocksdb_snapshot.rs</td>
+                  <td>2</td>
+                  <td>2</td>
+                  <td>Visibility tightening for snapshot internals used by trie compute.</td>
+                </tr>
+                <tr>
+                  <td class="path">madara/crates/client/db/src/rocksdb/global_trie/mod.rs</td>
+                  <td>1</td>
+                  <td>0</td>
+                  <td>Module export for <code>in_memory</code>.</td>
+                </tr>
+                <tr>
+                  <td class="path">configs/args/config.json</td>
+                  <td>1</td>
+                  <td>5</td>
+                  <td>Config surface moved/simplified relative to prior branch state.</td>
+                </tr>
+                <tr>
+                  <td class="path">madara/crates/client/db/src/tests/test_parallel_merkle_staged.rs</td>
+                  <td>0</td>
+                  <td>1</td>
+                  <td>Test cleanup (duplicate/obsolete case removed).</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </article>
+
+      <section id="s4" class="sec-head">4 · Runtime Flow</section>
+      <article class="panel">
+        <h2>What PR02 Enables During Parallel Merkle Processing</h2>
+        <p>
+          Path A and Path B run concurrently. Path A computes/stages fast artifacts; Path B computes trie roots and checkpoints. Finalization consumes both outputs.
+        </p>
+        <div class="mermaid-wrap" id="flow-wrap">
+          <div class="zoom-controls">
+            <button id="zoom-out" aria-label="Zoom out">−</button>
+            <button id="zoom-reset" aria-label="Reset zoom">⟲</button>
+            <button id="zoom-in" aria-label="Zoom in">+</button>
+          </div>
+          <div class="mermaid" id="mermaid-target">
+sequenceDiagram
+  participant B as Block Producer
+  participant A as Path A (stage/metadata)
+  participant T as Path B (in_memory trie)
+  participant F as Finalizer
+  participant DB as RocksDB
+
+  par Parallel start
+    B->>A: stage block payload for N
+    A->>DB: stage header + tx entries
+    A->>DB: stage state and checkpoint metadata
+  and Parallel start
+    B->>T: compute roots from snapshot N
+    T->>T: overlay writes and squash state diffs
+    T->>DB: flush overlay + checkpoint
+  end
+
+  A-->>F: staged artifacts ready
+  T-->>F: root + checkpoint ready
+  F->>DB: confirm block N with final root
+  F->>DB: advance confirmed tip
+          </div>
+        </div>
+      </article>
+
+      <section id="s5" class="sec-head">5 · Reviewer Notes</section>
+      <article class="panel">
+        <h2>High-signal Areas to Review First</h2>
+        <div class="grid-2">
+          <div class="mini">
+            <h3>Core Logic</h3>
+            <ul>
+              <li><code>in_memory.rs</code> root computation and overlay flush invariants.</li>
+              <li>Checkpoint monotonicity contract in <code>meta.rs</code>.</li>
+              <li>Overlay read/write behavior updates in <code>trie.rs</code>.</li>
+            </ul>
+          </div>
+          <div class="mini">
+            <h3>Stacked PR Context</h3>
+            <ul>
+              <li>Diff computed as <code>pr01..pr02</code> for practical stacked review.</li>
+              <li>Branch relation count: <code>pr01-only=2</code>, <code>pr02-only=6</code>.</li>
+              <li>Main payload is additive; deletions are minimal and cleanup-oriented.</li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <p class="footer">Generated for workspace: <code>/Users/mohit/Desktop/karnot/madara2</code></p>
+    </main>
+  </div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  import elkLayouts from 'https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0/dist/mermaid-layout-elk.esm.min.mjs';
+
+  mermaid.registerLayoutLoaders(elkLayouts);
+
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    look: 'classic',
+    layout: 'elk',
+    themeVariables: {
+      fontFamily: 'Space Grotesk',
+      fontSize: '16px',
+      primaryColor: getComputedStyle(document.documentElement).getPropertyValue('--surface').trim(),
+      primaryTextColor: getComputedStyle(document.documentElement).getPropertyValue('--text').trim(),
+      primaryBorderColor: getComputedStyle(document.documentElement).getPropertyValue('--blue').trim(),
+      lineColor: getComputedStyle(document.documentElement).getPropertyValue('--text-dim').trim(),
+      actorBorder: getComputedStyle(document.documentElement).getPropertyValue('--border-strong').trim(),
+      actorBkg: getComputedStyle(document.documentElement).getPropertyValue('--surface').trim(),
+      actorTextColor: getComputedStyle(document.documentElement).getPropertyValue('--text').trim(),
+      signalColor: getComputedStyle(document.documentElement).getPropertyValue('--text').trim(),
+      signalTextColor: getComputedStyle(document.documentElement).getPropertyValue('--text').trim(),
+      labelBoxBkgColor: getComputedStyle(document.documentElement).getPropertyValue('--surface-3').trim(),
+      labelTextColor: getComputedStyle(document.documentElement).getPropertyValue('--text').trim(),
+      sequenceNumberColor: getComputedStyle(document.documentElement).getPropertyValue('--blue').trim(),
+      noteBkgColor: getComputedStyle(document.documentElement).getPropertyValue('--surface-3').trim(),
+      noteBorderColor: getComputedStyle(document.documentElement).getPropertyValue('--border-strong').trim(),
+      noteTextColor: getComputedStyle(document.documentElement).getPropertyValue('--text').trim()
+    }
+  });
+</script>
+
+<script>
+(function() {
+  const toc = document.getElementById('toc');
+  const links = toc.querySelectorAll('a');
+  const sections = [];
+
+  links.forEach(link => {
+    const id = link.getAttribute('href').slice(1);
+    const el = document.getElementById(id);
+    if (el) sections.push({ id, el, link });
+  });
+
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        const match = sections.find(s => s.el === entry.target);
+        if (match) {
+          match.link.classList.add('active');
+          if (window.innerWidth <= 1050) {
+            match.link.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+          }
+        }
+      }
+    });
+  }, { rootMargin: '-12% 0px -80% 0px' });
+
+  sections.forEach(s => observer.observe(s.el));
+
+  links.forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      const id = link.getAttribute('href').slice(1);
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        history.replaceState(null, '', '#' + id);
+      }
+    });
+  });
+})();
+</script>
+
+<script>
+(function() {
+  const wrap = document.getElementById('flow-wrap');
+  const target = document.getElementById('mermaid-target');
+  const plus = document.getElementById('zoom-in');
+  const minus = document.getElementById('zoom-out');
+  const reset = document.getElementById('zoom-reset');
+
+  let scale = 1;
+  const min = 0.6;
+  const max = 2.4;
+
+  function applyScale(next) {
+    scale = Math.min(max, Math.max(min, next));
+    target.style.transform = `scale(${scale})`;
+    if (scale > 1.01) wrap.classList.add('is-zoomed');
+    else wrap.classList.remove('is-zoomed');
+  }
+
+  plus.addEventListener('click', () => applyScale(scale + 0.12));
+  minus.addEventListener('click', () => applyScale(scale - 0.12));
+  reset.addEventListener('click', () => applyScale(1));
+
+  wrap.addEventListener('wheel', e => {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.08 : 0.08;
+    applyScale(scale + delta);
+  }, { passive: false });
+
+  let dragging = false;
+  let startX = 0;
+  let startY = 0;
+  let startLeft = 0;
+  let startTop = 0;
+
+  wrap.addEventListener('pointerdown', e => {
+    if (scale <= 1.01) return;
+    dragging = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    startLeft = wrap.scrollLeft;
+    startTop = wrap.scrollTop;
+    wrap.classList.add('is-panning');
+    wrap.setPointerCapture(e.pointerId);
+  });
+
+  wrap.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    wrap.scrollLeft = startLeft - dx;
+    wrap.scrollTop = startTop - dy;
+  });
+
+  function endDrag(e) {
+    if (!dragging) return;
+    dragging = false;
+    wrap.classList.remove('is-panning');
+    if (e && e.pointerId !== undefined && wrap.hasPointerCapture(e.pointerId)) {
+      wrap.releasePointerCapture(e.pointerId);
+    }
+  }
+
+  wrap.addEventListener('pointerup', endDrag);
+  wrap.addEventListener('pointercancel', endDrag);
+})();
+</script>
+</body>
+</html>

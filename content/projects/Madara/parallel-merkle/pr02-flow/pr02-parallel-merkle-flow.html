@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PR02 Parallel Merkle Flow</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f7fafc;
+      --bg-accent: #e6eef7;
+      --surface: #ffffff;
+      --surface-2: #f2f6fb;
+      --text: #162130;
+      --text-dim: #4d6076;
+      --border: rgba(22, 33, 48, 0.14);
+      --primary: #0f5f9c;
+      --primary-dim: rgba(15, 95, 156, 0.10);
+      --ok: #0f766e;
+      --warn: #9a3412;
+      --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+      --sans: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0b1220;
+        --bg-accent: #111a2d;
+        --surface: #141f33;
+        --surface-2: #0f1829;
+        --text: #e7eef9;
+        --text-dim: #a8b8cd;
+        --border: rgba(231, 238, 249, 0.14);
+        --primary: #70b6ff;
+        --primary-dim: rgba(112, 182, 255, 0.14);
+        --ok: #5eead4;
+        --warn: #fdba74;
+      }
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      color: var(--text);
+      background:
+        radial-gradient(circle at 1px 1px, var(--border) 1px, transparent 0) 0 0 / 22px 22px,
+        linear-gradient(180deg, var(--bg-accent), var(--bg));
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 34px;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      margin-top: 8px;
+      color: var(--text-dim);
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    .note {
+      margin-top: 16px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: var(--primary-dim);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .section {
+      margin-top: 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+    }
+
+    .section h2 {
+      margin: 0 0 10px;
+      font-size: 20px;
+      line-height: 1.2;
+    }
+
+    .section p {
+      margin: 0 0 8px;
+      color: var(--text-dim);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    code {
+      font-family: var(--mono);
+      font-size: 12px;
+      background: var(--surface-2);
+      padding: 1px 4px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+
+    .mermaid-wrap {
+      position: relative;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface-2);
+      overflow: auto;
+      padding: 14px;
+      margin-top: 10px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+
+    .mermaid-wrap::-webkit-scrollbar { width: 8px; height: 8px; }
+    .mermaid-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
+
+    .mermaid-wrap .mermaid {
+      transform-origin: top left;
+      transition: transform 0.15s ease;
+      min-width: max-content;
+    }
+
+    .zoom-controls {
+      position: sticky;
+      top: 0;
+      margin-left: auto;
+      width: fit-content;
+      display: flex;
+      gap: 2px;
+      padding: 2px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      z-index: 4;
+    }
+
+    .zoom-controls button {
+      border: none;
+      border-radius: 6px;
+      width: 28px;
+      height: 28px;
+      background: transparent;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-family: var(--mono);
+      font-size: 14px;
+    }
+
+    .zoom-controls button:hover {
+      background: var(--primary-dim);
+      color: var(--text);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-top: 6px;
+    }
+
+    th, td {
+      text-align: left;
+      vertical-align: top;
+      border-bottom: 1px solid var(--border);
+      padding: 10px 8px;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: var(--surface);
+      color: var(--text);
+      font-size: 12px;
+      font-family: var(--mono);
+    }
+
+    td { color: var(--text-dim); }
+
+    .badge {
+      display: inline-block;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-family: var(--mono);
+      color: var(--text);
+      background: var(--surface-2);
+    }
+
+    .ok { color: var(--ok); }
+    .warn { color: var(--warn); }
+
+    @media (max-width: 860px) {
+      body { padding: 14px; }
+      h1 { font-size: 26px; }
+      .section { padding: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>PR02 Parallel Merkle Flow</h1>
+    <div class="subtitle">Scope: <code>global_trie/in_memory</code> path and boundary overlay flush behavior</div>
+
+    <div class="note">
+      Boundary example shown below: start at block <code>n</code>, process <code>n</code>, <code>n+1</code>, <code>n+2</code> in parallel,
+      with <code>boundary_block_n = n+2</code> (window size 3). Only <code>n+2</code> carries overlay and triggers flush.
+    </div>
+
+    <section class="section">
+      <h2>1) Overall pipeline</h2>
+      <p>High-level data path from snapshot to root results, then overlay flush and checkpoint marker.</p>
+      <div class="mermaid-wrap">
+        <div class="zoom-controls">
+          <button onclick="zoomDiagram(this, 1.2)" title="Zoom in">+</button>
+          <button onclick="zoomDiagram(this, 0.84)" title="Zoom out">-</button>
+          <button onclick="resetZoom(this)" title="Reset">↺</button>
+        </div>
+        <pre class="mermaid">
+flowchart LR
+  A["Caller obtains SnapshotRef"] --> B["compute_roots_in_parallel_from_snapshot"]
+  B --> C["cumulative_squashed_state_diffs"]
+  C --> D["cum diff for n"]
+  C --> E["cum diff for n+1"]
+  C --> F["cum diff for n+2"]
+  D --> G["compute_root_from_snapshot n"]
+  E --> H["compute_root_from_snapshot n+1"]
+  F --> I["compute_root_from_snapshot n+2 include overlay"]
+  G --> J["root n overlay none"]
+  H --> K["root n+1 overlay none"]
+  I --> L["root n+2 overlay some"]
+  J --> M["sort by block number"]
+  K --> M
+  L --> M
+  M --> N["Vec InMemoryRootComputation"]
+  N --> O["flush_overlay_and_checkpoint block n+2"]
+  O --> P["apply changed maps to RocksDB batch"]
+  P --> Q["parallel_merkle_mark_checkpoint_in_batch"]
+  Q --> R["write_opt batch"]
+        </pre>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>2) Detailed sequence for n, n+1, n+2 (boundary = n+2)</h2>
+      <p>Shows exactly who computes what and where flush happens when boundary is reached.</p>
+      <div class="mermaid-wrap">
+        <div class="zoom-controls">
+          <button onclick="zoomDiagram(this, 1.2)" title="Zoom in">+</button>
+          <button onclick="zoomDiagram(this, 0.84)" title="Zoom out">-</button>
+          <button onclick="resetZoom(this)" title="Reset">↺</button>
+        </div>
+        <pre class="mermaid">
+sequenceDiagram
+  autonumber
+  participant C as Caller Path B
+  participant DB as RocksDB Snapshot
+  participant API as compute_roots_in_parallel_from_snapshot
+  participant ACC as cumulative_squashed_state_diffs
+  participant W0 as Worker n
+  participant W1 as Worker n+1
+  participant W2 as Worker n+2 boundary
+  participant FL as flush_overlay_and_checkpoint
+
+  C->>DB: get_snapshot_ref
+  C->>API: compute start n boundary n+2 diffs 3
+  API->>ACC: build cumulative diffs
+  ACC-->>API: cum n cum n+1 cum n+2
+
+  par rayon job n
+    API->>W0: compute_root_from_snapshot block n include overlay false
+    W0-->>API: root n overlay none
+  and rayon job n+1
+    API->>W1: compute_root_from_snapshot block n+1 include overlay false
+    W1-->>API: root n+1 overlay none
+  and rayon job n+2
+    API->>W2: compute_root_from_snapshot block n+2 include overlay true
+    W2-->>API: root n+2 overlay some
+  end
+
+  API->>API: sort_by_key block_n
+  API-->>C: results n n+1 n+2
+
+  C->>FL: flush block n+2 overlay
+  FL->>DB: apply contract changed map
+  FL->>DB: apply contract storage changed map
+  FL->>DB: apply class changed map
+  FL->>DB: mark checkpoint n+2 in meta
+  FL->>DB: write batch
+  FL-->>C: flush done checkpoint advanced
+        </pre>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>3) Function and type map</h2>
+      <p>Call graph with key structs/enums used in this flow.</p>
+      <div class="mermaid-wrap">
+        <div class="zoom-controls">
+          <button onclick="zoomDiagram(this, 1.2)" title="Zoom in">+</button>
+          <button onclick="zoomDiagram(this, 0.84)" title="Zoom out">-</button>
+          <button onclick="resetZoom(this)" title="Reset">↺</button>
+        </div>
+        <pre class="mermaid">
+flowchart TD
+  A["compute_roots_in_parallel_from_snapshot"] --> B["cumulative_squashed_state_diffs"]
+  A --> C["compute_root_from_snapshot per block"]
+  C --> D["bonsai_storage_config_for_mode"]
+  C --> E["InMemoryBonsaiDb contract contract_storage class"]
+  C --> F["BonsaiStorage new x3"]
+  C --> G["rayon join contract trie and class trie"]
+
+  G --> H["in_memory_contract_trie_root"]
+  H --> H1["ContractLeaf"]
+  H --> H2["contract_state_leaf_hash"]
+  H --> H3["contract_storage_trie commit and root"]
+  H --> H4["contract_trie commit and root"]
+
+  G --> I["in_memory_class_trie_root"]
+  I --> I1["compute_class_leaf_hash"]
+  I --> I2["class_trie commit and root"]
+
+  C --> J["calculate_state_root"]
+  C --> K["InMemoryRootComputation block_n root timings overlay"]
+  A --> L["sort_by_key block_n"]
+  L --> M["Vec InMemoryRootComputation"]
+  M --> N["flush_overlay_and_checkpoint boundary"]
+  N --> O["BonsaiOverlay apply_changed_map_to_batch x3"]
+  N --> P["parallel_merkle_mark_checkpoint_in_batch"]
+  N --> Q["db write_opt"]
+        </pre>
+      </div>
+
+      <div style="overflow:auto; margin-top: 12px;">
+        <table>
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Kind</th>
+              <th>Used in flow</th>
+              <th>Role</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>InMemoryRootComputation</code></td>
+              <td><span class="badge">struct</span></td>
+              <td><code>compute.rs</code></td>
+              <td>Per-block output with <code>block_n</code>, <code>state_root</code>, timings, and optional <code>BonsaiOverlay</code>.</td>
+            </tr>
+            <tr>
+              <td><code>BonsaiOverlay</code></td>
+              <td><span class="badge">struct</span></td>
+              <td><code>overlay.rs</code></td>
+              <td>Holds changed maps for contract, storage, and class trees; boundary block carries it for flush.</td>
+            </tr>
+            <tr>
+              <td><code>TrieLogMode</code></td>
+              <td><span class="badge">enum</span></td>
+              <td><code>overlay.rs</code></td>
+              <td>Controls whether trie-log column updates are persisted during flush (<code>Off</code> or <code>Checkpoint</code>).</td>
+            </tr>
+            <tr>
+              <td><code>ContractLeaf</code></td>
+              <td><span class="badge">struct</span></td>
+              <td><code>compute.rs</code></td>
+              <td>Temporary leaf material for contract trie hashing: class hash, storage root, nonce.</td>
+            </tr>
+            <tr>
+              <td><code>StateDiffAccumulator</code></td>
+              <td><span class="badge">struct</span></td>
+              <td><code>state_diff.rs</code></td>
+              <td>Builds cumulative state diffs before parallel root computation.</td>
+            </tr>
+            <tr>
+              <td><code>class_hash_updates bool</code></td>
+              <td><span class="badge">field flag</span></td>
+              <td><code>state_diff.rs</code></td>
+              <td><span class="ok">false</span> means declared class; <span class="warn">true</span> means migrated compiled class.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note" style="margin-top:12px;">
+        Current call-site status in PR02: <code>compute_roots_in_parallel_from_snapshot</code> is used by in-memory trie tests.
+        Runtime orchestration caller is expected in higher stacked PRs.
+      </div>
+    </section>
+  </div>
+
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    import elkLayouts from 'https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk/dist/mermaid-layout-elk.esm.min.mjs';
+
+    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+    mermaid.registerLayoutLoaders(elkLayouts);
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'base',
+      look: 'classic',
+      layout: 'elk',
+      themeVariables: {
+        primaryColor: isDark ? '#1f3150' : '#e8f2ff',
+        primaryBorderColor: isDark ? '#70b6ff' : '#0f5f9c',
+        primaryTextColor: isDark ? '#e7eef9' : '#162130',
+        secondaryColor: isDark ? '#2b2748' : '#f1edff',
+        secondaryBorderColor: isDark ? '#c3b8ff' : '#5c44c2',
+        secondaryTextColor: isDark ? '#e7eef9' : '#162130',
+        tertiaryColor: isDark ? '#392614' : '#fff4e8',
+        tertiaryBorderColor: isDark ? '#fdba74' : '#9a3412',
+        tertiaryTextColor: isDark ? '#e7eef9' : '#162130',
+        lineColor: isDark ? '#a8b8cd' : '#4d6076',
+        fontSize: '15px',
+        fontFamily: "'Space Grotesk', system-ui, sans-serif",
+        noteBkgColor: isDark ? '#1f3150' : '#e8f2ff',
+        noteTextColor: isDark ? '#e7eef9' : '#162130',
+        noteBorderColor: isDark ? '#70b6ff' : '#0f5f9c'
+      }
+    });
+  </script>
+
+  <script>
+    function updateZoomState(wrap) {
+      const target = wrap.querySelector('.mermaid');
+      const zoom = parseFloat(target.dataset.zoom || '1');
+      wrap.classList.toggle('is-zoomed', zoom > 1);
+    }
+
+    function zoomDiagram(btn, factor) {
+      const wrap = btn.closest('.mermaid-wrap');
+      const target = wrap.querySelector('.mermaid');
+      const current = parseFloat(target.dataset.zoom || '1');
+      const next = Math.min(Math.max(current * factor, 0.35), 4);
+      target.dataset.zoom = String(next);
+      target.style.transform = `scale(${next})`;
+      updateZoomState(wrap);
+    }
+
+    function resetZoom(btn) {
+      const wrap = btn.closest('.mermaid-wrap');
+      const target = wrap.querySelector('.mermaid');
+      target.dataset.zoom = '1';
+      target.style.transform = 'scale(1)';
+      updateZoomState(wrap);
+    }
+
+    document.querySelectorAll('.mermaid-wrap').forEach((wrap) => {
+      wrap.addEventListener('wheel', (e) => {
+        if (!e.ctrlKey && !e.metaKey) return;
+        e.preventDefault();
+        const target = wrap.querySelector('.mermaid');
+        const current = parseFloat(target.dataset.zoom || '1');
+        const factor = e.deltaY < 0 ? 1.1 : 0.9;
+        const next = Math.min(Math.max(current * factor, 0.35), 4);
+        target.dataset.zoom = String(next);
+        target.style.transform = `scale(${next})`;
+        updateZoomState(wrap);
+      }, { passive: false });
+
+      let startX = 0;
+      let startY = 0;
+      let scrollL = 0;
+      let scrollT = 0;
+
+      wrap.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.zoom-controls')) return;
+        const target = wrap.querySelector('.mermaid');
+        if (parseFloat(target.dataset.zoom || '1') <= 1) return;
+        wrap.classList.add('is-panning');
+        startX = e.clientX;
+        startY = e.clientY;
+        scrollL = wrap.scrollLeft;
+        scrollT = wrap.scrollTop;
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!wrap.classList.contains('is-panning')) return;
+        wrap.scrollLeft = scrollL - (e.clientX - startX);
+        wrap.scrollTop = scrollT - (e.clientY - startY);
+      });
+
+      window.addEventListener('mouseup', () => {
+        wrap.classList.remove('is-panning');
+      });
+    });
+  </script>
+</body>
+</html>
