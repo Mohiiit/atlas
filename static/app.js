@@ -10,6 +10,7 @@ const state = {
   expanded: new Set(),
   nodeByPath: new Map(),
   sidebarOpen: false,
+  focusViewer: false,
 };
 
 function isMobileLayout() {
@@ -137,6 +138,7 @@ function applyRoute() {
   if (isMobileLayout()) {
     const selectedNode = state.nodeByPath.get(state.currentSelectionPath);
     state.sidebarOpen = !selectedNode || selectedNode.type === "dir";
+    state.focusViewer = false;
   }
 
   renderProject(project);
@@ -309,7 +311,7 @@ function renderProject(project) {
   appEl.innerHTML = "";
 
   const workspace = document.createElement("section");
-  workspace.className = `workspace${state.sidebarOpen ? " sidebar-open" : ""}`;
+  workspace.className = `workspace${state.sidebarOpen ? " sidebar-open" : ""}${state.focusViewer ? " focus-viewer" : ""}`;
 
   const sidebar = document.createElement("aside");
   sidebar.className = "panel sidebar";
@@ -365,6 +367,19 @@ function renderProject(project) {
   });
   head.appendChild(treeToggle);
 
+  const focusToggle = document.createElement("button");
+  focusToggle.type = "button";
+  focusToggle.className = "btn focus-toggle";
+  focusToggle.textContent = state.focusViewer ? "Show Split" : "Focus View";
+  focusToggle.addEventListener("click", () => {
+    state.focusViewer = !state.focusViewer;
+    if (state.focusViewer) {
+      state.sidebarOpen = false;
+    }
+    renderProject(project);
+  });
+  head.appendChild(focusToggle);
+
   const body = document.createElement("div");
   body.className = "viewer-body";
 
@@ -407,6 +422,8 @@ async function init() {
 
     if (!isMobileLayout()) {
       state.sidebarOpen = false;
+    } else {
+      state.focusViewer = false;
     }
 
     const project = getProject(state.currentProjectId);
