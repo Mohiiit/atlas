@@ -1,4 +1,4 @@
-# Karnot Atlas
+# Atlas
 
 Static GitHub Pages site for browsing project knowledge (research, architecture, topics, case studies) with support for deeply nested folders.
 

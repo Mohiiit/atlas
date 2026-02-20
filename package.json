@@ -1,5 +1,5 @@
 {
-  "name": "karnot-atlas",
+  "name": "atlas",
   "version": "0.1.0",
   "private": true,
   "description": "Static explorer for project research, architecture docs, and HTML case studies from Karnot Vault.",
