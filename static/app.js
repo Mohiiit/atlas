@@ -162,7 +162,7 @@ function renderHome() {
   if (state.manifest.projects.length === 0) {
     const empty = document.createElement("div");
     empty.className = "empty panel";
-    empty.textContent = "No projects found in content/projects. Use sync:vault, then build again.";
+    empty.textContent = "No projects found in content/projects. Import local files with sync:local, then build again.";
     appEl.appendChild(empty);
     return;
   }

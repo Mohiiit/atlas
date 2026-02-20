@@ -2,9 +2,10 @@
   "name": "atlas",
   "version": "0.1.0",
   "private": true,
-  "description": "Static explorer for project research, architecture docs, and HTML case studies from Karnot Vault.",
+  "description": "Static explorer for project research, architecture docs, and case studies from local sources.",
+  "license": "MIT",
   "scripts": {
-    "sync:vault": "node scripts/sync-from-vault.mjs",
+    "sync:local": "node scripts/sync-from-local.mjs",
     "build": "node scripts/build-site.mjs",
     "dev": "npm run build && npx serve dist -l 4173"
   },

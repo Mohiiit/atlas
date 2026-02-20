@@ -84,7 +84,11 @@ function main() {
     throw new Error("--project is required (example: --project yapcode)");
   }
 
-  const vaultRoot = args.vault || "/Users/mohit/Desktop/karnot-vault";
+  const sourceRoot = args.source || args.local || args.vault;
+  if (!sourceRoot) {
+    throw new Error("--source is required (example: --source /path/to/local/projects-root)");
+  }
+
   const typeCsv = args.types || "html,md,pdf,png,jpg,jpeg,svg";
   const allowedExts = new Set(
     typeCsv
@@ -93,7 +97,7 @@ function main() {
       .filter(Boolean),
   );
 
-  const sourceProjectRoot = path.join(vaultRoot, project);
+  const sourceProjectRoot = path.join(sourceRoot, project);
   const destProjectRoot = path.join(repoRoot, "content", "projects", project);
 
   if (!fs.existsSync(sourceProjectRoot)) {
@@ -110,7 +114,7 @@ function main() {
 
   const message = [
     `Project: ${project}`,
-    `Vault: ${sourceProjectRoot}`,
+    `Source: ${sourceProjectRoot}`,
     `Destination: ${destProjectRoot}`,
     `Allowed types: ${Array.from(allowedExts).join(", ")}`,
     `Copied files: ${copied.length}`,

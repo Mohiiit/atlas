@@ -1,56 +1,61 @@
 # Atlas
 
-Static GitHub Pages site for browsing project knowledge (research, architecture, topics, case studies) with support for deeply nested folders.
+Atlas is an open-source static site for browsing project knowledge with nested folders.
 
-## Why this exists
+It is designed for teams that want one web UI for:
+- project research
+- architecture notes
+- topic deep-dives
+- static HTML case studies and diagrams
 
-- Host static HTML diagrams and writeups from Karnot Vault.
-- Keep one homepage for many projects (`yapcode`, `madara`, etc.).
-- Support arbitrary nested structure per project:
-  - `research/`
-  - `architecture/`
-  - `topic/`
-  - deeper folders as needed.
+## Features
 
-## Structure
+- Multi-project home page (`yapcode`, `madara`, etc.)
+- Recursive nested folder support
+- In-browser preview for HTML, Markdown, text, and JSON
+- Static build output ready for GitHub Pages
+- Mobile-friendly file explorer and viewer
 
-- `content/projects/<project-name>/...` → all hosted files
-- `scripts/sync-from-vault.mjs` → copy files from local Karnot Vault into `content/projects`
-- `scripts/build-site.mjs` → generate `dist/` and recursive `manifest.json`
-- `static/` → frontend app (`index.html`, `app.js`, `styles.css`)
+## Project Layout
 
-## Quick start
+- `content/projects/<project-name>/...`: source content to host
+- `scripts/sync-from-local.mjs`: import files from a local source root into `content/projects/<project-name>`
+- `scripts/build-site.mjs`: build `dist/` and generate recursive `manifest.json`
+- `static/`: frontend app assets (`index.html`, `app.js`, `styles.css`)
+- `.github/workflows/deploy-pages.yml`: GitHub Pages deployment workflow
+
+## Quick Start
 
 ```bash
 npm install
-npm run sync:vault -- --project yapcode --types html
+npm run sync:local -- --project yapcode --source /path/to/local/content-root --types html --clean
 npm run build
 ```
 
-Then open `dist/index.html` or run:
+Open `dist/index.html`, or run:
 
 ```bash
 npm run dev
 ```
 
-## Sync from Karnot Vault
-
-Defaults:
-- vault root: `/Users/mohit/Desktop/karnot-vault`
-- destination: `content/projects/<project>`
+## Importing Local Content
 
 Example:
 
 ```bash
-npm run sync:vault -- --project yapcode --types html --clean
+npm run sync:local -- --project madara --source /path/to/local/content-root --types html,md,pdf --clean
 ```
 
 Options:
 - `--project <name>` (required)
-- `--vault <path>` (optional)
-- `--types <csv>` default: `html,md,pdf,png,jpg,jpeg,svg`
-- `--clean` remove destination before syncing
+- `--source <path>` (required): local root that contains project folders
+- `--types <csv>` (optional): default `html,md,pdf,png,jpg,jpeg,svg`
+- `--clean` (optional): remove destination before importing
 
 ## Deploy
 
-GitHub Actions workflow at `.github/workflows/deploy-pages.yml` builds and deploys to GitHub Pages on pushes to `main`.
+Push to `main` and GitHub Actions deploys `dist/` to GitHub Pages.
+
+## License
+
+MIT. See `LICENSE`.
