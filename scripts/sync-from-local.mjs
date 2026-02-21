@@ -41,8 +41,17 @@ function ensureDir(targetPath) {
   fs.mkdirSync(targetPath, { recursive: true });
 }
 
+function sanitizeTextContent(text) {
+  return text
+    .replace(/file:\/\/[^\s)"'`<>]+/g, "[redacted-local-file-url]")
+    .replace(/\/Users\/[^\s)"'`<>]+/g, "[redacted-local-path]")
+    .replace(/\/home\/[^\s)"'`<>]+/g, "[redacted-local-path]")
+    .replace(/[A-Za-z]:\\Users\\[^\s)"'`<>]+/g, "[redacted-local-path]");
+}
+
 function copyRecursiveFiltered(srcRoot, dstRoot, allowedExts) {
   const copied = [];
+  const textExts = new Set(["md", "txt", "json", "html", "js", "css"]);
 
   function walk(currentSrc) {
     const entries = fs.readdirSync(currentSrc, { withFileTypes: true });
@@ -67,7 +76,12 @@ function copyRecursiveFiltered(srcRoot, dstRoot, allowedExts) {
       }
 
       ensureDir(path.dirname(dstPath));
-      fs.copyFileSync(srcPath, dstPath);
+      if (textExts.has(ext)) {
+        const srcText = fs.readFileSync(srcPath, "utf8");
+        fs.writeFileSync(dstPath, sanitizeTextContent(srcText), "utf8");
+      } else {
+        fs.copyFileSync(srcPath, dstPath);
+      }
       copied.push(relPath.replaceAll(path.sep, "/"));
     }
   }

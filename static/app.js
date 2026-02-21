@@ -322,6 +322,35 @@ async function renderFilePreview(node, bodyEl) {
     }
 
     const text = await res.text();
+
+    if (node.ext === "md" && window.marked && window.DOMPurify) {
+      marked.setOptions({
+        gfm: true,
+        breaks: true,
+      });
+
+      const html = marked.parse(text);
+      const safe = window.DOMPurify.sanitize(html, {
+        USE_PROFILES: { html: true },
+      });
+
+      const article = document.createElement("article");
+      article.className = "markdown";
+      article.innerHTML = safe;
+
+      // Open external links in a separate tab.
+      for (const a of article.querySelectorAll("a[href]")) {
+        const href = a.getAttribute("href") || "";
+        if (/^https?:\/\//i.test(href)) {
+          a.target = "_blank";
+          a.rel = "noopener noreferrer";
+        }
+      }
+
+      bodyEl.appendChild(article);
+      return;
+    }
+
     const pre = document.createElement("pre");
     pre.className = "source";
     pre.textContent = text;

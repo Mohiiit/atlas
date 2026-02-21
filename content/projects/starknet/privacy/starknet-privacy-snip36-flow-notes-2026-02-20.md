@@ -1,7 +1,7 @@
 # Starknet Privacy + SNIP-36 Linking Notes
 
 **Date:** 2026-02-20  
-**Folder:** `/Users/mohit/Desktop/karnot-vault/starknet/privacy`
+**Folder:** `[redacted-local-path]`
 
 ## Outputs generated
 
@@ -35,15 +35,15 @@ Atlas already supports `.md` preview in the viewer. No additional code changes a
 - Sync local Starknet folder into Atlas content:
 
 ```bash
-cd /Users/mohit/Desktop/personal_projects/atlas
-npm run sync:local -- --project starknet --source /Users/mohit/Desktop/karnot-vault --types html,md --clean
+cd [redacted-local-path]
+npm run sync:local -- --project starknet --source [redacted-local-path] --types html,md --clean
 npm run build
 ```
 
 - Serve locally only:
 
 ```bash
-cd /Users/mohit/Desktop/personal_projects/atlas
+cd [redacted-local-path]
 npx serve dist -l 4173
 ```
 
