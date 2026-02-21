@@ -1,71 +1,185 @@
-# Module 04 Coursebook: Perpetual Futures, Funding, and Liquidation Mechanics
+# Module 04 Coursebook (Ultra-Depth): Perpetual Markets from First Principles
 
-## Problem statement
+## 0. Reading plan
 
-Arjun wants leveraged exposure without fixed expiry futures. Perpetual contracts provide this, but force continuous risk management through margin and liquidation.
+If derivatives are new to you:
 
-## Terms
+1. Read sections 1-4 for intuition.
+2. Read sections 5-8 for numeric mechanics.
+3. Read sections 9-13 for stress behavior.
+4. Do exercises.
 
-- **Leverage**: position notional / collateral.
-- **Mark price**: reference for PnL and liquidation.
-- **Funding**: periodic transfer long<->short.
-- **Maintenance margin**: minimum equity to keep position open.
-- **Insurance fund**: buffer for liquidation shortfalls.
+---
 
-## Running example
+## 1. Why perps exist
 
-Maya opens 1 BTC long at 60,000 with 6,000 collateral (10x).
+Traders want leveraged exposure without expiry rollover complexity.
 
-## Mechanism
+Perpetual futures provide this:
 
-1. Open position with collateral.
-2. Mark updates.
-3. PnL updates.
-4. Equity checked against maintenance margin.
-5. Liquidation if breach.
-6. Insurance/ADL if shortfall.
+- no expiry date
+- continuous mark-to-market
+- funding transfer mechanism to keep price near spot
 
-## Numerical example A
+---
 
-Price to 57,000.
+## 2. Terms in plain language
 
-- PnL = -3,000
-- Equity = 3,000
-- If maintenance = 3,500 -> liquidation eligible.
+- **Leverage**: how many dollars of exposure per dollar of collateral.
+- **Collateral (margin)**: capital buffer backing position.
+- **Notional**: position size in dollar terms.
+- **Mark price**: reference used for PnL and risk checks.
+- **Funding rate**: periodic transfer between longs and shorts.
+- **Maintenance margin**: minimum equity to avoid forced closure.
+- **Liquidation**: forced position reduction/closure.
+- **Insurance fund**: buffer that absorbs liquidation shortfalls.
+- **ADL**: auto-deleveraging when losses exceed standard buffers.
 
-## Numerical example B
+---
 
-Funding = +0.01% every 8h on 60,000 notional.
+## 3. Running scenario
 
-- Cost per interval = 6
-- 30 intervals cost = 180
+Maya opens long BTC perp:
 
-## Numerical example C
+- Entry: 60,000
+- Size: 1 BTC
+- Collateral: 6,000
+- Leverage: 10x
+- Maintenance threshold: 3,500 equity
 
-20x leverage with same directional move doubles sensitivity. A 2.5-3% move can threaten solvency.
+---
 
-## Misconceptions
+## 4. Core mechanism loop
 
-1. "Direction right means profit eventually" -> liquidation can happen before recovery.
-2. "Funding is small so ignore" -> cumulative drag matters.
+1. Position opened with collateral.
+2. Mark price updates.
+3. Unrealized PnL updates.
+4. Equity recalculated.
+5. If equity < maintenance -> liquidation path.
+6. If liquidation shortfall -> insurance absorbs.
+7. If insurance insufficient -> ADL/socialized mechanisms.
 
-## Failure simulations
+---
 
-- Mark price feed disturbance.
-- Liquidation queue overload during volatility spikes.
+## 5. Base equations
 
-## Checklist
+- `notional = size * mark`
+- `uPnL_long = size * (mark - entry)`
+- `equity = collateral + uPnL - fees - funding`
 
-1. Mark formula transparency?
-2. Liquidation latency stats?
-3. Insurance adequacy vs open interest?
-4. ADL/socialized loss policy clarity?
+These three equations power most risk decisions.
 
-## Explain-it-back
+---
 
-1. Why funding exists?
-- To keep perp anchored near spot.
-2. Why liquidation speed matters?
-- Delays convert paper risk into realized system losses.
-3. What is first stress breakpoint usually?
-- Execution throughput, not formula correctness.
+## 6. Numerical example A: mild adverse move
+
+Price: 60,000 -> 58,500
+
+- uPnL = -1,500
+- equity = 6,000 - 1,500 = 4,500
+
+Still above 3,500 maintenance, no liquidation.
+
+## 7. Numerical example B: liquidation trigger
+
+Price: 60,000 -> 57,000
+
+- uPnL = -3,000
+- equity = 3,000
+
+Below maintenance (3,500), liquidation can trigger.
+
+## 8. Numerical example C: funding drag
+
+Funding = +0.01% each 8h, notional 60,000.
+
+- per interval = 6
+- 90 intervals (~30 days) = 540
+
+If price is flat, funding alone can push account closer to liquidation over time.
+
+---
+
+## 9. Why mark price matters
+
+Using last traded price alone is manipulable in thin moments.
+
+Mark/index designs try to reduce manipulation risk, but introduce dependency on oracle/index integrity.
+
+---
+
+## 10. Leverage sensitivity table
+
+Approximate adverse move to lose 50% collateral (ignoring funding/fees):
+
+- 5x: ~10%
+- 10x: ~5%
+- 20x: ~2.5%
+
+Leverage compresses survival room dramatically.
+
+---
+
+## 11. Common beginner mistakes
+
+1. Thinking direction is enough; path is what liquidates.
+2. Ignoring funding in medium-term holds.
+3. Assuming insurance fund is infinite.
+4. Comparing venues by UI, not risk engine design.
+
+---
+
+## 12. Failure simulations
+
+## Simulation 1: crash + queue congestion
+
+- many accounts breach simultaneously
+- liquidation throughput limited
+- backlog grows
+- equity decays while waiting
+
+Result: shortfall risk rises even with correct formulas.
+
+## Simulation 2: oracle disturbance
+
+- mark source lags or distorts
+- unfair liquidations or delayed risk recognition
+
+Result: trust damage + potential solvency stress.
+
+---
+
+## 13. Perp protocol comparison framework
+
+For each venue (e.g., Hyperliquid, dYdX, GMX), evaluate:
+
+1. Matching design (orderbook/AMM/hybrid)
+2. Margin model details
+3. Mark price and oracle architecture
+4. Liquidation speed and success stats
+5. Insurance capacity and fallback policy
+
+---
+
+## 14. Explain-it-back Q&A
+
+1. Why can a "correct long-term view" still lose money in perps?
+- liquidation can occur before eventual recovery.
+
+2. What keeps perp price near spot if no expiry exists?
+- funding transfer mechanism.
+
+3. Why is throughput as important as math?
+- risk must be unwound quickly; slow execution causes losses.
+
+4. What is insurance fund role?
+- absorb residual losses from imperfect liquidation fills.
+
+5. What makes one perp venue safer than another?
+- robustness of mark/liquidation/insurance path under stress.
+
+---
+
+## 15. Bridge to Module 05
+
+Perps price future-oriented views via leverage and funding. Prediction markets price event probabilities directly. Next module compares that belief-pricing structure and its own trust anchor: resolution.

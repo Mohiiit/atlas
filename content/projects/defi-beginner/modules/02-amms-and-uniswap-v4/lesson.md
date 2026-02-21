@@ -1,142 +1,298 @@
-# Module 02 Coursebook: AMMs and Uniswap v4 from First Principles
+# Module 02 Coursebook (Ultra-Depth): AMMs and Uniswap v4
 
-## Why this topic exists
+## 0. How to read this chapter
 
-Traders need immediate execution without waiting for direct counterparties. AMMs solve this by using pooled liquidity and deterministic pricing rules.
+If you are new to markets, read in this order:
 
-This module teaches three layers:
+1. Section 1-3 (intuition + terms)
+2. Section 4-6 (math + mechanics)
+3. Section 7-10 (v4 specifics + risk)
+4. Exercises at the end
 
-1. AMM intuition and math
-2. LP economics
-3. Why Uniswap v4 changes design space (and risks)
+If a term feels heavy, pause and jump to the glossary, then return.
 
-## Term unpacking
+---
 
-### AMM
-Automated market maker: smart contract that quotes prices from pool state.
+## 1. Why AMMs exist
 
-### Pool reserves
-Quantities of assets in pool (e.g., ETH and USDC).
+### The practical problem
 
-### Constant product
-Simple rule <code>x * y = k</code>.
+Maya wants to buy ETH right now. In a pure peer-to-peer system, she needs a seller at the same moment and a matching quantity. That is slow and brittle.
 
-### Slippage
-Execution worse than initial quote because trade moves pool state.
+AMMs solve this by holding pooled inventory and using deterministic price rules. So trading can happen continuously.
 
-### LP
-Liquidity provider depositing assets and earning fees.
+### Real-life analogy
 
-### Impermanent loss
-Underperformance vs holding assets passively, due to inventory rebalancing path.
+Think of a currency exchange kiosk at an airport.
 
-### Hook (v4)
-Custom plugin-like logic before/after core actions.
+- It always offers a quote.
+- If many people buy one currency, that currency gets more expensive.
+- The kiosk manager adjusts rates based on inventory pressure.
 
-## Running example
+An AMM is that kiosk in code form.
 
-Pool state:
+---
 
-- ETH reserve: 1,000
-- USDC reserve: 2,000,000
-- k = 2,000,000,000
+## 2. Terms you must own before moving on
 
-Maya buys ETH with USDC.
+- **AMM**: automated market maker; smart contract quoting a price from pool state.
+- **Pool reserves**: quantities of token A and token B inside pool.
+- **Quote price**: instantaneous ratio implied by reserves.
+- **Execution price**: average price you actually get for full trade.
+- **Slippage**: execution price minus expected quote (in either direction).
+- **LP (liquidity provider)**: deposits both assets, earns fees, takes inventory risk.
+- **Arbitrageur**: trader who profits from price differences across venues, helping align AMM to broader market.
+- **Fee tier**: trading fee charged per swap.
+- **Hook (Uniswap v4)**: custom logic around core pool actions.
 
-## Mechanism walkthrough
+---
 
-1. Maya sends swap transaction.
-2. Pool computes new reserves from formula + fee logic.
-3. Maya receives ETH out.
-4. Pool price shifts.
-5. Arbitrageurs compare with external markets and trade if profitable.
+## 3. Running scenario setup
 
-## Numerical example A: slippage math
+We keep one scenario through this chapter:
+
+- Pool starts with 1,000 ETH and 2,000,000 USDC.
+- Implied mid price = 2,000 USDC/ETH.
+- Formula (simplified) is constant product: `x * y = k`.
+
+Maya starts as a trader. Later, she becomes an LP.
+
+---
+
+## 4. Constant product from first principles
+
+### Why this formula
+
+`x * y = k` means product stays constant after each swap (ignoring fees for a moment). If one reserve drops, the other must rise enough to keep product fixed.
+
+This creates a curved price response.
+
+### Price impact intuition
+
+Early units in a swap are cheap relative to later units because each unit changes reserve ratio and pushes price.
+
+So AMMs are not one fixed-price machine; they are a moving-price machine.
+
+---
+
+## 5. Numerical walkthroughs (core)
+
+## Example A: small buy
+
+Initial:
+
+- `x = 1000 ETH`
+- `y = 2,000,000 USDC`
+- `k = 2,000,000,000`
 
 Maya buys 10 ETH.
 
-- New ETH reserve = 990
-- New USDC reserve = k/990 = 2,020,202 (approx)
-- USDC paid = 20,202 (before fee)
+- New ETH reserve: 990
+- New USDC reserve: `k / 990 = 2,020,202` (approx)
+- USDC paid: `20,202`
+- Average price: `20,202 / 10 = 2,020.2`
 
-Average paid per ETH ~2,020 vs initial 2,000.
+She expected near 2,000 but paid average 2,020.2. That difference is slippage.
 
-## Numerical example B: larger trade
+## Example B: medium buy
 
-If Maya buys 100 ETH instead:
+Maya buys 50 ETH from original state.
 
-- New ETH reserve = 900
-- New USDC reserve = 2,222,222
-- USDC paid ~222,222
+- New ETH reserve: 950
+- New USDC reserve: `k / 950 = 2,105,263`
+- USDC paid: 105,263
+- Average price: 2,105.26
 
-Average price ~2,222/ETH.
+Bigger trade fraction -> bigger slippage.
 
-Much worse than initial quote. Bigger trade fraction => bigger slippage.
+## Example C: very large buy
 
-## Numerical example C: LP side
+Maya buys 200 ETH from original state.
 
-Assume total daily volume high and fee tier 0.3%.
+- New ETH reserve: 800
+- New USDC reserve: 2,500,000
+- USDC paid: 500,000
+- Average price: 2,500
 
-- Fee revenue rises with volume.
-- But if market trends strongly in one direction, LP inventory rebalances and may underperform holding.
+This is a large 25% reserve draw. Slippage explodes.
 
-LP outcome = fee income - inventory drag (+/- depending on path).
+### Key lesson
 
-## Uniswap v2 vs v3 vs v4
+Depth matters as much as fee tier. "Low fee" pool with shallow depth can still be expensive in execution.
 
-### v2
-Simple full-range pool.
+---
 
-### v3
-Concentrated liquidity ranges; higher capital efficiency, higher management complexity.
+## 6. Adding fees to the picture
 
-### v4
-Adds hooks, singleton architecture, flash accounting.
+Assume 0.3% fee.
 
-Interpretation for beginners: v4 is an extensibility platform, not automatically better execution.
+In practice, trader input is partially fee-adjusted before reserve update. Fee goes to LPs (plus any protocol fee slice).
 
-## Misconceptions
+For Maya:
 
-### "High fee tier means LP always better"
-No. Toxic flow and volatility path can dominate fee gains.
+- Cost = slippage cost + explicit fee
 
-### "Hook = guaranteed innovation upside"
-No. Hooks can introduce new attack and complexity surfaces.
+For LP:
 
-## Failure simulations
+- Revenue = fee inflow
+- Risk = inventory path exposure
 
-### Simulation 1: dynamic fee hook manipulation
+LP profitability is not same as fee APR headline.
 
-If hook raises fees based on a manipulable short-window metric, attacker may force metric spikes and exploit routing behavior.
+---
 
-### Simulation 2: thin liquidity + large order
+## 7. LP economics with the same scenario
 
-Execution deteriorates, arbitrage drains value, users get poor fills.
+Now Maya supplies liquidity instead of trading.
 
-## Practical protocol checklist
+### LP payoff decomposition
 
-1. Depth at relevant trade sizes?
-2. Fee model deterministic and robust?
-3. For v4 pools: hook audit quality and behavior clarity?
-4. Historical slippage distribution by market regime?
+LP outcome over period:
 
-## Explain-it-back Q&A
+1. Fees earned
+2. Inventory rebalancing effect
+3. External price path
 
-1. Why does slippage happen in AMMs?
-- Trade changes reserves; quote moves along formula curve.
+### Regime interpretation
 
-2. Who brings pool price back to market price?
+- Range-bound market: fee capture can dominate.
+- Strong trend market: inventory effect can dominate negatively.
+
+This is why LP returns must be evaluated by regime, not single averaged APR number.
+
+---
+
+## 8. Uniswap evolution: v2 -> v3 -> v4
+
+## v2
+
+- Full-range liquidity
+- Simpler LP behavior
+
+## v3
+
+- Concentrated liquidity ranges
+- Higher capital efficiency
+- More active position management
+
+## v4
+
+- Singleton architecture
+- Hooks around pool actions
+- Flash accounting patterns
+
+### Beginner-safe interpretation
+
+v4 does not automatically mean better prices. It means more programmable behavior. Better or worse depends on specific hook design and market conditions.
+
+---
+
+## 9. Hooks in plain language
+
+A hook is custom code called at defined moments (before/after swap or liquidity events).
+
+Possible uses:
+
+- dynamic fees
+- custom access checks
+- rebate logic
+- volatility-aware behavior
+
+Risk implication:
+
+- more custom power
+- more failure surface
+
+---
+
+## 10. Advanced worked examples (v4-style thinking)
+
+## Example D: dynamic fee hook
+
+Suppose pool sets:
+
+- 5 bps fee in calm volatility
+- 30 bps fee in high volatility
+
+If volatility estimator is robust:
+
+- LPs get compensation during toxic flow windows
+
+If estimator is manipulable:
+
+- attackers can trigger high-fee mode strategically and route around it or exploit user flow
+
+## Example E: router behavior
+
+Two pools offer same tokens:
+
+- Pool A: low fee, thin depth
+- Pool B: higher fee, deep depth
+
+For small size, Pool A wins.
+For large size, Pool B may win due to lower slippage.
+
+This is why routing must consider full execution curve, not fee alone.
+
+---
+
+## 11. Common beginner mistakes
+
+1. Comparing pools only by fee tier.
+2. Treating LP fee APR as guaranteed yield.
+3. Assuming any v4 hook is inherently useful.
+4. Ignoring execution size when quoting "best price".
+
+---
+
+## 12. Failure simulations
+
+## Simulation 1: liquidity shock
+
+A large LP exits suddenly. Depth halves.
+
+- previously acceptable trade sizes now incur severe slippage
+- users routing with stale assumptions overpay
+
+## Simulation 2: hook bug/economic exploit
+
+Hook has edge-case causing unexpected fee outcome.
+
+- traders may be overcharged or undercharged
+- LP payouts may deviate from intended economics
+- trust and volume can collapse quickly
+
+---
+
+## 13. Protocol teardown checklist for AMMs
+
+1. Depth profile at relevant notional sizes
+2. Slippage distribution by time regime
+3. LP return decomposition (fees vs inventory effect)
+4. Hook security + economic review (for v4)
+5. Arbitrage latency after external price jump
+
+---
+
+## 14. Explain-it-back Q&A (with concise answers)
+
+1. Why do AMMs have slippage?
+- Because trades alter reserve ratios, moving quotes along a curve.
+
+2. Who keeps AMM prices close to market prices?
 - Arbitrageurs.
 
-3. Why can LP lose despite earning fees?
-- Inventory path can hurt more than fee income in some regimes.
+3. Why is LP yield not equivalent to bank interest?
+- LP yield includes active market exposure and path-dependent inventory risk.
 
-4. What is the core promise of v4 hooks?
-- Customizable behavior around core pool actions.
+4. What does v4 add fundamentally?
+- Programmable behavior via hooks around core pool actions.
 
-5. What is the core risk of v4 hooks?
-- More complex logic surfaces for bugs or economic exploits.
+5. What is the biggest practical trading mistake for beginners?
+- Ignoring trade size relative to pool depth.
 
-## Bridge to Module 03
+---
 
-Now we move from trading pools to lending pools. Both are shared liquidity systems, but lending adds explicit debt, interest curves, and solvency accounting.
+## 15. Bridge to Module 03
+
+AMMs teach pooled inventory and price curves. Next module (lending/stablecoins) uses pooled liquidity too, but now the system tracks debt and solvency thresholds explicitly.
