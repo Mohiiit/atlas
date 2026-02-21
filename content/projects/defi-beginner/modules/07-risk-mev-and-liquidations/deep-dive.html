@@ -1,1 +1,50 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Module 07 Deep Dive</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"><style>:root{--bg:#f3f7f9;--surface:#fff;--text:#0d2431;--dim:#446377;--border:#d2e2eb;--accent:#0e7490;--ad:rgba(14,116,144,.12)}@media(prefers-color-scheme:dark){:root{--bg:#0c151b;--surface:#13232c;--text:#e0f5ff;--dim:#93b6c8;--border:#274251;--accent:#67e8f9;--ad:rgba(103,232,249,.15)}}*{box-sizing:border-box}body{margin:0;font-family:Merriweather,serif;background:var(--bg);color:var(--text);padding:28px}main{max-width:1020px;margin:0 auto}.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;margin:14px 0}h1{margin:0;font-size:34px}.sub{font:12px 'JetBrains Mono',monospace;color:var(--accent)}h2{font-size:24px;margin:0 0 6px}p,li{line-height:1.82;color:var(--dim)}ul,ol{margin:8px 0 0 18px}code{font-family:'JetBrains Mono',monospace;background:var(--ad);padding:2px 6px;border-radius:4px;color:var(--accent)}</style></head><body><main><h1>Module 07 Deep Dive: MEV and Liquidation Risk</h1><p class="sub">Execution-layer reality for DeFi protocols</p><section class="card"><h2>What MEV Means Without Buzzwords</h2><p>MEV is extra profit from controlling transaction ordering. If two people want same opportunity (arbitrage or liquidation), order decides winner.</p><p>This is similar to being first in line at a limited-stock sale.</p></section><section class="card"><h2>Why It Matters for Beginners</h2><p>You might think "my protocol math is correct, so I'm safe." Not enough. If execution layer is adversarial, users can still get poor fills and system can accumulate risk during congestion.</p></section><section class="card"><h2>Typical Cases</h2><ul><li><strong>Sandwich:</strong> attacker trades before and after victim to worsen victim execution.</li><li><strong>Backrun:</strong> attacker captures predictable post-trade arbitrage.</li><li><strong>Liquidation race:</strong> fastest bot wins liquidation bonus.</li></ul></section><section class="card"><h2>First-Principles Risk Question</h2><p>Can your protocol remain solvent if keepers are delayed by congestion for N blocks during a 25% move?</p><p>If not, parameter safety is weaker than it appears.</p></section><section class="card"><h2>What to Monitor</h2><ol><li>Liquidation completion time during stress.</li><li>Slippage and failed liquidations.</li><li>Frequency of sandwich patterns on key pools.</li></ol></section></main></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Module 07 Deep Dive - Risk, MEV, Liquidations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f3f7f9;--card:#fff;--text:#0d2431;--muted:#446377;--border:#d2e2eb;--accent:#0e7490;--ad:rgba(14,116,144,.12)}
+@media(prefers-color-scheme:dark){:root{--bg:#0c151b;--card:#13232c;--text:#e0f5ff;--muted:#93b6c8;--border:#274251;--accent:#67e8f9;--ad:rgba(103,232,249,.16)}}
+*{box-sizing:border-box}body{margin:0;font-family:Merriweather,serif;background:var(--bg);color:var(--text);padding:28px}
+main{max-width:980px;margin:0 auto}section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin:14px 0}
+h1{margin:0 0 8px;font-size:34px}h2{margin:0 0 6px;font-size:24px}.sub{font:12px JetBrains Mono,monospace;color:var(--accent)}
+p,li{line-height:1.82;color:var(--muted)}ul,ol{margin:8px 0 0 18px}code{font-family:JetBrains Mono,monospace;background:var(--ad);padding:2px 6px;border-radius:4px;color:var(--accent)}
+.qa{border-top:1px dashed var(--border);margin-top:10px;padding-top:10px}
+</style>
+</head>
+<body>
+<main>
+<h1>Module 07: Risk, MEV, and Liquidations (Beginner Deep Dive)</h1>
+<p class="sub">Mode: primer | Running example: Maya's swap + Arjun's liquidation event</p>
+
+<section><h2>1. Why This Topic Exists</h2><p>You can have perfect formulas and still produce bad outcomes if execution layer is adversarial. MEV and liquidation race dynamics determine who captures value and who absorbs losses in stress windows.</p><p><strong>Analogy:</strong> emergency exit in stadium. Rules exist, but crowd dynamics decide whether people exit safely.</p></section>
+
+<section><h2>2. Terms Before Mechanics</h2><ul><li><strong>MEV:</strong> profit from transaction ordering power.</li><li><strong>Sandwich:</strong> attacker trades before/after victim to extract value.</li><li><strong>Backrun:</strong> attacker captures predictable post-trade arbitrage.</li><li><strong>Keeper:</strong> bot/operator executing liquidations or arbitrage actions.</li><li><strong>Liquidation throughput:</strong> how much risky debt can be unwound per unit time.</li></ul></section>
+
+<section><h2>3. Running Example Setup</h2><p>Maya submits large swap. Arjun's leveraged position is near liquidation threshold. Network gets congested as volatility spikes.</p></section>
+
+<section><h2>4. Mechanism Walkthrough</h2><ol><li>User transactions enter mempool.</li><li>Searchers simulate profitable bundles.</li><li>Builders/validators choose ordering.</li><li>Liquidators race to close risky positions.</li><li>Protocol solvency depends on whether risk-off actions clear fast enough.</li></ol></section>
+
+<section><h2>5. Worked Example A (Swap Extraction)</h2><p>Maya expects execution cost 20,000. In sandwich event, effective cost becomes 20,350. Extra 350 is extraction from ordering manipulation.</p><p>Even if pool math is correct, execution outcome for user worsens.</p></section>
+
+<section><h2>6. Worked Example B (Liquidation Capacity Stress)</h2><p>System needs to liquidate 50M notional quickly. Normal keeper throughput = 8M per block equivalent. Congestion cuts it to 3M.</p><ul><li>Risk backlog grows.</li><li>Positions continue deteriorating while waiting.</li><li>Bad debt probability rises sharply.</li></ul></section>
+
+<section><h2>7. Misconception Correction</h2><p><strong>Misconception:</strong> “If liquidation logic exists, solvency is guaranteed.”</p><p><strong>Correction:</strong> logic must execute in time. Throughput and competition matter as much as formula.</p></section>
+
+<section><h2>8. Failure Modes</h2><ul><li><strong>Technical:</strong> keeper infrastructure outage.</li><li><strong>Technical:</strong> oracle delay during fast market moves.</li><li><strong>Economic:</strong> liquidation bonus too small for volatile conditions.</li><li><strong>Market structure:</strong> concentrated block building worsens extraction behavior.</li></ul></section>
+
+<section><h2>9. Protocol Evaluation Checklist</h2><ol><li>What is measured liquidation throughput under stress tests?</li><li>How often do liquidations fail or get delayed?</li><li>Are there anti-sandwich or private-orderflow options for users?</li><li>What fallback exists when mempool conditions degrade?</li></ol></section>
+
+<section><h2>10. Check Your Understanding (With Answers)</h2><ol><li>Can users lose from MEV without protocol bug?
+<div class="qa">Yes, ordering manipulation can worsen execution even with correct contracts.</div></li>
+<li>Why is liquidation throughput crucial?
+<div class="qa">It determines whether risk can be removed before collateral decays further.</div></li>
+<li>Is high liquidation bonus always good?
+<div class="qa">No. Too high can hurt borrowers; too low can fail to attract keepers. Balance is needed.</div></li>
+</ol></section>
+</main>
+</body>
+</html>

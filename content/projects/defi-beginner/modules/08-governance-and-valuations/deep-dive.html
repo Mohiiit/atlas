@@ -1,1 +1,51 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Module 08 Deep Dive</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"><style>:root{--bg:#f8f7ff;--surface:#fff;--text:#201a3f;--dim:#61588f;--border:#ddd8fa;--accent:#4338ca;--ad:rgba(67,56,202,.12)}@media(prefers-color-scheme:dark){:root{--bg:#141229;--surface:#1d1a36;--text:#ece9ff;--dim:#b8afe7;--border:#37305f;--accent:#a5b4fc;--ad:rgba(165,180,252,.16)}}*{box-sizing:border-box}body{margin:0;font-family:Merriweather,serif;background:var(--bg);color:var(--text);padding:28px}main{max-width:1020px;margin:0 auto}.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;margin:14px 0}h1{margin:0;font-size:34px}.sub{font:12px 'JetBrains Mono',monospace;color:var(--accent)}h2{font-size:24px;margin:0 0 6px}p,li{line-height:1.82;color:var(--dim)}ul,ol{margin:8px 0 0 18px}code{font-family:'JetBrains Mono',monospace;background:var(--ad);padding:2px 6px;border-radius:4px;color:var(--accent)}</style></head><body><main><h1>Module 08 Deep Dive: Governance and Token Valuation</h1><p class="sub">How control and cash flow create or destroy value</p><section class="card"><h2>Simple Start</h2><p>Imagine a business earns money. Value to shareholders depends on how much profit is distributed, reinvested, or wasted. DeFi governance is similar: tokenholders vote or delegate power to decide fee distribution, emissions, and treasury policy.</p></section><section class="card"><h2>Three Layers of Value</h2><ol><li><strong>Usage value:</strong> protocol generates fees from real activity.</li><li><strong>Capture value:</strong> what portion reaches tokenholders?</li><li><strong>Governance credibility:</strong> can policy be changed unpredictably by concentrated actors?</li></ol></section><section class="card"><h2>Running Numbers</h2><p>If protocol nets 120M/year and distributes 35%, then 42M reaches token stakers. With 300M circulating tokens, flow/token is 0.14 yearly before risk discount.</p><p>If distribution drops to 20%, flow/token becomes 0.08. Same usage, different token economics.</p></section><section class="card"><h2>Common Beginner Mistake</h2><p>Confusing "protocol volume" or "gross fees" with "tokenholder cash flow." Value accrual might be much smaller after incentives, emissions, and treasury allocation.</p></section><section class="card"><h2>Governance Risk Checklist</h2><ul><li>How concentrated are votes and delegates?</li><li>Can emergency powers bypass normal process?</li><li>Are upgrade keys decentralized and time-locked?</li></ul></section></main></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Module 08 Deep Dive - Governance and Valuation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f8f7ff;--card:#fff;--text:#201a3f;--muted:#61588f;--border:#ddd8fa;--accent:#4338ca;--ad:rgba(67,56,202,.12)}
+@media(prefers-color-scheme:dark){:root{--bg:#141229;--card:#1d1a36;--text:#ece9ff;--muted:#b8afe7;--border:#37305f;--accent:#a5b4fc;--ad:rgba(165,180,252,.16)}}
+*{box-sizing:border-box}body{margin:0;font-family:Merriweather,serif;background:var(--bg);color:var(--text);padding:28px}
+main{max-width:980px;margin:0 auto}section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin:14px 0}
+h1{margin:0 0 8px;font-size:34px}h2{margin:0 0 6px;font-size:24px}.sub{font:12px JetBrains Mono,monospace;color:var(--accent)}
+p,li{line-height:1.82;color:var(--muted)}ul,ol{margin:8px 0 0 18px}code{font-family:JetBrains Mono,monospace;background:var(--ad);padding:2px 6px;border-radius:4px;color:var(--accent)}
+.qa{border-top:1px dashed var(--border);margin-top:10px;padding-top:10px}
+</style>
+</head>
+<body>
+<main>
+<h1>Module 08: Governance and Valuation (Beginner Deep Dive)</h1>
+<p class="sub">Mode: primer | Running example: protocol treasury and tokenholders</p>
+
+<section><h2>1. Why This Topic Exists</h2><p>Protocols can have high usage but weak token value if cash flow is not captured by tokenholders. Governance decides this link. So valuation is not only “how much volume,” but “who controls distribution and risk policy.”</p></section>
+
+<section><h2>2. Terms Before Mechanics</h2><ul><li><strong>Gross fees:</strong> total fees collected from users.</li><li><strong>Net fees:</strong> gross fees minus costs/incentives.</li><li><strong>Fee capture:</strong> fraction of net fees reaching tokenholders.</li><li><strong>Treasury:</strong> protocol-owned reserve for operations/investment.</li><li><strong>Governance capture:</strong> concentrated control by few actors.</li><li><strong>Dilution:</strong> increase in token supply reducing per-token claim.</li></ul></section>
+
+<section><h2>3. Running Example Setup</h2><p>Protocol generates 120M net annual fees. Governance sets 35% to stakers, rest to treasury and incentives.</p><ul><li>Tokenholder flow: 42M</li><li>Circulating tokens: 300M</li><li>Flow per token: <code>0.14</code> yearly</li></ul></section>
+
+<section><h2>4. Mechanism Walkthrough</h2><ol><li>Protocol activity generates fees.</li><li>Costs/incentives paid out.</li><li>Governance decides allocation: distribute, retain, emit.</li><li>Market prices token based on expected future net capture and governance credibility.</li></ol></section>
+
+<section><h2>5. Worked Example A (Policy Shift)</h2><p>If distribution changes from 35% to 20%:</p><ul><li>Tokenholder flow drops from 42M to 24M.</li><li>Per token flow drops from 0.14 to 0.08.</li></ul><p>Same usage, lower direct token economics.</p></section>
+
+<section><h2>6. Worked Example B (Dilution Effect)</h2><p>Suppose 300M supply grows to 360M via emissions while tokenholder flow stays 42M:</p><ul><li>Per token flow becomes <code>42 / 360 = 0.1167</code></li>
+<li>Per-token claim declines even with stable protocol revenue.</li></ul></section>
+
+<section><h2>7. Misconception Correction</h2><p><strong>Misconception:</strong> “High TVL or volume automatically means token undervalued.”</p><p><strong>Correction:</strong> token value depends on capture rights, dilution path, and governance stability.</p></section>
+
+<section><h2>8. Failure Modes</h2><ul><li><strong>Governance concentration:</strong> few delegates can rewrite policy unpredictably.</li><li><strong>Treasury misuse:</strong> spending without measurable return.</li><li><strong>Upgrade key centralization:</strong> trust discount if control is effectively centralized.</li><li><strong>Unsustainable emissions:</strong> short-term growth, long-term value leakage.</li></ul></section>
+
+<section><h2>9. Protocol Evaluation Checklist</h2><ol><li>What % of net fees reaches tokenholders?</li><li>What is emission schedule and unlock overhang?</li><li>How concentrated are governance votes?</li><li>What emergency powers bypass normal governance?</li></ol></section>
+
+<section><h2>10. Check Your Understanding (With Answers)</h2><ol><li>Can token value lag protocol growth?
+<div class="qa">Yes, if fee capture is weak or dilution is high.</div></li>
+<li>Why does governance quality affect valuation multiple?
+<div class="qa">Because policy unpredictability raises risk premium.</div></li>
+<li>Is “revenue” enough to evaluate token economics?
+<div class="qa">No. Need tokenholder-accruing cash flow and supply dynamics.</div></li>
+</ol></section>
+</main>
+</body>
+</html>

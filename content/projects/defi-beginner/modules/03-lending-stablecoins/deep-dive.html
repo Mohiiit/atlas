@@ -1,1 +1,51 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Module 03 Deep Dive</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"><style>:root{--bg:#f6fcf5;--surface:#fff;--text:#172916;--dim:#4f6e53;--border:#d7ead6;--accent:#3f6212;--ad:rgba(63,98,18,.11)}@media(prefers-color-scheme:dark){:root{--bg:#101c12;--surface:#1a2a1c;--text:#e3f4e5;--dim:#98b99d;--border:#2d4532;--accent:#a3e635;--ad:rgba(163,230,53,.14)}}*{box-sizing:border-box}body{margin:0;font-family:Merriweather,serif;background:var(--bg);color:var(--text);padding:28px}main{max-width:1020px;margin:0 auto}.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;margin:14px 0}h1{margin:0;font-size:34px}.sub{font:12px 'JetBrains Mono',monospace;color:var(--accent)}h2{font-size:24px;margin:0 0 6px}p,li{line-height:1.8;color:var(--dim)}ul,ol{margin:8px 0 0 18px}code{font-family:'JetBrains Mono',monospace;background:var(--ad);padding:2px 6px;border-radius:4px;color:var(--accent)}</style></head><body><main><h1>Module 03 Deep Dive: Lending and Stablecoins</h1><p class="sub">How pooled lending actually works and why stablecoins can depeg</p><section class="card"><h2>Lending Pool Basics</h2><p>Imagine many savers (like Maya) deposit funds into one shared pool. Borrowers (like Arjun) borrow from that pool. Interest paid by borrowers is distributed to depositors after protocol fees.</p><p>Unlike a fixed bank rate, DeFi rates often depend on utilization: how much of pool is borrowed right now.</p></section><section class="card"><h2>Utilization Explained Like a Water Tank</h2><p>If tank is almost full (low utilization), borrowing is easy, so rate can be lower. If tank is almost empty (high utilization), borrowing should be expensive to prevent exhaustion and attract new deposits.</p><p>This is why many protocols have a "kink" in rate curves: after a utilization threshold, rates rise sharply.</p></section><section class="card"><h2>Stablecoin from Collateral</h2><p>A protocol can let users lock collateral and mint a stablecoin. Example: Maya locks ETH worth 150 and mints 100 stable tokens. If ETH falls too much, system liquidates to keep minted stable tokens backed.</p><p>The peg (around $1) survives if users trust redemption paths and liquidation keeps system solvent.</p></section><section class="card"><h2>Why Depeg Happens</h2><ul><li>Collateral drops faster than liquidations can clear.</li><li>Oracle delays cause late risk response.</li><li>Redemption path gets congested or capped.</li><li>Confidence shock: users all exit at once.</li></ul><p>So "peg stability" is not only math. It is market depth, keeper speed, oracle quality, and user trust combined.</p></section><section class="card"><h2>Beginner Checklist</h2><ol><li>Where does lender yield come from?</li><li>What collateral types back borrowed value?</li><li>How quickly can risky positions be liquidated?</li><li>What happens if a top collateral asset drops 30% in one hour?</li></ol></section></main></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Module 03 Deep Dive - Lending and Stablecoins</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f6fcf5;--card:#fff;--text:#172916;--muted:#4f6e53;--border:#d8ead6;--accent:#3f6212;--ad:rgba(63,98,18,.12)}
+@media(prefers-color-scheme:dark){:root{--bg:#101c12;--card:#1a2a1c;--text:#e4f5e5;--muted:#97b89c;--border:#2d4431;--accent:#a3e635;--ad:rgba(163,230,53,.16)}}
+*{box-sizing:border-box}body{margin:0;font-family:Merriweather,serif;background:var(--bg);color:var(--text);padding:28px}
+main{max-width:980px;margin:0 auto}section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin:14px 0}
+h1{margin:0 0 8px;font-size:34px}h2{margin:0 0 6px;font-size:24px}.sub{font:12px JetBrains Mono,monospace;color:var(--accent)}
+p,li{line-height:1.82;color:var(--muted)}ul,ol{margin:8px 0 0 18px}code{font-family:JetBrains Mono,monospace;background:var(--ad);padding:2px 6px;border-radius:4px;color:var(--accent)}
+.qa{border-top:1px dashed var(--border);margin-top:10px;padding-top:10px}
+</style>
+</head>
+<body>
+<main>
+<h1>Module 03: Lending and Stablecoins (Beginner Deep Dive)</h1>
+<p class="sub">Mode: primer | Running example: Maya supplies, Arjun borrows</p>
+
+<section><h2>1. Why This Topic Exists</h2><p>Not everyone needs to trade. Many users simply want to earn on idle assets or borrow without selling assets they hold long-term. Lending protocols and stablecoins provide this function onchain.</p><p><strong>Analogy:</strong> a neighborhood credit pool: savers deposit, borrowers draw funds, rules enforce repayment safety.</p></section>
+
+<section><h2>2. Terms Before Mechanics</h2><ul><li><strong>Supply:</strong> deposit assets into a lending pool to earn yield.</li><li><strong>Borrow:</strong> take assets from pool and pay interest.</li><li><strong>Utilization:</strong> borrowed amount divided by total supplied amount.</li><li><strong>Kink model:</strong> interest curve that rises sharply past a threshold utilization.</li><li><strong>Stablecoin:</strong> token designed to track a target value (often $1).</li><li><strong>Depeg:</strong> stablecoin price deviates materially from target.</li></ul></section>
+
+<section><h2>3. Running Example Setup</h2><p>Maya deposits 100,000 USDC into a lending pool. Arjun borrows 60,000 USDC for business operations using collateral.</p><ul><li>Total supply: 100,000</li><li>Total borrowed: 60,000</li><li>Utilization: <code>60%</code></li></ul></section>
+
+<section><h2>4. Mechanism Walkthrough</h2><ol><li>Suppliers deposit liquidity.</li><li>Borrowers draw liquidity if collateral constraints pass.</li><li>Protocol recomputes utilization continuously.</li><li>Borrow APR adjusts by rate model.</li><li>Borrowers repay with interest; suppliers earn yield share.</li><li>If borrower health drops, liquidation reduces risk.</li></ol><p>Who pays whom?</p><ul><li>Borrowers pay interest.</li><li>Suppliers receive interest after protocol cut.</li><li>Liquidators earn discount/bonus for risk-off actions.</li></ul></section>
+
+<section><h2>5. Worked Example A (Rate Dynamics)</h2><p>Suppose kink at 80% utilization:</p><ul><li>At 60%, borrow APR maybe 6%.</li><li>At 85%, borrow APR might jump to 14%.</li><li>At 95%, borrow APR might spike to 30%+.</li></ul><p>Why? High utilization means little spare liquidity; higher rates discourage more borrowing and attract supply.</p></section>
+
+<section><h2>6. Worked Example B (Stablecoin Stress)</h2><p>Arjun borrowed 60,000 against volatile collateral. If collateral value drops 25% quickly and liquidation is delayed:</p><ul><li>Recovered collateral may not fully cover debt.</li><li>Pool can accumulate bad debt.</li><li>If stablecoin relies on this collateral quality, peg trust weakens.</li></ul><p>This is how lending stress can spill into stablecoin stress.</p></section>
+
+<section><h2>7. Misconception Correction</h2><p><strong>Misconception:</strong> “Stablecoin at $1 today means it is always safe.”</p><p><strong>Correction:</strong> peg stability is an ongoing process. It depends on collateral quality, liquidations, redemptions, and market trust.</p></section>
+
+<section><h2>8. Failure Modes</h2><ul><li><strong>Technical:</strong> oracle lag misprices collateral.</li><li><strong>Technical:</strong> liquidation bot downtime.</li><li><strong>Economic:</strong> correlated collateral crash overwhelms liquidation capacity.</li><li><strong>Economic:</strong> liquidity flight raises redemption pressure and widens depeg.</li></ul></section>
+
+<section><h2>9. Protocol Evaluation Checklist</h2><ol><li>What is utilization behavior during stress?</li><li>How much liquidation volume can clear per block/minute?</li><li>How diverse and liquid is collateral set?</li><li>What are redemption guarantees for stablecoin users?</li></ol></section>
+
+<section><h2>10. Check Your Understanding (With Answers)</h2><ol><li>Why is high utilization risky?
+<div class="qa">Pool has low spare liquidity and becomes fragile; rate spikes are needed to rebalance.</div></li>
+<li>What does liquidation prevent?
+<div class="qa">Borrower insolvency from becoming protocol-wide bad debt.</div></li>
+<li>Can a stablecoin depeg without a code bug?
+<div class="qa">Yes, through market stress, liquidity crunch, and confidence breakdown.</div></li>
+</ol></section>
+</main>
+</body>
+</html>

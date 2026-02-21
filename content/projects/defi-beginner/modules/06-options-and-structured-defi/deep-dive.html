@@ -1,1 +1,50 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Module 06 Deep Dive</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"><style>:root{--bg:#fffdf3;--surface:#fff;--text:#3a2b00;--dim:#74663e;--border:#efe3bd;--accent:#ca8a04;--ad:rgba(202,138,4,.12)}@media(prefers-color-scheme:dark){:root{--bg:#201706;--surface:#2f230a;--text:#fff7d9;--dim:#d4c389;--border:#473916;--accent:#facc15;--ad:rgba(250,204,21,.15)}}*{box-sizing:border-box}body{margin:0;font-family:Merriweather,serif;background:var(--bg);color:var(--text);padding:28px}main{max-width:1020px;margin:0 auto}.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;margin:14px 0}h1{margin:0;font-size:34px}.sub{font:12px 'JetBrains Mono',monospace;color:var(--accent)}h2{font-size:24px;margin:0 0 6px}p,li{line-height:1.82;color:var(--dim)}ul,ol{margin:8px 0 0 18px}code{font-family:'JetBrains Mono',monospace;background:var(--ad);padding:2px 6px;border-radius:4px;color:var(--accent)}</style></head><body><main><h1>Module 06 Deep Dive: Options and Structured DeFi</h1><p class="sub">Why "yield" products often hide option risk</p><section class="card"><h2>Option in One Sentence</h2><p>An option gives right (not obligation) to buy/sell an asset at a fixed price by a given time. Option seller gets premium now and takes contingent risk later.</p></section><section class="card"><h2>Covered Call Example (Beginner-Friendly)</h2><p>Maya owns 1 ETH. She sells a call option with strike 2,500 and receives premium 80.</p><ul><li>If ETH ends at 2,300: option not exercised; she keeps ETH + 80.</li><li>If ETH ends at 2,900: upside above strike is mostly sacrificed.</li></ul><p>So extra yield comes from giving up some upside potential.</p></section><section class="card"><h2>What Structured Vaults Do</h2><p>Structured DeFi products bundle repeated option actions into one vault UX. Good for simplicity, but you must still understand underlying payoff shape. Smooth historical chart can hide large tail risk.</p></section><section class="card"><h2>Beginner Terms</h2><ul><li><strong>Strike:</strong> fixed exercise price.</li><li><strong>Expiry:</strong> option end date.</li><li><strong>Premium:</strong> upfront price paid for option.</li><li><strong>Implied Volatility:</strong> market's expected future volatility, embedded in option price.</li></ul></section><section class="card"><h2>Questions Before Using a Vault</h2><ol><li>Where exactly does yield come from?</li><li>In which scenario does strategy underperform spot heavily?</li><li>How often and how is strike reset?</li></ol></section></main></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Module 06 Deep Dive - Options and Structured DeFi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#fffdf3;--card:#fff;--text:#392a00;--muted:#74663e;--border:#efe3bd;--accent:#ca8a04;--ad:rgba(202,138,4,.12)}
+@media(prefers-color-scheme:dark){:root{--bg:#201706;--card:#2f230a;--text:#fff7d9;--muted:#d4c389;--border:#473916;--accent:#facc15;--ad:rgba(250,204,21,.16)}}
+*{box-sizing:border-box}body{margin:0;font-family:Merriweather,serif;background:var(--bg);color:var(--text);padding:28px}
+main{max-width:980px;margin:0 auto}section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin:14px 0}
+h1{margin:0 0 8px;font-size:34px}h2{margin:0 0 6px;font-size:24px}.sub{font:12px JetBrains Mono,monospace;color:var(--accent)}
+p,li{line-height:1.82;color:var(--muted)}ul,ol{margin:8px 0 0 18px}code{font-family:JetBrains Mono,monospace;background:var(--ad);padding:2px 6px;border-radius:4px;color:var(--accent)}
+.qa{border-top:1px dashed var(--border);margin-top:10px;padding-top:10px}
+</style>
+</head>
+<body>
+<main>
+<h1>Module 06: Options and Structured DeFi (Beginner Deep Dive)</h1>
+<p class="sub">Mode: primer | Running example: Maya uses covered-call vault</p>
+
+<section><h2>1. Why This Topic Exists</h2><p>Many users want “higher yield” than simple lending. Structured products offer this by packaging option strategies. The tradeoff: smoother income often comes from taking hidden downside or capped upside.</p><p><strong>Analogy:</strong> renting out your car for income. You earn rent, but give up flexibility and accept wear/risk.</p></section>
+
+<section><h2>2. Terms Before Mechanics</h2><ul><li><strong>Option:</strong> contract granting right to buy/sell at pre-set price.</li><li><strong>Call option:</strong> right to buy asset at strike price.</li><li><strong>Strike:</strong> fixed exercise price.</li><li><strong>Premium:</strong> upfront payment for option.</li><li><strong>Covered call:</strong> own asset and sell call on it.</li><li><strong>Implied volatility:</strong> market's expected volatility embedded in option price.</li></ul></section>
+
+<section><h2>3. Running Example Setup</h2><p>Maya owns 1 ETH. She deposits into a vault that sells monthly call option at strike 2,500 and collects premium 80 USDC.</p></section>
+
+<section><h2>4. Mechanism Walkthrough</h2><ol><li>Users deposit underlying asset.</li><li>Vault sells options periodically.</li><li>Vault receives premium and tracks liabilities.</li><li>At expiry, settlement depends on spot vs strike.</li><li>Vault distributes resulting performance to depositors.</li></ol></section>
+
+<section><h2>5. Worked Example A (Calm/Flat Market)</h2><p>ETH settles at 2,300 (below strike 2,500).</p><ul><li>Call expires unexercised.</li><li>Maya keeps ETH exposure.</li><li>Premium 80 is retained as extra return.</li></ul></section>
+
+<section><h2>6. Worked Example B (Strong Uptrend)</h2><p>ETH settles at 2,900 (above strike).</p><ul><li>Upside above strike mostly given away due to call obligation.</li><li>Maya earns premium but underperforms simply holding ETH in strong rally.</li></ul><p>Lesson: premium income is payment for giving away some upside.</p></section>
+
+<section><h2>7. Misconception Correction</h2><p><strong>Misconception:</strong> “Option vault APY is free yield.”</p><p><strong>Correction:</strong> yield comes from selling future upside or taking convexity risk. It is compensation, not free money.</p></section>
+
+<section><h2>8. Failure Modes</h2><ul><li><strong>Technical:</strong> bad strike selection logic or execution bugs.</li><li><strong>Market:</strong> violent uptrend causes repeated opportunity loss.</li><li><strong>Liquidity:</strong> option market depth poor at roll time.</li><li><strong>Model risk:</strong> volatility assumptions break during regime shift.</li></ul></section>
+
+<section><h2>9. Protocol Evaluation Checklist</h2><ol><li>How are strike and expiry selected?</li><li>How transparent is payoff decomposition?</li><li>How does strategy perform vs spot in uptrend/downtrend/chop?</li><li>What safeguards exist around roll execution quality?</li></ol></section>
+
+<section><h2>10. Check Your Understanding (With Answers)</h2><ol><li>What is the income source in covered-call vaults?
+<div class="qa">Option premium from selling call options.</div></li>
+<li>When does strategy most clearly underperform spot?
+<div class="qa">Strong upside trends where upside is capped by sold calls.</div></li>
+<li>Why can smooth backtests be misleading?
+<div class="qa">They may not include harsh volatility regime shifts and tail paths.</div></li>
+</ol></section>
+</main>
+</body>
+</html>

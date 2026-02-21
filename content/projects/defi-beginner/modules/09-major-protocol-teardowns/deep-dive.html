@@ -1,1 +1,50 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Module 09 Deep Dive</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"><style>:root{--bg:#f4fbf9;--surface:#fff;--text:#12342e;--dim:#3f6d64;--border:#cde8e1;--accent:#0f766e;--ad:rgba(15,118,110,.12)}@media(prefers-color-scheme:dark){:root{--bg:#0f1f1d;--surface:#17302d;--text:#dff7f2;--dim:#9ccbc2;--border:#28524d;--accent:#5eead4;--ad:rgba(94,234,212,.16)}}*{box-sizing:border-box}body{margin:0;font-family:Merriweather,serif;background:var(--bg);color:var(--text);padding:28px}main{max-width:1020px;margin:0 auto}.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;margin:14px 0}h1{margin:0;font-size:34px}.sub{font:12px 'JetBrains Mono',monospace;color:var(--accent)}h2{font-size:24px;margin:0 0 6px}p,li{line-height:1.82;color:var(--dim)}ul,ol{margin:8px 0 0 18px}code{font-family:'JetBrains Mono',monospace;background:var(--ad);padding:2px 6px;border-radius:4px;color:var(--accent)}</style></head><body><main><h1>Module 09 Deep Dive: Protocol Teardown Method</h1><p class="sub">How to compare real protocols without getting lost in branding</p><section class="card"><h2>Why Teardowns Matter</h2><p>After learning individual concepts, you need a repeatable method for comparing live systems. This module gives that method so you can analyze any new protocol launch quickly.</p></section><section class="card"><h2>Teardown Template</h2><ol><li>State map: what are key balances, debts, positions, and risk metrics?</li><li>Action map: what can users/keepers/governance do?</li><li>Invariant map: what must stay true for solvency and fairness?</li><li>PnL map: who pays whom in normal and stress conditions?</li><li>Failure map: what breaks first under volatility and congestion?</li></ol></section><section class="card"><h2>Apply to Your End Goals</h2><ul><li><strong>Uniswap v4:</strong> compare plain pools vs custom hooks. What new edge and new risk do hooks create?</li><li><strong>Perps:</strong> compare matching and liquidation models in Hyperliquid, dYdX, GMX.</li><li><strong>Prediction markets:</strong> compare question quality and dispute flow in Polymarket vs Augur-style models.</li></ul></section><section class="card"><h2>Deliverables You Should Write</h2><ol><li>2-page memo per protocol family</li><li>State-transition diagram</li><li>Failure mode table with severity and likelihood</li><li>One concrete design improvement proposal</li></ol></section></main></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Module 09 Deep Dive - Protocol Teardowns</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f4fbf9;--card:#fff;--text:#12342e;--muted:#3f6d64;--border:#cde8e1;--accent:#0f766e;--ad:rgba(15,118,110,.12)}
+@media(prefers-color-scheme:dark){:root{--bg:#0f1f1d;--card:#17302d;--text:#dff7f2;--muted:#9ccbc2;--border:#28524d;--accent:#5eead4;--ad:rgba(94,234,212,.16)}}
+*{box-sizing:border-box}body{margin:0;font-family:Merriweather,serif;background:var(--bg);color:var(--text);padding:28px}
+main{max-width:980px;margin:0 auto}section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin:14px 0}
+h1{margin:0 0 8px;font-size:34px}h2{margin:0 0 6px;font-size:24px}.sub{font:12px JetBrains Mono,monospace;color:var(--accent)}
+p,li{line-height:1.82;color:var(--muted)}ul,ol{margin:8px 0 0 18px}code{font-family:JetBrains Mono,monospace;background:var(--ad);padding:2px 6px;border-radius:4px;color:var(--accent)}
+.qa{border-top:1px dashed var(--border);margin-top:10px;padding-top:10px}
+</style>
+</head>
+<body>
+<main>
+<h1>Module 09: Major Protocol Teardowns (Beginner Deep Dive)</h1>
+<p class="sub">Mode: bridge | Apply one repeatable method across major protocols</p>
+
+<section><h2>1. Why This Topic Exists</h2><p>You now know components. This module teaches how to evaluate full systems consistently. Without a teardown method, analysis becomes narrative-driven and inconsistent.</p></section>
+
+<section><h2>2. Teardown Terms</h2><ul><li><strong>State map:</strong> key balances, debts, liquidity, open interest.</li><li><strong>Action map:</strong> user/keeper/governance operations.</li><li><strong>Invariant map:</strong> non-negotiable safety conditions.</li><li><strong>PnL map:</strong> who earns and who absorbs losses.</li><li><strong>Trust map:</strong> offchain dependencies and governance controls.</li></ul></section>
+
+<section><h2>3. Running Example: One Template, Three Domains</h2><p>Apply same template to:</p><ul><li>Uniswap v4 (AMM + hooks)</li><li>Perp protocol (Hyperliquid/dYdX/GMX)</li><li>Prediction market (Polymarket/Augur-style)</li></ul><p>If template cannot explain a protocol clearly, your model is incomplete.</p></section>
+
+<section><h2>4. Step-by-Step Teardown Workflow</h2><ol><li>List state variables.</li><li>List primary state transitions.</li><li>Write invariants with break conditions.</li><li>Trace normal-case cash flows.</li><li>Run stress scenario and observe first break.</li><li>Document governance intervention paths.</li></ol></section>
+
+<section><h2>5. Worked Example A (Uniswap v4 Lens)</h2><p>State: pool reserves, LP positions, fee config, hook state.</p><p>Break lens: can hook logic alter expected accounting or create exploitable sequencing?</p><p>Cashflow lens: traders pay fee -> LPs + possible hook-directed splits.</p></section>
+
+<section><h2>6. Worked Example B (Perp Lens)</h2><p>State: open interest, collateral balances, insurance fund, funding index.</p><p>Break lens: sharp move + congestion -> liquidation backlog -> insurance drawdown.</p><p>Cashflow lens: funding transfers, trading fees, liquidation penalties.</p></section>
+
+<section><h2>7. Misconception Correction</h2><p><strong>Misconception:</strong> “Best protocol is the one with highest volume.”</p><p><strong>Correction:</strong> volume without risk quality can be fragile. Robustness under stress matters more than peak activity.</p></section>
+
+<section><h2>8. Failure Modes to Compare Across Protocols</h2><ul><li>Oracle dependency failures</li><li>Execution congestion / delayed liquidations</li><li>Governance override abuse</li><li>Incentive misalignment under volatility</li></ul></section>
+
+<section><h2>9. Capstone Deliverables</h2><ol><li>2-page memo per protocol family</li><li>State transition diagram</li><li>Failure table (severity + likelihood + mitigation)</li><li>One improvement proposal with tradeoff discussion</li></ol></section>
+
+<section><h2>10. Check Your Understanding (With Answers)</h2><ol><li>Why use same teardown template across domains?
+<div class="qa">Consistency prevents narrative bias and exposes real design differences.</div></li>
+<li>What is often the first thing to break in stress?
+<div class="qa">Execution capacity and risk-off throughput, not headline formulas.</div></li>
+<li>What makes an improvement proposal credible?
+<div class="qa">Clear mechanism change + explicit tradeoffs + measurable expected impact.</div></li>
+</ol></section>
+</main>
+</body>
+</html>
