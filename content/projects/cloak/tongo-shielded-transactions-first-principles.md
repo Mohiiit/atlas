@@ -1,9 +1,5 @@
 # Tongo Shielded Transactions on Starknet — First Principles Guide
 
-## Who this is for
-
-This note is for a fresh CS graduate who knows basic crypto terms (public/private key, signatures, hashing) but is new to privacy protocols.
-
 Goal: explain **how Tongo can provide private balances/transfers on a fully public network like Starknet**.
 
 ---
