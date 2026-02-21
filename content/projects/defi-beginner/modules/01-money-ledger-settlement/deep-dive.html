@@ -1,1 +1,132 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Module 01 Deep Dive</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"><style>:root{--bg:#fff9f4;--surface:#fff;--text:#2a2015;--dim:#6e5c46;--border:#ecdcc8;--accent:#9a3412;--ad:rgba(154,52,18,.12)}@media(prefers-color-scheme:dark){:root{--bg:#1a140f;--surface:#261c15;--text:#f6eadf;--dim:#b9a58e;--border:#3f3024;--accent:#fb923c;--ad:rgba(251,146,60,.14)}}*{box-sizing:border-box}body{margin:0;font-family:Merriweather,serif;background:var(--bg);color:var(--text);padding:28px}main{max-width:1020px;margin:0 auto}.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;margin:14px 0}h1{margin:0;font-size:34px}.sub{font:12px 'JetBrains Mono',monospace;color:var(--accent)}h2{font-size:24px;margin:0 0 6px}p,li{line-height:1.8;color:var(--dim)}ul,ol{margin:8px 0 0 18px}code{font-family:'JetBrains Mono',monospace;background:var(--ad);padding:2px 6px;border-radius:4px;color:var(--accent)}</style></head><body><main><h1>Module 01 Deep Dive: Collateral, Debt, and Settlement</h1><p class="sub">No finance background assumed</p><section class="card"><h2>What Is Collateral in Daily Life?</h2><p>Suppose you take a home loan. The bank gives you money because the house itself is collateral. If you stop paying, the bank can recover part of the loan by taking/selling the house. Collateral is therefore a safety asset backing a promise.</p><p>In DeFi, collateral is often crypto (ETH, BTC-like assets, liquid staking tokens). You lock it in a smart contract to borrow something else.</p></section><section class="card"><h2>Our Running Example</h2><p>Maya deposits 150 units of value as collateral and borrows 100 units. Her initial collateral ratio is <code>150 / 100 = 150%</code>. If protocol minimum is 125%, she is safe for now.</p><p>Now market falls. Collateral value drops from 150 to 120. Ratio becomes <code>120 / 100 = 120%</code>. She is below minimum. Position can be liquidated.</p></section><section class="card"><h2>What Liquidation Really Means</h2><p>Liquidation is forced risk reduction, not punishment for its own sake. A third party pays part of Maya's debt and receives part of her collateral at a discount. This discount is the economic incentive to keep the system solvent.</p><p>If no one liquidates in time, debt can exceed recoverable collateral. That is bad debt, and system health deteriorates.</p></section><section class="card"><h2>Settlement and Finality (Simple View)</h2><p>Settlement means balances are actually updated onchain. Finality means those updates are effectively irreversible after enough block confirmations.</p><p>If a system depends on fast reaction but chain is congested, settlement delay itself becomes risk.</p></section><section class="card"><h2>Key Terms in This Module</h2><ul><li><strong>Borrow:</strong> take an existing asset and owe it back.</li><li><strong>Mint:</strong> create a new protocol token against collateral.</li><li><strong>Collateral Ratio:</strong> collateral value divided by debt value.</li><li><strong>Liquidation Threshold:</strong> minimum safe ratio.</li><li><strong>Bad Debt:</strong> debt that remains after collateral is exhausted.</li></ul></section><section class="card"><h2>Check Yourself</h2><ol><li>If ratio falls below threshold, what action must happen first to protect solvency?</li><li>Why does liquidation need an incentive discount?</li><li>How can oracle delay create losses even when formulas are correct?</li></ol></section></main></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Module 01 Deep Dive - Money, Ledger, Settlement</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#fff9f3;--card:#fff;--text:#2a2117;--muted:#6b5b48;--border:#eadcc9;--accent:#9a3412;--ad:rgba(154,52,18,.12)}
+@media(prefers-color-scheme:dark){:root{--bg:#1a140f;--card:#251d16;--text:#f7ebe0;--muted:#b9a48e;--border:#3f3124;--accent:#fb923c;--ad:rgba(251,146,60,.15)}}
+*{box-sizing:border-box} body{margin:0;font-family:Merriweather,serif;background:var(--bg);color:var(--text);padding:28px}
+main{max-width:980px;margin:0 auto} section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin:14px 0}
+h1{margin:0 0 8px;font-size:34px}h2{margin:0 0 6px;font-size:24px}.sub{font:12px JetBrains Mono,monospace;color:var(--accent)}
+p,li{line-height:1.8;color:var(--muted)} ul,ol{margin:8px 0 0 18px} code{font-family:JetBrains Mono,monospace;background:var(--ad);padding:2px 6px;border-radius:4px;color:var(--accent)}
+.qa{border-top:1px dashed var(--border);margin-top:10px;padding-top:10px}
+</style>
+</head>
+<body>
+<main>
+<h1>Module 01: Money, Ledger, and Settlement (Beginner Deep Dive)</h1>
+<p class="sub">Mode: primer | Running example: Maya (saver) and Arjun (borrower)</p>
+
+<section>
+<h2>1. Why This Topic Exists</h2>
+<p>The core problem is simple: one person has idle money, another person needs money now. In normal life, banks connect them. In DeFi, smart contracts do that job with public rules. If you understand this module, you can decode almost every DeFi system later.</p>
+<p><strong>House loan analogy:</strong> a bank gives you money because your house is collateral. In DeFi, you lock crypto instead of a house.</p>
+</section>
+
+<section>
+<h2>2. Term Unpacking (Plain First)</h2>
+<ul>
+<li><strong>Collateral:</strong> safety asset locked to back your debt. Example: house in home loan, ETH in DeFi loan.</li>
+<li><strong>Borrow:</strong> take an existing asset and owe repayment.</li>
+<li><strong>Mint (in this context):</strong> protocol creates a token against your collateral (often stablecoin).</li>
+<li><strong>Settlement:</strong> final balance update onchain.</li>
+<li><strong>Liquidation:</strong> forced debt reduction when safety ratio gets too low.</li>
+</ul>
+<p><strong>Technical shorthand:</strong> many systems track <code>collateral value / debt value</code>. If this drops below threshold, liquidation can start.</p>
+</section>
+
+<section>
+<h2>3. Running Example Setup</h2>
+<p>Maya has ETH worth $15,000 and wants liquidity without selling ETH. Arjun is unrelated here; we will use him more in lending modules. Maya locks ETH worth $15,000 and borrows $10,000 stablecoins.</p>
+<ul>
+<li>Initial collateral ratio: <code>15,000 / 10,000 = 150%</code></li>
+<li>Protocol minimum safe ratio: <code>125%</code></li>
+<li>Maya is safe initially.</li>
+</ul>
+</section>
+
+<section>
+<h2>4. Mechanism Walkthrough (State Changes)</h2>
+<ol>
+<li><strong>Deposit collateral:</strong> state records locked asset amount.</li>
+<li><strong>Borrow/mint:</strong> state records debt amount.</li>
+<li><strong>Price updates:</strong> oracle updates collateral valuation.</li>
+<li><strong>Risk check:</strong> protocol recomputes ratio or health factor.</li>
+<li><strong>If unsafe:</strong> liquidator repays part of debt and receives discounted collateral.</li>
+</ol>
+<p>Who pays whom?</p>
+<ul>
+<li>Borrower pays interest/fees.</li>
+<li>Liquidator pays debt portion upfront and receives collateral discount reward.</li>
+<li>Protocol may collect a fee slice.</li>
+</ul>
+</section>
+
+<section>
+<h2>5. Worked Example A (Normal Case)</h2>
+<p>Maya borrows $10,000 against $15,000 collateral. Market drops only 5%.</p>
+<ul>
+<li>New collateral value: <code>15,000 * 0.95 = 14,250</code></li>
+<li>New ratio: <code>14,250 / 10,000 = 142.5%</code></li>
+<li>Still above 125%, so no liquidation.</li>
+</ul>
+<p>Takeaway: small moves are tolerable because overcollateralization creates a buffer.</p>
+</section>
+
+<section>
+<h2>6. Worked Example B (Stress Case)</h2>
+<p>Now market drops 25% quickly.</p>
+<ul>
+<li>New collateral value: <code>15,000 * 0.75 = 11,250</code></li>
+<li>Ratio: <code>11,250 / 10,000 = 112.5%</code></li>
+<li>Below 125%, liquidation eligible.</li>
+</ul>
+<p>If liquidator repays $3,000 debt and gets collateral worth $3,300 (10% bonus), Maya debt falls but collateral also falls. This is painful for Maya but protects protocol solvency.</p>
+</section>
+
+<section>
+<h2>7. Common Misconception (Corrected)</h2>
+<p><strong>Misconception:</strong> “If the smart contract is secure, my position is automatically safe.”</p>
+<p><strong>Correction:</strong> contract security is only one layer. You still face market risk, oracle risk, and liquidation timing risk.</p>
+</section>
+
+<section>
+<h2>8. Failure Modes (Technical vs Economic)</h2>
+<ul>
+<li><strong>Technical:</strong> oracle outage delays ratio updates.</li>
+<li><strong>Technical:</strong> chain congestion delays liquidation transactions.</li>
+<li><strong>Economic:</strong> market falls faster than liquidators can absorb.</li>
+<li><strong>Economic:</strong> liquidation incentives too low to attract keepers.</li>
+</ul>
+</section>
+
+<section>
+<h2>9. Check Your Understanding (With Answers)</h2>
+<ol>
+<li>Why require more collateral than debt?
+<div class="qa">To absorb collateral volatility and keep debt likely recoverable.</div></li>
+<li>If ratio drops below threshold, what protects protocol first?
+<div class="qa">Liquidation process, not borrower goodwill.</div></li>
+<li>Can a protocol be hacked if no code bug exists?
+<div class="qa">Economically yes, through oracle manipulation, congestion, or poor incentives.</div></li>
+</ol>
+</section>
+
+<section>
+<h2>10. Summary in 5 Bullets</h2>
+<ul>
+<li>Collateral is a safety deposit backing debt.</li>
+<li>DeFi settlement is public and rule-driven.</li>
+<li>Overcollateralization buys time against volatility.</li>
+<li>Liquidation is solvency machinery, not moral judgment.</li>
+<li>Real safety depends on code + markets + execution.</li>
+</ul>
+</section>
+</main>
+</body>
+</html>

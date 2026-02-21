@@ -1,1 +1,118 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Module 05 Deep Dive</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"><style>:root{--bg:#f6f3ff;--surface:#fff;--text:#2a1762;--dim:#5d4fa2;--border:#ddd5ff;--accent:#6d28d9;--ad:rgba(109,40,217,.12)}@media(prefers-color-scheme:dark){:root{--bg:#130d2b;--surface:#201641;--text:#efe7ff;--dim:#b9ace9;--border:#3b3063;--accent:#a78bfa;--ad:rgba(167,139,250,.15)}}*{box-sizing:border-box}body{margin:0;font-family:Merriweather,serif;background:var(--bg);color:var(--text);padding:28px}main{max-width:1020px;margin:0 auto}.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;margin:14px 0}h1{margin:0;font-size:34px}.sub{font:12px 'JetBrains Mono',monospace;color:var(--accent)}h2{font-size:24px;margin:0 0 6px}p,li{line-height:1.82;color:var(--dim)}ul,ol{margin:8px 0 0 18px}code{font-family:'JetBrains Mono',monospace;background:var(--ad);padding:2px 6px;border-radius:4px;color:var(--accent)}</style></head><body><main><h1>Module 05 Deep Dive: Prediction Markets</h1><p class="sub">How YES/NO prices work and where they fail</p><section class="card"><h2>Plain-Language Start</h2><p>A prediction market lets people buy/sell claims about future outcomes, such as "Will event X happen before date Y?" If YES share is 0.63, many read it as about 63% implied probability.</p><p>But that interpretation is only reliable when market is liquid and rules are clear.</p></section><section class="card"><h2>Our Running Example</h2><p>Maya thinks event chance is 70%. Market YES is 0.63. She buys 1,000 YES for 630.</p><ul><li>If YES resolves true, payout is 1,000.</li><li>Gross profit is 370.</li><li>If YES resolves false, she loses 630.</li></ul><p>Her edge depends on true probability estimate minus costs.</p></section><section class="card"><h2>The Hard Part Is Not Trading, It Is Resolution</h2><p>Most beginner confusion comes here: "Who decides what actually happened?" That is oracle/reporting + dispute process.</p><p>If question wording is vague, market can become untrustworthy even with high volume.</p></section><section class="card"><h2>Good vs Bad Market Question</h2><ul><li><strong>Good:</strong> "Will agency Z publish CPI above 3.0% for month M on official site by date D?"</li><li><strong>Bad:</strong> "Will economy improve this quarter?"</li></ul><p>First is verifiable. Second is subjective. Subjective questions produce dispute chaos.</p></section><section class="card"><h2>Where Manipulation Can Appear</h2><ol><li>Thin liquidity near market close.</li><li>Ambiguous wording exploited in dispute process.</li><li>Single trusted resolver with weak challenge path.</li></ol></section><section class="card"><h2>Beginner Evaluation Questions</h2><ol><li>Can a random third person verify final outcome from public data?</li><li>Is dispute process economically viable for honest challengers?</li><li>How deep is liquidity near major price levels?</li></ol></section></main></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Module 05 Deep Dive - Prediction Markets</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f6f3ff;--card:#fff;--text:#2a1762;--muted:#5f51a3;--border:#ded6ff;--accent:#6d28d9;--ad:rgba(109,40,217,.12)}
+@media(prefers-color-scheme:dark){:root{--bg:#130d2b;--card:#201641;--text:#efe7ff;--muted:#b8abe9;--border:#3a3062;--accent:#a78bfa;--ad:rgba(167,139,250,.16)}}
+*{box-sizing:border-box} body{margin:0;font-family:Merriweather,serif;background:var(--bg);color:var(--text);padding:28px}
+main{max-width:980px;margin:0 auto} section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin:14px 0}
+h1{margin:0 0 8px;font-size:34px}h2{margin:0 0 6px;font-size:24px}.sub{font:12px JetBrains Mono,monospace;color:var(--accent)}
+p,li{line-height:1.82;color:var(--muted)} ul,ol{margin:8px 0 0 18px} code{font-family:JetBrains Mono,monospace;background:var(--ad);padding:2px 6px;border-radius:4px;color:var(--accent)}
+.qa{border-top:1px dashed var(--border);margin-top:10px;padding-top:10px}
+</style>
+</head>
+<body>
+<main>
+<h1>Module 05: Prediction Markets (Beginner Deep Dive)</h1>
+<p class="sub">Mode: primer | Running example: Maya buys YES shares</p>
+
+<section>
+<h2>1. Why This Topic Exists</h2>
+<p>Prediction markets turn beliefs into tradable prices. Instead of asking “who sounds confident?”, you ask “who is willing to risk capital on a probability?”</p>
+<p><strong>Analogy:</strong> office pool before a sports final, but with continuous buy/sell and clearer payout rules.</p>
+</section>
+
+<section>
+<h2>2. Terms Before Details</h2>
+<ul>
+<li><strong>YES/NO share:</strong> token paying 1 if outcome true/false respectively.</li>
+<li><strong>Implied probability:</strong> rough interpretation of YES price (e.g., 0.63 ≈ 63%).</li>
+<li><strong>Resolution source:</strong> authoritative data used to determine outcome.</li>
+<li><strong>Dispute window:</strong> period to challenge wrong resolution.</li>
+<li><strong>Liquidity depth:</strong> how much can trade without large price distortion.</li>
+</ul>
+</section>
+
+<section>
+<h2>3. Running Example Setup</h2>
+<p>Market question: “Will event X happen by date D?” YES trades at 0.63. Maya believes true probability is 70%.</p>
+</section>
+
+<section>
+<h2>4. Mechanism Walkthrough</h2>
+<ol>
+<li>Market created with explicit question + resolution source.</li>
+<li>Traders buy/sell YES/NO, updating price.</li>
+<li>Event date passes.</li>
+<li>Outcome reported by oracle/resolver.</li>
+<li>Dispute period allows challenges.</li>
+<li>Final outcome set; winning side redeems at 1.</li>
+</ol>
+</section>
+
+<section>
+<h2>5. Worked Example A (Simple EV)</h2>
+<ul>
+<li>Maya buys 1,000 YES at 0.63 => cost 630.</li>
+<li>If YES wins => payout 1,000 => gross profit 370.</li>
+<li>If YES loses => loss 630.</li>
+</ul>
+<p>Break-even probability before costs is about 63%.</p>
+</section>
+
+<section>
+<h2>6. Worked Example B (Liquidity Stress)</h2>
+<p>Suppose near expiry, order book is thin. Maya wants to buy 10,000 YES. First chunk fills near 0.63, but later chunks fill at 0.68 due to depth shortage.</p>
+<ul>
+<li>Average entry maybe 0.665 instead of 0.63.</li>
+<li>Edge shrinks materially.</li>
+</ul>
+<p>Lesson: displayed price is not full story; execution quality matters.</p>
+</section>
+
+<section>
+<h2>7. Misconception Correction</h2>
+<p><strong>Misconception:</strong> “YES price always equals true probability.”</p>
+<p><strong>Correction:</strong> price quality depends on liquidity, incentives, participant diversity, and resolution trust. Thin markets can be noisy.</p>
+</section>
+
+<section>
+<h2>8. Failure Modes</h2>
+<ul>
+<li><strong>Question ambiguity:</strong> vague wording leads to disputes.</li>
+<li><strong>Resolver centralization:</strong> trust bottleneck if one actor controls outcome.</li>
+<li><strong>Late-stage manipulation:</strong> thin order books near closure.</li>
+<li><strong>Dispute economics broken:</strong> honest challengers cannot afford to challenge wrong outcomes.</li>
+</ul>
+</section>
+
+<section>
+<h2>9. Protocol Evaluation Checklist</h2>
+<ol>
+<li>Is question objectively verifiable?</li>
+<li>Is resolution source public and durable?</li>
+<li>Is dispute process practical and fair?</li>
+<li>Is liquidity sufficient at relevant sizes?</li>
+</ol>
+</section>
+
+<section>
+<h2>10. Check Your Understanding (With Answers)</h2>
+<ol>
+<li>What is the core trust anchor in prediction markets?
+<div class="qa">Resolution and dispute mechanism, not just trading UI.</div></li>
+<li>Why can two markets with same headline event have different quality?
+<div class="qa">Different wording, liquidity depth, and resolution design.</div></li>
+<li>If your model says 70% and market is 63%, are you guaranteed profit?
+<div class="qa">No. Execution costs, slippage, and resolution risk can erase edge.</div></li>
+</ol>
+</section>
+</main>
+</body>
+</html>

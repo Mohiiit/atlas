@@ -1,1 +1,133 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Module 02 Deep Dive</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"><style>:root{--bg:#f3f9ff;--surface:#fff;--text:#12283b;--dim:#4a647f;--border:#cfe4f3;--accent:#0369a1;--ad:rgba(3,105,161,.12)}@media(prefers-color-scheme:dark){:root{--bg:#081624;--surface:#112434;--text:#deecfb;--dim:#97bbda;--border:#224257;--accent:#38bdf8;--ad:rgba(56,189,248,.14)}}*{box-sizing:border-box}body{margin:0;font-family:Merriweather,serif;background:var(--bg);color:var(--text);padding:28px}main{max-width:1020px;margin:0 auto}.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;margin:14px 0}h1{margin:0;font-size:34px}.sub{font:12px 'JetBrains Mono',monospace;color:var(--accent)}h2{font-size:24px;margin:0 0 6px}p,li{line-height:1.82;color:var(--dim)}ul,ol{margin:8px 0 0 18px}code{font-family:'JetBrains Mono',monospace;background:var(--ad);padding:2px 6px;border-radius:4px;color:var(--accent)}</style></head><body><main><h1>Module 02 Deep Dive: AMMs and Uniswap v4</h1><p class="sub">Start from "how buying from a pool works" before advanced terms</p><section class="card"><h2>First: What Is a Market Maker?</h2><p>In old markets, you buy from another person. Market makers keep quotes so trading can happen quickly. In DeFi, AMM pools are automated market makers: the pool itself gives you price, and the price updates based on pool balance after each trade.</p><p>So when Maya "buys ETH from a pool," she is not buying from one specific seller. She is moving pool balances according to a formula.</p></section><section class="card"><h2>Constant Product in Plain English</h2><p>A simple pool follows <code>x*y=k</code>. Think of two buckets connected by a rule: if one bucket decreases, the other must increase enough to keep product constant. That is why bigger trades push price more. This is slippage.</p><p>Example: 1000 ETH and 2,000,000 USDC. Product is 2,000,000,000. Buying 10 ETH leaves 990 ETH. USDC side must become about 2,020,202. So buyer pays about 20,202 USDC before fee.</p></section><section class="card"><h2>What Is an LP (Liquidity Provider)?</h2><p>LPs are people like Maya who deposit assets into pool so others can trade. LP earns fees. But LP also carries inventory risk: if price trends strongly, LP may underperform simply holding assets. This is often called impermanent loss.</p><p>So LP return has two parts: fee income and inventory effect. Looking only at fee APR can be misleading.</p></section><section class="card"><h2>Uniswap v2 -> v3 -> v4 (Simple Progression)</h2><ul><li><strong>v2:</strong> one broad pool range, simple constant product.</li><li><strong>v3:</strong> LP chooses price range. More capital efficiency, more active management.</li><li><strong>v4:</strong> adds hooks (custom plugin logic around pool actions), singleton architecture, and flash accounting.</li></ul><p>Important beginner interpretation: v4 is not "better price by magic." It is a framework where pool behavior can be customized, which brings both power and complexity.</p></section><section class="card"><h2>What Is a Hook (No Jargon Version)</h2><p>A hook is a custom function that runs before/after key actions like swap or liquidity update. Example: dynamic fee rule that raises fee during high volatility.</p><p>Think of hooks like optional extensions in software. Extensions can improve experience. They can also add bugs or security risks if poorly designed.</p></section><section class="card"><h2>About "Aggregator" and "Intent Solver"</h2><p>You flagged this correctly, so here is plain meaning:</p><ul><li><strong>Aggregator:</strong> app that checks many pools/exchanges and picks best route for your trade.</li><li><strong>Intent Solver:</strong> system where user states desired outcome ("swap X for at least Y") and external solvers compete to fill it best.</li></ul><p>You do not need these to understand AMM basics. They matter later because they decide where order flow goes.</p></section><section class="card"><h2>First-Principles Questions for Uniswap v4</h2><ol><li>What state changes before swap, during swap, and after swap?</li><li>Can hook logic be manipulated by attackers?</li><li>How does hook change LP's risk/reward compared to plain pool?</li><li>If hook fails, does core accounting remain safe?</li></ol></section></main></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Module 02 Deep Dive - AMMs and Uniswap v4</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f3f9ff;--card:#fff;--text:#12283a;--muted:#4d667e;--border:#d1e4f2;--accent:#0369a1;--ad:rgba(3,105,161,.12)}
+@media(prefers-color-scheme:dark){:root{--bg:#081624;--card:#102434;--text:#dff0ff;--muted:#9abfdd;--border:#24435a;--accent:#38bdf8;--ad:rgba(56,189,248,.16)}}
+*{box-sizing:border-box} body{margin:0;font-family:Merriweather,serif;background:var(--bg);color:var(--text);padding:28px}
+main{max-width:980px;margin:0 auto} section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin:14px 0}
+h1{margin:0 0 8px;font-size:34px}h2{margin:0 0 6px;font-size:24px}.sub{font:12px JetBrains Mono,monospace;color:var(--accent)}
+p,li{line-height:1.82;color:var(--muted)} ul,ol{margin:8px 0 0 18px} code{font-family:JetBrains Mono,monospace;background:var(--ad);padding:2px 6px;border-radius:4px;color:var(--accent)}
+.table{width:100%;border-collapse:collapse;margin-top:8px}.table th,.table td{border:1px solid var(--border);padding:8px 10px;text-align:left}
+.qa{border-top:1px dashed var(--border);margin-top:10px;padding-top:10px}
+</style>
+</head>
+<body>
+<main>
+<h1>Module 02: AMMs and Uniswap v4 (Beginner Deep Dive)</h1>
+<p class="sub">Mode: primer | Running example: Maya swaps and later becomes LP</p>
+
+<section>
+<h2>1. Why This Topic Exists</h2>
+<p>In normal markets, you need a counterparty: someone selling when you buy. AMMs solve this by letting you trade against a liquidity pool. This improves continuous availability but introduces formula-based price impact.</p>
+<p><strong>Daily analogy:</strong> imagine vending machine price adjusts automatically when stock gets low. You can still buy, but next unit gets more expensive.</p>
+</section>
+
+<section>
+<h2>2. Terms Before Mechanics</h2>
+<ul>
+<li><strong>AMM:</strong> Automated Market Maker, a pool with pricing formula.</li>
+<li><strong>Liquidity Pool:</strong> shared asset bucket users trade against.</li>
+<li><strong>LP:</strong> liquidity provider who deposits assets and earns fees.</li>
+<li><strong>Slippage:</strong> difference between expected and executed price due to trade moving pool state.</li>
+<li><strong>Arbitrage:</strong> traders exploiting price differences between pool and external markets, helping realign prices.</li>
+<li><strong>Hook (Uniswap v4):</strong> programmable custom logic around pool actions.</li>
+</ul>
+</section>
+
+<section>
+<h2>3. Running Example Setup</h2>
+<p>Maya wants to swap USDC for ETH.</p>
+<ul>
+<li>Pool reserves: 1,000 ETH and 2,000,000 USDC.</li>
+<li>Initial implied price: 2,000 USDC/ETH.</li>
+<li>Formula (simple case): <code>x*y=k</code>.</li>
+</ul>
+</section>
+
+<section>
+<h2>4. Mechanism Walkthrough</h2>
+<ol>
+<li>Maya sends USDC to pool and asks ETH out.</li>
+<li>Pool computes new reserves keeping product roughly constant (plus fees).</li>
+<li>ETH reserve decreases, USDC reserve increases.</li>
+<li>New pool price shifts; larger trades move price more.</li>
+<li>Arbitrageurs compare this new price with external markets and trade if profitable.</li>
+</ol>
+<p>Who earns and who pays?</p>
+<ul>
+<li>Trader pays fees + slippage.</li>
+<li>LP earns fees but carries inventory risk.</li>
+<li>Arbitrageur earns spread when pool diverges from external market.</li>
+</ul>
+</section>
+
+<section>
+<h2>5. Worked Example A (Swap Math)</h2>
+<p>Start: <code>x=1000 ETH</code>, <code>y=2,000,000 USDC</code>, <code>k=2,000,000,000</code>.</p>
+<p>Maya buys 10 ETH from pool:</p>
+<ul>
+<li>New ETH reserve: <code>990</code></li>
+<li>Required USDC reserve: <code>k/990 = 2,020,202</code> (approx)</li>
+<li>USDC in: <code>20,202</code> before fee</li>
+</ul>
+<p>Average paid ~2,020/ETH, higher than 2,000 mid. That gap is slippage.</p>
+</section>
+
+<section>
+<h2>6. Worked Example B (LP Perspective)</h2>
+<p>Now Maya becomes LP with equal-value assets. Suppose volume is high and fees collected are 0.3% per trade. In a choppy market, fees can offset some inventory drag. In a one-direction trend, LP may underperform just holding assets.</p>
+<table class="table">
+<tr><th>Market Type</th><th>Trader Experience</th><th>LP Experience</th></tr>
+<tr><td>Range-bound</td><td>Moderate slippage</td><td>Fees often strong relative to inventory loss</td></tr>
+<tr><td>Strong trend</td><td>Arb re-anchors price</td><td>Inventory effect can dominate fee income</td></tr>
+</table>
+</section>
+
+<section>
+<h2>7. Uniswap v4 Without Premature Jargon</h2>
+<p>Uniswap versions as beginner ladder:</p>
+<ul>
+<li><strong>v2:</strong> simple pooled formula.</li>
+<li><strong>v3:</strong> LP picks price ranges (more active management).</li>
+<li><strong>v4:</strong> adds hooks, allowing customizable rules before/after swaps.</li>
+</ul>
+<p>Hooks are powerful but risky if designed poorly.</p>
+</section>
+
+<section>
+<h2>8. Misconception Correction</h2>
+<p><strong>Misconception:</strong> “LP fees are passive yield like bank interest.”</p>
+<p><strong>Correction:</strong> LP fees are compensation for market-making risk. Returns depend on volatility path, not only fee rate.</p>
+</section>
+
+<section>
+<h2>9. Failure Modes</h2>
+<ul>
+<li><strong>Technical:</strong> buggy hook logic creates unexpected behavior.</li>
+<li><strong>Economic:</strong> low liquidity causes severe slippage.</li>
+<li><strong>Economic:</strong> toxic flow can overwhelm LP fees.</li>
+<li><strong>Design:</strong> dynamic fee rule can be gamed if inputs are manipulable.</li>
+</ul>
+</section>
+
+<section>
+<h2>10. Check Your Understanding (With Answers)</h2>
+<ol>
+<li>Why do bigger trades get worse average price?
+<div class="qa">Because trade moves pool reserves more, pushing quote along the curve.</div></li>
+<li>Who realigns AMM price to market price?
+<div class="qa">Arbitrageurs, by trading when pool price diverges externally.</div></li>
+<li>Does v4 guarantee better prices than v3?
+<div class="qa">No. It gives more design flexibility; outcomes depend on hook design and liquidity conditions.</div></li>
+</ol>
+</section>
+</main>
+</body>
+</html>

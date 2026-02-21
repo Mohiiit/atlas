@@ -1,1 +1,124 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Module 04 Deep Dive</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"><style>:root{--bg:#fff5f6;--surface:#fff;--text:#3c1118;--dim:#7a3d49;--border:#f0cfd4;--accent:#b91c1c;--ad:rgba(185,28,28,.12)}@media(prefers-color-scheme:dark){:root{--bg:#180b10;--surface:#261217;--text:#fee6ea;--dim:#daa4ac;--border:#4c222a;--accent:#fb7185;--ad:rgba(251,113,133,.14)}}*{box-sizing:border-box}body{margin:0;font-family:Merriweather,serif;background:var(--bg);color:var(--text);padding:28px}main{max-width:1020px;margin:0 auto}.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;margin:14px 0}h1{margin:0;font-size:34px}.sub{font:12px 'JetBrains Mono',monospace;color:var(--accent)}h2{font-size:24px;margin:0 0 6px}p,li{line-height:1.82;color:var(--dim)}ul,ol{margin:8px 0 0 18px}code{font-family:'JetBrains Mono',monospace;background:var(--ad);padding:2px 6px;border-radius:4px;color:var(--accent)}</style></head><body><main><h1>Module 04 Deep Dive: Perpetual Markets</h1><p class="sub">From "what is leverage" to liquidation and insurance</p><section class="card"><h2>Leverage in Daily Language</h2><p>Leverage means controlling a bigger position with smaller own capital. If Maya has 6,000 and opens a 60,000 position, leverage is 10x. Gains and losses both scale up.</p><p>At 10x, a 5% adverse move can wipe about half her collateral. So leverage is speed, not free profit.</p></section><section class="card"><h2>What Is a Perpetual Contract?</h2><p>A perp is like a future that never expires. Since there is no expiry settlement date, exchanges use funding payments to keep perp price near spot market price.</p><p>If perp trades too expensive, longs may pay shorts. This motivates balance and pulls price closer to spot over time.</p></section><section class="card"><h2>Mark Price, Not Last Trade Price</h2><p>Liquidation usually uses mark/index-based price, not random last trade print. This reduces manipulation from tiny malicious trades, but quality depends on oracle/index design.</p></section><section class="card"><h2>Running Example</h2><p>Maya longs 1 BTC at 60,000 with 6,000 collateral.</p><ul><li>If price goes to 57,000, PnL = -3,000.</li><li>New equity = 3,000.</li><li>If maintenance requirement is 3,500, liquidation starts.</li></ul><p>Funding cost also reduces equity over time even if price is flat.</p></section><section class="card"><h2>Insurance Fund and ADL</h2><p>If liquidation cannot close a position at expected price, shortfall appears. Insurance fund absorbs that first. If fund is insufficient, systems may auto-deleverage profitable opposing traders (ADL) or use other socialized mechanisms.</p><p>This is why "who absorbs tail loss" is a key evaluation question.</p></section><section class="card"><h2>Beginner Evaluation Questions</h2><ol><li>How is mark price computed?</li><li>How fast can liquidations execute in a crash?</li><li>How large is insurance relative to open interest?</li><li>What exact rule is used when insurance is depleted?</li></ol></section></main></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Module 04 Deep Dive - Perpetual Markets</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#fff5f7;--card:#fff;--text:#3b121a;--muted:#7a3f4b;--border:#f0d0d6;--accent:#b91c1c;--ad:rgba(185,28,28,.12)}
+@media(prefers-color-scheme:dark){:root{--bg:#170b10;--card:#261217;--text:#fee7eb;--muted:#d9a4ac;--border:#4b222a;--accent:#fb7185;--ad:rgba(251,113,133,.16)}}
+*{box-sizing:border-box} body{margin:0;font-family:Merriweather,serif;background:var(--bg);color:var(--text);padding:28px}
+main{max-width:980px;margin:0 auto} section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin:14px 0}
+h1{margin:0 0 8px;font-size:34px}h2{margin:0 0 6px;font-size:24px}.sub{font:12px JetBrains Mono,monospace;color:var(--accent)}
+p,li{line-height:1.82;color:var(--muted)} ul,ol{margin:8px 0 0 18px} code{font-family:JetBrains Mono,monospace;background:var(--ad);padding:2px 6px;border-radius:4px;color:var(--accent)}
+.qa{border-top:1px dashed var(--border);margin-top:10px;padding-top:10px}
+</style>
+</head>
+<body>
+<main>
+<h1>Module 04: Perpetual Markets (Beginner Deep Dive)</h1>
+<p class="sub">Mode: primer | Running example: Maya trades BTC perp</p>
+
+<section>
+<h2>1. Why This Topic Exists</h2>
+<p>People want to bet on price direction with leverage, without owning full asset amount. Perpetuals provide this continuously (no expiry date), which is why they dominate crypto derivatives volume.</p>
+<p><strong>Analogy:</strong> driving a car with nitro boost. You go faster, but mistakes become much more expensive.</p>
+</section>
+
+<section>
+<h2>2. Terms You Must Know First</h2>
+<ul>
+<li><strong>Leverage:</strong> position size divided by your collateral.</li>
+<li><strong>Collateral/Margin:</strong> capital backing your open position.</li>
+<li><strong>Mark Price:</strong> reference price used for risk and liquidation.</li>
+<li><strong>Funding Rate:</strong> periodic payment between longs and shorts to keep perp near spot.</li>
+<li><strong>Liquidation:</strong> forced closure when equity is too low.</li>
+<li><strong>Insurance Fund:</strong> buffer for liquidation shortfalls.</li>
+</ul>
+</section>
+
+<section>
+<h2>3. Running Example Setup</h2>
+<p>Maya has $6,000 collateral and opens a long BTC perp position worth $60,000 (10x).</p>
+<ul>
+<li>Entry price: $60,000</li>
+<li>Position size: 1 BTC</li>
+<li>Maintenance threshold: assume equity must stay above $3,500</li>
+</ul>
+</section>
+
+<section>
+<h2>4. Mechanism Walkthrough</h2>
+<ol>
+<li>Trader opens position with collateral.</li>
+<li>Mark price updates continuously.</li>
+<li>Unrealized PnL updates: <code>size * (mark - entry)</code>.</li>
+<li>Equity updates: collateral + PnL - fees - funding.</li>
+<li>If equity below maintenance, liquidation engine closes all/part of position.</li>
+<li>If close price insufficient, insurance fund covers shortfall.</li>
+</ol>
+</section>
+
+<section>
+<h2>5. Worked Example A (Price Move)</h2>
+<p>Price drops from $60,000 to $57,000.</p>
+<ul>
+<li>PnL = <code>1 * (57,000 - 60,000) = -3,000</code></li>
+<li>Equity = <code>6,000 - 3,000 = 3,000</code></li>
+<li>Since 3,000 &lt; 3,500 maintenance, liquidation can trigger.</li>
+</ul>
+</section>
+
+<section>
+<h2>6. Worked Example B (Funding Drag)</h2>
+<p>Assume funding is +0.01% every 8h (longs pay shorts), notional = $60,000.</p>
+<ul>
+<li>Payment per interval = <code>60,000 * 0.0001 = 6</code></li>
+<li>After 30 intervals (~10 days): <code>6 * 30 = 180</code></li>
+</ul>
+<p>Even with flat price, this funding cost slowly reduces equity.</p>
+</section>
+
+<section>
+<h2>7. Misconception Correction</h2>
+<p><strong>Misconception:</strong> “If price comes back later, high leverage is fine.”</p>
+<p><strong>Correction:</strong> you can be liquidated before recovery. Survival path matters more than eventual direction.</p>
+</section>
+
+<section>
+<h2>8. Failure Modes</h2>
+<ul>
+<li><strong>Technical:</strong> mark/index feed failure causes wrong liquidations.</li>
+<li><strong>Economic:</strong> rapid move + low liquidity => liquidation slippage and shortfalls.</li>
+<li><strong>Systemic:</strong> insurance fund depletion can trigger ADL/socialized loss.</li>
+<li><strong>Operational:</strong> chain congestion delays risk-off actions.</li>
+</ul>
+</section>
+
+<section>
+<h2>9. Beginner Checklist for Comparing Perp Protocols</h2>
+<ol>
+<li>How mark price is computed?</li>
+<li>Liquidation speed under stress?</li>
+<li>Insurance fund size relative to open interest?</li>
+<li>Policy when insurance is insufficient?</li>
+</ol>
+</section>
+
+<section>
+<h2>10. Check Your Understanding (With Answers)</h2>
+<ol>
+<li>What is the key danger of high leverage?
+<div class="qa">Small adverse moves can push equity below maintenance quickly.</div></li>
+<li>Why funding exists?
+<div class="qa">To keep perp price anchored near spot over time.</div></li>
+<li>Can you lose even if final market direction is correct?
+<div class="qa">Yes, if interim move liquidates you before reversal.</div></li>
+</ol>
+</section>
+</main>
+</body>
+</html>
