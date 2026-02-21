@@ -2,55 +2,42 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DeFi First-Principles Curriculum Overview</title>
+<title>DeFi Beginner Curriculum - Overview</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#f2f7fb;--surface:#fff;--text:#10253a;--dim:#4a6480;--border:#d6e3ef;--accent:#0369a1;--accent-dim:rgba(3,105,161,.1)}
-@media (prefers-color-scheme: dark){:root{--bg:#0d1824;--surface:#132537;--text:#e4f0ff;--dim:#9fc0df;--border:#294158;--accent:#38bdf8;--accent-dim:rgba(56,189,248,.14)}}
-*{box-sizing:border-box}body{margin:0;font-family:'Cabinet Grotesk',sans-serif;background:radial-gradient(circle at 85% 0,var(--accent-dim),transparent 34%),var(--bg);color:var(--text);padding:28px}
-main{max-width:1160px;margin:0 auto}h1{margin:0;font-size:38px}.sub{margin:8px 0 16px;color:var(--dim);font:12px 'JetBrains Mono',monospace}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px}.k{display:block;color:var(--accent);font:11px 'JetBrains Mono',monospace;text-transform:uppercase;margin-bottom:10px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}.module{display:block;text-decoration:none;color:inherit;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;transition:.15s transform,.15s border-color}.module:hover{transform:translateY(-2px);border-color:var(--accent)}
-.t{font-size:21px;font-weight:700;margin:8px 0}.d{color:var(--dim);line-height:1.5;font-size:14px}p,li{color:var(--dim);line-height:1.6}ul{margin:8px 0 0 18px}li{margin:6px 0}code{font-family:'JetBrains Mono',monospace;background:var(--accent-dim);color:var(--accent);padding:2px 6px;border-radius:4px}
+:root{--bg:#f2f7fb;--surface:#fff;--text:#10253a;--dim:#4a6480;--border:#d6e3ef;--accent:#0369a1;--ad:rgba(3,105,161,.1)}
+@media(prefers-color-scheme:dark){:root{--bg:#0d1824;--surface:#132537;--text:#e4f0ff;--dim:#9fc0df;--border:#294158;--accent:#38bdf8;--ad:rgba(56,189,248,.14)}}
+*{box-sizing:border-box}body{margin:0;font-family:'Cabinet Grotesk',sans-serif;background:radial-gradient(circle at 85% 0,var(--ad),transparent 32%),var(--bg);color:var(--text);padding:28px}main{max-width:1160px;margin:0 auto}
+h1{margin:0;font-size:40px}.sub{margin:8px 0 16px;color:var(--dim);font:12px 'JetBrains Mono',monospace}.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px}.k{display:block;color:var(--accent);font:11px 'JetBrains Mono',monospace;text-transform:uppercase;margin-bottom:10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:12px}.module{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px}.t{font-size:22px;font-weight:700;margin:6px 0}.d{color:var(--dim);line-height:1.56}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}ul{margin:8px 0 0 18px;color:var(--dim)}li{margin:6px 0;line-height:1.5}
 </style>
 </head>
 <body>
 <main>
   <h1>DeFi From First Principles</h1>
-  <p class="sub">Detailed curriculum for protocol-side engineers who want mechanism-level DeFi understanding.</p>
+  <p class="sub">Beginner-friendly rewrite with more context, simpler wording, and deep-dive pages.</p>
 
   <section class="card">
-    <span class="k">How To Use This Curriculum</span>
+    <span class="k">Start Here</span>
     <ul>
-      <li>Spend 8-12 hours per week. Each module is designed as a compact study sprint.</li>
-      <li>Read module README first, then the <code>visual.html</code> for deep explanatory content and examples.</li>
-      <li>Write one short mechanism memo per module: state, invariants, revenue path, failure path.</li>
-      <li>Prioritize Modules 02, 04, 05 for your stated end goal (Uniswap v4, perps, prediction markets).</li>
-    </ul>
-  </section>
-
-  <section class="card">
-    <span class="k">Expected Outcomes</span>
-    <ul>
-      <li>You can explain why protocols fail under stress without relying on hindsight narratives.</li>
-      <li>You can compare perp venues by liquidation and insurance mechanics, not surface UX.</li>
-      <li>You can evaluate prediction market quality by resolution design and dispute economics.</li>
-      <li>You can reason about Uniswap v4 hook flexibility versus added attack surface.</li>
+      <li><a href="foundations/first-principles-glossary.html">Open glossary first</a> to decode terms like collateral, liquidation, AMM, funding, oracle.</li>
+      <li>Then read each module in this order: <strong>deep-dive page first</strong>, visual page second.</li>
+      <li>If a term is unclear, return to glossary before continuing.</li>
     </ul>
   </section>
 
   <div class="grid">
-    <a class="module" href="modules/00-orientation/visual.html"><div class="k">Module 00</div><div class="t">Orientation</div><div class="d">Universal protocol x-ray lens: state, transitions, invariants, incentives, adversaries.</div></a>
-    <a class="module" href="modules/01-money-ledger-settlement/visual.html"><div class="k">Module 01</div><div class="t">Money and Settlement</div><div class="d">Collateralized credit, liquidation timing, and where settlement assumptions break.</div></a>
-    <a class="module" href="modules/02-amms-and-uniswap-v4/visual.html"><div class="k">Module 02</div><div class="t">AMMs + Uniswap v4</div><div class="d">From curve mechanics to hooks, singleton architecture, and programmable pool policy.</div></a>
-    <a class="module" href="modules/03-lending-stablecoins/visual.html"><div class="k">Module 03</div><div class="t">Lending + Stablecoins</div><div class="d">Utilization/rate dynamics, liquidation engines, and peg defense under correlated stress.</div></a>
-    <a class="module" href="modules/04-perps-first-principles/visual.html"><div class="k">Module 04</div><div class="t">Perpetual Markets</div><div class="d">PnL, funding, margin rules, liquidation throughput, and insurance/ADL paths.</div></a>
-    <a class="module" href="modules/05-prediction-markets/visual.html"><div class="k">Module 05</div><div class="t">Prediction Markets</div><div class="d">Probability pricing, market quality, and oracle/dispute mechanism design.</div></a>
-    <a class="module" href="modules/06-options-and-structured-defi/visual.html"><div class="k">Module 06</div><div class="t">Options and Structuring</div><div class="d">Nonlinear payoffs and how “yield products” often hide short-vol risk transfer.</div></a>
-    <a class="module" href="modules/07-risk-mev-and-liquidations/visual.html"><div class="k">Module 07</div><div class="t">Risk + MEV</div><div class="d">Execution-layer adversaries, ordering games, and liquidation fairness.</div></a>
-    <a class="module" href="modules/08-governance-and-valuations/visual.html"><div class="k">Module 08</div><div class="t">Governance + Valuation</div><div class="d">Fee capture rights, treasury policy, governance concentration, and token valuation sensitivity.</div></a>
-    <a class="module" href="modules/09-major-protocol-teardowns/visual.html"><div class="k">Module 09</div><div class="t">Protocol Teardowns</div><div class="d">Capstone comparisons across Uniswap v4, perps, prediction markets, and major DeFi systems.</div></a>
+    <div class="module"><div class="t">00 Orientation</div><div class="d">How to analyze any protocol through state, actions, invariants, incentives.</div><p><a href="modules/00-orientation/deep-dive.html">Deep Dive</a> · <a href="modules/00-orientation/visual.html">Visual</a></p></div>
+    <div class="module"><div class="t">01 Settlement Basics</div><div class="d">What collateral means with real-life loan analogies and liquidation mechanics.</div><p><a href="modules/01-money-ledger-settlement/deep-dive.html">Deep Dive</a> · <a href="modules/01-money-ledger-settlement/visual.html">Visual</a></p></div>
+    <div class="module"><div class="t">02 AMMs + Uniswap v4</div><div class="d">How pools price trades, why slippage exists, and what hooks change in v4.</div><p><a href="modules/02-amms-and-uniswap-v4/deep-dive.html">Deep Dive</a> · <a href="modules/02-amms-and-uniswap-v4/visual.html">Visual</a></p></div>
+    <div class="module"><div class="t">03 Lending + Stablecoins</div><div class="d">Utilization, borrowing, peg defense, and bad debt pathways.</div><p><a href="modules/03-lending-stablecoins/deep-dive.html">Deep Dive</a> · <a href="modules/03-lending-stablecoins/visual.html">Visual</a></p></div>
+    <div class="module"><div class="t">04 Perps</div><div class="d">Leverage, mark price, funding, liquidation, insurance, and ADL basics.</div><p><a href="modules/04-perps-first-principles/deep-dive.html">Deep Dive</a> · <a href="modules/04-perps-first-principles/visual.html">Visual</a></p></div>
+    <div class="module"><div class="t">05 Prediction Markets</div><div class="d">YES/NO pricing, resolution quality, and dispute design explained simply.</div><p><a href="modules/05-prediction-markets/deep-dive.html">Deep Dive</a> · <a href="modules/05-prediction-markets/visual.html">Visual</a></p></div>
+    <div class="module"><div class="t">06 Options</div><div class="d">Why structured yield often equals option risk in disguise.</div><p><a href="modules/06-options-and-structured-defi/deep-dive.html">Deep Dive</a> · <a href="modules/06-options-and-structured-defi/visual.html">Visual</a></p></div>
+    <div class="module"><div class="t">07 Risk + MEV</div><div class="d">Execution-layer attacks and liquidation performance under stress.</div><p><a href="modules/07-risk-mev-and-liquidations/deep-dive.html">Deep Dive</a> · <a href="modules/07-risk-mev-and-liquidations/visual.html">Visual</a></p></div>
+    <div class="module"><div class="t">08 Governance + Valuation</div><div class="d">How cash flow rights and governance quality affect token value.</div><p><a href="modules/08-governance-and-valuations/deep-dive.html">Deep Dive</a> · <a href="modules/08-governance-and-valuations/visual.html">Visual</a></p></div>
+    <div class="module"><div class="t">09 Protocol Teardowns</div><div class="d">A repeatable comparison method for Uniswap v4, perps, prediction markets, and beyond.</div><p><a href="modules/09-major-protocol-teardowns/deep-dive.html">Deep Dive</a> · <a href="modules/09-major-protocol-teardowns/visual.html">Visual</a></p></div>
   </div>
 </main>
 </body>

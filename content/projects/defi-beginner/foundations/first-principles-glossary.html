@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DeFi First-Principles Glossary</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f7f8fb;--surface:#fff;--text:#1d2736;--dim:#4f6178;--border:#dbe3ef;--accent:#0f766e;--accent-dim:rgba(15,118,110,.12)}
+@media(prefers-color-scheme:dark){:root{--bg:#0f1622;--surface:#151f2f;--text:#e7eef8;--dim:#9bb0ca;--border:#2a3a53;--accent:#2dd4bf;--accent-dim:rgba(45,212,191,.16)}}
+*{box-sizing:border-box}body{margin:0;font-family:'Source Serif 4',serif;background:var(--bg);color:var(--text);padding:28px}main{max-width:1100px;margin:0 auto}h1{margin:0 0 8px;font-size:38px}h2{margin:0 0 8px;font-size:24px}p{line-height:1.72;color:var(--dim)}.mono{font:12px 'JetBrains Mono',monospace;color:var(--accent)}.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin:14px 0}.term{font-weight:700;color:var(--text)}code{font-family:'JetBrains Mono',monospace;background:var(--accent-dim);padding:2px 6px;border-radius:4px;color:var(--accent)}
+</style>
+</head>
+<body>
+<main>
+<h1>First-Principles Glossary for DeFi Beginners</h1>
+<p class="mono">Use this before each module. Every term is explained in plain language first, then in protocol language.</p>
+
+<section class="card"><h2>Collateral</h2><p><span class="term">Plain language:</span> collateral is something valuable you lock as a safety deposit when you borrow money. In real life, your house is collateral in a home loan. If you stop paying, the lender can take the house to recover money.</p><p><span class="term">In DeFi:</span> you lock assets (for example ETH) to borrow or mint another asset (for example stablecoins). If your collateral value drops too much, your position can be liquidated.</p></section>
+
+<section class="card"><h2>Borrowing vs Minting</h2><p><span class="term">Borrow:</span> you take an existing asset from a pool and promise to return it with interest.</p><p><span class="term">Mint:</span> protocol creates a new token against your collateral (common in stablecoin systems). You later repay/burn to unlock collateral.</p></section>
+
+<section class="card"><h2>Liquidation</h2><p><span class="term">Plain language:</span> forced closure when your safety margin is too low.</p><p><span class="term">In DeFi:</span> if collateral ratio or health factor falls below threshold, third-party liquidators repay part of your debt and take discounted collateral.</p></section>
+
+<section class="card"><h2>AMM (Automated Market Maker)</h2><p><span class="term">Plain language:</span> a vending machine for trading assets. You do not need a direct buyer/seller; you trade against a pool.</p><p><span class="term">In DeFi:</span> smart contract pool quotes prices using a formula (for example constant product <code>x*y=k</code>).</p></section>
+
+<section class="card"><h2>Slippage</h2><p><span class="term">Plain language:</span> the difference between expected price and actual execution price.</p><p><span class="term">Why it happens:</span> your trade changes pool balance; larger trades move price more.</p></section>
+
+<section class="card"><h2>Perpetual Futures (Perps)</h2><p><span class="term">Plain language:</span> leveraged bet on price direction with no expiry date.</p><p><span class="term">Core parts:</span> collateral, mark price, funding payments, liquidation engine.</p></section>
+
+<section class="card"><h2>Funding Rate</h2><p><span class="term">Plain language:</span> periodic payment between long and short traders to keep perp price near spot price.</p><p>If perps trade above spot, longs often pay shorts. If below spot, shorts often pay longs.</p></section>
+
+<section class="card"><h2>Prediction Market</h2><p><span class="term">Plain language:</span> market where tokens represent outcomes of future events (YES/NO).</p><p>Price is often interpreted as probability, but only if market has enough liquidity and clear resolution rules.</p></section>
+
+<section class="card"><h2>Oracle</h2><p><span class="term">Plain language:</span> data feed from outside blockchain (prices, event results).</p><p><span class="term">Risk:</span> if oracle is late, wrong, or manipulable, protocol can make bad liquidations or wrong settlements.</p></section>
+
+<section class="card"><h2>MEV (Maximal Extractable Value)</h2><p><span class="term">Plain language:</span> extra profit from controlling transaction ordering in a block.</p><p>Common forms: sandwich attacks, liquidation racing, arbitrage backruns.</p></section>
+
+<section class="card"><h2>Health Factor / Collateral Ratio</h2><p>These are risk meters. They compare your collateral value to borrowed value. When they go below a protocol threshold, liquidation is triggered.</p></section>
+
+<section class="card"><h2>Uniswap v4 Hook</h2><p><span class="term">Plain language:</span> custom plugin logic that runs around a swap or liquidity action.</p><p><span class="term">Benefit:</span> dynamic fees or custom behavior. <span class="term">Risk:</span> more complexity and more attack surface.</p></section>
+</main>
+</body>
+</html>
