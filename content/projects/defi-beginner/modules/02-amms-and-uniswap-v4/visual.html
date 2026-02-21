@@ -38,12 +38,12 @@ main{max-width:1120px;margin:0 auto}h1{margin:0;font-size:34px} .sub{margin:8px 
     <section class="card">
       <span class="k">Mechanism Walkthrough</span>
       <pre class="mermaid">flowchart TD
-        A[Trader submits swap intent] --> B[Router chooses pool path]
+        A[Trader submits<br>swap intent] --> B[Router chooses<br>pool path]
         B --> C[beforeSwap hook]
-        C --> D[Custom checks or dynamic fee]
-        D --> E[Core price movement and fee accounting]
+        C --> D[Custom checks or<br>dynamic fee]
+        D --> E[Core price movement<br>and fee accounting]
         E --> F[afterSwap hook]
-        F --> G[Post-swap accounting or rebates]
+        F --> G[Post-swap accounting<br>or rebates]
         G --> H[Settlement and updated reserves]
       </pre>
       <p>The critical idea in v4 is separation of concerns: core maintains settlement safety and accounting primitives, while hooks inject customizable behavior around the swap lifecycle. That flexibility is powerful, but it also means every hook is now part of the protocol's economic and security boundary.</p>

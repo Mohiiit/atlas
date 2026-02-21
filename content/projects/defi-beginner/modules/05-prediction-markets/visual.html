@@ -34,16 +34,16 @@ p{line-height:1.64;color:var(--dim);margin:8px 0}ul,ol{margin:8px 0 0 18px;color
     <section class="card">
       <span class="k">Mechanism Walkthrough</span>
       <pre class="mermaid">flowchart TD
-        A[Define binary question] --> B[Publish resolution source and date]
-        B --> C[Traders buy and sell claims]
-        C --> D[Price formation as implied probability]
+        A[Define binary<br>question] --> B[Publish resolution<br>source and date]
+        B --> C[Traders buy and<br>sell claims]
+        C --> D[Price formation as<br>implied probability]
         D --> E[Event occurs]
-        E --> F[Reporter or oracle submits outcome]
+        E --> F[Reporter/oracle<br>submits outcome]
         F --> G{Dispute period}
         G -->|No challenge| H[Finalize market]
-        G -->|Challenge| I[Escalation and adjudication]
+        G -->|Challenge| I[Escalation and<br>adjudication]
         I --> H
-        H --> J[Winning claims redeem at 1.0]
+        H --> J[Winning claims<br>redeem at 1.0]
       </pre>
       <p>Trading mechanics are usually straightforward. The hard part is unambiguous resolution. If outcome criteria are vague, the market price can look precise while being economically meaningless near expiry.</p>
       <p>A high-quality market needs three properties together: precise question wording, transparent truth source, and anti-spam dispute economics.</p>

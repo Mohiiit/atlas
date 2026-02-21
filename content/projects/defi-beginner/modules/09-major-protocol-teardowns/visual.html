@@ -5,12 +5,12 @@
 <h1>Module 09: Major Protocol Teardowns</h1><p class="sub">Applied mechanism comparison across Uniswap v4, perps, prediction markets, lending, and more</p>
 <section class="card"><span class="k">Why This Matters</span><ul><li>This module converts isolated concepts into comparative protocol judgment.</li><li>You learn to evaluate designs by state transitions and risk ownership, not brand narratives.</li><li>Capstone outputs here become reusable due-diligence templates.</li></ul></section>
 <section class="card"><span class="k">Capstone Flow</span><pre class="mermaid">flowchart TD
-A[Choose protocol set]-->B[Map state and transitions]
-B-->C[Quantify PnL and fee paths]
+A[Choose<br>protocol set]-->B[Map state and<br>transitions]
+B-->C[Quantify PnL and<br>fee paths]
 C-->D[Stress failure modes]
-D-->E[Compare trust assumptions]
-E-->F[Write mechanism memo]
-F-->G[Propose design improvements]
+D-->E[Compare trust<br>assumptions]
+E-->F[Write mechanism<br>memo]
+F-->G[Propose design<br>improvements]
 </pre><p>Use the same rubric for each teardown: state variables, invariant guards, payer/payee map, liquidation/recovery path, oracle/trust dependencies, and governance override powers.</p></section>
 <section class="card"><span class="k">Protocol Targets</span><ul><li>AMMs: Uniswap v4, Curve, Balancer</li><li>Lending/stablecoins: Aave, Maker/Sky, Morpho</li><li>Perps: Hyperliquid, dYdX, GMX</li><li>Prediction markets: Polymarket, Augur-style</li><li>Shared security lens: EigenLayer and risk transfer</li></ul></section>
 <section class="card"><span class="k">Failure Modes To Compare</span><ul><li>Who absorbs tail losses first: user, LP, insurance, or tokenholders?</li><li>What happens when oracle or matching path degrades?</li><li>Can governance intervene quickly without creating capture risk?</li></ul></section>

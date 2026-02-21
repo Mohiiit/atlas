@@ -5,14 +5,14 @@
 <h1>Module 07: Risk, MEV, and Liquidations</h1><p class="sub">Execution-layer adversaries and why protocol safety is market-microstructure dependent</p>
 <section class="card"><span class="k">Why This Matters</span><ul><li>Protocol logic can be correct while user outcomes are adversarially degraded.</li><li>MEV interacts directly with liquidation fairness and solvency protection.</li><li>Stress periods compress decision windows and amplify ordering games.</li></ul></section>
 <section class="card"><span class="k">Mechanism Walkthrough</span><pre class="mermaid">flowchart TD
-A[User tx in mempool]-->B[Searcher simulation]
-B-->C[Bundle construction]
-C-->D[Builder ordering]
+A[User tx<br>in mempool]-->B[Searcher simulation]
+B-->C[Bundle<br>construction]
+C-->D[Builder<br>ordering]
 D-->E{Path}
 E-->|sandwich|F[User price worsens]
 E-->|backrun|G[Arb captures edge]
-E-->|liquidation race|H[Fastest keeper fills]
-H-->I[Solvency restored or delayed]
+E-->|liquidation race|H[Fastest keeper<br>fills]
+H-->I[Solvency restored<br>or delayed]
 </pre><p>MEV is not a side topic. It is the mechanism that determines who captures residual value from ordering rights. In volatile windows, that residual value can be the difference between healthy liquidations and bad debt.</p></section>
 <section class="card"><span class="k">Worked Examples</span><p><strong>Example 1:</strong> Liquidation bonus 5%, but slippage plus priority fees consume 4.2%. Net incentive is thin; fewer keepers participate under congestion.</p><p><strong>Example 2:</strong> Private relay path reduces sandwich probability for large swaps, improving realized execution at cost of routing complexity.</p></section>
 <section class="card"><span class="k">Failure Modes</span><ul><li>Searcher cartelization reduces competitive liquidation efficiency.</li><li>Oracle update predictability enables pre-positioned extraction.</li><li>Pause mechanisms trigger too late or can be griefed.</li></ul></section>

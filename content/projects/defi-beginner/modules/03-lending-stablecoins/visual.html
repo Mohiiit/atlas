@@ -5,13 +5,13 @@
 <h1>Module 03: Lending and Stablecoins</h1><p class="sub">Pooled balance sheets, utilization-based rates, liquidation under stress, and peg defense</p>
 <section class="card"><span class="k">Why This Matters</span><ul><li>Lending markets are core collateral infrastructure for DeFi leverage.</li><li>Stablecoins are the unit of account for most onchain activity.</li><li>Small parameter changes in rate curves or liquidation penalties can have systemic effects.</li></ul></section>
 <section class="card"><span class="k">Mechanism Walkthrough</span><pre class="mermaid">flowchart TD
-A[Suppliers deposit]-->B[Pool liquidity]
+A[Suppliers<br>deposit]-->B[Pool liquidity]
 B-->C[Borrow demand]
 C-->D[Utilization rises/falls]
-D-->E[Rate model updates APR]
-E-->F[Behavior change: repay or supply]
+D-->E[Rate model<br>updates APR]
+E-->F[Behavior change:<br>repay or supply]
 F-->B
-C-->G[Collateral health checks]
+C-->G[Collateral health<br>checks]
 G-->H{Below threshold?}
 H-->|yes|I[Liquidation]
 </pre><p>Rate models steer equilibrium. Below the kink, APR grows gently; above the kink, APR rises sharply to prevent near-empty pool states.</p></section>

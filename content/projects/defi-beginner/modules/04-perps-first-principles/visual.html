@@ -34,14 +34,14 @@ main{max-width:1120px;margin:0 auto}h1{margin:0;font-size:35px}.sub{margin:8px 0
     <section class="card">
       <span class="k">Mechanism Walkthrough</span>
       <pre class="mermaid">flowchart TD
-        A[Open position + post collateral] --> B[Mark/index updates]
-        B --> C[Unrealized PnL recalculation]
-        C --> D[Equity and margin check]
+        A[Open position +<br>post collateral] --> B[Mark/index updates]
+        B --> C[Unrealized PnL<br>recalculation]
+        C --> D[Equity and<br>margin check]
         D -->|Healthy| E[Position continues]
         D -->|Breach| F[Liquidation trigger]
         F --> G[Partial or full close]
-        G --> H[Insurance fund absorbs shortfall if needed]
-        E --> I[Funding payment transfer]
+        G --> H[Insurance fund absorbs<br>shortfall if needed]
+        E --> I[Funding payment<br>transfer]
         I --> B
       </pre>
       <p>Perp systems are continuous risk engines. Every mark update is effectively a solvency test. If equity falls below maintenance threshold, liquidation starts; if liquidation cannot fill quickly enough, insurance absorbs losses; if insurance is insufficient, ADL/socialized loss mechanisms may activate.</p>

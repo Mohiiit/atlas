@@ -5,13 +5,13 @@
 <h1>Module 01: Money, Ledger, and Settlement</h1><p class="sub">How collateralized credit and finality assumptions produce or destroy solvency</p>
 <section class="card"><span class="k">Why This Matters</span><ul><li>Every DeFi protocol is ultimately a settlement system with constraints.</li><li>Credit-like behavior appears whenever users mint/borrow against collateral.</li><li>Most crises are settlement timing mismatches, not arithmetic mistakes.</li></ul></section>
 <section class="card"><span class="k">Mechanism Walkthrough</span><pre class="mermaid">flowchart TD
-A[Deposit collateral]-->B[Borrow or mint claim]
-B-->C[Collateral ratio monitor]
+A[Deposit<br>collateral]-->B[Borrow or mint claim]
+B-->C[Collateral ratio<br>monitor]
 C-->D{Above threshold?}
 D-->|yes|E[Position continues]
-D-->|no|F[Liquidation process]
+D-->|no|F[Liquidation<br>process]
 F-->G[Debt reduction + collateral transfer]
-G-->H[System returns toward solvency]
+G-->H[System returns<br>toward solvency]
 </pre><p>Collateralization transforms credit risk into liquidation execution risk. If liquidations are fast and deep enough, protocol remains solvent. If they lag, bad debt accumulates.</p></section>
 <section class="card"><span class="k">Worked Examples</span><p><strong>Example 1:</strong> 150 collateral backing 100 debt => 150% ratio. Collateral falls to 120 => 120%. If threshold is 125%, position breaches and must be liquidated.</p><p><strong>Example 2:</strong> If oracle updates every 30 seconds and market drops 20% in 10 seconds, liquidations start late; queue pressure determines whether debt is covered.</p></section>
 <section class="card"><span class="k">Failure Modes</span><ul><li>Oracle stale while market moves rapidly.</li><li>Liquidator capital insufficient under correlated crashes.</li><li>Gas congestion blocks risk-off actions during peak stress.</li></ul></section>

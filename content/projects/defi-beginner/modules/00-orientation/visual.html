@@ -6,11 +6,11 @@
 <h1>Module 00: Orientation - How to Think About DeFi</h1><p class="sub">Content-rich explainer: protocol analysis lens before diving into specific markets</p>
 <section class="card"><span class="k">Why This Matters</span><ul><li>Without a mechanism lens, protocol docs read like marketing.</li><li>The same analysis framework works across AMMs, perps, lending, and prediction markets.</li><li>You can detect hidden assumptions before production incidents do.</li></ul></section>
 <section class="card"><span class="k">Mechanism Blueprint</span><pre class="mermaid">flowchart TD
-A[User objective]-->B[Action call]
-B-->C[State transition]
+A[User<br>objective]-->B[Action<br>call]
+B-->C[State<br>transition]
 C-->D{Invariant check}
 D-->|pass|E[New state + settlement]
-D-->|fail|F[Revert or liquidation]
+D-->|fail|F[Revert or<br>liquidation]
 E-->G[Incentive impact]
 G-->A
 </pre><p>Every protocol can be reduced to state, transition function, invariants, and incentives. This is your universal x-ray. The point is not to memorize all designs; it is to quickly locate where value enters, where risk accumulates, and where assumptions can fail.</p></section>

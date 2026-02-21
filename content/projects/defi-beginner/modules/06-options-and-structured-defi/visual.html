@@ -5,13 +5,13 @@
 <h1>Module 06: Options and Structured DeFi</h1><p class="sub">Payoff engineering, premium income, and hidden tail-risk transfer</p>
 <section class="card"><span class="k">Why This Matters</span><ul><li>Many "yield" products are options positions wrapped in simpler UX.</li><li>Options expose non-linear risk that cannot be understood with APR-only views.</li><li>Structured vaults can underperform badly in trends despite smooth historical returns.</li></ul></section>
 <section class="card"><span class="k">Mechanism Walkthrough</span><pre class="mermaid">flowchart TD
-A[Deposit underlying asset]-->B[Vault sells options]
+A[Deposit underlying<br>asset]-->B[Vault sells<br>options]
 B-->C[Collect premium]
-C-->D[Expiry settlement]
+C-->D[Expiry<br>settlement]
 D-->E{Spot above strike?}
 E-->|no|F[Keep underlying + premium]
 E-->|yes|G[Upside capped]
-F-->H[Yield distribution]
+F-->H[Yield<br>distribution]
 G-->H
 </pre><p>Covered call vaults monetize upside uncertainty by selling convexity. Premium is not free yield; it is compensation for capping upside and bearing assignment path risk.</p></section>
 <section class="card"><span class="k">Worked Examples</span><p><strong>Example 1:</strong> Sell call strike 2,500 for 80 premium on 1 ETH. If expiry 2,300, strategy outperforms holding by +80.</p><p><strong>Example 2:</strong> If expiry 2,900, strategy misses much of rally beyond strike; "yield" can underperform spot strongly.</p></section>
