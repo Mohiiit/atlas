@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Starknet Privacy + SNIP-36 End-to-End Flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --font-body: 'Chakra Petch', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+    --bg: #ecf8ff;
+    --surface: #ffffff;
+    --surface-2: #e8f5ff;
+    --border: rgba(5, 52, 89, 0.16);
+    --border-strong: rgba(5, 52, 89, 0.28);
+    --text: #0a2742;
+    --text-dim: #496b88;
+
+    --blue: #0077b6;
+    --teal: #1f9d8b;
+    --amber: #c97a0d;
+    --red: #d55a43;
+
+    --blue-dim: rgba(0, 119, 182, 0.11);
+    --teal-dim: rgba(31, 157, 139, 0.11);
+    --amber-dim: rgba(201, 122, 13, 0.12);
+    --red-dim: rgba(213, 90, 67, 0.12);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #071622;
+      --surface: #102537;
+      --surface-2: #133047;
+      --border: rgba(199, 225, 246, 0.14);
+      --border-strong: rgba(199, 225, 246, 0.28);
+      --text: #d9efff;
+      --text-dim: #8cb7db;
+
+      --blue: #56c0ff;
+      --teal: #6fe6cf;
+      --amber: #ffbe68;
+      --red: #ff9f8f;
+
+      --blue-dim: rgba(86, 192, 255, 0.17);
+      --teal-dim: rgba(111, 230, 207, 0.16);
+      --amber-dim: rgba(255, 190, 104, 0.16);
+      --red-dim: rgba(255, 159, 143, 0.16);
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    min-height: 100vh;
+    font-family: var(--font-body);
+    color: var(--text);
+    background:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px),
+      radial-gradient(circle at 90% -15%, var(--blue-dim), transparent 40%),
+      radial-gradient(circle at -10% 85%, var(--teal-dim), transparent 42%),
+      var(--bg);
+    background-size: 26px 26px, 26px 26px, auto, auto, auto;
+    padding: 24px;
+  }
+
+  .wrap {
+    max-width: 1500px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 200px minmax(0, 1fr);
+    gap: 0 24px;
+  }
+
+  .toc {
+    position: sticky;
+    top: 14px;
+    align-self: start;
+    max-height: calc(100dvh - 30px);
+    overflow-y: auto;
+    padding: 14px 0;
+  }
+
+  .toc-title {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 9px;
+  }
+
+  .toc a {
+    display: block;
+    text-decoration: none;
+    color: var(--text-dim);
+    font-size: 12px;
+    padding: 5px 8px;
+    border-radius: 8px;
+    border-left: 2px solid transparent;
+    margin-bottom: 2px;
+  }
+
+  .toc a:hover {
+    color: var(--text);
+    background: var(--surface-2);
+  }
+
+  .toc a.active {
+    color: var(--text);
+    border-left-color: var(--blue);
+    background: var(--blue-dim);
+  }
+
+  .main { min-width: 0; }
+
+  .hero {
+    background: color-mix(in srgb, var(--surface) 90%, transparent);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 20px 36px rgba(4, 28, 52, 0.12);
+    margin-bottom: 14px;
+  }
+
+  .kicker {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+
+  h1 {
+    font-size: clamp(30px, 4vw, 50px);
+    line-height: 1.04;
+    letter-spacing: -0.03em;
+    margin-bottom: 10px;
+    text-wrap: balance;
+  }
+
+  .lead {
+    color: var(--text-dim);
+    line-height: 1.64;
+    max-width: 1040px;
+    margin-bottom: 12px;
+    font-size: 15px;
+  }
+
+  .badge-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .badge {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border-strong);
+    background: var(--surface-2);
+  }
+
+  .sec-head {
+    margin: 18px 0 10px;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .card {
+    background: color-mix(in srgb, var(--surface) 92%, transparent);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 12px;
+    min-width: 0;
+  }
+
+  .card p {
+    color: var(--text-dim);
+    font-size: 14px;
+    line-height: 1.64;
+  }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .metric {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    background: var(--surface-2);
+  }
+
+  .metric .label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+
+  .metric .value {
+    font-size: 25px;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  .metric .hint {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  .metric.blue .value { color: var(--blue); }
+  .metric.teal .value { color: var(--teal); }
+  .metric.amber .value { color: var(--amber); }
+
+  .callout {
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    padding: 14px;
+    background: var(--surface-2);
+    margin-top: 10px;
+  }
+
+  .callout strong {
+    color: var(--text);
+  }
+
+  .callout p {
+    margin-top: 7px;
+    font-size: 13px;
+  }
+
+  .callout.blue { border-left: 3px solid var(--blue); background: var(--blue-dim); }
+  .callout.teal { border-left: 3px solid var(--teal); background: var(--teal-dim); }
+  .callout.amber { border-left: 3px solid var(--amber); background: var(--amber-dim); }
+  .callout.red { border-left: 3px solid var(--red); background: var(--red-dim); }
+
+  ul.clean {
+    list-style: none;
+    display: grid;
+    gap: 7px;
+    margin-top: 8px;
+  }
+
+  ul.clean li {
+    position: relative;
+    padding-left: 14px;
+    color: var(--text-dim);
+    line-height: 1.55;
+    font-size: 13px;
+    overflow-wrap: break-word;
+  }
+
+  ul.clean li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 8px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--blue);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+
+  th, td {
+    border-bottom: 1px solid var(--border);
+    padding: 10px;
+    text-align: left;
+    vertical-align: top;
+    font-size: 12px;
+    line-height: 1.5;
+    overflow-wrap: break-word;
+  }
+
+  th {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  code {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    background: color-mix(in srgb, var(--surface-2) 65%, transparent);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 1px 5px;
+  }
+
+  .mermaid-wrap {
+    position: relative;
+    margin-top: 8px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-2);
+    padding: 34px 14px 14px;
+    overflow: auto;
+    min-width: 0;
+  }
+
+  .mermaid-wrap .mermaid {
+    display: flex;
+    justify-content: center;
+    transition: transform 0.2s ease;
+    transform-origin: top center;
+  }
+
+  .zoom-controls {
+    position: absolute;
+    top: 7px;
+    right: 7px;
+    z-index: 10;
+    display: flex;
+    gap: 2px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    padding: 2px;
+  }
+
+  .zoom-controls button {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    cursor: pointer;
+    border-radius: 4px;
+  }
+
+  .zoom-controls button:hover {
+    color: var(--text);
+    background: var(--blue-dim);
+  }
+
+  .mermaid-wrap.is-zoomed { cursor: grab; }
+  .mermaid-wrap.is-panning { cursor: grabbing; user-select: none; }
+
+  .mermaid .nodeLabel {
+    font-family: var(--font-body) !important;
+    font-size: 15px !important;
+  }
+
+  .mermaid .edgeLabel {
+    font-family: var(--font-mono) !important;
+    font-size: 12px !important;
+  }
+
+  .mermaid .edgeLabel rect {
+    fill: var(--surface-2) !important;
+    stroke: var(--border) !important;
+  }
+
+  .mermaid .node rect,
+  .mermaid .node circle,
+  .mermaid .node polygon,
+  .mermaid .node path {
+    stroke-width: 1.6px !important;
+  }
+
+  .sources {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+
+  .sources ul {
+    margin: 8px 0 0;
+    padding-left: 18px;
+  }
+
+  .sources li { margin-bottom: 4px; }
+
+  @media (max-width: 1100px) {
+    .wrap { grid-template-columns: 1fr; }
+
+    .toc {
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      overflow-x: auto;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      max-height: none;
+      padding: 10px 0;
+      margin-bottom: 10px;
+    }
+
+    .toc::-webkit-scrollbar { display: none; }
+    .toc-title { display: none; }
+
+    .toc a {
+      white-space: nowrap;
+      flex-shrink: 0;
+      border-left: none;
+      border-bottom: 2px solid transparent;
+      border-radius: 5px 5px 0 0;
+      padding: 7px 9px;
+      font-size: 11px;
+    }
+
+    .toc a.active {
+      border-left: none;
+      border-bottom-color: var(--blue);
+    }
+
+    .sec-head { scroll-margin-top: 56px; }
+  }
+
+  @media (max-width: 920px) {
+    body { padding: 12px; }
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="toc" id="toc">
+    <div class="toc-title">Contents</div>
+    <a href="#s1">1. Scope & Inputs</a>
+    <a href="#s2">2. System Initiation</a>
+    <a href="#s3">3. Tx Lifecycle</a>
+    <a href="#s4">4. SNIP-36 Data Path</a>
+    <a href="#s5">5. Proof + Chain Bridge</a>
+    <a href="#s6">6. Compliance Layer</a>
+    <a href="#s7">7. Risks & Gaps</a>
+    <a href="#s8">8. Sources</a>
+  </nav>
+
+  <main class="main">
+    <section class="hero">
+      <div class="kicker">Starknet Privacy Architecture • SNIP-36 Phase-1 Integration • 2026-02-20</div>
+      <h1>End-to-End Flow: Private Transaction Initiation to Starknet Settlement (with SNIP-36 In-Protocol Proof Verification)</h1>
+      <p class="lead">
+        This diagram links your two local docs with SNIP-36's proposed tx/proof path. It covers the full lifecycle: wallet-side note construction,
+        Stwo proving, SNIP-36 invoke-v3 proof carriage (<code>proof</code> + <code>proof_facts</code>), sequencer verification behavior,
+        pool state updates (nullifiers + commitments), and compliance overlays (view keys + threshold audit).
+      </p>
+      <div class="badge-row">
+        <span class="badge">UTXO notes + commitments</span>
+        <span class="badge">Nullifier anti-double-spend</span>
+        <span class="badge">Client-side Stwo proving</span>
+        <span class="badge">SNIP-36 tx v3 proof fields</span>
+        <span class="badge">Paymaster gas privacy</span>
+        <span class="badge">Integrity Council threshold audit</span>
+      </div>
+    </section>
+
+    <h2 id="s1" class="sec-head">1 — Scope & Inputs</h2>
+    <section class="card">
+      <p>
+        Inputs synthesized: <code>Starknet Privacy Deep Dive (1).pptx</code>, <code>Deeper Research Explanation.md</code>, and SNIP-36 draft forum post.
+        The flow below intentionally separates what is <strong>in docs/spec today</strong> from what is <strong>phase roadmap / inference</strong>.
+      </p>
+      <div class="grid-3">
+        <div class="metric blue">
+          <div class="label">Privacy State Model</div>
+          <div class="value">Note UTXO</div>
+          <div class="hint">Commitment tree + nullifier set, not account-balance privacy.</div>
+        </div>
+        <div class="metric teal">
+          <div class="label">Proof Primitive</div>
+          <div class="value">S-Two STARK</div>
+          <div class="hint">Client-generated proof path emphasized in both docs and SNIP-36 motivation.</div>
+        </div>
+        <div class="metric amber">
+          <div class="label">Protocol Bridge</div>
+          <div class="value">SNIP-36 v3</div>
+          <div class="hint">Optional <code>proof</code> + <code>proof_facts</code>, phase-1 consensus verification.</div>
+        </div>
+      </div>
+    </section>
+
+    <h2 id="s2" class="sec-head">2 — System Initiation Flow (How this stack starts)</h2>
+    <section class="card">
+      <p>
+        Initiation starts with capability bootstrapping: contracts deployed (pool, nullifier set, commitment tree), wallet key hierarchy,
+        proving service availability, paymaster route, and SNIP-36-compatible tx construction path.
+      </p>
+      <div class="mermaid-wrap">
+        <div class="zoom-controls">
+          <button onclick="zoomDiagram(this, 1.2)" title="Zoom in">+</button>
+          <button onclick="zoomDiagram(this, 0.8)" title="Zoom out">&minus;</button>
+          <button onclick="resetZoom(this)" title="Reset zoom">&#8634;</button>
+        </div>
+        <pre class="mermaid">
+flowchart TD
+  A[Project / Protocol Initialization] --> B[Phase 1: Privacy contracts bootstrapped]
+  B --> Bx[Commitment tree state + nullifier set + pool logic + token bridges]
+
+  B --> C[Phase 2: Wallet key hierarchy bootstrapped]
+  C --> Cx[Spending key + viewing keys FVK/IVK + ECDH channel flow]
+
+  C --> D[Phase 3: Client proving stack enabled]
+  D --> Dx[Stwo prover available with ownership, membership, and value-conservation circuits]
+
+  D --> E[Phase 4: SNIP-36 transaction path enabled]
+  E --> Ex[Invoke-v3 can carry optional proof + proof_facts + execution-info access path]
+
+  E --> F[Phase 5: Relayer / paymaster route integrated]
+  F --> Fx[SNIP-9 execute_from_outside path available with gas-privacy route]
+
+  F --> G[Phase 6: Verifier services online]
+  G --> Gx[Gateway/sequencer Rust verifier and Apollo proof manager cache/store ready]
+
+  classDef init fill:#e7f4ff,stroke:#0077b6,color:#0a2742
+  classDef privacy fill:#dff8f3,stroke:#1f9d8b,color:#0c3f39
+  classDef proto fill:#fff0de,stroke:#c97a0d,color:#4c2b08
+  classDef infra fill:#ffe6e2,stroke:#d55a43,color:#4f1f14
+
+  class A,B,Bx init
+  class C,Cx,D,Dx privacy
+  class E,Ex,F,Fx proto
+  class G,Gx infra
+        </pre>
+      </div>
+      <div class="callout amber">
+        <strong>SNIP-36 phase boundary:</strong>
+        <p>Phase-1 verification is by Starknet consensus and gateway/sequencer path; trustlessness beyond consensus is explicitly deferred in the draft.</p>
+      </div>
+    </section>
+
+    <h2 id="s3" class="sec-head">3 — Transaction Lifecycle (private transfer using new spec)</h2>
+    <section class="card">
+      <p>
+        This sequence ties the privacy pool lifecycle to SNIP-36 transport: proof generated off-chain, sent in invoke-v3,
+        facts exposed to contracts, and state transition committed on-chain.
+      </p>
+      <div class="mermaid-wrap">
+        <div class="zoom-controls">
+          <button onclick="zoomDiagram(this, 1.2)" title="Zoom in">+</button>
+          <button onclick="zoomDiagram(this, 0.8)" title="Zoom out">&minus;</button>
+          <button onclick="resetZoom(this)" title="Reset zoom">&#8634;</button>
+        </div>
+        <pre class="mermaid">
+flowchart TD
+  A[User selects input notes and derives output notes] --> B[Wallet builds witness and computes nullifier Poseidon sk cm]
+  B --> C[Stwo prover returns proof + public outputs + proof_facts]
+  C --> D[Wallet signs invoke-v3 payload with calldata + optional proof and proof_facts]
+  D --> E[Paymaster or relayer submits transaction, SNIP-9 route optional]
+  E --> F[Gateway or sequencer verifies S-Two proof and checks proof_facts consistency]
+  F --> G{Proof and facts valid}
+  G -- No --> H[Reject transaction before state transition]
+  G -- Yes --> I[Execute privacy-pool calldata in contract path]
+  I --> J[Nullifier set ensures unseen and inserts nullifier]
+  J --> K[Commitment tree inserts new note commitments]
+  K --> L[Contract returns events and updated state outputs]
+  L --> M[Transaction accepted and included in Starknet block]
+
+  classDef actor fill:#e7f4ff,stroke:#0077b6,color:#0a2742
+  classDef verify fill:#fff0de,stroke:#c97a0d,color:#4c2b08
+  classDef chain fill:#dff8f3,stroke:#1f9d8b,color:#0c3f39
+  classDef reject fill:#ffe6e2,stroke:#d55a43,color:#4f1f14
+
+  class A,B,C,D,E actor
+  class F,G verify
+  class I,J,K,L,M chain
+  class H reject
+        </pre>
+      </div>
+
+      <div class="grid-2">
+        <div class="callout blue">
+          <strong>Privacy invariant</strong>
+          <p>Public layer sees nullifier + new commitments + proof metadata, but not note plaintext amounts/owners.</p>
+        </div>
+        <div class="callout teal">
+          <strong>Gas privacy invariant</strong>
+          <p>With paymaster route, the user withdrawal address need not expose funding linkage for gas.</p>
+        </div>
+      </div>
+    </section>
+
+    <h2 id="s4" class="sec-head">4 — SNIP-36 Data Path (what moves where)</h2>
+    <section class="card">
+      <p>
+        The key SNIP-36 distinction is between <code>proof</code> (heavy payload for sequencing network path) and <code>proof_facts</code>
+        (contract-facing summary retrievable via v3 execution-info syscall and correlated with calldata messages).
+      </p>
+      <div class="mermaid-wrap">
+        <div class="zoom-controls">
+          <button onclick="zoomDiagram(this, 1.2)" title="Zoom in">+</button>
+          <button onclick="zoomDiagram(this, 0.8)" title="Zoom out">&minus;</button>
+          <button onclick="resetZoom(this)" title="Reset zoom">&#8634;</button>
+        </div>
+        <pre class="mermaid">
+flowchart TD
+  T[Invoke-v3 transaction assembled] --> T1[calldata raw messages]
+  T --> T2[proof S-Two bytes or words]
+  T --> T3[proof_facts felt summary]
+
+  T2 --> V1[Gateway or sequencer verifier]
+  T3 --> V1
+  V1 --> V2[Correlate proof with proof_facts]
+  V2 --> V3{Consistency valid}
+  V3 -- No --> V4[Reject before propagation]
+  V3 -- Yes --> C1[Execute calldata on-chain]
+
+  T3 --> S1[get_execution_info_v3 exposes proof_facts in tx context]
+  S1 --> C1
+
+  V1 --> M1[Proof Manager in Apollo]
+  M1 --> M2[set_proof or get_proof or contains_proof]
+
+  classDef tx fill:#e7f4ff,stroke:#0077b6,color:#0a2742
+  classDef verify fill:#ffe6e2,stroke:#d55a43,color:#4f1f14
+  classDef chain fill:#dff8f3,stroke:#1f9d8b,color:#0c3f39
+  classDef memo fill:#fff0de,stroke:#c97a0d,color:#4c2b08
+
+  class T,T1,T2,T3 tx
+  class V1,V2,V3,V4 verify
+  class C1,S1 chain
+  class M1,M2 memo
+        </pre>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Artifact</th>
+            <th>Primary Producer</th>
+            <th>Primary Consumer</th>
+            <th>Purpose</th>
+            <th>Visibility</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>proof</code></td>
+            <td>Client proving service / wallet stack</td>
+            <td>Gateway + sequencer verifier</td>
+            <td>Cryptographically prove off-chain virtual tx execution</td>
+            <td>Propagated in tx networking path; draft notes reduced explicit block/feeder footprint</td>
+          </tr>
+          <tr>
+            <td><code>proof_facts</code></td>
+            <td>Prover response / tx builder</td>
+            <td>Verifier + contract syscall access</td>
+            <td>Compact linkage: program hash, anchor block context, message hashes</td>
+            <td>Accessible in tx context via <code>get_execution_info_v3</code></td>
+          </tr>
+          <tr>
+            <td>calldata messages</td>
+            <td>Tx builder</td>
+            <td>Privacy pool contract logic</td>
+            <td>Actual state transition intents checked against facts</td>
+            <td>On-chain tx execution payload</td>
+          </tr>
+          <tr>
+            <td>proof manager entries</td>
+            <td>Apollo nodes</td>
+            <td>Consensus/verifier path and late joiners</td>
+            <td>Avoid repeated verification and aid proof syncing window</td>
+            <td>Node-internal retention (finite period)</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout blue" style="margin-top:10px;">
+        <strong>Why this design was introduced (from SNIP-36 motivation)</strong>
+        <p>
+          Contract-only verifier approaches require very large calldata and hit practical tx-size constraints
+          (draft discussion references current limit around 5K felts), which is especially problematic for privacy
+          and proving-heavy app patterns. SNIP-36 moves heavy verification into protocol path.
+        </p>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>SNIP-36 Concrete Detail</th>
+            <th>Value / Behavior</th>
+            <th>Flow Impact</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Phase mode</td>
+            <td>Phase-1 consensus-verified; not yet full SNOS/L1 trustless path</td>
+            <td>Integrators should explicitly document the transitional trust model.</td>
+          </tr>
+          <tr>
+            <td>Prover entrypoint</td>
+            <td><code>starknet_proveTransaction(block_id, invoke_v3)</code></td>
+            <td>Wallet/prover orchestration becomes explicit and auditable.</td>
+          </tr>
+          <tr>
+            <td>Proof manager retention</td>
+            <td>Apollo component stores proofs for finite period (draft: at least weeks)</td>
+            <td>Reduces redundant verification and assists late-node synchronization.</td>
+          </tr>
+          <tr>
+            <td>Proof manager interface</td>
+            <td><code>set_proof</code>, <code>get_proof</code>, <code>contains_proof</code></td>
+            <td>Provides operational caching and retrieval semantics for consensus path.</td>
+          </tr>
+          <tr>
+            <td>Pricing baseline example</td>
+            <td>130 L2gas/byte + 10M future verification reserve; 500KB example ~75M L2gas</td>
+            <td>Proof-size optimization directly impacts user-facing tx cost.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <h2 id="s5" class="sec-head">5 — Proof Invocation + Chain Bridge (detailed)</h2>
+    <section class="card">
+      <p>
+        This is the explicit invocation bridge from app to chain under current draft mechanics.
+      </p>
+      <div class="grid-2">
+        <div>
+          <div class="callout blue">
+            <strong>Proving API call shape</strong>
+            <p>
+              <code>starknet_proveTransaction(block_id, invoke_v3_tx)</code> returns <code>proof</code>, <code>proof_facts</code>, and L2→L1 messages.
+            </p>
+          </div>
+          <ul class="clean">
+            <li>Wallet constructs invoke-v3 tx fields plus private witness context.</li>
+            <li>Prover executes against selected Starknet block state anchor.</li>
+            <li>Output proof is attached to tx; facts become contract-readable summary.</li>
+            <li>Sequencer verifies before acceptance and only then propagates/executes.</li>
+          </ul>
+        </div>
+        <div>
+          <div class="callout amber">
+            <strong>Phase-1 security note</strong>
+            <p>
+              Draft explicitly states first phase is consensus-verified and not yet fully trustless SNOS/L1-equivalent verification.
+            </p>
+          </div>
+          <ul class="clean">
+            <li>Privacy apps get practical proving path early.</li>
+            <li>Future phases target stronger trustlessness and broader aggregation support.</li>
+            <li>Pricing model includes proof propagation + temporary storage + future verification reserve.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="callout red">
+        <strong>Operational implication for this privacy architecture</strong>
+        <p>
+          At initiation time, teams should treat SNIP-36 rollout in two tracks: (A) feature enablement track for UX and app integration,
+          and (B) risk governance track documenting phase-1 consensus-only trust assumptions.
+        </p>
+      </div>
+    </section>
+
+    <h2 id="s6" class="sec-head">6 — Compliance Overlay Flow (linked to private tx path)</h2>
+    <section class="card">
+      <p>
+        Compliance path should be modeled as orthogonal overlays, not a replacement for private transfer flow.
+      </p>
+      <div class="mermaid-wrap">
+        <div class="zoom-controls">
+          <button onclick="zoomDiagram(this, 1.2)" title="Zoom in">+</button>
+          <button onclick="zoomDiagram(this, 0.8)" title="Zoom out">&minus;</button>
+          <button onclick="resetZoom(this)" title="Reset zoom">&#8634;</button>
+        </div>
+        <pre class="mermaid">
+flowchart TD
+  TX[Private Tx Executed<br/>nullifier + commitments updated] --> L1[Layer 1: Wallet / Address Screening]
+  TX --> L2[Layer 2: Viewing Key Disclosure Path]
+  TX --> L3[Layer 3: Integrity Council Threshold Audit]
+
+  L2 --> L2A[User shares FVK under policy]
+  L2A --> L2B[Auditor reads incoming/outgoing history]
+  L2B --> L2C[No spending authority transferred]
+
+  L3 --> L3A[Audit payload encrypted with council pubkey]
+  L3A --> L3B[Court/legal trigger + request]
+  L3B --> L3C[t-of-n partial decryptions]
+  L3C --> L3D[Single-case reveal + on-chain accountability log]
+
+  classDef base fill:#e7f4ff,stroke:#0077b6,color:#0a2742
+  classDef vkey fill:#dff8f3,stroke:#1f9d8b,color:#0c3f39
+  classDef council fill:#fff0de,stroke:#c97a0d,color:#4c2b08
+
+  class TX,L1 base
+  class L2,L2A,L2B,L2C vkey
+  class L3,L3A,L3B,L3C,L3D council
+        </pre>
+      </div>
+    </section>
+
+    <h2 id="s7" class="sec-head">7 — Integration Checklist, Risks, and What to Build First</h2>
+    <section class="card">
+      <div class="grid-2">
+        <div>
+          <h3 style="margin-bottom:8px; font-size:17px;">Practical Initiation Checklist</h3>
+          <ul class="clean">
+            <li>Finalize note commitment format and nullifier derivation function in Cairo.</li>
+            <li>Ship wallet key lifecycle and note discovery mechanism (trial/tag/FMD strategy).</li>
+            <li>Implement proving client wrapper for <code>starknet_proveTransaction</code> workflow.</li>
+            <li>Integrate invoke-v3 tx composition including optional <code>proof</code>/<code>proof_facts</code>.</li>
+            <li>Contract path reads <code>proof_facts</code> via v3 execution-info and binds to calldata.</li>
+            <li>Enable paymaster route for gas privacy and external execution flow.</li>
+            <li>Define compliance policy surface (voluntary viewing + council escalation).</li>
+          </ul>
+        </div>
+        <div>
+          <h3 style="margin-bottom:8px; font-size:17px;">Key Risks to Track</h3>
+          <div class="callout red">
+            <strong>Phase-1 trust model risk</strong>
+            <p>Consensus-only verification is intentionally transitional; communicate this clearly to users/integrators.</p>
+          </div>
+          <div class="callout amber" style="margin-top:8px;">
+            <strong>Proof-size economics risk</strong>
+            <p>SNIP-36 pricing is linear in proof size components; monitor practical proof sizes and UX thresholds.</p>
+          </div>
+          <div class="callout blue" style="margin-top:8px;">
+            <strong>Discovery scalability risk</strong>
+            <p>Pure trial-decryption can become a bottleneck as encrypted output volume grows.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <h2 id="s8" class="sec-head">8 — Sources & Linking Notes</h2>
+    <section class="card sources">
+      <p><strong>Primary inputs used for this diagram:</strong></p>
+      <ul>
+        <li><code>/Users/mohit/Downloads/Starknet Privacy Deep Dive (1).pptx</code> (slides parsed and mapped into flow blocks)</li>
+        <li><code>/Users/mohit/Downloads/Deeper Research Explanation.md</code> (long-form architecture context and comparisons)</li>
+        <li><a href="https://community.starknet.io/t/snip-36-in-protocol-proof-verification/116123" target="_blank" rel="noopener noreferrer">SNIP-36: In protocol S-Two verification (draft, 2026-02-15)</a></li>
+      </ul>
+      <p style="margin-top:10px;">
+        <strong>How the sources were linked:</strong>
+        the local docs define privacy architecture primitives and operating model; SNIP-36 defines the tx/proof transport and verification pathway.
+        This page treats SNIP-36 fields and phase framing as spec inputs and maps them onto the privacy pipeline defined in the local docs.
+      </p>
+    </section>
+  </main>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  import elkLayouts from 'https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk/dist/mermaid-layout-elk.esm.min.mjs';
+
+  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+  mermaid.registerLayoutLoaders(elkLayouts);
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    look: 'classic',
+    layout: 'elk',
+    flowchart: { curve: 'basis', htmlLabels: true, useMaxWidth: true },
+    themeVariables: {
+      background: isDark ? '#133047' : '#e8f5ff',
+      primaryColor: isDark ? '#163955' : '#e7f4ff',
+      primaryTextColor: isDark ? '#d9efff' : '#0a2742',
+      primaryBorderColor: isDark ? '#56c0ff' : '#0077b6',
+      secondaryColor: isDark ? '#214b45' : '#dff8f3',
+      secondaryTextColor: isDark ? '#d9fff6' : '#0c3f39',
+      secondaryBorderColor: isDark ? '#6fe6cf' : '#1f9d8b',
+      tertiaryColor: isDark ? '#4e3719' : '#fff0de',
+      tertiaryTextColor: isDark ? '#ffe9cc' : '#4c2b08',
+      tertiaryBorderColor: isDark ? '#ffbe68' : '#c97a0d',
+      lineColor: isDark ? '#8cb7db' : '#496b88',
+      edgeLabelBackground: isDark ? '#133047' : '#e8f5ff',
+      fontFamily: 'Chakra Petch, sans-serif',
+      fontSize: '16px'
+    }
+  });
+</script>
+<script>
+(function() {
+  function setZoom(wrap, zoom) {
+    const target = wrap.querySelector('.mermaid');
+    target.style.transform = 'scale(' + zoom + ')';
+    target.dataset.zoom = String(zoom);
+    wrap.classList.toggle('is-zoomed', zoom > 1);
+  }
+
+  window.zoomDiagram = function(btn, factor) {
+    const wrap = btn.closest('.mermaid-wrap');
+    const target = wrap.querySelector('.mermaid');
+    const current = parseFloat(target.dataset.zoom || '1');
+    const next = Math.min(5, Math.max(0.3, current * factor));
+    setZoom(wrap, next);
+  };
+
+  window.resetZoom = function(btn) {
+    const wrap = btn.closest('.mermaid-wrap');
+    setZoom(wrap, 1);
+    wrap.scrollLeft = 0;
+    wrap.scrollTop = 0;
+  };
+
+  document.querySelectorAll('.mermaid-wrap').forEach(function(wrap) {
+    const target = wrap.querySelector('.mermaid');
+
+    wrap.addEventListener('wheel', function(e) {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      e.preventDefault();
+      const current = parseFloat(target.dataset.zoom || '1');
+      const factor = e.deltaY > 0 ? 0.92 : 1.08;
+      const next = Math.min(5, Math.max(0.3, current * factor));
+      setZoom(wrap, next);
+    }, { passive: false });
+
+    let isDown = false;
+    let sx = 0;
+    let sy = 0;
+    let sl = 0;
+    let st = 0;
+
+    wrap.addEventListener('mousedown', function(e) {
+      if (e.target.closest('.zoom-controls')) return;
+      if (parseFloat(target.dataset.zoom || '1') <= 1) return;
+      isDown = true;
+      wrap.classList.add('is-panning');
+      sx = e.clientX;
+      sy = e.clientY;
+      sl = wrap.scrollLeft;
+      st = wrap.scrollTop;
+    });
+
+    window.addEventListener('mousemove', function(e) {
+      if (!isDown) return;
+      wrap.scrollLeft = sl - (e.clientX - sx);
+      wrap.scrollTop = st - (e.clientY - sy);
+    });
+
+    window.addEventListener('mouseup', function() {
+      isDown = false;
+      wrap.classList.remove('is-panning');
+    });
+  });
+
+  const toc = document.getElementById('toc');
+  const links = toc.querySelectorAll('a');
+  const sections = [];
+
+  links.forEach(function(link) {
+    const id = link.getAttribute('href').slice(1);
+    const el = document.getElementById(id);
+    if (el) sections.push({ el: el, link: link });
+  });
+
+  const observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        links.forEach(function(l) { l.classList.remove('active'); });
+        const match = sections.find(function(s) { return s.el === entry.target; });
+        if (match) {
+          match.link.classList.add('active');
+          if (window.innerWidth <= 1100) {
+            match.link.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+          }
+        }
+      }
+    });
+  }, { rootMargin: '-10% 0px -80% 0px' });
+
+  sections.forEach(function(s) { observer.observe(s.el); });
+
+  links.forEach(function(link) {
+    link.addEventListener('click', function(e) {
+      e.preventDefault();
+      const id = link.getAttribute('href').slice(1);
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        history.replaceState(null, '', '#' + id);
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>

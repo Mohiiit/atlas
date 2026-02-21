@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Module 07 - Risk & MEV</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f3f7f9;--surface:#fff;--text:#0b2230;--dim:#3d5e72;--border:#d2e2ec;--accent:#0e7490}
+@media (prefers-color-scheme: dark){:root{--bg:#0c161b;--surface:#12222b;--text:#dff5ff;--dim:#8fb3c4;--border:#25414f;--accent:#67e8f9}}
+*{box-sizing:border-box}body{margin:0;font-family:Urbanist,sans-serif;background:radial-gradient(circle at 10% 10%, rgba(14,116,144,.12), transparent 38%),var(--bg);color:var(--text);padding:28px}main{max-width:1080px;margin:0 auto}.row{display:grid;grid-template-columns:1.25fr .75fr;gap:16px}@media(max-width:900px){.row{grid-template-columns:1fr}}.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px}
+h1{margin:0;font-size:33px}.sub{margin:6px 0 18px;color:var(--dim);font:12px 'Share Tech Mono',monospace}label{display:block;color:var(--accent);font:11px 'Share Tech Mono',monospace;text-transform:uppercase;margin-bottom:10px}ul{margin:8px 0 0 18px;color:var(--dim)}li{margin:7px 0}code{font-family:'Share Tech Mono',monospace;background:rgba(14,116,144,.14);padding:2px 6px;border-radius:4px}
+</style></head><body><main>
+<h1>Module 07: Risk, MEV, and Liquidations</h1><p class="sub">Safety assumptions fail at execution layer first</p>
+<div class="row"><section class="card"><label>Adversarial Path</label><pre class="mermaid">flowchart TD
+  A[Large user tx enters mempool] --> B[Searcher simulates profitability]
+  B --> C[Bundle crafted]
+  C --> D[Builder/validator ordering]
+  D --> E{Outcome}
+  E -->|Sandwich| F[User worse execution]
+  E -->|Backrun| G[Arb captures spread]
+  E -->|Liquidation race| H[Fast keeper wins]
+  H --> I[Protocol solvency protected or delayed]
+</pre></section>
+<section class="card"><label>Liquidation Capacity Example</label><ul>
+<li>System needs to liquidate 50M notional in crash.</li>
+<li>Current keeper throughput: 6M per block equivalent.</li>
+<li>If congestion reduces this by 60%, backlog grows rapidly.</li>
+<li>Backlog duration can create bad debt despite correct parameters.</li>
+</ul>
+<label style="margin-top:14px">Mitigation Checks</label><ul>
+<li>Oracle heartbeat and fallback hierarchy</li>
+<li>Private orderflow for critical actions</li>
+<li>Circuit breaker semantics</li>
+</ul></section></div>
+</main>
+<script type="module">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';const d=window.matchMedia('(prefers-color-scheme: dark)').matches;mermaid.initialize({startOnLoad:true,theme:'base',themeVariables:{primaryColor:d?'#17323f':'#e3f7ff',primaryBorderColor:d?'#67e8f9':'#0e7490',primaryTextColor:d?'#dff5ff':'#0b2230',lineColor:d?'#a5d8e8':'#3d5e72',fontFamily:'Urbanist',fontSize:'15px'}});</script>
+</body></html>

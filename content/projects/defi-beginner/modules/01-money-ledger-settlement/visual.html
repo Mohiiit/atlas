@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Module 01 - Settlement</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#fffaf2;--surface:#ffffff;--text:#272014;--dim:#6d5d47;--border:#eadcc5;--accent:#9a3412}
+@media (prefers-color-scheme: dark){:root{--bg:#1a140f;--surface:#251c15;--text:#f5ece2;--dim:#b49f89;--border:#3b2f24;--accent:#fb923c}}
+*{box-sizing:border-box} body{margin:0;font-family:Manrope,sans-serif;background:linear-gradient(160deg,var(--bg),color-mix(in srgb,var(--bg),black 6%));color:var(--text);padding:28px}
+main{max-width:1050px;margin:0 auto} h1{margin:0;font-size:33px}.sub{font:12px 'IBM Plex Mono',monospace;color:var(--dim);margin:6px 0 18px}
+.grid{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}@media(max-width:850px){.grid{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px} label{font:11px 'IBM Plex Mono',monospace;color:var(--accent);text-transform:uppercase;display:block;margin-bottom:10px}
+ul{margin:8px 0 0 18px;color:var(--dim)}li{margin:7px 0}code{font-family:'IBM Plex Mono',monospace;background:rgba(154,52,18,.12);padding:2px 5px;border-radius:4px}
+</style></head><body><main>
+<h1>Module 01: Money, Ledger, Settlement</h1><p class="sub">Collateralized credit = solvency constraints + liquidation throughput</p>
+<div class="grid"><section class="card"><label>State Transition Flow</label>
+<pre class="mermaid">flowchart TD
+  A[Deposit collateral] --> B[Mint or borrow]
+  B --> C[Collateral ratio monitor]
+  C --> D{ratio >= threshold?}
+  D -->|yes| E[Position remains open]
+  D -->|no| F[Liquidation auction]
+  F --> G[Debt repaid + collateral seized]
+  G --> H[Protocol solvency restored]
+  E --> C
+</pre></section>
+<section class="card"><label>Worked Example</label>
+<ul>
+<li>Deposit 150 USDC, mint 100 debt units.</li>
+<li>Collateral ratio = <code>150/100 = 150%</code>.</li>
+<li>Collateral falls to 120: ratio = <code>120%</code>.</li>
+<li>If liquidation threshold is 125%, position becomes liquidatable.</li>
+</ul>
+<label style="margin-top:14px">Failure Lens</label>
+<ul>
+<li>Oracle delay hides true ratio.</li>
+<li>Keeper congestion delays liquidation.</li>
+<li>Bad debt appears if collateral dumps faster than auctions clear.</li>
+</ul>
+</section></div></main>
+<script type="module">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';const d=window.matchMedia('(prefers-color-scheme: dark)').matches;mermaid.initialize({startOnLoad:true,theme:'base',themeVariables:{primaryColor:d?'#3b2f24':'#fff1df',primaryBorderColor:d?'#fb923c':'#9a3412',primaryTextColor:d?'#f5ece2':'#272014',lineColor:d?'#cbd5e1':'#6d5d47',fontFamily:'Manrope',fontSize:'15px'}});</script>
+</body></html>

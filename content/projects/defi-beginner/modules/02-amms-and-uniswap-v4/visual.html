@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Module 02 - AMMs and Uniswap v4</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f0f9ff;--surface:#fff;--text:#082f49;--dim:#35607d;--border:#c7e5f7;--accent:#0369a1}
+@media (prefers-color-scheme: dark){:root{--bg:#031826;--surface:#0b2436;--text:#d6ecff;--dim:#88b4d2;--border:#1f3a4f;--accent:#38bdf8}}
+*{box-sizing:border-box}body{margin:0;font-family:Sora,sans-serif;background:radial-gradient(circle at 80% 0,rgba(3,105,161,.15),transparent 35%),var(--bg);color:var(--text);padding:28px}
+main{max-width:1100px;margin:0 auto}.row{display:grid;grid-template-columns:1.3fr .7fr;gap:16px}@media(max-width:900px){.row{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px}h1{margin:0;font-size:33px}.sub{margin:6px 0 18px;color:var(--dim);font:12px 'Fira Code',monospace}
+label{display:block;margin-bottom:10px;color:var(--accent);font:11px 'Fira Code',monospace;text-transform:uppercase}ul{margin:8px 0 0 18px;color:var(--dim)}li{margin:7px 0}code{font-family:'Fira Code',monospace;background:rgba(3,105,161,.12);padding:2px 6px;border-radius:4px}
+</style></head><body><main>
+<h1>Module 02: AMMs and Uniswap v4</h1><p class="sub">Curve math, LP economics, and hook-based customization</p>
+<div class="row"><section class="card"><label>Evolution and Swap Lifecycle</label><pre class="mermaid">flowchart TD
+  A[v2: x*y=k] --> B[v3: concentrated ranges]
+  B --> C[v4: singleton + hooks]
+  C --> D[beforeSwap hook]
+  D --> E[custom fee / checks]
+  E --> F[core swap + flash accounting]
+  F --> G[afterSwap hook]
+  G --> H[final settlement + fee accounting]
+</pre></section>
+<section class="card"><label>Numerical Example</label>
+<ul>
+<li>Pool: 1000 ETH and 2,000,000 USDC.</li>
+<li><code>k = 2,000,000,000</code>.</li>
+<li>Trader buys 10 ETH, ETH reserve -> 990.</li>
+<li>USDC reserve -> <code>k/990 = 2,020,202</code>.</li>
+<li>Swap cost about 20,202 USDC before fee.</li>
+</ul>
+<label style="margin-top:14px">Hook Review</label>
+<ul>
+<li>Determinism and reentrancy safety</li>
+<li>Manipulation-resistant dynamic fees</li>
+<li>LP expectation compatibility</li>
+</ul>
+</section></div>
+</main>
+<script type="module">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';const d=window.matchMedia('(prefers-color-scheme: dark)').matches;mermaid.initialize({startOnLoad:true,theme:'base',layout:'dagre',themeVariables:{primaryColor:d?'#0e2f44':'#def3ff',primaryBorderColor:d?'#38bdf8':'#0369a1',primaryTextColor:d?'#d6ecff':'#082f49',lineColor:d?'#93c5fd':'#35607d',fontFamily:'Sora',fontSize:'15px'}});</script>
+</body></html>

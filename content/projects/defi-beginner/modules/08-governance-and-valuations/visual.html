@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Module 08 - Governance & Valuation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f8f6ff;--surface:#fff;--text:#1f1a3d;--dim:#5f568f;--border:#ddd8fa;--accent:#4338ca}
+@media (prefers-color-scheme: dark){:root{--bg:#14122a;--surface:#1d1a36;--text:#ece9ff;--dim:#b6aee6;--border:#37305e;--accent:#a5b4fc}}
+*{box-sizing:border-box}body{margin:0;font-family:Outfit,sans-serif;background:var(--bg);color:var(--text);padding:28px}main{max-width:1080px;margin:0 auto}.row{display:grid;grid-template-columns:1.25fr .75fr;gap:16px}@media(max-width:900px){.row{grid-template-columns:1fr}}.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px}
+h1{margin:0;font-size:33px}.sub{margin:6px 0 18px;color:var(--dim);font:12px 'Courier Prime',monospace}label{display:block;color:var(--accent);font:11px 'Courier Prime',monospace;text-transform:uppercase;margin-bottom:10px}ul{margin:8px 0 0 18px;color:var(--dim)}li{margin:7px 0}code{font-family:'Courier Prime',monospace;background:rgba(67,56,202,.12);padding:2px 6px;border-radius:4px}
+</style></head><body><main>
+<h1>Module 08: Governance and Valuation</h1><p class="sub">Token value = fee rights + control rights + risk-adjusted credibility</p>
+<div class="row"><section class="card"><label>Value Capture Chain</label><pre class="mermaid">flowchart TD
+  A[Protocol usage] --> B[Gross fees]
+  B --> C[Op costs + incentives]
+  C --> D[Net protocol revenue]
+  D --> E{Governance decision}
+  E -->|Buyback/staking| F[Tokenholder cash flow]
+  E -->|Treasury retain| G[Runway + reinvestment]
+  E -->|Emissions| H[Dilution pressure]
+  F --> I[Valuation multiple]
+</pre></section>
+<section class="card"><label>Sensitivity Example</label><ul>
+<li>Net annual fees: 120M.</li>
+<li>Capture to stakers: 35% => 42M.</li>
+<li>Circulating tokens: 300M.</li>
+<li>Cash flow/token: <code>42/300 = 0.14</code>.</li>
+<li>If capture drops to 20% => <code>0.08</code> per token.</li>
+</ul>
+<label style="margin-top:14px">Governance Risk Lens</label><ul>
+<li>Delegation concentration</li>
+<li>Upgrade key centralization</li>
+<li>Short-term bribe incentives</li>
+</ul></section></div>
+</main>
+<script type="module">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';const d=window.matchMedia('(prefers-color-scheme: dark)').matches;mermaid.initialize({startOnLoad:true,theme:'base',themeVariables:{primaryColor:d?'#2c2550':'#f0edff',primaryBorderColor:d?'#a5b4fc':'#4338ca',primaryTextColor:d?'#ece9ff':'#1f1a3d',lineColor:d?'#c4b5fd':'#5f568f',fontFamily:'Outfit',fontSize:'15px'}});</script>
+</body></html>
