@@ -115,6 +115,34 @@ function copyRecursiveFiltered(srcRoot, dstRoot, allowedExts) {
   return copied;
 }
 
+function assertNoLocalPathsInProject(projectRoot) {
+  const suspect = [];
+  const textExts = new Set(["md", "txt", "json", "html", "js", "css"]);
+  const re = /file:\/\/[^\s)"'`<>]+|\/Users\/[^\s)"'`<>]+|\/home\/[^\s)"'`<>]+|[A-Za-z]:\\Users\\[^\s)"'`<>]+/g;
+
+  function walk(current) {
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      if (entry.name.startsWith(".")) continue;
+      const abs = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        walk(abs);
+        continue;
+      }
+      const ext = path.extname(entry.name).slice(1).toLowerCase();
+      if (!textExts.has(ext)) continue;
+      const text = fs.readFileSync(abs, "utf8");
+      if (re.test(text)) {
+        suspect.push(toPosix(path.relative(repoRoot, abs)));
+      }
+    }
+  }
+
+  walk(projectRoot);
+  if (suspect.length > 0) {
+    throw new Error(`Local path leak check failed. Offending files:\n- ${suspect.join("\n- ")}`);
+  }
+}
+
 function run(cmd) {
   execSync(cmd, { cwd: repoRoot, stdio: "inherit" });
 }
@@ -185,6 +213,7 @@ function main() {
 
     ensureDir(destProjectRoot);
     const copied = copyRecursiveFiltered(sourceProjectRoot, destProjectRoot, allowedExts);
+    assertNoLocalPathsInProject(destProjectRoot);
     console.log(`- ${project}: copied ${copied.length} file(s)`);
   }
 
