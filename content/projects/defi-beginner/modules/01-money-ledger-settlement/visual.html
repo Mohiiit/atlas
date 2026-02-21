@@ -1,41 +1,20 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Module 01 - Settlement</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<style>
-:root{--bg:#fffaf2;--surface:#ffffff;--text:#272014;--dim:#6d5d47;--border:#eadcc5;--accent:#9a3412}
-@media (prefers-color-scheme: dark){:root{--bg:#1a140f;--surface:#251c15;--text:#f5ece2;--dim:#b49f89;--border:#3b2f24;--accent:#fb923c}}
-*{box-sizing:border-box} body{margin:0;font-family:Manrope,sans-serif;background:linear-gradient(160deg,var(--bg),color-mix(in srgb,var(--bg),black 6%));color:var(--text);padding:28px}
-main{max-width:1050px;margin:0 auto} h1{margin:0;font-size:33px}.sub{font:12px 'IBM Plex Mono',monospace;color:var(--dim);margin:6px 0 18px}
-.grid{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}@media(max-width:850px){.grid{grid-template-columns:1fr}}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px} label{font:11px 'IBM Plex Mono',monospace;color:var(--accent);text-transform:uppercase;display:block;margin-bottom:10px}
-ul{margin:8px 0 0 18px;color:var(--dim)}li{margin:7px 0}code{font-family:'IBM Plex Mono',monospace;background:rgba(154,52,18,.12);padding:2px 5px;border-radius:4px}
-</style></head><body><main>
-<h1>Module 01: Money, Ledger, Settlement</h1><p class="sub">Collateralized credit = solvency constraints + liquidation throughput</p>
-<div class="grid"><section class="card"><label>State Transition Flow</label>
-<pre class="mermaid">flowchart TD
-  A[Deposit collateral] --> B[Mint or borrow]
-  B --> C[Collateral ratio monitor]
-  C --> D{ratio >= threshold?}
-  D -->|yes| E[Position remains open]
-  D -->|no| F[Liquidation auction]
-  F --> G[Debt repaid + collateral seized]
-  G --> H[Protocol solvency restored]
-  E --> C
-</pre></section>
-<section class="card"><label>Worked Example</label>
-<ul>
-<li>Deposit 150 USDC, mint 100 debt units.</li>
-<li>Collateral ratio = <code>150/100 = 150%</code>.</li>
-<li>Collateral falls to 120: ratio = <code>120%</code>.</li>
-<li>If liquidation threshold is 125%, position becomes liquidatable.</li>
-</ul>
-<label style="margin-top:14px">Failure Lens</label>
-<ul>
-<li>Oracle delay hides true ratio.</li>
-<li>Keeper congestion delays liquidation.</li>
-<li>Bad debt appears if collateral dumps faster than auctions clear.</li>
-</ul>
-</section></div></main>
-<script type="module">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';const d=window.matchMedia('(prefers-color-scheme: dark)').matches;mermaid.initialize({startOnLoad:true,theme:'base',themeVariables:{primaryColor:d?'#3b2f24':'#fff1df',primaryBorderColor:d?'#fb923c':'#9a3412',primaryTextColor:d?'#f5ece2':'#272014',lineColor:d?'#cbd5e1':'#6d5d47',fontFamily:'Manrope',fontSize:'15px'}});</script>
-</body></html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Module 01 - Settlement (Content-Rich)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>:root{--bg:#fff8f1;--surface:#fff;--text:#2d200f;--dim:#6f5f49;--border:#ecdcc8;--accent:#9a3412;--accent-dim:rgba(154,52,18,.11)}@media(prefers-color-scheme:dark){:root{--bg:#1a140f;--surface:#261d16;--text:#f8eadc;--dim:#b8a38a;--border:#3f3124;--accent:#fb923c;--accent-dim:rgba(251,146,60,.14)}}*{box-sizing:border-box}body{margin:0;font-family:Manrope,sans-serif;background:var(--bg);color:var(--text);padding:28px}main{max-width:1080px;margin:0 auto}.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px}h1{margin:0;font-size:33px}.sub{margin:8px 0 18px;color:var(--dim);font:12px 'IBM Plex Mono',monospace}.k{display:block;color:var(--accent);font:11px 'IBM Plex Mono',monospace;text-transform:uppercase;margin-bottom:10px}p,li{color:var(--dim);line-height:1.62}ul,ol{margin:8px 0 0 18px}li{margin:7px 0}code{font-family:'IBM Plex Mono',monospace;background:var(--accent-dim);padding:2px 6px;border-radius:4px;color:var(--accent)}</style></head><body><main>
+<h1>Module 01: Money, Ledger, and Settlement</h1><p class="sub">How collateralized credit and finality assumptions produce or destroy solvency</p>
+<section class="card"><span class="k">Why This Matters</span><ul><li>Every DeFi protocol is ultimately a settlement system with constraints.</li><li>Credit-like behavior appears whenever users mint/borrow against collateral.</li><li>Most crises are settlement timing mismatches, not arithmetic mistakes.</li></ul></section>
+<section class="card"><span class="k">Mechanism Walkthrough</span><pre class="mermaid">flowchart TD
+A[Deposit collateral]-->B[Borrow or mint claim]
+B-->C[Collateral ratio monitor]
+C-->D{Above threshold?}
+D-->|yes|E[Position continues]
+D-->|no|F[Liquidation process]
+F-->G[Debt reduction + collateral transfer]
+G-->H[System returns toward solvency]
+</pre><p>Collateralization transforms credit risk into liquidation execution risk. If liquidations are fast and deep enough, protocol remains solvent. If they lag, bad debt accumulates.</p></section>
+<section class="card"><span class="k">Worked Examples</span><p><strong>Example 1:</strong> 150 collateral backing 100 debt => 150% ratio. Collateral falls to 120 => 120%. If threshold is 125%, position breaches and must be liquidated.</p><p><strong>Example 2:</strong> If oracle updates every 30 seconds and market drops 20% in 10 seconds, liquidations start late; queue pressure determines whether debt is covered.</p></section>
+<section class="card"><span class="k">Failure Modes</span><ul><li>Oracle stale while market moves rapidly.</li><li>Liquidator capital insufficient under correlated crashes.</li><li>Gas congestion blocks risk-off actions during peak stress.</li></ul></section>
+<section class="card"><span class="k">What To Monitor</span><ul><li>System-wide collateral ratio distribution.</li><li>Oracle heartbeat and deviation triggers.</li><li>Liquidation completion times and slippage.</li></ul></section>
+<section class="card"><span class="k">Further Reading Prompts</span><ol><li>How do different liquidation auction designs impact recovery rates?</li><li>What finality assumptions are required for cross-chain collateral?</li><li>Where can accounting lag hide insolvency?</li></ol></section>
+</main><script type="module">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';const d=window.matchMedia('(prefers-color-scheme: dark)').matches;mermaid.initialize({startOnLoad:true,theme:'base',themeVariables:{primaryColor:d?'#3b2d20':'#fff1df',primaryBorderColor:d?'#fb923c':'#9a3412',primaryTextColor:d?'#f8eadc':'#2d200f',lineColor:d?'#d6bea2':'#6f5f49',fontFamily:'Manrope',fontSize:'15px'}});</script></body></html>

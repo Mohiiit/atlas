@@ -1,40 +1,125 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Module 02 - AMMs and Uniswap v4</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Module 02 - AMMs and Uniswap v4 (Content-Rich)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#f0f9ff;--surface:#fff;--text:#082f49;--dim:#35607d;--border:#c7e5f7;--accent:#0369a1}
-@media (prefers-color-scheme: dark){:root{--bg:#031826;--surface:#0b2436;--text:#d6ecff;--dim:#88b4d2;--border:#1f3a4f;--accent:#38bdf8}}
-*{box-sizing:border-box}body{margin:0;font-family:Sora,sans-serif;background:radial-gradient(circle at 80% 0,rgba(3,105,161,.15),transparent 35%),var(--bg);color:var(--text);padding:28px}
-main{max-width:1100px;margin:0 auto}.row{display:grid;grid-template-columns:1.3fr .7fr;gap:16px}@media(max-width:900px){.row{grid-template-columns:1fr}}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px}h1{margin:0;font-size:33px}.sub{margin:6px 0 18px;color:var(--dim);font:12px 'Fira Code',monospace}
-label{display:block;margin-bottom:10px;color:var(--accent);font:11px 'Fira Code',monospace;text-transform:uppercase}ul{margin:8px 0 0 18px;color:var(--dim)}li{margin:7px 0}code{font-family:'Fira Code',monospace;background:rgba(3,105,161,.12);padding:2px 6px;border-radius:4px}
-</style></head><body><main>
-<h1>Module 02: AMMs and Uniswap v4</h1><p class="sub">Curve math, LP economics, and hook-based customization</p>
-<div class="row"><section class="card"><label>Evolution and Swap Lifecycle</label><pre class="mermaid">flowchart TD
-  A[v2: x*y=k] --> B[v3: concentrated ranges]
-  B --> C[v4: singleton + hooks]
-  C --> D[beforeSwap hook]
-  D --> E[custom fee / checks]
-  E --> F[core swap + flash accounting]
-  F --> G[afterSwap hook]
-  G --> H[final settlement + fee accounting]
-</pre></section>
-<section class="card"><label>Numerical Example</label>
-<ul>
-<li>Pool: 1000 ETH and 2,000,000 USDC.</li>
-<li><code>k = 2,000,000,000</code>.</li>
-<li>Trader buys 10 ETH, ETH reserve -> 990.</li>
-<li>USDC reserve -> <code>k/990 = 2,020,202</code>.</li>
-<li>Swap cost about 20,202 USDC before fee.</li>
-</ul>
-<label style="margin-top:14px">Hook Review</label>
-<ul>
-<li>Determinism and reentrancy safety</li>
-<li>Manipulation-resistant dynamic fees</li>
-<li>LP expectation compatibility</li>
-</ul>
-</section></div>
+:root{--bg:#f3faff;--surface:#fff;--text:#0a2a41;--dim:#45657c;--border:#cfe5f4;--accent:#0369a1;--accent-dim:rgba(3,105,161,.12)}
+@media (prefers-color-scheme: dark){:root{--bg:#071624;--surface:#102434;--text:#dbedff;--dim:#99bddb;--border:#234258;--accent:#38bdf8;--accent-dim:rgba(56,189,248,.14)}}
+*{box-sizing:border-box} body{margin:0;font-family:Sora,sans-serif;background:radial-gradient(circle at 85% 0,var(--accent-dim),transparent 40%),var(--bg);color:var(--text);padding:28px}
+main{max-width:1120px;margin:0 auto}h1{margin:0;font-size:34px} .sub{margin:8px 0 18px;color:var(--dim);font:12px 'JetBrains Mono',monospace}
+.grid{display:grid;grid-template-columns:1.15fr .85fr;gap:16px}@media(max-width:900px){.grid{grid-template-columns:1fr}} .stack{display:grid;gap:16px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;min-width:0} .k{display:block;color:var(--accent);font:11px 'JetBrains Mono',monospace;text-transform:uppercase;margin-bottom:10px}
+ p{line-height:1.66;color:var(--dim);margin:8px 0} ul,ol{margin:8px 0 0 18px;color:var(--dim)} li{margin:7px 0;line-height:1.55}
+ code{font-family:'JetBrains Mono',monospace;background:var(--accent-dim);padding:2px 6px;border-radius:4px;color:var(--accent)} strong{color:var(--text)}
+ .table-wrap{overflow:auto;border:1px solid var(--border);border-radius:10px}.data{width:100%;border-collapse:collapse;font-size:13px}.data th,.data td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:top}.data th{font:11px 'JetBrains Mono',monospace;text-transform:uppercase;color:var(--accent);text-align:left;background:var(--accent-dim)}
+</style>
+</head>
+<body>
+<main>
+  <h1>Module 02: AMMs and Uniswap v4</h1>
+  <p class="sub">Content-rich explainer: curve mechanics, LP economics, hook architecture, and review methodology</p>
+
+  <section class="card">
+    <span class="k">Why This Matters</span>
+    <ul>
+      <li><strong>AMM design decides execution quality:</strong> every routing system, aggregator, and intent solver depends on AMM microstructure.</li>
+      <li><strong>LP strategies are risk strategies:</strong> fee APR without inventory risk modeling is incomplete and usually misleading.</li>
+      <li><strong>Uniswap v4 changes extensibility:</strong> hooks move behavior from hardcoded core into programmable policy modules.</li>
+      <li><strong>Infra engineers need mechanism literacy:</strong> to evaluate hooks, audits, and router assumptions, you need first-principles flow clarity.</li>
+    </ul>
+  </section>
+
+  <div class="grid">
+    <section class="card">
+      <span class="k">Mechanism Walkthrough</span>
+      <pre class="mermaid">flowchart TD
+        A[Trader submits swap intent] --> B[Router chooses pool path]
+        B --> C[beforeSwap hook]
+        C --> D[Custom checks or dynamic fee]
+        D --> E[Core price movement and fee accounting]
+        E --> F[afterSwap hook]
+        F --> G[Post-swap accounting or rebates]
+        G --> H[Settlement and updated reserves]
+      </pre>
+      <p>The critical idea in v4 is separation of concerns: core maintains settlement safety and accounting primitives, while hooks inject customizable behavior around the swap lifecycle. That flexibility is powerful, but it also means every hook is now part of the protocol's economic and security boundary.</p>
+      <p>When evaluating a pool, do not only ask "what is fee tier?" Ask "what hook logic executes before and after value transfer?" Hook policy can alter fee shape, access conditions, and even dynamic response to volatility.</p>
+    </section>
+
+    <div class="stack">
+      <section class="card">
+        <span class="k">First Principles</span>
+        <ol>
+          <li><strong>Price function:</strong> AMM quotes are state-dependent functions of reserves or liquidity ranges.</li>
+          <li><strong>Inventory transfer:</strong> trader PnL and LP PnL are opposite sides of inventory transfer plus fees.</li>
+          <li><strong>Arbitrage closure:</strong> off-market pool prices are corrected by arbitrage, effectively outsourcing oracle alignment to traders.</li>
+          <li><strong>Programmable policy:</strong> in v4, hook code defines dynamic behavior that was previously impossible or external.</li>
+        </ol>
+      </section>
+
+      <section class="card">
+        <span class="k">Worked Example 1 - CPMM Slippage</span>
+        <p>Initial reserves: 1000 ETH and 2,000,000 USDC. Constant product <code>k = 2,000,000,000</code>.</p>
+        <p>Trader buys 10 ETH. New ETH reserve = 990. New USDC reserve = <code>k/990 = 2,020,202</code>. Trade cost is about 20,202 USDC (before fee), so average fill is 2,020.2 USDC/ETH while initial mid was 2,000.</p>
+        <p><strong>Interpretation:</strong> convexity creates price impact; larger trade fraction of pool means larger execution premium.</p>
+      </section>
+    </div>
+  </div>
+
+  <section class="card">
+    <span class="k">Worked Example 2 - Dynamic Fee Hook</span>
+    <p>Suppose a hook sets fee by recent realized volatility: base 5 bps, jump to 30 bps when one-minute realized volatility exceeds threshold <code>sigma*</code>.</p>
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>Regime</th><th>Volatility</th><th>Fee</th><th>LP Outcome</th><th>Trader Outcome</th></tr></thead>
+        <tbody>
+          <tr><td>Calm</td><td>Low</td><td>5 bps</td><td>Lower fee revenue, lower adverse selection</td><td>Tighter execution</td></tr>
+          <tr><td>Shock</td><td>High</td><td>30 bps</td><td>Compensates toxic flow risk</td><td>More expensive execution</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><strong>Design caveat:</strong> if vol metric can be manipulated intrablock, attacker may force fee changes to front-run users. Your metric source and update timing must be manipulation-aware.</p>
+  </section>
+
+  <section class="card">
+    <span class="k">Failure Modes</span>
+    <ul>
+      <li><strong>Hook reentrancy or state corruption:</strong> externalized hook logic introduces cross-call surfaces absent in simpler pool models.</li>
+      <li><strong>Fee policy gaming:</strong> attackers spoof signals used by dynamic fee formulas.</li>
+      <li><strong>LP expectation mismatch:</strong> custom accounting may deviate from assumed payout behavior, creating hidden strategy risk.</li>
+      <li><strong>Routing blind spots:</strong> aggregators that ignore hook semantics can route into economically hostile pools.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <span class="k">What To Monitor</span>
+    <ul>
+      <li>Pool-level realized slippage vs quoted slippage.</li>
+      <li>LP net return decomposition: fees, inventory PnL, hook transfers.</li>
+      <li>Hook execution failures and revert rates.</li>
+      <li>Dynamic fee distribution over time and correlation with volatility spikes.</li>
+      <li>Arbitrage latency after large external price moves.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <span class="k">Further Reading Prompts</span>
+    <ol>
+      <li>Which hook classes are safe to generalize across pools, and which should remain bespoke?</li>
+      <li>How would you formally specify LP fairness under custom accounting?</li>
+      <li>Can intent-based routers produce better outcomes when they model hook behavior explicitly?</li>
+      <li>How should audits separate core invariants from hook-level economic attacks?</li>
+    </ol>
+  </section>
 </main>
-<script type="module">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';const d=window.matchMedia('(prefers-color-scheme: dark)').matches;mermaid.initialize({startOnLoad:true,theme:'base',layout:'dagre',themeVariables:{primaryColor:d?'#0e2f44':'#def3ff',primaryBorderColor:d?'#38bdf8':'#0369a1',primaryTextColor:d?'#d6ecff':'#082f49',lineColor:d?'#93c5fd':'#35607d',fontFamily:'Sora',fontSize:'15px'}});</script>
-</body></html>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+const d = window.matchMedia('(prefers-color-scheme: dark)').matches;
+mermaid.initialize({startOnLoad:true,theme:'base',themeVariables:{primaryColor:d?'#16394d':'#e4f5ff',primaryBorderColor:d?'#38bdf8':'#0369a1',primaryTextColor:d?'#dbedff':'#0a2a41',lineColor:d?'#9dc8e8':'#45657c',fontFamily:'Sora',fontSize:'15px'}});
+</script>
+</body>
+</html>

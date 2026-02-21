@@ -1,36 +1,22 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Module 03 - Lending & Stablecoins</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&family=Inconsolata:wght@400;600&display=swap" rel="stylesheet">
-<style>
-:root{--bg:#f7fdf4;--surface:#fff;--text:#152617;--dim:#4d6b52;--border:#d8ead4;--accent:#3f6212}
-@media (prefers-color-scheme: dark){:root{--bg:#111c12;--surface:#1a2a1c;--text:#e6f5e7;--dim:#96b79a;--border:#2d4331;--accent:#a3e635}}
-*{box-sizing:border-box}body{margin:0;font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);padding:28px}main{max-width:1100px;margin:0 auto}.row{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}@media(max-width:900px){.row{grid-template-columns:1fr}}.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px}
-h1{margin:0;font-size:32px}.sub{margin:6px 0 18px;color:var(--dim);font:12px Inconsolata,monospace}label{display:block;color:var(--accent);font:11px Inconsolata,monospace;text-transform:uppercase;margin-bottom:10px}ul{margin:8px 0 0 18px;color:var(--dim)}li{margin:7px 0}code{font-family:Inconsolata,monospace;background:rgba(63,98,18,.14);padding:2px 6px;border-radius:4px}
-</style></head><body><main>
-<h1>Module 03: Lending and Stablecoins</h1><p class="sub">Risk engine, utilization curve, and peg defense</p>
-<div class="row"><section class="card"><label>Lending System Loop</label><pre class="mermaid">flowchart TD
-  A[Suppliers deposit assets] --> B[Lending pool liquidity]
-  B --> C[Borrowers draw loans]
-  C --> D[Utilization rises]
-  D --> E[Rate model adjusts APR]
-  E --> F[Repayments or new supply]
-  F --> B
-  C --> G[Collateral monitor]
-  G --> H{HF below threshold?}
-  H -->|Yes| I[Liquidation + penalty]
-  H -->|No| G
-</pre></section>
-<section class="card"><label>Rate Kink Example</label><ul>
-<li>Supply 100M, borrowed 80M => utilization <code>80%</code>.</li>
-<li>Kink at <code>85%</code>: gentle APR below, steep APR above.</li>
-<li>At 95% utilization, high APR pushes repayment and attracts suppliers.</li>
-</ul>
-<label style="margin-top:14px">Stablecoin Stress Prompt</label><ul>
-<li>Collateral down 25% in 2 hours.</li>
-<li>Can keepers liquidate fast enough?</li>
-<li>If not, how much bad debt is socialized?</li>
-</ul></section></div>
-</main>
-<script type="module">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';const d=window.matchMedia('(prefers-color-scheme: dark)').matches;mermaid.initialize({startOnLoad:true,theme:'base',themeVariables:{primaryColor:d?'#213325':'#ecfae9',primaryBorderColor:d?'#a3e635':'#3f6212',primaryTextColor:d?'#e6f5e7':'#152617',lineColor:d?'#b5d6bb':'#4d6b52',fontFamily:'Plus Jakarta Sans',fontSize:'15px'}});</script>
-</body></html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Module 03 - Lending & Stablecoins (Content-Rich)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&family=Inconsolata:wght@400;600&display=swap" rel="stylesheet">
+<style>:root{--bg:#f7fcf5;--surface:#fff;--text:#182814;--dim:#4f6f54;--border:#d8ead7;--accent:#3f6212;--accent-dim:rgba(63,98,18,.11)}@media(prefers-color-scheme:dark){:root{--bg:#111b12;--surface:#1a2a1c;--text:#e5f5e6;--dim:#9ab99f;--border:#2f4633;--accent:#a3e635;--accent-dim:rgba(163,230,53,.14)}}*{box-sizing:border-box}body{margin:0;font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);padding:28px}main{max-width:1080px;margin:0 auto}.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px}h1{margin:0;font-size:33px}.sub{margin:8px 0 18px;color:var(--dim);font:12px Inconsolata,monospace}.k{display:block;color:var(--accent);font:11px Inconsolata,monospace;text-transform:uppercase;margin-bottom:10px}p,li{color:var(--dim);line-height:1.62}ul,ol{margin:8px 0 0 18px}li{margin:7px 0}code{font-family:Inconsolata,monospace;background:var(--accent-dim);padding:2px 6px;border-radius:4px;color:var(--accent)}</style></head><body><main>
+<h1>Module 03: Lending and Stablecoins</h1><p class="sub">Pooled balance sheets, utilization-based rates, liquidation under stress, and peg defense</p>
+<section class="card"><span class="k">Why This Matters</span><ul><li>Lending markets are core collateral infrastructure for DeFi leverage.</li><li>Stablecoins are the unit of account for most onchain activity.</li><li>Small parameter changes in rate curves or liquidation penalties can have systemic effects.</li></ul></section>
+<section class="card"><span class="k">Mechanism Walkthrough</span><pre class="mermaid">flowchart TD
+A[Suppliers deposit]-->B[Pool liquidity]
+B-->C[Borrow demand]
+C-->D[Utilization rises/falls]
+D-->E[Rate model updates APR]
+E-->F[Behavior change: repay or supply]
+F-->B
+C-->G[Collateral health checks]
+G-->H{Below threshold?}
+H-->|yes|I[Liquidation]
+</pre><p>Rate models steer equilibrium. Below the kink, APR grows gently; above the kink, APR rises sharply to prevent near-empty pool states.</p></section>
+<section class="card"><span class="k">Worked Examples</span><p><strong>Example 1:</strong> Supply 100M, borrow 80M => utilization 80%. If kink is 85%, system near efficient zone.</p><p><strong>Example 2:</strong> Utilization jumps to 95%; borrow APR spikes, suppliers are attracted, borrowers reduce demand, utilization mean-reverts if market responds.</p></section>
+<section class="card"><span class="k">Failure Modes</span><ul><li>Borrow cap too high in illiquid collateral markets.</li><li>Liquidation discount too low to incentivize keepers.</li><li>Peg defense fails under simultaneous collateral and liquidity shocks.</li></ul></section>
+<section class="card"><span class="k">What To Monitor</span><ul><li>Utilization around kink over time.</li><li>Borrow concentration by asset and account.</li><li>Stablecoin peg deviation and redemption latency.</li></ul></section>
+<section class="card"><span class="k">Further Reading Prompts</span><ol><li>How should rate curves differ by collateral class volatility?</li><li>What is the minimum viable liquidation throughput per market?</li><li>How do different stablecoin redemption paths fail in bank-run conditions?</li></ol></section>
+</main><script type="module">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';const d=window.matchMedia('(prefers-color-scheme: dark)').matches;mermaid.initialize({startOnLoad:true,theme:'base',themeVariables:{primaryColor:d?'#243726':'#ebfae8',primaryBorderColor:d?'#a3e635':'#3f6212',primaryTextColor:d?'#e5f5e6':'#182814',lineColor:d?'#b4d4ba':'#4f6f54',fontFamily:'Plus Jakarta Sans',fontSize:'15px'}});</script></body></html>

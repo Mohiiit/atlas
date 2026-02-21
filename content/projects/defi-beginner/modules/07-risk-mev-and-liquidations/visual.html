@@ -1,35 +1,21 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Module 07 - Risk & MEV</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-<style>
-:root{--bg:#f3f7f9;--surface:#fff;--text:#0b2230;--dim:#3d5e72;--border:#d2e2ec;--accent:#0e7490}
-@media (prefers-color-scheme: dark){:root{--bg:#0c161b;--surface:#12222b;--text:#dff5ff;--dim:#8fb3c4;--border:#25414f;--accent:#67e8f9}}
-*{box-sizing:border-box}body{margin:0;font-family:Urbanist,sans-serif;background:radial-gradient(circle at 10% 10%, rgba(14,116,144,.12), transparent 38%),var(--bg);color:var(--text);padding:28px}main{max-width:1080px;margin:0 auto}.row{display:grid;grid-template-columns:1.25fr .75fr;gap:16px}@media(max-width:900px){.row{grid-template-columns:1fr}}.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px}
-h1{margin:0;font-size:33px}.sub{margin:6px 0 18px;color:var(--dim);font:12px 'Share Tech Mono',monospace}label{display:block;color:var(--accent);font:11px 'Share Tech Mono',monospace;text-transform:uppercase;margin-bottom:10px}ul{margin:8px 0 0 18px;color:var(--dim)}li{margin:7px 0}code{font-family:'Share Tech Mono',monospace;background:rgba(14,116,144,.14);padding:2px 6px;border-radius:4px}
-</style></head><body><main>
-<h1>Module 07: Risk, MEV, and Liquidations</h1><p class="sub">Safety assumptions fail at execution layer first</p>
-<div class="row"><section class="card"><label>Adversarial Path</label><pre class="mermaid">flowchart TD
-  A[Large user tx enters mempool] --> B[Searcher simulates profitability]
-  B --> C[Bundle crafted]
-  C --> D[Builder/validator ordering]
-  D --> E{Outcome}
-  E -->|Sandwich| F[User worse execution]
-  E -->|Backrun| G[Arb captures spread]
-  E -->|Liquidation race| H[Fast keeper wins]
-  H --> I[Protocol solvency protected or delayed]
-</pre></section>
-<section class="card"><label>Liquidation Capacity Example</label><ul>
-<li>System needs to liquidate 50M notional in crash.</li>
-<li>Current keeper throughput: 6M per block equivalent.</li>
-<li>If congestion reduces this by 60%, backlog grows rapidly.</li>
-<li>Backlog duration can create bad debt despite correct parameters.</li>
-</ul>
-<label style="margin-top:14px">Mitigation Checks</label><ul>
-<li>Oracle heartbeat and fallback hierarchy</li>
-<li>Private orderflow for critical actions</li>
-<li>Circuit breaker semantics</li>
-</ul></section></div>
-</main>
-<script type="module">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';const d=window.matchMedia('(prefers-color-scheme: dark)').matches;mermaid.initialize({startOnLoad:true,theme:'base',themeVariables:{primaryColor:d?'#17323f':'#e3f7ff',primaryBorderColor:d?'#67e8f9':'#0e7490',primaryTextColor:d?'#dff5ff':'#0b2230',lineColor:d?'#a5d8e8':'#3d5e72',fontFamily:'Urbanist',fontSize:'15px'}});</script>
-</body></html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Module 07 - Risk and MEV (Content-Rich)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>:root{--bg:#f3f7f9;--surface:#fff;--text:#0a2230;--dim:#3f6073;--border:#d0e1eb;--accent:#0e7490;--accent-dim:rgba(14,116,144,.12)}@media(prefers-color-scheme:dark){:root{--bg:#0b151b;--surface:#12232b;--text:#e1f4ff;--dim:#90b4c6;--border:#274251;--accent:#67e8f9;--accent-dim:rgba(103,232,249,.14)}}*{box-sizing:border-box}body{margin:0;font-family:Urbanist,sans-serif;background:var(--bg);color:var(--text);padding:28px}main{max-width:1080px;margin:0 auto}.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px}h1{margin:0;font-size:33px}.sub{margin:8px 0 18px;color:var(--dim);font:12px 'Share Tech Mono',monospace}.k{display:block;color:var(--accent);font:11px 'Share Tech Mono',monospace;text-transform:uppercase;margin-bottom:10px}p,li{color:var(--dim);line-height:1.62}ul,ol{margin:8px 0 0 18px}li{margin:7px 0}code{font-family:'Share Tech Mono',monospace;background:var(--accent-dim);padding:2px 6px;border-radius:4px;color:var(--accent)}</style></head><body><main>
+<h1>Module 07: Risk, MEV, and Liquidations</h1><p class="sub">Execution-layer adversaries and why protocol safety is market-microstructure dependent</p>
+<section class="card"><span class="k">Why This Matters</span><ul><li>Protocol logic can be correct while user outcomes are adversarially degraded.</li><li>MEV interacts directly with liquidation fairness and solvency protection.</li><li>Stress periods compress decision windows and amplify ordering games.</li></ul></section>
+<section class="card"><span class="k">Mechanism Walkthrough</span><pre class="mermaid">flowchart TD
+A[User tx in mempool]-->B[Searcher simulation]
+B-->C[Bundle construction]
+C-->D[Builder ordering]
+D-->E{Path}
+E-->|sandwich|F[User price worsens]
+E-->|backrun|G[Arb captures edge]
+E-->|liquidation race|H[Fastest keeper fills]
+H-->I[Solvency restored or delayed]
+</pre><p>MEV is not a side topic. It is the mechanism that determines who captures residual value from ordering rights. In volatile windows, that residual value can be the difference between healthy liquidations and bad debt.</p></section>
+<section class="card"><span class="k">Worked Examples</span><p><strong>Example 1:</strong> Liquidation bonus 5%, but slippage plus priority fees consume 4.2%. Net incentive is thin; fewer keepers participate under congestion.</p><p><strong>Example 2:</strong> Private relay path reduces sandwich probability for large swaps, improving realized execution at cost of routing complexity.</p></section>
+<section class="card"><span class="k">Failure Modes</span><ul><li>Searcher cartelization reduces competitive liquidation efficiency.</li><li>Oracle update predictability enables pre-positioned extraction.</li><li>Pause mechanisms trigger too late or can be griefed.</li></ul></section>
+<section class="card"><span class="k">What To Monitor</span><ul><li>Liquidation success rates by volatility regime.</li><li>Mempool-to-inclusion latency for critical transactions.</li><li>Observed sandwich frequency on major pools.</li></ul></section>
+<section class="card"><span class="k">Further Reading Prompts</span><ol><li>Which protocol actions should use private orderflow by default?</li><li>How should liquidation bonuses adapt during congestion spikes?</li><li>What telemetry reveals unhealthy builder centralization?</li></ol></section>
+</main><script type="module">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';const d=window.matchMedia('(prefers-color-scheme: dark)').matches;mermaid.initialize({startOnLoad:true,theme:'base',themeVariables:{primaryColor:d?'#183441':'#e3f7ff',primaryBorderColor:d?'#67e8f9':'#0e7490',primaryTextColor:d?'#e1f4ff':'#0a2230',lineColor:d?'#a8d9e8':'#3f6073',fontFamily:'Urbanist',fontSize:'15px'}});</script></body></html>

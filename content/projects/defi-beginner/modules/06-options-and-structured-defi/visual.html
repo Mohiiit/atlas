@@ -1,35 +1,21 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Module 06 - Options & Structured DeFi</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<style>
-:root{--bg:#fffdf4;--surface:#fff;--text:#3a2b00;--dim:#72633d;--border:#efe4bf;--accent:#ca8a04}
-@media (prefers-color-scheme: dark){:root{--bg:#231a07;--surface:#33260a;--text:#fff7da;--dim:#d4c38b;--border:#4a3a16;--accent:#facc15}}
-*{box-sizing:border-box}body{margin:0;font-family:'Red Hat Display',sans-serif;background:linear-gradient(180deg,var(--bg),color-mix(in srgb,var(--bg),black 7%));color:var(--text);padding:28px}main{max-width:1080px;margin:0 auto}.row{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}@media(max-width:900px){.row{grid-template-columns:1fr}}.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px}
-h1{margin:0;font-size:33px}.sub{margin:6px 0 18px;color:var(--dim);font:12px 'Space Mono',monospace}label{display:block;color:var(--accent);font:11px 'Space Mono',monospace;text-transform:uppercase;margin-bottom:10px}ul{margin:8px 0 0 18px;color:var(--dim)}li{margin:7px 0}code{font-family:'Space Mono',monospace;background:rgba(202,138,4,.14);padding:2px 6px;border-radius:4px}
-</style></head><body><main>
-<h1>Module 06: Options and Structured DeFi</h1><p class="sub">Yield wrappers are payoff transformations, not free money</p>
-<div class="row"><section class="card"><label>Covered Call Vault Flow</label><pre class="mermaid">flowchart TD
-  A[Users deposit ETH] --> B[Vault writes call options]
-  B --> C[Collect premium]
-  C --> D[Expiry settlement]
-  D --> E{Spot > strike?}
-  E -->|No| F[Keep ETH + premium]
-  E -->|Yes| G[Upside capped near strike]
-  F --> H[Distribute yield]
-  G --> H
-</pre></section>
-<section class="card"><label>Worked Scenario</label><ul>
-<li>Vault holds 1 ETH, sells 2,500 strike call for 80 USDC.</li>
-<li>If expiry spot 2,300: vault keeps ETH and premium.</li>
-<li>If expiry spot 2,900: upside past strike largely forfeited.</li>
-<li>Yield source = short convexity / sold upside.</li>
-</ul>
-<label style="margin-top:14px">Risk Prompts</label><ul>
-<li>What happens in violent rally?</li>
-<li>Who takes mark-to-market losses?</li>
-<li>How often is strike reset and why?</li>
-</ul></section></div>
-</main>
-<script type="module">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';const d=window.matchMedia('(prefers-color-scheme: dark)').matches;mermaid.initialize({startOnLoad:true,theme:'base',themeVariables:{primaryColor:d?'#47360d':'#fff8da',primaryBorderColor:d?'#facc15':'#ca8a04',primaryTextColor:d?'#fff7da':'#3a2b00',lineColor:d?'#fde68a':'#72633d',fontFamily:'Red Hat Display',fontSize:'15px'}});</script>
-</body></html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Module 06 - Options (Content-Rich)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>:root{--bg:#fffdf4;--surface:#fff;--text:#392a00;--dim:#73653f;--border:#efe4bf;--accent:#ca8a04;--accent-dim:rgba(202,138,4,.12)}@media(prefers-color-scheme:dark){:root{--bg:#1f1706;--surface:#2d220b;--text:#fff6d8;--dim:#d3c189;--border:#473916;--accent:#facc15;--accent-dim:rgba(250,204,21,.14)}}*{box-sizing:border-box}body{margin:0;font-family:'Red Hat Display',sans-serif;background:var(--bg);color:var(--text);padding:28px}main{max-width:1080px;margin:0 auto}.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px}h1{margin:0;font-size:33px}.sub{margin:8px 0 18px;color:var(--dim);font:12px 'Space Mono',monospace}.k{display:block;color:var(--accent);font:11px 'Space Mono',monospace;text-transform:uppercase;margin-bottom:10px}p,li{color:var(--dim);line-height:1.62}ul,ol{margin:8px 0 0 18px}li{margin:7px 0}code{font-family:'Space Mono',monospace;background:var(--accent-dim);padding:2px 6px;border-radius:4px;color:var(--accent)}</style></head><body><main>
+<h1>Module 06: Options and Structured DeFi</h1><p class="sub">Payoff engineering, premium income, and hidden tail-risk transfer</p>
+<section class="card"><span class="k">Why This Matters</span><ul><li>Many "yield" products are options positions wrapped in simpler UX.</li><li>Options expose non-linear risk that cannot be understood with APR-only views.</li><li>Structured vaults can underperform badly in trends despite smooth historical returns.</li></ul></section>
+<section class="card"><span class="k">Mechanism Walkthrough</span><pre class="mermaid">flowchart TD
+A[Deposit underlying asset]-->B[Vault sells options]
+B-->C[Collect premium]
+C-->D[Expiry settlement]
+D-->E{Spot above strike?}
+E-->|no|F[Keep underlying + premium]
+E-->|yes|G[Upside capped]
+F-->H[Yield distribution]
+G-->H
+</pre><p>Covered call vaults monetize upside uncertainty by selling convexity. Premium is not free yield; it is compensation for capping upside and bearing assignment path risk.</p></section>
+<section class="card"><span class="k">Worked Examples</span><p><strong>Example 1:</strong> Sell call strike 2,500 for 80 premium on 1 ETH. If expiry 2,300, strategy outperforms holding by +80.</p><p><strong>Example 2:</strong> If expiry 2,900, strategy misses much of rally beyond strike; "yield" can underperform spot strongly.</p></section>
+<section class="card"><span class="k">Failure Modes</span><ul><li>Vol regime shift makes historical premium assumptions invalid.</li><li>Liquidity gaps widen implied-vol spreads and execution cost.</li><li>Vault roll logic executes at poor times, creating negative convexity drag.</li></ul></section>
+<section class="card"><span class="k">What To Monitor</span><ul><li>Realized vs implied volatility gap.</li><li>Option sale timing quality and slippage.</li><li>Strategy payoff relative to passive benchmark in up/down/chop regimes.</li></ul></section>
+<section class="card"><span class="k">Further Reading Prompts</span><ol><li>How should vault strike selection adapt to volatility clustering?</li><li>What risk metric best explains "smooth until sudden" strategy losses?</li><li>How does collateral management differ for cash-settled vs physically settled options?</li></ol></section>
+</main><script type="module">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';const d=window.matchMedia('(prefers-color-scheme: dark)').matches;mermaid.initialize({startOnLoad:true,theme:'base',themeVariables:{primaryColor:d?'#42320d':'#fff8da',primaryBorderColor:d?'#facc15':'#ca8a04',primaryTextColor:d?'#fff6d8':'#392a00',lineColor:d?'#fbe28a':'#73653f',fontFamily:'Red Hat Display',fontSize:'15px'}});</script></body></html>

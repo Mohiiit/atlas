@@ -1,37 +1,116 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Module 05 - Prediction Markets</title>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Module 05 - Prediction Markets (Content-Rich)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#f5f3ff;--surface:#fff;--text:#2e1065;--dim:#5b46a1;--border:#ddd6fe;--accent:#6d28d9}
-@media (prefers-color-scheme: dark){:root{--bg:#160f2f;--surface:#211645;--text:#efe6ff;--dim:#b7a7e6;--border:#3a2f63;--accent:#a78bfa}}
-*{box-sizing:border-box}body{margin:0;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);padding:28px}main{max-width:1080px;margin:0 auto}.row{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}@media(max-width:900px){.row{grid-template-columns:1fr}}.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px}
-h1{margin:0;font-size:33px}.sub{margin:6px 0 18px;color:var(--dim);font:12px 'JetBrains Mono',monospace}label{display:block;color:var(--accent);font:11px 'JetBrains Mono',monospace;text-transform:uppercase;margin-bottom:10px}ul{margin:8px 0 0 18px;color:var(--dim)}li{margin:7px 0}code{font-family:'JetBrains Mono',monospace;background:rgba(109,40,217,.12);padding:2px 6px;border-radius:4px}
-</style></head><body><main>
-<h1>Module 05: Prediction Markets</h1><p class="sub">Price as probability, but only if resolution is trustworthy</p>
-<div class="row"><section class="card"><label>Market Lifecycle</label><pre class="mermaid">flowchart TD
-  A[Question creation] --> B[Resolution criteria published]
-  B --> C[Traders buy YES/NO claims]
-  C --> D[Price discovery]
-  D --> E[Event date arrives]
-  E --> F[Oracle/reporting input]
-  F --> G{Dispute window?}
-  G -->|No dispute| H[Finalize outcome]
-  G -->|Dispute| I[Escalation arbitration]
-  I --> H
-  H --> J[Payout 1 to winning side]
-</pre></section>
-<section class="card"><label>Probability Example</label><ul>
-<li>YES token trades at <code>0.63</code> => implied ~63% probability.</li>
-<li>Buy 1,000 YES costs 630.</li>
-<li>If outcome true, payout = 1,000.</li>
-<li>Net profit = 370 before fees.</li>
-</ul>
-<label style="margin-top:14px">Design Checklist</label><ul>
-<li>Question wording is binary and objective.</li>
-<li>Oracle source is transparent and replayable.</li>
-<li>Dispute process is expensive to abuse.</li>
-</ul></section></div>
+:root{--bg:#f6f4ff;--surface:#fff;--text:#2c1765;--dim:#5f50a5;--border:#ddd6ff;--accent:#6d28d9;--accent-dim:rgba(109,40,217,.11)}
+@media (prefers-color-scheme: dark){:root{--bg:#130d2a;--surface:#20153f;--text:#efe7ff;--dim:#b7aae9;--border:#3a2f61;--accent:#a78bfa;--accent-dim:rgba(167,139,250,.14)}}
+*{box-sizing:border-box}body{margin:0;font-family:'DM Sans',sans-serif;background:radial-gradient(circle at 20% 0,var(--accent-dim),transparent 36%),var(--bg);color:var(--text);padding:28px}
+main{max-width:1120px;margin:0 auto}h1{margin:0;font-size:34px}.sub{margin:8px 0 18px;color:var(--dim);font:12px 'IBM Plex Mono',monospace}
+.grid{display:grid;grid-template-columns:1.18fr .82fr;gap:16px}@media(max-width:920px){.grid{grid-template-columns:1fr}}.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px}.k{display:block;font:11px 'IBM Plex Mono',monospace;text-transform:uppercase;color:var(--accent);margin-bottom:10px}
+p{line-height:1.64;color:var(--dim);margin:8px 0}ul,ol{margin:8px 0 0 18px;color:var(--dim)}li{margin:7px 0;line-height:1.58}code{font-family:'IBM Plex Mono',monospace;background:var(--accent-dim);padding:2px 6px;border-radius:4px;color:var(--accent)}
+.table-wrap{overflow:auto;border:1px solid var(--border);border-radius:10px}.data{width:100%;border-collapse:collapse;font-size:13px}.data th,.data td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:top}.data th{background:var(--accent-dim);font:11px 'IBM Plex Mono',monospace;text-transform:uppercase;color:var(--accent);text-align:left}
+</style>
+</head>
+<body>
+<main>
+  <h1>Module 05: Prediction Markets</h1>
+  <p class="sub">Content-rich explainer: probability pricing, market design, oracle resolution, and manipulation resistance</p>
+
+  <section class="card">
+    <span class="k">Why This Matters</span>
+    <ul>
+      <li>Prediction markets turn belief into price, offering measurable expectations instead of narrative-only opinions.</li>
+      <li>They are useful only when market design and resolution logic are robust against ambiguity and manipulation.</li>
+      <li>For builders, the oracle and dispute mechanism is the true trust anchor, not the trading UI.</li>
+      <li>Understanding this mechanism helps you evaluate both information quality and protocol risk.</li>
+    </ul>
+  </section>
+
+  <div class="grid">
+    <section class="card">
+      <span class="k">Mechanism Walkthrough</span>
+      <pre class="mermaid">flowchart TD
+        A[Define binary question] --> B[Publish resolution source and date]
+        B --> C[Traders buy and sell claims]
+        C --> D[Price formation as implied probability]
+        D --> E[Event occurs]
+        E --> F[Reporter or oracle submits outcome]
+        F --> G{Dispute period}
+        G -->|No challenge| H[Finalize market]
+        G -->|Challenge| I[Escalation and adjudication]
+        I --> H
+        H --> J[Winning claims redeem at 1.0]
+      </pre>
+      <p>Trading mechanics are usually straightforward. The hard part is unambiguous resolution. If outcome criteria are vague, the market price can look precise while being economically meaningless near expiry.</p>
+      <p>A high-quality market needs three properties together: precise question wording, transparent truth source, and anti-spam dispute economics.</p>
+    </section>
+
+    <section class="card">
+      <span class="k">First Principles</span>
+      <ol>
+        <li><strong>Price as probability:</strong> in liquid, low-friction markets, YES price approximates expected probability under current beliefs.</li>
+        <li><strong>Expected value governs edge:</strong> profitable trade requires your belief-adjusted expected payout to exceed price + fees.</li>
+        <li><strong>Resolution is settlement layer:</strong> the market is a derivative on the adjudication process.</li>
+        <li><strong>Liquidity quality matters:</strong> thin books distort probability interpretation and amplify manipulation near close.</li>
+      </ol>
+    </section>
+  </div>
+
+  <section class="card">
+    <span class="k">Worked Examples</span>
+    <p><strong>Example 1: implied probability trade</strong><br>YES token at <code>0.63</code>. Buying 1,000 shares costs 630. If YES resolves true, payout is 1,000 and gross profit is 370. Break-even probability before fees is 63%.</p>
+    <p><strong>Example 2: edge with your own belief</strong><br>If your calibrated model gives 70% and market is 63%, expected value per share is roughly <code>0.70 - 0.63 = 0.07</code> before fees/slippage. Positive edge exists only if execution costs are below that spread.</p>
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>Design Element</th><th>Good Pattern</th><th>Bad Pattern</th><th>Failure Outcome</th></tr></thead>
+        <tbody>
+          <tr><td>Question text</td><td>Binary, objective, bounded by date/source</td><td>Ambiguous wording</td><td>Resolution disputes and confidence collapse</td></tr>
+          <tr><td>Oracle/reporting</td><td>Public source hierarchy</td><td>Opaque single admin call</td><td>Centralization risk / trust break</td></tr>
+          <tr><td>Dispute economics</td><td>Costly to spam, viable to challenge</td><td>Cheap griefing or impossible challenge</td><td>Finalization delays or bad outcomes</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <span class="k">Failure Modes</span>
+    <ul>
+      <li><strong>Ambiguous market specification:</strong> participants disagree on what exactly is being resolved.</li>
+      <li><strong>Late-stage liquidity vacuum:</strong> small capital can swing displayed probability near expiry.</li>
+      <li><strong>Oracle dispute capture:</strong> attacker economically dominates reporting path.</li>
+      <li><strong>Wash-volume distortion:</strong> fake flow creates false confidence in price signal quality.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <span class="k">What To Monitor</span>
+    <ul>
+      <li>Bid-ask spread and depth at key price levels.</li>
+      <li>Volume concentration near finalization window.</li>
+      <li>Dispute frequency, duration, and outcome reversal rate.</li>
+      <li>Difference between final market probability and realized event frequency over time (calibration).</li>
+      <li>Share of volume from repeat counterparties (wash-trade warning signal).</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <span class="k">Further Reading Prompts</span>
+    <ol>
+      <li>What question templates reduce ambiguity for macro and political markets?</li>
+      <li>How should dispute games be parameterized to minimize both false positives and false negatives?</li>
+      <li>When should a market be invalidated instead of forced into YES/NO settlement?</li>
+      <li>How does compliance gating change liquidity and informational efficiency?</li>
+    </ol>
+  </section>
 </main>
-<script type="module">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';const d=window.matchMedia('(prefers-color-scheme: dark)').matches;mermaid.initialize({startOnLoad:true,theme:'base',themeVariables:{primaryColor:d?'#2a1d56':'#f0eaff',primaryBorderColor:d?'#a78bfa':'#6d28d9',primaryTextColor:d?'#efe6ff':'#2e1065',lineColor:d?'#c4b5fd':'#5b46a1',fontFamily:'DM Sans',fontSize:'15px'}});</script>
-</body></html>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+const d=window.matchMedia('(prefers-color-scheme: dark)').matches;
+mermaid.initialize({startOnLoad:true,theme:'base',themeVariables:{primaryColor:d?'#2e2358':'#efe9ff',primaryBorderColor:d?'#a78bfa':'#6d28d9',primaryTextColor:d?'#efe7ff':'#2c1765',lineColor:d?'#cbbef6':'#5f50a5',fontFamily:'DM Sans',fontSize:'15px'}});
+</script>
+</body>
+</html>

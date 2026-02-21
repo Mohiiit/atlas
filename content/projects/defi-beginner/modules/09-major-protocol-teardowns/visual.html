@@ -1,36 +1,19 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Module 09 - Protocol Teardowns</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@400;600;700&family=Roboto+Mono:wght@400;600&display=swap" rel="stylesheet">
-<style>
-:root{--bg:#f4fbf9;--surface:#fff;--text:#12342e;--dim:#3f6d64;--border:#cce8e0;--accent:#0f766e}
-@media (prefers-color-scheme: dark){:root{--bg:#0f1f1d;--surface:#16302d;--text:#def7f2;--dim:#97c7bf;--border:#28524d;--accent:#5eead4}}
-*{box-sizing:border-box}body{margin:0;font-family:Epilogue,sans-serif;background:radial-gradient(circle at 50% 0, rgba(15,118,110,.14), transparent 40%),var(--bg);color:var(--text);padding:28px}main{max-width:1100px;margin:0 auto}.row{display:grid;grid-template-columns:1.35fr .65fr;gap:16px}@media(max-width:900px){.row{grid-template-columns:1fr}}.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px}
-h1{margin:0;font-size:33px}.sub{margin:6px 0 18px;color:var(--dim);font:12px 'Roboto Mono',monospace}label{display:block;color:var(--accent);font:11px 'Roboto Mono',monospace;text-transform:uppercase;margin-bottom:10px}ul{margin:8px 0 0 18px;color:var(--dim)}li{margin:7px 0}code{font-family:'Roboto Mono',monospace;background:rgba(15,118,110,.14);padding:2px 6px;border-radius:4px}
-</style></head><body><main>
-<h1>Module 09: Major Protocol Teardowns</h1><p class="sub">Uniswap v4, perps, prediction markets, and cross-protocol comparison</p>
-<div class="row"><section class="card"><label>Capstone Study Graph</label><pre class="mermaid">flowchart TD
-  A[Uniswap v4] --> B[Hook lifecycle + LP economics]
-  C[Hyperliquid dYdX GMX] --> D[Perp matching + margin model]
-  E[Polymarket Augur-style] --> F[Resolution + dispute design]
-  B --> G[Comparative memo]
-  D --> G
-  F --> G
-  G --> H[Failure mode matrix]
-  H --> I[Design improvement proposal]
-</pre></section>
-<section class="card"><label>Protocol Set</label><ul>
-<li>AMM: Uniswap v4, Curve, Balancer</li>
-<li>Lending: Aave, Maker/Sky, Morpho</li>
-<li>Perps: Hyperliquid, dYdX, GMX</li>
-<li>Prediction: Polymarket, Augur-like systems</li>
-</ul>
-<label style="margin-top:14px">Memo Template</label><ul>
-<li><code>state</code> variables and transitions</li>
-<li><code>pnl</code> source and leakage points</li>
-<li><code>trust</code> assumptions</li>
-<li><code>break</code> scenario and mitigation</li>
-</ul></section></div>
-</main>
-<script type="module">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';const d=window.matchMedia('(prefers-color-scheme: dark)').matches;mermaid.initialize({startOnLoad:true,theme:'base',themeVariables:{primaryColor:d?'#1f4944':'#e8fbf6',primaryBorderColor:d?'#5eead4':'#0f766e',primaryTextColor:d?'#def7f2':'#12342e',lineColor:d?'#9fddd1':'#3f6d64',fontFamily:'Epilogue',fontSize:'15px'}});</script>
-</body></html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Module 09 - Protocol Teardowns (Content-Rich)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@400;600;700&family=Roboto+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>:root{--bg:#f4fbf9;--surface:#fff;--text:#12342e;--dim:#3f6d64;--border:#cce8e0;--accent:#0f766e;--accent-dim:rgba(15,118,110,.12)}@media(prefers-color-scheme:dark){:root{--bg:#0f1f1d;--surface:#17302d;--text:#def7f2;--dim:#97c7bf;--border:#28524d;--accent:#5eead4;--accent-dim:rgba(94,234,212,.14)}}*{box-sizing:border-box}body{margin:0;font-family:Epilogue,sans-serif;background:var(--bg);color:var(--text);padding:28px}main{max-width:1080px;margin:0 auto}.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px}h1{margin:0;font-size:33px}.sub{margin:8px 0 18px;color:var(--dim);font:12px 'Roboto Mono',monospace}.k{display:block;color:var(--accent);font:11px 'Roboto Mono',monospace;text-transform:uppercase;margin-bottom:10px}p,li{color:var(--dim);line-height:1.62}ul,ol{margin:8px 0 0 18px}li{margin:7px 0}code{font-family:'Roboto Mono',monospace;background:var(--accent-dim);padding:2px 6px;border-radius:4px;color:var(--accent)}</style></head><body><main>
+<h1>Module 09: Major Protocol Teardowns</h1><p class="sub">Applied mechanism comparison across Uniswap v4, perps, prediction markets, lending, and more</p>
+<section class="card"><span class="k">Why This Matters</span><ul><li>This module converts isolated concepts into comparative protocol judgment.</li><li>You learn to evaluate designs by state transitions and risk ownership, not brand narratives.</li><li>Capstone outputs here become reusable due-diligence templates.</li></ul></section>
+<section class="card"><span class="k">Capstone Flow</span><pre class="mermaid">flowchart TD
+A[Choose protocol set]-->B[Map state and transitions]
+B-->C[Quantify PnL and fee paths]
+C-->D[Stress failure modes]
+D-->E[Compare trust assumptions]
+E-->F[Write mechanism memo]
+F-->G[Propose design improvements]
+</pre><p>Use the same rubric for each teardown: state variables, invariant guards, payer/payee map, liquidation/recovery path, oracle/trust dependencies, and governance override powers.</p></section>
+<section class="card"><span class="k">Protocol Targets</span><ul><li>AMMs: Uniswap v4, Curve, Balancer</li><li>Lending/stablecoins: Aave, Maker/Sky, Morpho</li><li>Perps: Hyperliquid, dYdX, GMX</li><li>Prediction markets: Polymarket, Augur-style</li><li>Shared security lens: EigenLayer and risk transfer</li></ul></section>
+<section class="card"><span class="k">Failure Modes To Compare</span><ul><li>Who absorbs tail losses first: user, LP, insurance, or tokenholders?</li><li>What happens when oracle or matching path degrades?</li><li>Can governance intervene quickly without creating capture risk?</li></ul></section>
+<section class="card"><span class="k">What To Monitor</span><ul><li>Realized execution quality vs stated model assumptions.</li><li>Incident response latency and transparency.</li><li>Parameter changes and measurable downstream effects.</li></ul></section>
+<section class="card"><span class="k">Further Reading Prompts</span><ol><li>Which design decisions are structurally incompatible between CLOB-first and AMM-first perps?</li><li>How do hook-based AMMs alter the competitive boundary between protocol core and strategy layer?</li><li>Which prediction market dispute models scale best under adversarial capital?</li></ol></section>
+</main><script type="module">import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';const d=window.matchMedia('(prefers-color-scheme: dark)').matches;mermaid.initialize({startOnLoad:true,theme:'base',themeVariables:{primaryColor:d?'#1f4944':'#e8fbf6',primaryBorderColor:d?'#5eead4':'#0f766e',primaryTextColor:d?'#def7f2':'#12342e',lineColor:d?'#9fddd1':'#3f6d64',fontFamily:'Epilogue',fontSize:'15px'}});</script></body></html>
