@@ -7,37 +7,39 @@
 <link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#f2f7fb;--surface:#fff;--text:#10253a;--dim:#4a6480;--border:#d6e3ef;--accent:#0369a1;--ad:rgba(3,105,161,.1)}
-@media(prefers-color-scheme:dark){:root{--bg:#0d1824;--surface:#132537;--text:#e4f0ff;--dim:#9fc0df;--border:#294158;--accent:#38bdf8;--ad:rgba(56,189,248,.14)}}
-*{box-sizing:border-box}body{margin:0;font-family:'Cabinet Grotesk',sans-serif;background:radial-gradient(circle at 85% 0,var(--ad),transparent 32%),var(--bg);color:var(--text);padding:28px}main{max-width:1160px;margin:0 auto}
-h1{margin:0;font-size:40px}.sub{margin:8px 0 16px;color:var(--dim);font:12px 'JetBrains Mono',monospace}.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px}.k{display:block;color:var(--accent);font:11px 'JetBrains Mono',monospace;text-transform:uppercase;margin-bottom:10px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:12px}.module{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px}.t{font-size:22px;font-weight:700;margin:6px 0}.d{color:var(--dim);line-height:1.56}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}ul{margin:8px 0 0 18px;color:var(--dim)}li{margin:6px 0;line-height:1.5}
+@media (prefers-color-scheme: dark){:root{--bg:#0d1824;--surface:#132537;--text:#e4f0ff;--dim:#9fc0df;--border:#294158;--accent:#38bdf8;--ad:rgba(56,189,248,.14)}}
+*{box-sizing:border-box}body{margin:0;font-family:'Cabinet Grotesk',sans-serif;background:radial-gradient(circle at 85% 0,var(--ad),transparent 32%),var(--bg);color:var(--text);padding:28px}
+main{max-width:1180px;margin:0 auto}h1{margin:0;font-size:40px}.sub{margin:8px 0 16px;color:var(--dim);font:12px 'JetBrains Mono',monospace}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px}.k{display:block;color:var(--accent);font:11px 'JetBrains Mono',monospace;text-transform:uppercase;margin-bottom:10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px}.module{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px}.t{font-size:22px;font-weight:700;margin:6px 0}.d{color:var(--dim);line-height:1.56}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}ul{margin:8px 0 0 18px;color:var(--dim)}li{margin:6px 0;line-height:1.5}
 </style>
 </head>
 <body>
 <main>
   <h1>DeFi From First Principles</h1>
-  <p class="sub">Beginner-friendly rewrite with more context, simpler wording, and deep-dive pages.</p>
+  <p class="sub">Now includes long-form <code>lesson.md</code> files for richer, slower, beginner-first learning.</p>
 
   <section class="card">
-    <span class="k">Start Here</span>
+    <span class="k">Recommended Reading Order Per Module</span>
     <ul>
-      <li><a href="foundations/first-principles-glossary.html">Open glossary first</a> to decode terms like collateral, liquidation, AMM, funding, oracle.</li>
-      <li>Then read each module in this order: <strong>deep-dive page first</strong>, visual page second.</li>
-      <li>If a term is unclear, return to glossary before continuing.</li>
+      <li>1) <strong>lesson.md</strong> (coursebook-style depth)</li>
+      <li>2) <strong>deep-dive.html</strong> (structured module summary)</li>
+      <li>3) <strong>visual.html</strong> (diagram + compact conceptual map)</li>
     </ul>
   </section>
 
   <div class="grid">
-    <div class="module"><div class="t">00 Orientation</div><div class="d">How to analyze any protocol through state, actions, invariants, incentives.</div><p><a href="modules/00-orientation/deep-dive.html">Deep Dive</a> · <a href="modules/00-orientation/visual.html">Visual</a></p></div>
-    <div class="module"><div class="t">01 Settlement Basics</div><div class="d">What collateral means with real-life loan analogies and liquidation mechanics.</div><p><a href="modules/01-money-ledger-settlement/deep-dive.html">Deep Dive</a> · <a href="modules/01-money-ledger-settlement/visual.html">Visual</a></p></div>
-    <div class="module"><div class="t">02 AMMs + Uniswap v4</div><div class="d">How pools price trades, why slippage exists, and what hooks change in v4.</div><p><a href="modules/02-amms-and-uniswap-v4/deep-dive.html">Deep Dive</a> · <a href="modules/02-amms-and-uniswap-v4/visual.html">Visual</a></p></div>
-    <div class="module"><div class="t">03 Lending + Stablecoins</div><div class="d">Utilization, borrowing, peg defense, and bad debt pathways.</div><p><a href="modules/03-lending-stablecoins/deep-dive.html">Deep Dive</a> · <a href="modules/03-lending-stablecoins/visual.html">Visual</a></p></div>
-    <div class="module"><div class="t">04 Perps</div><div class="d">Leverage, mark price, funding, liquidation, insurance, and ADL basics.</div><p><a href="modules/04-perps-first-principles/deep-dive.html">Deep Dive</a> · <a href="modules/04-perps-first-principles/visual.html">Visual</a></p></div>
-    <div class="module"><div class="t">05 Prediction Markets</div><div class="d">YES/NO pricing, resolution quality, and dispute design explained simply.</div><p><a href="modules/05-prediction-markets/deep-dive.html">Deep Dive</a> · <a href="modules/05-prediction-markets/visual.html">Visual</a></p></div>
-    <div class="module"><div class="t">06 Options</div><div class="d">Why structured yield often equals option risk in disguise.</div><p><a href="modules/06-options-and-structured-defi/deep-dive.html">Deep Dive</a> · <a href="modules/06-options-and-structured-defi/visual.html">Visual</a></p></div>
-    <div class="module"><div class="t">07 Risk + MEV</div><div class="d">Execution-layer attacks and liquidation performance under stress.</div><p><a href="modules/07-risk-mev-and-liquidations/deep-dive.html">Deep Dive</a> · <a href="modules/07-risk-mev-and-liquidations/visual.html">Visual</a></p></div>
-    <div class="module"><div class="t">08 Governance + Valuation</div><div class="d">How cash flow rights and governance quality affect token value.</div><p><a href="modules/08-governance-and-valuations/deep-dive.html">Deep Dive</a> · <a href="modules/08-governance-and-valuations/visual.html">Visual</a></p></div>
-    <div class="module"><div class="t">09 Protocol Teardowns</div><div class="d">A repeatable comparison method for Uniswap v4, perps, prediction markets, and beyond.</div><p><a href="modules/09-major-protocol-teardowns/deep-dive.html">Deep Dive</a> · <a href="modules/09-major-protocol-teardowns/visual.html">Visual</a></p></div>
+    <div class="module"><div class="t">00 Orientation</div><div class="d">State/action/invariant mental model.</div><p><a href="modules/00-orientation/lesson.md">Lesson</a> · <a href="modules/00-orientation/deep-dive.html">Deep Dive</a> · <a href="modules/00-orientation/visual.html">Visual</a></p></div>
+    <div class="module"><div class="t">01 Settlement Basics</div><div class="d">Collateral, debt, liquidation, settlement finality.</div><p><a href="modules/01-money-ledger-settlement/lesson.md">Lesson</a> · <a href="modules/01-money-ledger-settlement/deep-dive.html">Deep Dive</a> · <a href="modules/01-money-ledger-settlement/visual.html">Visual</a></p></div>
+    <div class="module"><div class="t">02 AMMs + Uniswap v4</div><div class="d">Pool mechanics, slippage, LP economics, hooks.</div><p><a href="modules/02-amms-and-uniswap-v4/lesson.md">Lesson</a> · <a href="modules/02-amms-and-uniswap-v4/deep-dive.html">Deep Dive</a> · <a href="modules/02-amms-and-uniswap-v4/visual.html">Visual</a></p></div>
+    <div class="module"><div class="t">03 Lending + Stablecoins</div><div class="d">Utilization curves and depeg pathways.</div><p><a href="modules/03-lending-stablecoins/lesson.md">Lesson</a> · <a href="modules/03-lending-stablecoins/deep-dive.html">Deep Dive</a> · <a href="modules/03-lending-stablecoins/visual.html">Visual</a></p></div>
+    <div class="module"><div class="t">04 Perpetual Markets</div><div class="d">Leverage, funding, liquidation, insurance.</div><p><a href="modules/04-perps-first-principles/lesson.md">Lesson</a> · <a href="modules/04-perps-first-principles/deep-dive.html">Deep Dive</a> · <a href="modules/04-perps-first-principles/visual.html">Visual</a></p></div>
+    <div class="module"><div class="t">05 Prediction Markets</div><div class="d">Probability pricing and resolution trust.</div><p><a href="modules/05-prediction-markets/lesson.md">Lesson</a> · <a href="modules/05-prediction-markets/deep-dive.html">Deep Dive</a> · <a href="modules/05-prediction-markets/visual.html">Visual</a></p></div>
+    <div class="module"><div class="t">06 Options + Structuring</div><div class="d">Yield vs payoff tradeoff, short-vol exposure.</div><p><a href="modules/06-options-and-structured-defi/lesson.md">Lesson</a> · <a href="modules/06-options-and-structured-defi/deep-dive.html">Deep Dive</a> · <a href="modules/06-options-and-structured-defi/visual.html">Visual</a></p></div>
+    <div class="module"><div class="t">07 Risk + MEV</div><div class="d">Execution adversaries and throughput fragility.</div><p><a href="modules/07-risk-mev-and-liquidations/lesson.md">Lesson</a> · <a href="modules/07-risk-mev-and-liquidations/deep-dive.html">Deep Dive</a> · <a href="modules/07-risk-mev-and-liquidations/visual.html">Visual</a></p></div>
+    <div class="module"><div class="t">08 Governance + Valuation</div><div class="d">Cash-flow rights, dilution, policy risk.</div><p><a href="modules/08-governance-and-valuations/lesson.md">Lesson</a> · <a href="modules/08-governance-and-valuations/deep-dive.html">Deep Dive</a> · <a href="modules/08-governance-and-valuations/visual.html">Visual</a></p></div>
+    <div class="module"><div class="t">09 Teardowns</div><div class="d">Reusable method across Uniswap v4, perps, prediction markets.</div><p><a href="modules/09-major-protocol-teardowns/lesson.md">Lesson</a> · <a href="modules/09-major-protocol-teardowns/deep-dive.html">Deep Dive</a> · <a href="modules/09-major-protocol-teardowns/visual.html">Visual</a></p></div>
   </div>
 </main>
 </body>
