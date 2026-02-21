@@ -288,13 +288,15 @@ function makeTreeNode(node, depth = 0) {
 
 async function renderFilePreview(node, bodyEl) {
   const fileUrl = `content/${node.path}`;
+  const cacheTag = encodeURIComponent(state.manifest?.generatedAt || Date.now());
+  const previewUrl = `${fileUrl}?v=${cacheTag}`;
 
   const toolbar = document.createElement("div");
   toolbar.className = "file-toolbar";
 
   const openLink = document.createElement("a");
   openLink.className = "btn";
-  openLink.href = fileUrl;
+  openLink.href = previewUrl;
   openLink.target = "_blank";
   openLink.rel = "noopener noreferrer";
   openLink.textContent = "Open in new tab";
@@ -305,14 +307,14 @@ async function renderFilePreview(node, bodyEl) {
   if (node.ext === "html") {
     const iframe = document.createElement("iframe");
     iframe.className = "preview";
-    iframe.src = fileUrl;
+    iframe.src = previewUrl;
     iframe.title = node.path;
     bodyEl.appendChild(iframe);
     return;
   }
 
   if (["md", "txt", "json"].includes(node.ext)) {
-    const res = await fetch(fileUrl);
+    const res = await fetch(previewUrl, { cache: "no-store" });
     if (!res.ok) {
       const errorEl = document.createElement("div");
       errorEl.className = "empty";
