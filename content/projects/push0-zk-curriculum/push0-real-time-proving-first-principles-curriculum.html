@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>push0 + Real-Time Proving: First-Principles Curriculum</title>
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --card: #ffffff;
+      --ink: #1a2130;
+      --muted: #4d5a73;
+      --accent: #0f766e;
+      --line: #d7deec;
+      --warn: #7c2d12;
+      --warn-bg: #fff7ed;
+      --ok-bg: #ecfeff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans", "Segoe UI", -apple-system, sans-serif;
+      background: radial-gradient(circle at 20% 0%, #e6fffa 0%, var(--bg) 40%);
+      color: var(--ink);
+      line-height: 1.5;
+    }
+    .wrap {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 32px 20px 60px;
+    }
+    h1, h2, h3 { line-height: 1.25; margin: 0 0 12px; }
+    h1 { font-size: 2rem; }
+    h2 { font-size: 1.35rem; margin-top: 28px; }
+    h3 { font-size: 1.05rem; margin-top: 16px; }
+    p { margin: 8px 0; }
+    .lede { font-size: 1.03rem; color: var(--muted); }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 14px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 12px;
+    }
+    .tag {
+      display: inline-block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #0f172a;
+      border: 1px solid #cbd5e1;
+      border-radius: 999px;
+      padding: 3px 9px;
+      margin-right: 6px;
+      margin-top: 6px;
+      background: #f8fafc;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      font-size: 0.95rem;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+      padding: 9px;
+    }
+    th { background: #eef2ff; }
+    ul { margin: 6px 0 8px 18px; }
+    .warn {
+      background: var(--warn-bg);
+      border: 1px solid #fdba74;
+      color: var(--warn);
+      border-radius: 10px;
+      padding: 12px;
+    }
+    .ok {
+      background: var(--ok-bg);
+      border: 1px solid #67e8f9;
+      border-radius: 10px;
+      padding: 12px;
+    }
+    code {
+      background: #eef2ff;
+      border: 1px solid #dbe4ff;
+      border-radius: 5px;
+      padding: 1px 6px;
+      font-size: 0.9em;
+    }
+    a { color: #0f4c81; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>push0 + Real-Time Proving: First-Principles Curriculum</h1>
+    <p class="lede">
+      Goal: take you from zero knowledge (no pun intended) to being able to read, challenge, and reproduce the key ideas in <code>push0</code>.
+      Running example throughout: "Prove Ethereum block <code>B</code> in under 10 seconds P99, in-order, with failures."
+    </p>
+
+    <div class="card ok">
+      <strong>What push0 claims (paper summary):</strong>
+      a cloud-native orchestration layer for zk proof pipelines with strict block ordering, low overhead (~5 ms median orchestration latency), fault-tolerant reassignment, prover-agnostic integration, and near-linear scaling for realistic proving workloads.
+    </div>
+
+    <div class="card warn">
+      <strong>Important nuance on the "real-time proving" claim:</strong>
+      push0 primarily demonstrates orchestration efficiency and reliability, not that all Ethereum proving is solved end-to-end by itself.
+      Real-time proving depends on both orchestration + prover/circuit performance + hardware/network conditions. Treat push0 as a critical systems layer, not the full proving stack.
+    </div>
+
+    <h2>Section 1: What You Must Learn to Understand push0 Completely</h2>
+    <div class="card">
+      <div class="grid">
+        <div>
+          <h3>Cryptography + ZK</h3>
+          <ul>
+            <li>Interactive proofs, soundness, completeness, zero-knowledge.</li>
+            <li>Fiat-Shamir transform, polynomial commitments, IOPs.</li>
+            <li>SNARKs, STARKs, recursion/folding.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Ethereum + zkEVM Context</h3>
+          <ul>
+            <li>Execution/state transition model.</li>
+            <li>12-second slot timing and why P99 matters.</li>
+            <li>Rollup finality and chain-halt risks.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Distributed Systems (core to push0)</h3>
+          <ul>
+            <li>Queues, ack/redelivery, retry, dead-letter queues.</li>
+            <li>Backpressure, idempotency, partitioning, consistency tradeoffs.</li>
+            <li>Observability (Prometheus/OpenTelemetry/Grafana).</li>
+          </ul>
+        </div>
+      </div>
+      <p>
+        <span class="tag">Head-of-chain ordering</span>
+        <span class="tag">Latency budgets</span>
+        <span class="tag">Fault recovery</span>
+        <span class="tag">Prover-agnostic interfaces</span>
+      </p>
+    </div>
+
+    <h2>Section 2: Curriculum (16 Weeks, First Principles)</h2>
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>Weeks</th>
+            <th>Module</th>
+            <th>Why it exists</th>
+            <th>What you should be able to do</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1-2</td>
+            <td>Math + Complexity Basics</td>
+            <td>ZK papers assume finite fields, probability, asymptotics.</td>
+            <td>Read a protocol and parse field notation, error bounds, and runtime terms.</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>Modern Cryptography Foundations</td>
+            <td>Need formal security language before ZK specifics.</td>
+            <td>Explain completeness/soundness/ZK and simulator intuition.</td>
+          </tr>
+          <tr>
+            <td>4-5</td>
+            <td>Interactive Proofs to SNARK/STARK</td>
+            <td>Core conceptual jump from proofs to succinct proofs.</td>
+            <td>Differentiate Groth16, PLONK, STARK families and tradeoffs.</td>
+          </tr>
+          <tr>
+            <td>6</td>
+            <td>Ethereum Execution + zkEVM Context</td>
+            <td>push0 problem is tied to Ethereum slots and block order.</td>
+            <td>Translate slot timing into proving latency budgets.</td>
+          </tr>
+          <tr>
+            <td>7-8</td>
+            <td>zkVM/Prover Pipelines</td>
+            <td>Understand witness generation, proving stages, aggregation barriers.</td>
+            <td>Draw a proving DAG and identify parallelizable boundaries.</td>
+          </tr>
+          <tr>
+            <td>9-10</td>
+            <td>Distributed Systems for Proving Infra</td>
+            <td>This is the exact domain where push0 contributes.</td>
+            <td>Design queue semantics with retries, idempotency, and backpressure.</td>
+          </tr>
+          <tr>
+            <td>11</td>
+            <td>Scheduling + Queueing Theory</td>
+            <td>Need quantitative reasoning for throughput vs tail-latency.</td>
+            <td>Compute utilization and estimate when queue buildup begins.</td>
+          </tr>
+          <tr>
+            <td>12</td>
+            <td>Reliability + Threat Modeling</td>
+            <td>Real-time proving fails at edges: crashes, partitions, stragglers.</td>
+            <td>Create failure injection plans and SLO-based alerts.</td>
+          </tr>
+          <tr>
+            <td>13-14</td>
+            <td>Read push0 deeply</td>
+            <td>Map every section to concepts already learned.</td>
+            <td>Challenge each claim and identify unstated assumptions.</td>
+          </tr>
+          <tr>
+            <td>15-16</td>
+            <td>Capstone Reproduction</td>
+            <td>Knowledge is complete only when you can implement/test.</td>
+            <td>Build a toy dispatcher-collector proving pipeline and measure overhead.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>Section 3: Push0 Reading Map (How to Study the Paper)</h2>
+    <div class="card">
+      <h3>Pass 1 (high-level, 1 day)</h3>
+      <ul>
+        <li>Read Abstract + Introduction + Contributions only.</li>
+        <li>Write down the 6 requirements in your own words.</li>
+      </ul>
+      <h3>Pass 2 (mechanism, 2-3 days)</h3>
+      <ul>
+        <li>Trace one block <code>B</code> through queue -> dispatcher -> collector -> final proof.</li>
+        <li>List all points where block ordering can break and how push0 prevents it.</li>
+      </ul>
+      <h3>Pass 3 (evaluation and skepticism, 2 days)</h3>
+      <ul>
+        <li>Separate "orchestration overhead" metrics from total proving latency.</li>
+        <li>Check what experiments were controlled (Docker) vs ecological (production cluster).</li>
+        <li>Ask: does this prove real-time on my hardware/prover mix, or only that orchestration is not the bottleneck?</li>
+      </ul>
+    </div>
+
+    <h2>Section 4: Two Worked Numerical Examples (same running example)</h2>
+    <div class="card">
+      <h3>Example A: Budget accounting</h3>
+      <p>
+        Ethereum slot is 12s. Assume target is proof ready by 10s (P99). If proving compute is 9.2s and orchestration is 5ms median, even 50ms orchestration still fits.
+        But if prover tail is 11.5s, no orchestration trick can meet target. This is why push0 helps but does not replace prover optimization.
+      </p>
+      <h3>Example B: Queue pressure</h3>
+      <p>
+        Suppose average proving demand is 20 tasks/s and service capacity is 21 tasks/s. Utilization ~95%. Tail latency can still spike under bursts.
+        If one worker group crashes and capacity drops to 17 tasks/s, queue depth grows immediately and end-to-end slot misses follow unless automatic reassignment + scaling reacts fast.
+      </p>
+    </div>
+
+    <h2>Section 5: Failure Modes You Must Understand</h2>
+    <div class="card">
+      <h3>Technical failures</h3>
+      <ul>
+        <li>Message loss or duplicate redelivery without idempotent handling.</li>
+        <li>Collector barrier deadlock when expected inputs never arrive.</li>
+        <li>Network partitions causing stale workers or split-brain assumptions.</li>
+      </ul>
+      <h3>Economic/operational failures</h3>
+      <ul>
+        <li>Missed proving windows causing delayed finality and user confidence loss.</li>
+        <li>Overprovisioning GPUs to chase P99 can make economics unsustainable.</li>
+        <li>Vendor/prover centralization can weaken fault diversity assumptions.</li>
+      </ul>
+    </div>
+
+    <h2>Section 6: Primary Resource Stack (high signal, low redundancy)</h2>
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>Topic</th>
+            <th>Core resources</th>
+            <th>Use it for</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>push0 paper</td>
+            <td>
+              <a href="https://arxiv.org/abs/2602.16338" target="_blank" rel="noopener">push0 arXiv entry</a>
+            </td>
+            <td>Primary source of architecture, requirements, and evaluation claims.</td>
+          </tr>
+          <tr>
+            <td>Ethereum real-time proving context</td>
+            <td>
+              <a href="https://blog.ethereum.org/2025/11/05/real-time-proving-security" target="_blank" rel="noopener">Ethereum Foundation: real-time proving security foundations (Nov 5, 2025)</a><br />
+              <a href="https://ethproofs.org/" target="_blank" rel="noopener">Ethproofs program portal</a>
+            </td>
+            <td>Understand why timing/security constraints matter beyond a single paper.</td>
+          </tr>
+          <tr>
+            <td>ZK definitions and proofs</td>
+            <td>
+              <a href="https://people.csail.mit.edu/silvio/Selected%20Scientific%20Papers/Zero%20Knowledge/Knowledge_Complexity_of_Interactive_Proof_System.pdf" target="_blank" rel="noopener">Goldwasser-Micali-Rackoff (1985)</a><br />
+              <a href="https://link.springer.com/chapter/10.1007/3-540-47721-7_12" target="_blank" rel="noopener">Fiat-Shamir heuristic (1986)</a>
+            </td>
+            <td>First principles: what ZK means and how non-interactive proofs emerged.</td>
+          </tr>
+          <tr>
+            <td>Modern proving systems</td>
+            <td>
+              <a href="https://eprint.iacr.org/2016/260" target="_blank" rel="noopener">Groth16 paper</a><br />
+              <a href="https://eprint.iacr.org/2019/953" target="_blank" rel="noopener">PLONK paper</a><br />
+              <a href="https://eprint.iacr.org/2018/046" target="_blank" rel="noopener">STARKs paper</a>
+            </td>
+            <td>SNARK vs STARK tradeoffs that influence proving pipelines.</td>
+          </tr>
+          <tr>
+            <td>zkVM and prover engineering</td>
+            <td>
+              <a href="https://dev.risczero.com/" target="_blank" rel="noopener">RISC Zero docs</a><br />
+              <a href="https://docs.succinct.xyz/" target="_blank" rel="noopener">Succinct/SP1 docs</a>
+            </td>
+            <td>Concrete prover workflows and integration realities.</td>
+          </tr>
+          <tr>
+            <td>Ethereum execution model</td>
+            <td>
+              <a href="https://ethereum.github.io/yellowpaper/paper.pdf" target="_blank" rel="noopener">Ethereum Yellow Paper</a><br />
+              <a href="https://ethereum.org/en/developers/docs/" target="_blank" rel="noopener">Ethereum developer docs</a>
+            </td>
+            <td>Ground proving claims in actual state-transition semantics.</td>
+          </tr>
+          <tr>
+            <td>Queueing + orchestration stack</td>
+            <td>
+              <a href="https://docs.nats.io/nats-concepts/jetstream" target="_blank" rel="noopener">NATS JetStream docs</a><br />
+              <a href="https://kubernetes.io/docs/concepts/overview/" target="_blank" rel="noopener">Kubernetes concepts</a><br />
+              <a href="https://prometheus.io/docs/introduction/overview/" target="_blank" rel="noopener">Prometheus overview</a><br />
+              <a href="https://opentelemetry.io/docs/" target="_blank" rel="noopener">OpenTelemetry docs</a>
+            </td>
+            <td>Understand push0 reliability/observability design in production terms.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>Section 7: Check Your Understanding (with answers)</h2>
+    <div class="card">
+      <ol>
+        <li>
+          Why is strict block ordering required even if later blocks finish faster?
+          <br /><strong>Answer:</strong> proof verification/submission semantics are chain-sequential; out-of-order can be invalid/rejected and break consistency.
+        </li>
+        <li>
+          If orchestration overhead is 5 ms, does that prove real-time proving on Ethereum?
+          <br /><strong>Answer:</strong> no; total end-to-end latency includes proving compute, aggregation, network, and failure tails.
+        </li>
+        <li>
+          Why do collectors need dedup/idempotency logic?
+          <br /><strong>Answer:</strong> at-least-once queues redeliver on failure; without dedup you can waste expensive proving and corrupt aggregation semantics.
+        </li>
+        <li>
+          What is the central tradeoff push0 manages?
+          <br /><strong>Answer:</strong> maximizing intra-block parallelism while preserving strict inter-block ordering and recovery guarantees.
+        </li>
+        <li>
+          What would you benchmark first in a capstone implementation?
+          <br /><strong>Answer:</strong> P50/P95/P99 orchestration latency, queue depth growth under burst, and time-to-recovery after worker crashes.
+        </li>
+      </ol>
+    </div>
+
+    <h2>Section 8: Practical Study Plan (if you want to execute now)</h2>
+    <div class="card">
+      <ul>
+        <li><strong>Daily (90 min):</strong> 45 min theory + 30 min note-taking + 15 min recap questions.</li>
+        <li><strong>Weekly output:</strong> one short memo: "what changed in my mental model?"</li>
+        <li><strong>End of week 8:</strong> draw your own proving pipeline DAG and explain all dependencies.</li>
+        <li><strong>End of week 16:</strong> run a toy queue-based proving orchestrator and produce a latency/failure report.</li>
+      </ul>
+      <p>
+        If you follow this path, you will not just "read push0"; you will be able to evaluate whether its architecture is sufficient for your target proving regime.
+      </p>
+    </div>
+
+    <div class="card">
+      <strong>Created for Atlas:</strong> dedicated curriculum for understanding push0 and real-time proving from first principles, with non-redundant primary resources.
+    </div>
+  </div>
+</body>
+</html>
