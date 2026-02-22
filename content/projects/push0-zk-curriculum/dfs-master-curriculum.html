@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZK DFS Curriculum Master Plan (Push0 Track)</title>
+  <style>
+    :root{--bg:#f4f7fb;--card:#fff;--ink:#111827;--muted:#4b5563;--line:#d1d9e6;--accent:#0f766e;--soft:#ecfeff}
+    *{box-sizing:border-box} body{margin:0;font-family:"IBM Plex Sans","Segoe UI",sans-serif;background:var(--bg);color:var(--ink)}
+    .wrap{max-width:1080px;margin:0 auto;padding:28px 18px 60px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-top:12px}
+    h1,h2,h3{margin:0 0 10px;line-height:1.25} h1{font-size:2rem} h2{font-size:1.3rem;margin-top:24px}
+    p{margin:8px 0;color:var(--muted)} ul{margin:6px 0 10px 18px} li{margin:4px 0}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+    table{width:100%;border-collapse:collapse;margin-top:8px} th,td{border:1px solid var(--line);padding:8px;vertical-align:top;text-align:left}
+    th{background:#eef2ff}
+    a{color:#0b4f89}
+    .pill{display:inline-block;background:#e0f2fe;border:1px solid #bae6fd;border-radius:999px;padding:3px 8px;font-size:.8rem;margin-right:6px}
+    .ok{background:var(--soft);border:1px solid #67e8f9}
+    code{background:#eef2ff;border:1px solid #dbe4ff;border-radius:4px;padding:1px 5px}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>ZK First-Principles DFS Curriculum (Push0-Oriented)</h1>
+  <p>This is the deep version of the curriculum. Every module expands prerequisites recursively (DFS) until we hit a high-school baseline.</p>
+
+  <div class="card ok">
+    <strong>Scope choice from you applied:</strong> deep on ZK/proving/orchestration foundations; minimal on Grafana/Prometheus operational details.
+  </div>
+
+  <div class="card">
+    <h2>How this DFS curriculum works</h2>
+    <ul>
+      <li>Start from target topic: <code>Understand and evaluate push0 real-time proving claims</code>.</li>
+      <li>For each required concept, recursively add prerequisites.</li>
+      <li>Stop recursion when a prerequisite is usually high-school level (basic algebra, basic probability, basic functions/graphs).</li>
+      <li>Track each node as: <code>Teach</code>, <code>Optional refresh</code>, or <code>Assumed high-school</code>.</li>
+    </ul>
+    <p>
+      <span class="pill">DFS prerequisite expansion</span>
+      <span class="pill">High-school cutoff</span>
+      <span class="pill">Push0 mapping</span>
+      <span class="pill">Weekly outputs</span>
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>Module Index</h2>
+    <table>
+      <thead><tr><th>Module</th><th>Focus</th><th>Link</th></tr></thead>
+      <tbody>
+        <tr><td>M0</td><td>Dependency graph + method</td><td><a href="modules/m0-dependency-graph-method.html">Open module</a></td></tr>
+        <tr><td>M1</td><td>Math baseline for ZK</td><td><a href="modules/m1-math-baseline.html">Open module</a></td></tr>
+        <tr><td>M2</td><td>Cryptography foundations</td><td><a href="modules/m2-crypto-foundations.html">Open module</a></td></tr>
+        <tr><td>M3</td><td>Interactive proofs -> SNARK/STARK</td><td><a href="modules/m3-interactive-to-snark-stark.html">Open module</a></td></tr>
+        <tr><td>M4</td><td>Polynomial/FFT/commitments/recursion</td><td><a href="modules/m4-poly-fft-pcs-recursion.html">Open module</a></td></tr>
+        <tr><td>M5</td><td>Ethereum execution + real-time proving constraints</td><td><a href="modules/m5-ethereum-zkevm-context.html">Open module</a></td></tr>
+        <tr><td>M6</td><td>zkVM + prover pipeline engineering</td><td><a href="modules/m6-zkvm-prover-pipelines.html">Open module</a></td></tr>
+        <tr><td>M7</td><td>Distributed orchestration for provers</td><td><a href="modules/m7-distributed-orchestration.html">Open module</a></td></tr>
+        <tr><td>M8</td><td>push0 paper deep reading + claim audit</td><td><a href="modules/m8-push0-deep-reading.html">Open module</a></td></tr>
+        <tr><td>M9</td><td>Capstone: reproduce, benchmark, break, fix</td><td><a href="modules/m9-capstone-labs.html">Open module</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Recommended cadence</h2>
+    <div class="grid">
+      <div>
+        <h3>Daily (90-120 min)</h3>
+        <ul>
+          <li>45-60 min concept learning</li>
+          <li>20-30 min exercises</li>
+          <li>15 min self-explain notes</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Weekly output</h3>
+        <ul>
+          <li>1 concept map update</li>
+          <li>1 short memo: misconceptions corrected</li>
+          <li>1 mini quiz attempt</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Exit criteria</h3>
+        <ul>
+          <li>Can explain why push0 overhead is necessary but not sufficient for real-time proving.</li>
+          <li>Can derive a latency budget and identify dominant bottleneck.</li>
+          <li>Can design a fault-tolerant proving workflow with ordering constraints.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Key resource root links (verified)</h2>
+    <ul>
+      <li><a href="https://arxiv.org/abs/2602.16338" target="_blank" rel="noopener">push0 paper (arXiv)</a></li>
+      <li><a href="https://blog.ethereum.org/2025/07/10/realtime-proving" target="_blank" rel="noopener">Ethereum Foundation: real-time proving (Jul 10, 2025)</a></li>
+      <li><a href="https://blog.ethereum.org/2025/12/18/zkevm-security-foundations" target="_blank" rel="noopener">Ethereum Foundation: zkEVM security foundations (Dec 18, 2025)</a></li>
+      <li><a href="https://ethproofs.org/" target="_blank" rel="noopener">Ethproofs portal</a></li>
+      <li><a href="https://rareskills.io/tutorials/zk-book" target="_blank" rel="noopener">RareSkills ZK Book</a></li>
+    </ul>
+  </div>
+</div>
+</body>
+</html>
