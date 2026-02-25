@@ -144,7 +144,7 @@ h1 {
   width: 100%;
   text-align: left;
   border: 1px solid var(--border);
-  border-radius: 0;
+  border-radius: 14px;
   background: var(--surface);
   color: inherit;
   padding: 14px;
@@ -192,7 +192,7 @@ h1 {
 
 .panel {
   border: 1px solid var(--border);
-  border-radius: 0;
+  border-radius: 16px;
   background: var(--surface);
   min-width: 0;
 }
@@ -304,6 +304,8 @@ h1 {
 .viewer-body {
   min-height: 0;
   overflow: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .empty {
@@ -326,7 +328,8 @@ h1 {
 iframe.preview {
   border: none;
   width: 100%;
-  height: clamp(560px, 76dvh, 1400px);
+  flex: 1 1 auto;
+  min-height: 560px;
   background: #fff;
 }
 
