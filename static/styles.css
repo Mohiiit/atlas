@@ -144,7 +144,7 @@ h1 {
   width: 100%;
   text-align: left;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 0;
   background: var(--surface);
   color: inherit;
   padding: 14px;
@@ -175,7 +175,7 @@ h1 {
   grid-template-columns: clamp(320px, 22vw, 460px) minmax(0, 1fr);
   gap: 16px;
   min-width: 0;
-  align-items: start;
+  align-items: stretch;
 }
 
 .workspace.sidebar-open .sidebar {
@@ -192,16 +192,15 @@ h1 {
 
 .panel {
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 0;
   background: var(--surface);
   min-width: 0;
-  box-shadow: 0 14px 28px rgba(5, 31, 56, 0.12);
 }
 
 .sidebar {
-  max-height: calc(100dvh - 178px);
   position: sticky;
   top: 8px;
+  max-height: calc(100dvh - 60px);
   overflow: auto;
   padding: 10px;
   overscroll-behavior: contain;
@@ -280,7 +279,7 @@ h1 {
   padding: 0;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  min-height: calc(100dvh - 178px);
+  min-height: calc(100dvh - 100px);
 }
 
 .viewer-head {
