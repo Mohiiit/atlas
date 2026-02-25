@@ -42,7 +42,7 @@ body {
     radial-gradient(circle at 95% -10%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 33%),
     radial-gradient(circle at -10% 100%, color-mix(in srgb, var(--accent-2) 14%, transparent), transparent 36%),
     var(--bg);
-  padding: 40px 26px 26px;
+  padding: 48px 32px 32px;
   overflow-x: hidden;
 }
 
@@ -60,7 +60,7 @@ body {
 .topbar {
   position: relative;
   z-index: 2;
-  max-width: min(1880px, calc(100vw - 52px));
+  max-width: min(1880px, calc(100vw - 64px));
   margin: 0 auto 16px;
   display: flex;
   justify-content: space-between;
@@ -128,7 +128,7 @@ h1 {
 .app {
   position: relative;
   z-index: 2;
-  max-width: min(1880px, calc(100vw - 52px));
+  max-width: min(1880px, calc(100vw - 64px));
   width: 100%;
   margin: 0 auto;
   min-height: 70vh;
