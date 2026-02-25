@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Madara Storage Proofs: Snapshots + Trie Logs Visual Deep Dive</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --font-body: 'Manrope', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+
+    --bg: #f5fbff;
+    --surface: #ffffff;
+    --surface-elevated: #eef7ff;
+    --surface-hero: #e6f2ff;
+    --border: rgba(7, 38, 82, 0.12);
+    --border-bright: rgba(7, 38, 82, 0.24);
+    --text: #10233f;
+    --text-dim: #3e5879;
+
+    --node-a: #0066cc;
+    --node-a-dim: rgba(0, 102, 204, 0.10);
+    --node-b: #00856f;
+    --node-b-dim: rgba(0, 133, 111, 0.10);
+    --node-c: #8c4f00;
+    --node-c-dim: rgba(140, 79, 0, 0.10);
+    --node-d: #7c2ca0;
+    --node-d-dim: rgba(124, 44, 160, 0.10);
+    --danger: #be1e2d;
+    --danger-dim: rgba(190, 30, 45, 0.10);
+
+    --shadow-soft: 0 2px 10px rgba(16, 35, 63, 0.06);
+    --shadow-elev: 0 8px 26px rgba(16, 35, 63, 0.12);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #071326;
+      --surface: #0f2038;
+      --surface-elevated: #142b4b;
+      --surface-hero: #18345c;
+      --border: rgba(184, 214, 255, 0.13);
+      --border-bright: rgba(184, 214, 255, 0.26);
+      --text: #e7f1ff;
+      --text-dim: #a8c0dd;
+
+      --node-a: #62b0ff;
+      --node-a-dim: rgba(98, 176, 255, 0.16);
+      --node-b: #5ee2c9;
+      --node-b-dim: rgba(94, 226, 201, 0.16);
+      --node-c: #ffc170;
+      --node-c-dim: rgba(255, 193, 112, 0.16);
+      --node-d: #d3a5ff;
+      --node-d-dim: rgba(211, 165, 255, 0.16);
+      --danger: #ff8b95;
+      --danger-dim: rgba(255, 139, 149, 0.16);
+
+      --shadow-soft: 0 2px 10px rgba(0, 0, 0, 0.22);
+      --shadow-elev: 0 8px 26px rgba(0, 0, 0, 0.34);
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--font-body);
+    color: var(--text);
+    background: var(--bg);
+    background-image:
+      radial-gradient(circle at 14% 12%, var(--node-a-dim), transparent 38%),
+      radial-gradient(circle at 86% 10%, var(--node-d-dim), transparent 36%),
+      radial-gradient(circle at 50% 100%, var(--node-b-dim), transparent 42%),
+      repeating-linear-gradient(0deg, transparent, transparent 31px, var(--border) 31px, var(--border) 32px),
+      repeating-linear-gradient(90deg, transparent, transparent 31px, var(--border) 31px, var(--border) 32px);
+    min-height: 100vh;
+    padding: 24px 40px 52px;
+    overflow-wrap: break-word;
+  }
+
+  .wrap {
+    max-width: 1360px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 190px 1fr;
+    gap: 0 34px;
+  }
+
+  .main { min-width: 0; }
+
+  .toc {
+    position: sticky;
+    top: 22px;
+    align-self: start;
+    padding: 14px 0;
+    grid-row: 1 / -1;
+    max-height: calc(100dvh - 44px);
+    overflow-y: auto;
+  }
+
+  .toc::-webkit-scrollbar { width: 4px; }
+  .toc::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 2px; }
+
+  .toc-title {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.9px;
+    color: var(--text-dim);
+    margin-bottom: 9px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .toc a {
+    display: block;
+    text-decoration: none;
+    color: var(--text-dim);
+    font-size: 11px;
+    line-height: 1.4;
+    padding: 6px 10px;
+    border-left: 2px solid transparent;
+    border-radius: 5px;
+    transition: all 0.15s ease;
+    margin-bottom: 2px;
+  }
+
+  .toc a:hover { color: var(--text); background: var(--surface-elevated); }
+  .toc a.active { color: var(--text); border-left-color: var(--node-a); }
+
+  .hero {
+    background: var(--surface-hero);
+    border: 1px solid var(--border-bright);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow-elev);
+  }
+
+  .hero h1 {
+    font-size: clamp(24px, 3vw, 42px);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 9px;
+    text-wrap: balance;
+  }
+
+  .hero .subtitle {
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    margin-bottom: 14px;
+  }
+
+  .hero p {
+    max-width: 900px;
+    line-height: 1.72;
+    font-size: 15px;
+  }
+
+  .kpi-grid {
+    margin-top: 16px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+  }
+
+  .kpi {
+    min-width: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+  }
+
+  .kpi-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    margin-bottom: 7px;
+  }
+
+  .kpi-value {
+    font-size: 22px;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--node-a);
+  }
+
+  .sec-head {
+    margin: 20px 0 12px;
+    font-size: 20px;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+
+  .card {
+    min-width: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 12px;
+    box-shadow: var(--shadow-soft);
+  }
+
+  .card p {
+    line-height: 1.72;
+    font-size: 14px;
+    color: var(--text);
+    margin-bottom: 10px;
+  }
+
+  .card p:last-child { margin-bottom: 0; }
+
+  .card code {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    background: var(--node-a-dim);
+    color: var(--node-a);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+
+  .bullets {
+    list-style: none;
+    margin-top: 6px;
+  }
+
+  .bullets li {
+    position: relative;
+    padding-left: 14px;
+    font-size: 14px;
+    line-height: 1.65;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
+
+  .bullets li::before {
+    content: '\203A';
+    position: absolute;
+    left: 0;
+    color: var(--node-a);
+    font-weight: 700;
+  }
+
+  .steps {
+    counter-reset: step;
+    list-style: none;
+  }
+
+  .steps li {
+    counter-increment: step;
+    position: relative;
+    padding-left: 34px;
+    margin-bottom: 9px;
+    line-height: 1.62;
+    font-size: 14px;
+  }
+
+  .steps li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1px solid var(--border-bright);
+    background: var(--node-a-dim);
+    color: var(--node-a);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .comparison {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .comparison > * { min-width: 0; overflow-wrap: break-word; }
+
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-top: 10px;
+  }
+
+  .table-scroll { overflow-x: auto; }
+
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .data-table thead { position: sticky; top: 0; z-index: 2; }
+
+  .data-table th {
+    background: var(--surface-elevated);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    text-align: left;
+    padding: 11px 13px;
+    border-bottom: 2px solid var(--border-bright);
+    white-space: nowrap;
+  }
+
+  .data-table td {
+    padding: 11px 13px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    color: var(--text);
+  }
+
+  .data-table tbody tr:nth-child(even) { background: var(--node-a-dim); }
+  .data-table tbody tr:last-child td { border-bottom: none; }
+
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+  }
+
+  .status--match { background: var(--node-b-dim); color: var(--node-b); }
+  .status--warn { background: var(--node-c-dim); color: var(--node-c); }
+  .status--gap { background: var(--danger-dim); color: var(--danger); }
+
+  .mermaid-wrap {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 26px 16px 16px;
+    overflow: auto;
+    margin: 10px 0 14px;
+  }
+
+  .mermaid-wrap .mermaid {
+    transition: transform 0.2s ease;
+    transform-origin: top center;
+    display: flex;
+    justify-content: center;
+    min-width: fit-content;
+  }
+
+  .zoom-controls {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: flex;
+    gap: 2px;
+    z-index: 10;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 2px;
+  }
+
+  .zoom-controls button {
+    width: 27px;
+    height: 27px;
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+
+  .zoom-controls button:hover {
+    background: var(--surface-elevated);
+    color: var(--text);
+  }
+
+  .mermaid-wrap.is-zoomed { cursor: grab; }
+  .mermaid-wrap.is-panning { cursor: grabbing; user-select: none; }
+
+  .mermaid-wrap::-webkit-scrollbar { width: 6px; height: 6px; }
+  .mermaid-wrap::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 4px; }
+
+  .mermaid .nodeLabel {
+    font-family: var(--font-body) !important;
+    font-size: 15px !important;
+  }
+
+  .mermaid .edgeLabel {
+    font-family: var(--font-mono) !important;
+    font-size: 12px !important;
+  }
+
+  .mermaid .node rect,
+  .mermaid .node polygon,
+  .mermaid .node circle {
+    stroke-width: 1.4px !important;
+  }
+
+  .foot-note {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+  }
+
+  .code-block {
+    margin-top: 10px;
+    background: var(--surface-elevated);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--text);
+    white-space: pre;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-delay: 0ms !important;
+      transition-duration: 0.01ms !important;
+    }
+    .mermaid-wrap .mermaid { transition: none; }
+  }
+
+  @media (max-width: 1000px) {
+    .wrap { grid-template-columns: 1fr; }
+    body { padding: 14px 16px 34px; }
+
+    .toc {
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      max-height: none;
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      overflow-x: auto;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 0;
+      margin: 0 -16px;
+      padding-left: 16px;
+      padding-right: 16px;
+      grid-row: auto;
+    }
+
+    .toc::-webkit-scrollbar { display: none; }
+    .toc-title { display: none; }
+
+    .toc a {
+      white-space: nowrap;
+      flex-shrink: 0;
+      border-left: none;
+      border-bottom: 2px solid transparent;
+      border-radius: 4px 4px 0 0;
+      padding: 6px 10px;
+      font-size: 10px;
+      margin-bottom: 0;
+    }
+
+    .toc a.active {
+      border-left: none;
+      border-bottom-color: var(--node-a);
+      background: var(--surface);
+    }
+
+    .hero { margin-top: 14px; }
+    .hero h1 { font-size: 26px; }
+    .comparison { grid-template-columns: 1fr; }
+    .sec-head { scroll-margin-top: 56px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="toc" id="toc">
+    <div class="toc-title">Contents</div>
+    <a href="#s1">1. Why This Matters</a>
+    <a href="#s2">2. First Principles</a>
+    <a href="#s3">3. Mechanism Walkthrough</a>
+    <a href="#s4">4. Worked Examples</a>
+    <a href="#s5">5. Failure Modes</a>
+    <a href="#s6">6. What To Monitor</a>
+    <a href="#s7">7. Further Reading Prompts</a>
+  </nav>
+
+  <div class="main">
+    <section class="hero">
+      <h1>Madara Storage Proofs<br>Snapshots + Trie Logs Visual Deep Dive</h1>
+      <p class="subtitle">content-rich explainer: RocksDB internals, Bonsai path mechanics, Starknet proof retrieval</p>
+      <p>
+        This page focuses on one hard operational question: how does a Madara node prove historical state at block <code>B</code>
+        while the live database keeps moving forward to newer blocks? The answer is a coordinated system: RocksDB point-in-time
+        snapshots provide a stable base, Bonsai trie logs provide reversible deltas, and the RPC method composes proof nodes
+        into a witness that a verifier can recompute against the declared roots.
+      </p>
+      <div class="kpi-grid">
+        <div class="kpi"><div class="kpi-label">Path Width</div><div class="kpi-value">251 bits</div></div>
+        <div class="kpi"><div class="kpi-label">Key Spaces</div><div class="kpi-value">3 tries</div></div>
+        <div class="kpi"><div class="kpi-label">Snapshot Role</div><div class="kpi-value">Fast base</div></div>
+        <div class="kpi"><div class="kpi-label">Trie Logs Role</div><div class="kpi-value">Delta replay</div></div>
+      </div>
+    </section>
+
+    <h2 id="s1" class="sec-head">1 — Why this matters</h2>
+    <div class="card">
+      <ul class="bullets">
+        <li><strong>Historical integrity:</strong> Light clients, bridges, indexers, and auditors need cryptographic answers for old blocks, not only <code>latest</code>.</li>
+        <li><strong>Operational survivability:</strong> If proof generation for older blocks is too expensive, a public node becomes vulnerable to resource exhaustion.</li>
+        <li><strong>Correctness boundary:</strong> A proof is only valid if it corresponds to the exact roots associated with the requested block hash.</li>
+        <li><strong>Tunable tradeoff:</strong> Snapshot frequency and trie-log retention directly control proof latency, storage footprint, and historical window length.</li>
+      </ul>
+      <p>
+        In practical terms, proofs are not a feature you can bolt on after sync. The data-retention policy must be designed from the start.
+        Madara exposes this through <code>--db-max-saved-trie-logs</code>, <code>--db-max-kept-snapshots</code>, <code>--db-snapshot-interval</code>, and
+        <code>--rpc-storage-proof-max-distance</code>. Each parameter shifts the boundary between speed, cost, and exposure.
+      </p>
+    </div>
+
+    <h2 id="s2" class="sec-head">2 — First principles</h2>
+    <div class="comparison">
+      <div class="card">
+        <p><strong>Principle A: RocksDB stores bytes, not semantics.</strong></p>
+        <p>
+          RocksDB does not know what a contract nonce or class hash is. It only stores key/value byte slices and maintains
+          version visibility through sequence numbers. Application semantics are encoded by Madara/Bonsai key construction,
+          then interpreted above the storage layer.
+        </p>
+        <p>
+          This explains why the same RocksDB engine can serve wildly different applications. Meaning is in key schema and access patterns,
+          not in the engine itself.
+        </p>
+      </div>
+
+      <div class="card">
+        <p><strong>Principle B: Historical proofs need historical views.</strong></p>
+        <p>
+          A storage proof is valid only if each node hash recomputes to the root associated with block <code>B</code>. Using current head state to answer
+          old requests is wrong unless head and <code>B</code> are identical. Therefore, the node must reconstruct a point-in-time trie view.
+        </p>
+        <p>
+          Madara obtains this with a nearest snapshot plus trie-log transitions, then runs multiproof extraction from that reconstructed state.
+        </p>
+      </div>
+    </div>
+
+    <div class="mermaid-wrap">
+      <div class="zoom-controls">
+        <button onclick="zoomDiagram(this, 1.2)" title="Zoom in">+</button>
+        <button onclick="zoomDiagram(this, 0.8)" title="Zoom out">&minus;</button>
+        <button onclick="resetZoom(this)" title="Reset zoom">&#8634;</button>
+      </div>
+      <pre class="mermaid">
+flowchart TD
+  H["Block Header"] --> R["global_roots"]
+  R --> CT["contracts_tree_root"]
+  R --> CL["classes_tree_root"]
+
+  CT --> GCT["Global Contracts Trie<br>(Pedersen)"]
+  CL --> GCL["Global Classes Trie<br>(Poseidon)"]
+
+  GCT --> CLeafA["Contract A leaf<br>class_hash + nonce + storage_root"]
+  GCT --> CLeafB["Contract B leaf"]
+
+  CLeafA --> CSTA["Contract A Storage Trie<br>(Pedersen)"]
+  CSTA --> KV1["k1 -> v1"]
+  CSTA --> KV2["k2 -> v2"]
+
+  GCL --> CH1["class_hash_1 -> class_leaf_hash"]
+  GCL --> CH2["class_hash_2 -> class_leaf_hash"]
+      </pre>
+    </div>
+    <p class="foot-note">Diagram: Starknet tree-of-tries topology used by <code>starknet_getStorageProof</code>.</p>
+
+    <h2 id="s3" class="sec-head">3 — Mechanism walkthrough</h2>
+    <div class="card">
+      <ol class="steps">
+        <li><strong>Request gate:</strong> RPC receives <code>block_id</code> plus any combination of class hashes, contract addresses, and per-contract storage keys. It checks distance, key count, and used-tries limits.</li>
+        <li><strong>Transactional state creation:</strong> For each relevant trie family, Madara asks Bonsai for <code>get_transactional_state(block_n)</code>. Bonsai asks backend for closest snapshot at-or-after requested block.</li>
+        <li><strong>Delta replay:</strong> Trie logs between snapshot id and requested id are replayed into a transactional overlay. This reconstructs a deterministic point-in-time trie view.</li>
+        <li><strong>Proof extraction:</strong> Multiproof generation traverses requested paths and returns hash->node mappings (binary + edge nodes) for the union of paths.</li>
+        <li><strong>Leaf metadata assembly:</strong> Contract leaves data is returned with nonce/class_hash/storage_root so verifiers can rebuild contract-leaf hash inputs.</li>
+        <li><strong>Response binding:</strong> Output includes <code>global_roots</code> plus associated <code>block_hash</code>, so verifiers know exactly which header commitment this witness targets.</li>
+      </ol>
+      <p>
+        Compaction interaction is subtle but important: old key versions remain queryable while live snapshots need them. Once no active snapshot references older
+        versions, compaction can drop them. This is why snapshot lifecycle directly affects historical visibility guarantees.
+      </p>
+    </div>
+
+    <div class="mermaid-wrap">
+      <div class="zoom-controls">
+        <button onclick="zoomDiagram(this, 1.2)" title="Zoom in">+</button>
+        <button onclick="zoomDiagram(this, 0.8)" title="Zoom out">&minus;</button>
+        <button onclick="resetZoom(this)" title="Reset zoom">&#8634;</button>
+      </div>
+      <pre class="mermaid">
+flowchart TD
+  Q["RPC getStorageProof(block=B)"] --> G1{"distance <= max?"}
+  G1 -->|no| E1["reject old block"]
+  G1 -->|yes| G2{"keys <= max?"}
+  G2 -->|no| E2["reject key count"]
+  G2 -->|yes| G3{"tries <= max?"}
+  G3 -->|no| E3["reject trie count"]
+  G3 -->|yes| TS["request transactional state"]
+
+  TS --> S["choose closest kept snapshot"]
+  S --> T["apply trie logs until B"]
+  T --> V["point-in-time trie view"]
+
+  V --> RH["root_hash(identifier)"]
+  V --> MP["get_multi_proof(keys)"]
+  RH --> OUT["classes_proof + contracts_proof + contracts_storage_proofs + global_roots"]
+  MP --> OUT
+      </pre>
+    </div>
+
+    <div class="mermaid-wrap">
+      <div class="zoom-controls">
+        <button onclick="zoomDiagram(this, 1.2)" title="Zoom in">+</button>
+        <button onclick="zoomDiagram(this, 0.8)" title="Zoom out">&minus;</button>
+        <button onclick="resetZoom(this)" title="Reset zoom">&#8634;</button>
+      </div>
+      <pre class="mermaid">
+sequenceDiagram
+  participant C as Client
+  participant R as RPC
+  participant B as Bonsai
+  participant D as RocksDB
+
+  C->>R: getStorageProof(block=B, keys)
+  R->>R: enforce distance/keys/tries limits
+  R->>B: get_transactional_state(B)
+  B->>D: pick closest snapshot S
+  B->>D: replay trie logs S..B
+  D-->>B: transactional view at B
+  B-->>R: view + roots
+  R->>B: get_multi_proof(requested paths)
+  B-->>R: node hash -> node mapping
+  R-->>C: proof payload + global_roots + block_hash
+      </pre>
+    </div>
+
+    <h2 id="s4" class="sec-head">4 — Worked examples</h2>
+    <div class="card">
+      <p>
+        Simpler example (toy trie): use 6-bit paths so we can see every bit.
+        This is only for readability; real Starknet paths are 251 bits, but the logic is identical.
+      </p>
+      <ul class="bullets">
+        <li><code>k1 = 000010</code> -> value <code>7</code></li>
+        <li><code>k2 = 000110</code> -> value <code>9</code></li>
+        <li><code>k3 = 000011</code> -> not inserted (used for non-membership proof)</li>
+        <li>Shared prefix of inserted keys: <code>000</code> (then split: <code>k1=010</code>, <code>k2=110</code>)</li>
+      </ul>
+    </div>
+
+    <div class="mermaid-wrap">
+      <div class="zoom-controls">
+        <button onclick="zoomDiagram(this, 1.2)" title="Zoom in">+</button>
+        <button onclick="zoomDiagram(this, 0.8)" title="Zoom out">&minus;</button>
+        <button onclick="resetZoom(this)" title="Reset zoom">&#8634;</button>
+      </div>
+      <pre class="mermaid">
+flowchart TD
+  E0["Edge E0: path=000, len=3"] --> B0["Binary B0"]
+  B0 -->|0| E1["Edge E1: path=10, len=2"]
+  B0 -->|1| E2["Edge E2: path=10, len=2"]
+  E1 --> L1["Leaf: k1 -> 7"]
+  E2 --> L2["Leaf: k2 -> 9"]
+      </pre>
+    </div>
+
+    <div class="card">
+      <p><strong>What exact proof nodes are sent for <code>k1</code>?</strong></p>
+      <p>
+        Membership proof for <code>k1=000010</code> needs just these nodes: <code>E0</code>, <code>B0</code>, <code>E1</code>.
+      </p>
+      <ul class="bullets">
+        <li><code>E0</code> consumes <code>000</code>.</li>
+        <li><code>B0</code> consumes split bit <code>0</code>.</li>
+        <li><code>E1</code> consumes <code>10</code>.</li>
+      </ul>
+      <pre class="code-block">{
+  "proof_nodes": [
+    { "id": "E0", "type": "edge", "path": "000", "length": 3, "child": "B0" },
+    { "id": "B0", "type": "binary", "left": "E1", "right": "E2" },
+    { "id": "E1", "type": "edge", "path": "10", "length": 2, "child": "Leaf(k1=7)" }
+  ]
+}</pre>
+      <p>
+        Non-membership for <code>k3=000011</code>:
+      </p>
+      <ul class="bullets">
+        <li>After <code>E0</code>, <code>k3</code> also takes branch <code>0</code> at <code>B0</code>.</li>
+        <li>Remaining bits for <code>k3</code> are <code>11</code>, but stored edge <code>E1</code> is <code>10</code>.</li>
+        <li>That mismatch is the non-membership proof.</li>
+      </ul>
+      <p>
+        In real RPC, node IDs are hashes (<code>node_hash</code> felt) instead of labels like <code>E0</code>, but verification is the same.
+      </p>
+      <pre class="code-block">{
+  "node_hash": "0x6da041953eaf48fefeab68c933739b8b69fd9f98c05d44c83f3a495963f322b",
+  "node": {
+    "child": "0x23be95f90bf41685e18a4356e57b0cfdc1da22bf382ead8b64108353915c1e5",
+    "length": 247,
+    "path": "0x5d2e9527cbeb1a51aa084b0de7501f343b7b1bf24a0c427d6204a7b7988970"
+  }
+}</pre>
+      <p>
+        Commitment chain is still:
+        <code>key witness -> storage_root(contract) -> contract_leaf -> contracts_root -> global_state_root</code>.
+      </p>
+    </div>
+
+    <div class="card">
+      <p><strong>Sparse proof view: ignore non-path nodes</strong></p>
+      <p>
+        Add extra branches to the same toy trie. For proof(<code>k1</code>), we include only the queried path preimages and keep
+        irrelevant branches as sibling hashes.
+      </p>
+      <ul class="bullets">
+        <li><strong>Included preimages:</strong> <code>Broot</code>, <code>E0</code>, <code>B0</code>, <code>E1</code>.</li>
+        <li><strong>Omitted preimages:</strong> <code>X</code> subtree and <code>E2</code> subtree.</li>
+        <li>Omitted branches are still cryptographically bound through their hashes inside parent binary nodes.</li>
+      </ul>
+    </div>
+
+    <div class="mermaid-wrap">
+      <div class="zoom-controls">
+        <button onclick="zoomDiagram(this, 1.2)" title="Zoom in">+</button>
+        <button onclick="zoomDiagram(this, 0.8)" title="Zoom out">&minus;</button>
+        <button onclick="resetZoom(this)" title="Reset zoom">&#8634;</button>
+      </div>
+      <pre class="mermaid">
+flowchart TD
+  BR["Broot: Binary"] -->|0| E0S["Edge(path=00, len=2)"]
+  BR -->|1| XS["Irrelevant subtree X"]
+  E0S --> B0S["Binary split"]
+  B0S -->|0| E1S["Edge(path=10, len=2) -> Leaf(k1=7)"]
+  B0S -->|1| E2S["Edge(path=10, len=2) -> Leaf(k2=9)"]
+      </pre>
+    </div>
+
+    <div class="card">
+      <pre class="code-block">{
+  "proof_nodes": [
+    { "id": "Broot", "type": "binary", "left": "H(E0)", "right": "H(X)" },
+    { "id": "E0", "type": "edge", "path": "00", "length": 2, "child": "H(B0)" },
+    { "id": "B0", "type": "binary", "left": "H(E1)", "right": "H(E2)" },
+    { "id": "E1", "type": "edge", "path": "10", "length": 2, "child": "H(Leaf(k1=7))" }
+  ]
+}</pre>
+      <p>
+        This makes the storage-proof path explicit: you do not send full sibling subtrees, only the sibling hashes needed to recompute ancestor hashes.
+      </p>
+    </div>
+
+    <div class="comparison">
+      <div class="card">
+        <p><strong>Quick checklist: membership</strong></p>
+        <ul class="bullets">
+          <li>Have root hash at target block.</li>
+          <li>Have path bits for queried key.</li>
+          <li>Replay proof nodes and recompute hashes.</li>
+          <li>End state matches expected path outcome.</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <p><strong>Quick checklist: non-membership</strong></p>
+        <ul class="bullets">
+          <li>Replay path from root exactly like membership.</li>
+          <li>Detect branch/edge mismatch for requested key bits.</li>
+          <li>Recomputed chain still anchored at committed root.</li>
+          <li>Mismatching continuation proves absence.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="mermaid-wrap">
+      <div class="zoom-controls">
+        <button onclick="zoomDiagram(this, 1.2)" title="Zoom in">+</button>
+        <button onclick="zoomDiagram(this, 0.8)" title="Zoom out">&minus;</button>
+        <button onclick="resetZoom(this)" title="Reset zoom">&#8634;</button>
+      </div>
+      <pre class="mermaid">
+flowchart TD
+  KQ["Query key k3=000011"] --> E0P["consume E0 path: 000"]
+  E0P --> B0P["consume split bit at B0: 0 (left)"]
+  B0P --> CMP{"expected remaining bits?"}
+  CMP -->|from key| KREM["11"]
+  CMP -->|stored in E1| EREM["10"]
+  KREM --> MM["mismatch"]
+  EREM --> MM
+  MM --> OUT["non-membership proven at committed root"]
+      </pre>
+    </div>
+
+    <h2 id="s5" class="sec-head">5 — Failure modes</h2>
+    <div class="card">
+      <ul class="bullets">
+        <li><strong>Historical window too short:</strong> low trie-log retention or strict distance gate causes deterministic rejection for older proofs.</li>
+        <li><strong>Sparse snapshots:</strong> high snapshot interval with low snapshot count increases replay distance and proof latency spikes.</li>
+        <li><strong>Configuration mismatch:</strong> tries disabled/special sync mode prevents full per-block proofability.</li>
+        <li><strong>Resource abuse:</strong> oversized key/tries requests trigger hard limits; without limits, node is exposed to expensive proof workloads.</li>
+        <li><strong>Verifier mismatch:</strong> wrong path conversion (not dropping top 5 bits) or wrong hash function per trie invalidates proofs.</li>
+      </ul>
+    </div>
+
+    <div class="mermaid-wrap">
+      <div class="zoom-controls">
+        <button onclick="zoomDiagram(this, 1.2)" title="Zoom in">+</button>
+        <button onclick="zoomDiagram(this, 0.8)" title="Zoom out">&minus;</button>
+        <button onclick="resetZoom(this)" title="Reset zoom">&#8634;</button>
+      </div>
+      <pre class="mermaid">
+flowchart TD
+  Cfg["Node config"] --> A["max_saved_trie_logs"]
+  Cfg --> B["max_kept_snapshots"]
+  Cfg --> C["snapshot_interval"]
+  Cfg --> D["rpc max distance"]
+
+  A --> W1["historical depth"]
+  B --> W2["storage footprint"]
+  C --> W3["replay distance"]
+  D --> W4["DoS surface"]
+
+  W1 --> R["proof success/latency"]
+  W2 --> R
+  W3 --> R
+  W4 --> R
+      </pre>
+    </div>
+
+    <h2 id="s6" class="sec-head">6 — What to monitor</h2>
+    <div class="table-wrap">
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Signal</th>
+              <th>Why it matters</th>
+              <th>Healthy trend</th>
+              <th>Status model</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>proof_request_latency_p95</code></td>
+              <td>Primary UX + RPC SLO metric for historical proof callers.</td>
+              <td>Stable under mixed key cardinalities.</td>
+              <td><span class="status status--match">track continuously</span></td>
+            </tr>
+            <tr>
+              <td><code>proof_old_block_reject_rate</code></td>
+              <td>Shows if distance gate blocks real user workloads.</td>
+              <td>Low and expected relative to policy.</td>
+              <td><span class="status status--warn">review weekly</span></td>
+            </tr>
+            <tr>
+              <td><code>snapshot_count_kept</code></td>
+              <td>Confirms retention policy is actually active.</td>
+              <td>Near configured cap, no oscillation bugs.</td>
+              <td><span class="status status--match">policy aligned</span></td>
+            </tr>
+            <tr>
+              <td><code>trie_log_missing_errors</code></td>
+              <td>Direct indicator that historical reconstruction can fail.</td>
+              <td>Zero for supported block distance.</td>
+              <td><span class="status status--gap">page immediately</span></td>
+            </tr>
+            <tr>
+              <td><code>rocksdb_compaction_backlog</code></td>
+              <td>Backlog influences read amplification and latency variance.</td>
+              <td>No sustained upward drift.</td>
+              <td><span class="status status--warn">capacity tune</span></td>
+            </tr>
+            <tr>
+              <td><code>proof_key_count_distribution</code></td>
+              <td>Validates current max key limit against real demand.</td>
+              <td>Most requests below enforced cap.</td>
+              <td><span class="status status--match">inform limit</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <p>
+        A practical runbook pattern is to evaluate these metrics together: rising compaction backlog plus rising proof latency usually means the node is IO-bound,
+        not necessarily proof-logic-bound. Rising old-block rejection with stable latency usually means policy mismatch, not infrastructure saturation.
+      </p>
+    </div>
+
+    <h2 id="s7" class="sec-head">7 — Further reading prompts</h2>
+    <div class="card">
+      <ul class="bullets">
+        <li>How should <code>db_snapshot_interval</code> be chosen from observed proof distance percentiles rather than fixed defaults?</li>
+        <li>What is the operational boundary where keeping more snapshots is cheaper than handling replay-induced latency spikes?</li>
+        <li>How does non-membership verification differ across edge-heavy versus binary-heavy branches in real contract storage tries?</li>
+        <li>Which verifier-side checks are mandatory to prevent accepting malformed node mappings with valid-looking roots?</li>
+        <li>What policy should public RPC endpoints use for proof limits versus authenticated/private consumers?</li>
+      </ul>
+      <p class="foot-note">Generated with visual-explainer style: blueprint aesthetic + zoomable diagrams + content-rich structure.</p>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  import elkLayouts from 'https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk/dist/mermaid-layout-elk.esm.min.mjs';
+
+  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+  mermaid.registerLayoutLoaders(elkLayouts);
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    look: 'classic',
+    layout: 'elk',
+    themeVariables: {
+      primaryColor: isDark ? '#1b3b66' : '#ddecff',
+      primaryBorderColor: isDark ? '#62b0ff' : '#0066cc',
+      primaryTextColor: isDark ? '#e7f1ff' : '#10233f',
+      secondaryColor: isDark ? '#1a3c38' : '#daf6ef',
+      secondaryBorderColor: isDark ? '#5ee2c9' : '#00856f',
+      secondaryTextColor: isDark ? '#e7f1ff' : '#10233f',
+      tertiaryColor: isDark ? '#49351a' : '#fff1de',
+      tertiaryBorderColor: isDark ? '#ffc170' : '#8c4f00',
+      tertiaryTextColor: isDark ? '#e7f1ff' : '#10233f',
+      lineColor: isDark ? '#a8c0dd' : '#3e5879',
+      noteBkgColor: isDark ? '#142b4b' : '#eef7ff',
+      noteTextColor: isDark ? '#e7f1ff' : '#10233f',
+      noteBorderColor: isDark ? '#d3a5ff' : '#7c2ca0',
+      fontSize: '15px',
+      fontFamily: "'Manrope', system-ui, sans-serif"
+    }
+  });
+</script>
+
+<script>
+(function() {
+  function updateZoomState(wrap) {
+    var target = wrap.querySelector('.mermaid');
+    var zoom = parseFloat(target.dataset.zoom || '1');
+    wrap.classList.toggle('is-zoomed', zoom > 1);
+  }
+
+  window.zoomDiagram = function(btn, factor) {
+    var wrap = btn.closest('.mermaid-wrap');
+    var target = wrap.querySelector('.mermaid');
+    var current = parseFloat(target.dataset.zoom || '1');
+    var next = Math.min(Math.max(current * factor, 0.3), 5);
+    target.dataset.zoom = next;
+    target.style.transform = 'scale(' + next + ')';
+    updateZoomState(wrap);
+  };
+
+  window.resetZoom = function(btn) {
+    var wrap = btn.closest('.mermaid-wrap');
+    var target = wrap.querySelector('.mermaid');
+    target.dataset.zoom = '1';
+    target.style.transform = 'scale(1)';
+    updateZoomState(wrap);
+  };
+
+  document.querySelectorAll('.mermaid-wrap').forEach(function(wrap) {
+    wrap.addEventListener('wheel', function(e) {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      var target = wrap.querySelector('.mermaid');
+      var current = parseFloat(target.dataset.zoom || '1');
+      var factor = e.deltaY < 0 ? 1.1 : 0.9;
+      var next = Math.min(Math.max(current * factor, 0.3), 5);
+      target.dataset.zoom = next;
+      target.style.transform = 'scale(' + next + ')';
+      updateZoomState(wrap);
+    }, { passive: false });
+
+    var startX, startY, scrollL, scrollT;
+    wrap.addEventListener('mousedown', function(e) {
+      if (e.target.closest('.zoom-controls')) return;
+      var target = wrap.querySelector('.mermaid');
+      if (parseFloat(target.dataset.zoom || '1') <= 1) return;
+      wrap.classList.add('is-panning');
+      startX = e.clientX;
+      startY = e.clientY;
+      scrollL = wrap.scrollLeft;
+      scrollT = wrap.scrollTop;
+    });
+
+    window.addEventListener('mousemove', function(e) {
+      if (!wrap.classList.contains('is-panning')) return;
+      wrap.scrollLeft = scrollL - (e.clientX - startX);
+      wrap.scrollTop = scrollT - (e.clientY - startY);
+    });
+
+    window.addEventListener('mouseup', function() {
+      wrap.classList.remove('is-panning');
+    });
+  });
+})();
+</script>
+
+<script>
+(function() {
+  const toc = document.getElementById('toc');
+  const links = toc.querySelectorAll('a');
+  const sections = [];
+
+  links.forEach(link => {
+    const id = link.getAttribute('href').slice(1);
+    const el = document.getElementById(id);
+    if (el) sections.push({ id, el, link });
+  });
+
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        const match = sections.find(s => s.el === entry.target);
+        if (match) {
+          match.link.classList.add('active');
+          if (window.innerWidth <= 1000) {
+            match.link.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+          }
+        }
+      }
+    });
+  }, { rootMargin: '-10% 0px -80% 0px' });
+
+  sections.forEach(s => observer.observe(s.el));
+
+  links.forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      const id = link.getAttribute('href').slice(1);
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        history.replaceState(null, '', '#' + id);
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>
