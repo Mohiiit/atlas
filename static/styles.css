@@ -60,7 +60,7 @@ body {
 .topbar {
   position: relative;
   z-index: 2;
-  max-width: min(1880px, calc(100vw - 24px));
+  max-width: min(1880px, calc(100vw - 52px));
   margin: 0 auto 16px;
   display: flex;
   justify-content: space-between;
@@ -128,7 +128,7 @@ h1 {
 .app {
   position: relative;
   z-index: 2;
-  max-width: min(1880px, calc(100vw - 24px));
+  max-width: min(1880px, calc(100vw - 52px));
   width: 100%;
   margin: 0 auto;
   min-height: 70vh;
@@ -195,6 +195,7 @@ h1 {
   border-radius: 16px;
   background: var(--surface);
   min-width: 0;
+  overflow: hidden;
 }
 
 .sidebar {
@@ -331,6 +332,7 @@ iframe.preview {
   flex: 1 1 auto;
   min-height: 560px;
   background: #fff;
+  border-radius: 0 0 16px 16px;
 }
 
 pre.source {
