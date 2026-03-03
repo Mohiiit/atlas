@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Chapter 2 — Data Models and Query Languages</title>
+<style>
+  :root {
+    --bg: #0a0e17; --surface: #111827; --surface2: #1a2234; --border: #1e293b;
+    --text: #e2e8f0; --text-muted: #94a3b8; --accent: #3b82f6; --accent2: #8b5cf6;
+    --accent3: #10b981; --red: #ef4444; --orange: #f59e0b; --pink: #ec4899;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+  .container { max-width: 900px; margin: 0 auto; padding: 40px 24px 100px; }
+  h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent), var(--accent3)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 48px; border-bottom: 1px solid var(--border); padding-bottom: 24px; }
+  h2 { font-size: 1.5rem; font-weight: 700; margin: 48px 0 16px; color: var(--accent); }
+  h3 { font-size: 1.15rem; font-weight: 600; margin: 32px 0 12px; color: var(--text); }
+  p { margin-bottom: 16px; color: var(--text-muted); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 20px 0; }
+  .card-accent { border-left: 4px solid var(--accent); }
+  .card-green { border-left: 4px solid var(--accent3); }
+  .card-orange { border-left: 4px solid var(--orange); }
+  .card-purple { border-left: 4px solid var(--accent2); }
+  .card h4 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+  .card ul { padding-left: 20px; color: var(--text-muted); }
+  .card li { margin-bottom: 6px; }
+  .key-term { color: var(--accent); font-weight: 600; }
+  .diagram { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 32px; margin: 24px 0; overflow-x: auto; }
+  .diagram-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent2); margin-bottom: 20px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+  .quote { background: var(--surface2); border-left: 3px solid var(--accent2); padding: 16px 20px; margin: 20px 0; border-radius: 0 8px 8px 0; font-style: italic; color: var(--text-muted); }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  th { color: var(--accent); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
+  td { color: var(--text-muted); }
+  .question-block { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin: 16px 0; overflow: hidden; }
+  .question-header { padding: 16px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 0.95rem; }
+  .question-header:hover { background: var(--surface2); }
+  .question-body { padding: 0 20px 16px; display: none; color: var(--text-muted); border-top: 1px solid var(--border); padding-top: 16px; }
+  .question-block.open .question-body { display: block; }
+  .q-num { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: var(--accent3); color: white; border-radius: 50%; font-size: 0.8rem; font-weight: 700; margin-right: 12px; flex-shrink: 0; }
+  .chevron { transition: transform .2s; color: var(--text-muted); }
+  .question-block.open .chevron { transform: rotate(180deg); }
+  .section-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--accent2); font-weight: 700; margin-bottom: 8px; }
+  .layer { display: flex; align-items: center; gap: 16px; padding: 14px 20px; border-left: 3px solid var(--accent); margin: 4px 0; background: var(--surface); border-radius: 0 8px 8px 0; }
+  .layer-num { font-weight: 800; color: var(--accent); font-size: 1.4rem; }
+  .layer-text { font-size: 0.9rem; color: var(--text-muted); }
+  .node { display: inline-flex; align-items: center; justify-content: center; padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; }
+  .node-blue { background: rgba(59,130,246,0.15); border: 1px solid var(--accent); color: var(--accent); }
+  .node-green { background: rgba(16,185,129,0.15); border: 1px solid var(--accent3); color: var(--accent3); }
+  .node-purple { background: rgba(139,92,246,0.15); border: 1px solid var(--accent2); color: var(--accent2); }
+  .node-orange { background: rgba(245,158,11,0.15); border: 1px solid var(--orange); color: var(--orange); }
+  .edge { color: var(--text-muted); font-size: 0.8rem; text-align: center; }
+  code { background: var(--surface2); padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; color: var(--accent3); }
+</style>
+</head>
+<body>
+<div class="container">
+  <p class="section-label">DDIA — Part I: Foundations of Data Systems</p>
+  <h1>Chapter 2: Data Models and Query Languages</h1>
+  <p class="subtitle">"The limits of my language mean the limits of my world." — Wittgenstein. Data models are perhaps the most important part of developing software, because they shape how we <em>think</em> about the problem.</p>
+
+  <!-- LAYERED DATA MODELS -->
+  <h2>Data Models Are Layers of Abstraction</h2>
+  <p>Each layer hides the complexity of the layers below by providing a clean data model:</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Layers of Data Models</div>
+    <div class="layer"><span class="layer-num">1</span><span class="layer-text"><strong>Application</strong> — Real-world objects modeled as data structures & APIs (specific to your app)</span></div>
+    <div class="layer"><span class="layer-num">2</span><span class="layer-text"><strong>General-Purpose Model</strong> — JSON, XML, tables in relational DB, or graph model</span></div>
+    <div class="layer"><span class="layer-num">3</span><span class="layer-text"><strong>Storage Engine</strong> — Bytes in memory, on disk, or on a network (how to query, search, process)</span></div>
+    <div class="layer"><span class="layer-num">4</span><span class="layer-text"><strong>Hardware</strong> — Electrical currents, light pulses, magnetic fields</span></div>
+  </div>
+
+  <!-- RELATIONAL vs DOCUMENT -->
+  <h2>Relational Model vs. Document Model</h2>
+
+  <h3>The Relational Model (SQL)</h3>
+  <p>Proposed by Edgar Codd in 1970. Data organized into <span class="key-term">relations</span> (tables), each an unordered collection of <span class="key-term">tuples</span> (rows). It hid implementation details behind a clean interface and dominated for 25-30 years.</p>
+
+  <h3>The Birth of NoSQL</h3>
+  <p>Originally just a catchy Twitter hashtag (2009). Retroactively: "Not Only SQL." Driving forces:</p>
+  <div class="card">
+    <ul>
+      <li>Need for greater scalability (very large datasets, very high write throughput)</li>
+      <li>Preference for free and open source software</li>
+      <li>Specialized query operations not well supported by relational model</li>
+      <li>Frustration with restrictiveness of relational schemas — desire for more dynamic, expressive data model</li>
+    </ul>
+    <p style="margin-top:12px;"><strong>Polyglot persistence:</strong> relational databases used <em>alongside</em> nonrelational datastores, each for what it's best at.</p>
+  </div>
+
+  <h3>The Object-Relational Mismatch (Impedance Mismatch)</h3>
+  <p>OOP languages use objects; SQL uses tables/rows/columns. The disconnect requires an awkward translation layer. ORMs (ActiveRecord, Hibernate) reduce boilerplate but can't fully hide the difference.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">LinkedIn Profile: Relational vs. Document</div>
+    <div class="grid2">
+      <div>
+        <h4 style="color:var(--accent); margin-bottom:12px;">Relational (Normalized)</h4>
+        <div style="font-size:0.85rem; color:var(--text-muted);">
+          <div class="node node-blue" style="width:100%; margin-bottom:8px;">users (user_id, first_name, last_name, ...)</div>
+          <div class="node node-blue" style="width:100%; margin-bottom:8px;">positions (user_id FK, job_title, org)</div>
+          <div class="node node-blue" style="width:100%; margin-bottom:8px;">education (user_id FK, school, start, end)</div>
+          <div class="node node-blue" style="width:100%;">contact_info (user_id FK, type, value)</div>
+          <p style="margin-top:12px;">Multiple tables. Needs JOINs. Normalized = no duplication.</p>
+        </div>
+      </div>
+      <div>
+        <h4 style="color:var(--accent3); margin-bottom:12px;">Document (JSON)</h4>
+        <div style="font-size:0.85rem; color:var(--text-muted);">
+          <div class="node node-green" style="width:100%; min-height:140px; flex-direction:column; align-items:flex-start; padding:12px;">
+            <code>{ user_id: 251,</code><br>
+            <code>&nbsp; first_name: "Bill",</code><br>
+            <code>&nbsp; positions: [{...}, {...}],</code><br>
+            <code>&nbsp; education: [{...}, {...}],</code><br>
+            <code>&nbsp; contact: {...} }</code>
+          </div>
+          <p style="margin-top:12px;">One document. Better locality. Tree structure explicit. One query sufficient.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3>The Key Trade-Off: IDs vs. Human-Readable Strings</h3>
+  <div class="card card-orange">
+    <h4>Why Use IDs?</h4>
+    <p>When you use an ID, human-meaningful information is stored in <strong>one place</strong>. The ID has no meaning to humans, so it <em>never needs to change</em>. If you store duplicate human-readable strings, every copy must be updated when the info changes &rarr; write overhead &amp; risk of inconsistency. Removing duplication = <span class="key-term">normalization</span>.</p>
+    <p>But normalization requires <strong>many-to-one</strong> relationships, which don't fit nicely into the document model (where joins are weak).</p>
+  </div>
+
+  <h3>Data Gets More Interconnected Over Time</h3>
+  <p>Even if the initial version fits a join-free document model, features like "organizations as entities" or "user recommendations" create <strong>many-to-many relationships</strong>, requiring references and joins.</p>
+
+  <!-- HISTORY -->
+  <h2>Document DBs Are Repeating History</h2>
+  <p>IBM's IMS (1968) used the <span class="key-term">hierarchical model</span> — remarkably similar to JSON. Great for one-to-many, terrible for many-to-many. Two solutions emerged:</p>
+
+  <div class="grid2">
+    <div class="card card-accent">
+      <h4>Network Model (CODASYL)</h4>
+      <ul>
+        <li>Records can have <strong>multiple parents</strong></li>
+        <li>Links are like pointers, stored on disk</li>
+        <li>Access via <strong>access paths</strong> — navigating chains of pointers</li>
+        <li>Programmer must track all paths manually</li>
+        <li>Like navigating an n-dimensional data space</li>
+        <li>Changing data model = rewrite all query code</li>
+      </ul>
+    </div>
+    <div class="card card-green">
+      <h4>Relational Model (Won)</h4>
+      <ul>
+        <li>All data laid out in the open: tables + rows</li>
+        <li>No labyrinthine nested structures</li>
+        <li><strong>Query optimizer</strong> automatically decides access paths</li>
+        <li>Add a new index &rarr; queries use it automatically</li>
+        <li>Build the optimizer once &rarr; all apps benefit</li>
+        <li>"General-purpose solution wins in the long run"</li>
+      </ul>
+    </div>
+  </div>
+  <p>Modern document DBs: like hierarchical model for nested data, but use document references (like foreign keys) for many-to-one/many-to-many. They have <strong>not</strong> followed CODASYL's path.</p>
+
+  <!-- RELATIONAL vs DOCUMENT TODAY -->
+  <h2>Relational vs. Document Today</h2>
+  <table>
+    <tr><th>Aspect</th><th>Document Model</th><th>Relational Model</th></tr>
+    <tr><td><strong>Schema</strong></td><td>Schema-on-read (implicit, like dynamic typing)</td><td>Schema-on-write (explicit, like static typing)</td></tr>
+    <tr><td><strong>Best for</strong></td><td>Document-like structures, one-to-many trees</td><td>Many-to-one, many-to-many, highly interconnected</td></tr>
+    <tr><td><strong>Joins</strong></td><td>Weak support; app code emulates joins</td><td>Native, efficient joins</td></tr>
+    <tr><td><strong>Data locality</strong></td><td>Entire document loaded at once (good if you need most of it)</td><td>Data spread across tables</td></tr>
+    <tr><td><strong>Schema changes</strong></td><td>Just start writing new fields</td><td>ALTER TABLE (can be slow, e.g. MySQL copies entire table)</td></tr>
+    <tr><td><strong>Convergence</strong></td><td>Adding relational-like joins (RethinkDB)</td><td>Adding JSON/XML support (PostgreSQL, MySQL)</td></tr>
+  </table>
+
+  <div class="quote">"Schema-on-read is similar to dynamic (runtime) type checking, whereas schema-on-write is similar to static (compile-time) type checking."</div>
+
+  <!-- QUERY LANGUAGES -->
+  <h2>Query Languages</h2>
+
+  <div class="grid2">
+    <div class="card card-accent">
+      <h4>Imperative (IMS, CODASYL)</h4>
+      <p>Tell the computer <em>how</em> to do it: loop, filter, accumulate. Order matters. Hard to parallelize.</p>
+    </div>
+    <div class="card card-green">
+      <h4>Declarative (SQL, CSS)</h4>
+      <p>Tell the computer <em>what</em> you want. The optimizer decides how. Easier to parallelize. More concise.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h4>MapReduce: Neither Fully Declarative nor Imperative</h4>
+    <p>Logic expressed as <code>map</code> and <code>reduce</code> functions. Must be pure functions (no side effects). Can run anywhere, in any order. MongoDB supports it but also added a declarative aggregation pipeline.</p>
+  </div>
+
+  <!-- GRAPH DATA MODELS -->
+  <h2>Graph-Like Data Models</h2>
+  <p>When many-to-many relationships are the dominant feature, graph models are natural. Vertices (nodes) connected by edges (relationships). Not limited to homogeneous data — can mix people, locations, events, etc.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Graph Model — Vertices and Edges</div>
+    <div style="display:flex; justify-content:center; gap:40px; flex-wrap:wrap; align-items:center;">
+      <div class="node node-blue">Lucy<br><small>person</small></div>
+      <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
+        <div class="edge">&larr; born_in &rarr;</div>
+        <div class="edge">&larr; lives_in &rarr;</div>
+      </div>
+      <div class="node node-green">Idaho<br><small>location</small></div>
+      <div class="edge">&larr; within &rarr;</div>
+      <div class="node node-green">USA<br><small>location</small></div>
+    </div>
+    <div style="display:flex; justify-content:center; gap:40px; margin-top:20px; flex-wrap:wrap; align-items:center;">
+      <div class="node node-blue">Alain<br><small>person</small></div>
+      <div class="edge">&larr; born_in &rarr;</div>
+      <div class="node node-green">Beaune<br><small>location</small></div>
+      <div class="edge">&larr; within &rarr;</div>
+      <div class="node node-green">France<br><small>location</small></div>
+      <div class="edge">&larr; within &rarr;</div>
+      <div class="node node-purple">Europe<br><small>location</small></div>
+    </div>
+  </div>
+
+  <div class="grid3">
+    <div class="card card-accent">
+      <h4>Property Graph</h4>
+      <p style="font-size:0.85rem;">Vertex: unique ID + properties (key-value) + set of incoming/outgoing edges. Edge: unique ID + tail vertex + head vertex + label + properties. Used by: Neo4j, Titan, InfiniteGraph.</p>
+    </div>
+    <div class="card card-green">
+      <h4>Triple-Store</h4>
+      <p style="font-size:0.85rem;">All info as (subject, predicate, object) triples. Subject = vertex. Object = value or another vertex. Used in semantic web, RDF. Query: SPARQL.</p>
+    </div>
+    <div class="card card-purple">
+      <h4>Cypher (Query Language)</h4>
+      <p style="font-size:0.85rem;">Declarative query language for property graphs (Neo4j). Pattern matching: <code>(person)-[:BORN_IN]->(loc)-[:WITHIN*0..]->(us {name:'US'})</code></p>
+    </div>
+  </div>
+
+  <div class="card card-orange">
+    <h4>Datalog: The Foundation</h4>
+    <p>Older than SPARQL or Cypher. Data as <code>predicate(subject, object)</code> facts. Rules can be combined and reused. Queries build on rules incrementally — powerful for complex data.</p>
+  </div>
+
+  <!-- FIRST PRINCIPLES QUESTIONS -->
+  <h2 style="color: var(--pink);">First-Principles Questions</h2>
+  <p>Test your understanding. Click to reveal the answer.</p>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">1</span>Why do data models matter so much in software development?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Data models have a profound effect not only on how the software is written, but also on <strong>how we think about the problem</strong> we are solving. Each data model embodies assumptions about how it is going to be used — some usages are easy, some are not supported; some operations are fast, some perform badly. Choosing the right one is critical because it determines what the software above it can and can't do.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">2</span>What is the "impedance mismatch" and why does it arise?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">The impedance mismatch is the disconnect between object-oriented programming (objects, classes) and the relational data model (tables, rows, columns). Application code uses objects; the database stores rows. An awkward translation layer is required between them. ORMs like ActiveRecord and Hibernate reduce boilerplate but can't completely hide the differences.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">3</span>Why does the book say "use an ID, not a human-readable string" for references? What principle does this relate to?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">An ID has no meaning to humans, so it <strong>never needs to change</strong>. Human-meaningful info (like "Greater Seattle Area") may change, and if it's duplicated across records, all copies need updating — risking inconsistencies. Using IDs means human-meaningful info is stored in only one place. This is the key idea behind <strong>normalization</strong>.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">4</span>Why did the relational model win over the network model (CODASYL)?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">The network model required programmers to manually track "access paths" — chains of pointers through records. Changing the data model meant rewriting all query code. The relational model laid all data in the open (tables and rows) and introduced the <strong>query optimizer</strong> which automatically decides access paths. You build the optimizer once, and all applications benefit. "The general-purpose solution wins in the long run."</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">5</span>What is the difference between schema-on-read and schema-on-write?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body"><strong>Schema-on-read</strong> (document model): the structure is implicit; the data is interpreted when read. Like dynamic type checking — if data doesn't match expected format, you find out at runtime. <strong>Schema-on-write</strong> (relational model): the schema is explicit and enforced on every write. Like static type checking — the database guarantees data conforms to the schema. Schema-on-read is advantageous when items don't all have the same structure.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">6</span>Why is a declarative query language better than an imperative one for databases?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">A declarative language (like SQL) specifies <strong>what</strong> results you want, not how to get them. This is more concise, easier to work with, and critically — it hides implementation details, allowing the database's query optimizer to choose the best execution strategy. It can also take advantage of parallel execution without you rewriting anything. Imperative code specifies operations in a particular order, making it harder for the system to optimize.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">7</span>When would you choose a graph model over relational or document?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">When <strong>many-to-many relationships are the dominant feature</strong> of your data, and the connections between items are as important as the items themselves. Graph models excel when you have heterogeneous data (people, locations, events, etc.) with complex interconnections, and when you need to traverse relationships of unknown depth (like "find all people who live in a location within Europe").</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">8</span>How are modern document databases different from the 1970s hierarchical model (IMS)?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">They are similar in storing nested records within their parent (one-to-many as a tree). However, for many-to-one and many-to-many relationships, modern document databases use <strong>document references</strong> (like foreign keys) that are resolved at read time via follow-up queries. They have <strong>not</strong> followed CODASYL's approach of pointer-based access paths. Both relational and document databases use unique identifiers to reference related items.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">9</span>What does "data locality" mean for document databases, and when is it an advantage?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">In a document database, the entire document (e.g. a JSON object) is stored as one contiguous block. If your application frequently needs the <strong>entire document</strong>, this provides better locality than a relational schema where data is split across multiple tables (requiring multiple queries or joins). However, the document is usually loaded entirely even if you only need a small part, and updates that change the document size may require rewriting the whole document.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">10</span>The book says relational and document models are converging. How?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Relational databases are adding support for JSON/XML documents (PostgreSQL, MySQL, IBM DB2) with the ability to query and index inside them. Document databases are adding relational-like features such as joins (RethinkDB supports join-like queries). The models are becoming more similar, and a hybrid approach may become the norm — each model learning from the other.</div>
+  </div>
+
+</div>
+</body>
+</html>

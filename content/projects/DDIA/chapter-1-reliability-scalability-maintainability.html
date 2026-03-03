@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Chapter 1 — Reliable, Scalable, and Maintainable Applications</title>
+<style>
+  :root {
+    --bg: #0a0e17;
+    --surface: #111827;
+    --surface2: #1a2234;
+    --border: #1e293b;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --accent: #3b82f6;
+    --accent2: #8b5cf6;
+    --accent3: #10b981;
+    --red: #ef4444;
+    --orange: #f59e0b;
+    --pink: #ec4899;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+  .container { max-width: 900px; margin: 0 auto; padding: 40px 24px 100px; }
+  h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 48px; border-bottom: 1px solid var(--border); padding-bottom: 24px; }
+  h2 { font-size: 1.5rem; font-weight: 700; margin: 48px 0 16px; color: var(--accent); }
+  h3 { font-size: 1.15rem; font-weight: 600; margin: 32px 0 12px; color: var(--text); }
+  p { margin-bottom: 16px; color: var(--text-muted); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 20px 0; }
+  .card-accent { border-left: 4px solid var(--accent); }
+  .card-green { border-left: 4px solid var(--accent3); }
+  .card-orange { border-left: 4px solid var(--orange); }
+  .card-purple { border-left: 4px solid var(--accent2); }
+  .card h4 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+  .card ul { padding-left: 20px; color: var(--text-muted); }
+  .card li { margin-bottom: 6px; }
+  .key-term { color: var(--accent); font-weight: 600; }
+  .diagram { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 32px; margin: 24px 0; overflow-x: auto; }
+  .diagram-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent2); margin-bottom: 20px; }
+  .flow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; }
+  .flow-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; text-align: center; font-size: 0.9rem; min-width: 120px; }
+  .flow-box.primary { border-color: var(--accent); color: var(--accent); }
+  .flow-box.green { border-color: var(--accent3); color: var(--accent3); }
+  .flow-box.purple { border-color: var(--accent2); color: var(--accent2); }
+  .flow-box.orange { border-color: var(--orange); color: var(--orange); }
+  .flow-arrow { color: var(--text-muted); font-size: 1.2rem; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } }
+  .quote { background: var(--surface2); border-left: 3px solid var(--accent2); padding: 16px 20px; margin: 20px 0; border-radius: 0 8px 8px 0; font-style: italic; color: var(--text-muted); }
+  .tag { display: inline-block; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 2px 12px; font-size: 0.8rem; color: var(--text-muted); margin: 2px; }
+  /* Percentile chart */
+  .bar-chart { display: flex; align-items: flex-end; gap: 3px; height: 160px; padding: 0 10px; }
+  .bar { background: var(--accent); border-radius: 3px 3px 0 0; min-width: 6px; flex: 1; transition: all .3s; position: relative; }
+  .bar:hover { background: var(--accent2); }
+  .bar-label { position: absolute; bottom: -22px; left: 50%; transform: translateX(-50%); font-size: 0.65rem; color: var(--text-muted); white-space: nowrap; }
+  .bar.tail { background: var(--red); }
+  .chart-footer { display: flex; justify-content: space-between; margin-top: 28px; font-size: 0.75rem; color: var(--text-muted); }
+  /* Comparison table */
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  th { color: var(--accent); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
+  td { color: var(--text-muted); }
+  /* Questions section */
+  .question-block { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin: 16px 0; overflow: hidden; }
+  .question-header { padding: 16px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 0.95rem; }
+  .question-header:hover { background: var(--surface2); }
+  .question-body { padding: 0 20px 16px; display: none; color: var(--text-muted); border-top: 1px solid var(--border); padding-top: 16px; }
+  .question-block.open .question-body { display: block; }
+  .q-num { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: var(--accent); color: white; border-radius: 50%; font-size: 0.8rem; font-weight: 700; margin-right: 12px; flex-shrink: 0; }
+  .chevron { transition: transform .2s; color: var(--text-muted); }
+  .question-block.open .chevron { transform: rotate(180deg); }
+  .section-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--accent2); font-weight: 700; margin-bottom: 8px; }
+  /* Twitter fan-out diagram */
+  .fanout-diagram { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  .fanout-row { display: flex; gap: 12px; align-items: center; }
+  .fanout-node { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; }
+  .fanout-node.user { background: var(--accent); color: white; }
+  .fanout-node.cache { background: var(--accent3); color: white; }
+  .fanout-line { width: 2px; height: 20px; background: var(--text-muted); }
+</style>
+</head>
+<body>
+<div class="container">
+  <p class="section-label">DDIA — Part I: Foundations of Data Systems</p>
+  <h1>Chapter 1: Reliable, Scalable, and Maintainable Applications</h1>
+  <p class="subtitle">Many applications today are <strong>data-intensive</strong> rather than compute-intensive. The bigger problems are the amount of data, its complexity, and the speed at which it changes.</p>
+
+  <!-- THINKING ABOUT DATA SYSTEMS -->
+  <h2>Thinking About Data Systems</h2>
+  <p>We typically think of databases, queues, caches as different categories. But the boundaries are blurring: <strong>Redis</strong> is a datastore used as a message queue; <strong>Apache Kafka</strong> is a message queue with database-like durability. Many apps now stitch multiple tools together — making <em>you</em> a data system designer.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Figure 1-1: Composite Data System Architecture</div>
+    <div class="flow">
+      <div class="flow-box primary">Client Request</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box">API / App Code</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box green">Primary DB</div>
+    </div>
+    <div style="display:flex; justify-content:center; gap: 80px; margin-top: 12px;">
+      <div class="flow" style="gap:8px;">
+        <div class="flow-arrow">&darr;</div>
+      </div>
+      <div class="flow" style="gap:8px;">
+        <div class="flow-arrow">&darr;</div>
+      </div>
+    </div>
+    <div class="flow" style="margin-top:4px;">
+      <div class="flow-box orange">Cache (Memcached)</div>
+      <div style="width:40px;"></div>
+      <div class="flow-box purple">Search Index (ES)</div>
+    </div>
+    <p style="text-align:center; font-size:0.8rem; color:var(--text-muted); margin-top:16px;">App code keeps cache & indexes in sync with primary DB. You've created a new, special-purpose data system.</p>
+  </div>
+
+  <p>Three concerns matter in most software systems:</p>
+  <div class="grid2">
+    <div class="card card-accent">
+      <h4>Reliability</h4>
+      <p>The system works correctly even when things go wrong (hardware faults, software bugs, human errors).</p>
+    </div>
+    <div class="card card-green">
+      <h4>Scalability</h4>
+      <p>As load grows, there are reasonable ways to cope — in data volume, traffic, or complexity.</p>
+    </div>
+  </div>
+  <div class="card card-purple">
+    <h4>Maintainability</h4>
+    <p>Over time, many people work on the system. They should all be able to work on it <em>productively</em>: understanding, modifying, and adapting it for new use cases.</p>
+  </div>
+
+  <!-- RELIABILITY -->
+  <h2>Reliability</h2>
+  <p>"Continuing to work correctly, even when things go wrong."</p>
+
+  <div class="card card-orange">
+    <h4>Fault vs. Failure — A Critical Distinction</h4>
+    <p><span class="key-term">Fault</span> = one component deviates from its spec.<br>
+    <span class="key-term">Failure</span> = the system as a whole stops providing service to the user.</p>
+    <p>Goal: design <strong>fault-tolerance</strong> mechanisms that prevent faults from causing failures. We build reliable systems from unreliable parts.</p>
+  </div>
+
+  <h3>Three Types of Faults</h3>
+  <table>
+    <tr><th>Fault Type</th><th>Characteristics</th><th>Mitigation</th></tr>
+    <tr>
+      <td><strong>Hardware Faults</strong></td>
+      <td>Random & independent. Hard disk MTTF: 10-50 years. On 10,000-disk cluster &rarr; ~1 disk dies/day.</td>
+      <td>RAID, dual power supplies, hot-swappable CPUs, rolling upgrades. Moving toward software fault-tolerance over hardware redundancy.</td>
+    </tr>
+    <tr>
+      <td><strong>Software Errors</strong></td>
+      <td>Systematic & correlated. Lie dormant until triggered. Examples: Linux leap-second bug (June 30 2012), cascading failures, runaway processes.</td>
+      <td>Careful assumptions, thorough testing, process isolation, crash-and-restart, monitoring, self-checking (e.g. message counts in = out).</td>
+    </tr>
+    <tr>
+      <td><strong>Human Errors</strong></td>
+      <td>Leading cause of outages. Config errors by operators dominate; hardware is only 10-25% of outages.</td>
+      <td>Good abstractions & APIs, sandbox environments, automated testing, fast rollback, gradual rollouts, telemetry & monitoring, good training.</td>
+    </tr>
+  </table>
+
+  <div class="quote">"Counterintuitively, in fault-tolerant systems, it can make sense to <em>increase</em> the rate of faults by triggering them deliberately." — The Netflix Chaos Monkey approach.</div>
+
+  <!-- SCALABILITY -->
+  <h2>Scalability</h2>
+  <p>Not a one-dimensional label ("X is scalable"). Rather: "If the system grows in a particular way, what are our options for coping?"</p>
+
+  <h3>Describing Load: The Twitter Example</h3>
+  <p>Load is described by <span class="key-term">load parameters</span>: requests/sec, read/write ratio, concurrent users, cache hit rate, etc.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Twitter's Two Approaches to Home Timeline (Nov 2012)</div>
+    <div class="grid2" style="gap:24px;">
+      <div class="card" style="margin:0;">
+        <h4 style="color:var(--accent);">Approach 1: Query-Time Join</h4>
+        <p style="font-size:0.85rem;">Tweet goes into global table. On read, JOIN tweets + follows + users. Simple writes, expensive reads.</p>
+        <p style="font-size:0.85rem; color:var(--red);"><strong>Problem:</strong> 300k reads/sec with heavy joins.</p>
+      </div>
+      <div class="card" style="margin:0;">
+        <h4 style="color:var(--accent3);">Approach 2: Write-Time Fan-Out</h4>
+        <p style="font-size:0.85rem;">On tweet, insert into every follower's home timeline cache. Reads are cheap (pre-computed).</p>
+        <p style="font-size:0.85rem; color:var(--red);"><strong>Problem:</strong> Celebrities with 30M followers &rarr; 30M writes per tweet!</p>
+      </div>
+    </div>
+    <div class="card card-green" style="margin-top:16px;">
+      <h4>Hybrid Solution (Final)</h4>
+      <p style="font-size:0.85rem;">Most users &rarr; fan-out at write time. Celebrities &rarr; fetched at read time and merged. The distribution of followers per user became the key load parameter.</p>
+    </div>
+  </div>
+
+  <h3>Describing Performance: Percentiles</h3>
+  <p>Don't use averages — use <span class="key-term">percentiles</span>. The median (p50) tells you the typical experience. The tail (p95, p99, p999) tells you how bad outliers get.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Response Time Distribution — Percentiles Visualized</div>
+    <div class="bar-chart">
+      <div class="bar" style="height:15%;"></div>
+      <div class="bar" style="height:25%;"></div>
+      <div class="bar" style="height:45%;"></div>
+      <div class="bar" style="height:70%;"></div>
+      <div class="bar" style="height:90%;"></div>
+      <div class="bar" style="height:100%;"></div>
+      <div class="bar" style="height:95%;"></div>
+      <div class="bar" style="height:85%;"></div>
+      <div class="bar" style="height:70%;"></div>
+      <div class="bar" style="height:55%;"></div>
+      <div class="bar" style="height:42%;"></div>
+      <div class="bar" style="height:32%;"></div>
+      <div class="bar" style="height:24%;"></div>
+      <div class="bar" style="height:18%;"></div>
+      <div class="bar" style="height:13%;"></div>
+      <div class="bar" style="height:9%;"></div>
+      <div class="bar" style="height:6%;"></div>
+      <div class="bar" style="height:4%;"><div class="bar-label">p95</div></div>
+      <div class="bar tail" style="height:3%;"></div>
+      <div class="bar tail" style="height:2%;"><div class="bar-label">p99</div></div>
+      <div class="bar tail" style="height:1.5%;"></div>
+      <div class="bar tail" style="height:1%;"><div class="bar-label">p999</div></div>
+    </div>
+    <div class="chart-footer">
+      <span>&larr; Fast responses (most requests)</span>
+      <span>Slow outliers (tail latency) &rarr;</span>
+    </div>
+  </div>
+
+  <div class="card card-accent">
+    <h4>Why Tail Latency Matters</h4>
+    <ul>
+      <li>Amazon: p999 matters because slowest users often have most data (= most valuable customers)</li>
+      <li><strong>100ms increase in response time reduces sales by 1%</strong></li>
+      <li><strong>Tail latency amplification</strong>: if one end-user request calls multiple backends in parallel, the slowest one determines total response time</li>
+      <li><strong>Head-of-line blocking</strong>: a few slow requests hold up all subsequent requests in the queue</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h4>Latency vs. Response Time</h4>
+    <p><span class="key-term">Response time</span> = what the client sees (service time + network delays + queueing delays).<br>
+    <span class="key-term">Latency</span> = duration a request is <em>waiting</em> to be handled (awaiting service). They're not synonyms.</p>
+  </div>
+
+  <h3>Coping with Load</h3>
+  <div class="grid2">
+    <div class="card">
+      <h4>Scaling Up (Vertical)</h4>
+      <p style="font-size:0.85rem;">Move to a more powerful machine. Simpler, but expensive at high end.</p>
+    </div>
+    <div class="card">
+      <h4>Scaling Out (Horizontal)</h4>
+      <p style="font-size:0.85rem;">Distribute load across multiple machines (shared-nothing). More complex, but necessary at scale.</p>
+    </div>
+  </div>
+  <p><strong>Elastic</strong> systems auto-add resources on load increase. <strong>Manual</strong> scaling is simpler with fewer surprises. In practice: pragmatic mixture of both. Stateless services scale out easily; stateful data systems are harder.</p>
+
+  <!-- MAINTAINABILITY -->
+  <h2>Maintainability</h2>
+  <p>The majority of software cost is <em>not</em> in initial development, but in ongoing maintenance. Three design principles:</p>
+
+  <div class="card card-accent">
+    <h4>Operability</h4>
+    <p>Make it easy for ops teams. Good monitoring, automation support, predictable behavior, good defaults with overridability, good docs, self-healing with manual override.</p>
+  </div>
+  <div class="card card-purple">
+    <h4>Simplicity</h4>
+    <p>Remove <strong>accidental complexity</strong> (complexity not inherent in the problem, only in the implementation). The best tool: <strong>abstraction</strong>. SQL hides disk structures. High-level languages hide machine code. A good abstraction benefits all applications that use it.</p>
+  </div>
+  <div class="card card-green">
+    <h4>Evolvability (Extensibility / Plasticity)</h4>
+    <p>Requirements always change. Simple systems are easier to modify. Agile at the data-system level — e.g. refactoring Twitter's timeline architecture from approach 1 to approach 2.</p>
+  </div>
+
+  <!-- FIRST PRINCIPLES QUESTIONS -->
+  <h2 style="color: var(--pink);">First-Principles Questions</h2>
+  <p>Test your understanding. Click to reveal the answer (derived strictly from the book).</p>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">1</span>What is the difference between a fault and a failure?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">A <strong>fault</strong> is one component of the system deviating from its spec. A <strong>failure</strong> is when the system as a whole stops providing the required service to the user. The goal of fault-tolerance is to prevent faults from causing failures. You cannot reduce fault probability to zero, so you design mechanisms to cope with faults.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">2</span>Why would you deliberately trigger faults in a production system?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Many critical bugs are due to poor error handling. By deliberately inducing faults (like Netflix's Chaos Monkey), you ensure fault-tolerance machinery is continually exercised and tested. This increases confidence that faults will be handled correctly when they occur naturally.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">3</span>Why are software faults harder to deal with than hardware faults?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Hardware faults are typically random and independent (one disk failing doesn't imply another will). Software faults are <strong>systematic and correlated</strong> across nodes — they tend to cause many more system failures. They lie dormant until triggered by unusual circumstances, when an assumption the software was making stops being true.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">4</span>Why is the mean (average) a poor metric for response times? What should you use instead?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">The mean doesn't tell you how many users actually experienced a particular delay. Use <strong>percentiles</strong> instead: the median (p50) tells you the typical experience, while p95/p99/p999 reveal how bad the outliers are. Amazon uses p999 because the customers with the slowest requests often have the most data — they are the most valuable customers.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">5</span>What was Twitter's key load parameter, and why did they end up with a hybrid approach?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">The key load parameter was the <strong>distribution of followers per user</strong> (weighted by tweet frequency). Approach 1 (query-time join) was too slow for 300k reads/sec. Approach 2 (write-time fan-out) was great for normal users but a celebrity with 30M followers would trigger 30M writes per tweet. The hybrid: fan-out for most users, but fetch-and-merge at read time for celebrities.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">6</span>What is "tail latency amplification" and why does it matter?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">When a single end-user request requires multiple backend calls (even in parallel), it must wait for the <strong>slowest</strong> one to complete. Even if only a small percentage of backend calls are slow, the probability of hitting at least one slow call increases with more parallel calls. So a higher proportion of end-user requests end up being slow.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">7</span>What is "accidental complexity" and what is the best tool for removing it?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Accidental complexity is complexity that is <strong>not inherent in the problem</strong> the software solves but arises only from the implementation. The best tool for removing it is <strong>abstraction</strong> — hiding implementation detail behind a clean, simple-to-understand facade. Examples: SQL hides disk/memory structures; high-level languages hide machine code.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">8</span>Why is scaling stateful systems fundamentally harder than scaling stateless services?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Distributing stateless services across multiple machines is fairly straightforward since any machine can handle any request. Taking stateful data systems from a single node to a distributed setup introduces <strong>a lot of additional complexity</strong> — you must handle data consistency, replication, and coordination. This is why common wisdom was to keep your database on a single node until scaling cost or high-availability requirements forced you to distribute.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">9</span>What is the relationship between latency and response time?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">They are <strong>not</strong> synonyms. Response time is what the client sees: service time + network delays + queueing delays. Latency is specifically the duration that a request is <strong>waiting to be handled</strong> — during which it is latent, awaiting service. Latency is one component of response time.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">10</span>What does "there is no such thing as magic scaling sauce" mean, and what follows from it?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">An architecture that scales well is built around assumptions about which operations will be common and which will be rare (the load parameters). A system for 100,000 req/sec at 1kB each looks very different from 3 req/min at 2GB each — even though data throughput is the same. Scalable architectures are <strong>specific to the application</strong>, but built from general-purpose building blocks arranged in familiar patterns. If your load assumptions are wrong, the engineering effort is wasted.</div>
+  </div>
+
+</div>
+</body>
+</html>
