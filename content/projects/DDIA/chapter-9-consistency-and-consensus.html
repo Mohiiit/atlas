@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Chapter 9 — Consistency and Consensus</title>
+<style>
+  :root {
+    --bg: #0a0e17; --surface: #111827; --surface2: #1a2234; --border: #1e293b;
+    --text: #e2e8f0; --text-muted: #94a3b8; --accent: #3b82f6; --accent2: #8b5cf6;
+    --accent3: #10b981; --red: #ef4444; --orange: #f59e0b; --pink: #ec4899; --cyan: #06b6d4;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+  .container { max-width: 900px; margin: 0 auto; padding: 40px 24px 100px; }
+  h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent2), var(--pink)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 48px; border-bottom: 1px solid var(--border); padding-bottom: 24px; }
+  h2 { font-size: 1.5rem; font-weight: 700; margin: 48px 0 16px; color: var(--accent); }
+  h3 { font-size: 1.15rem; font-weight: 600; margin: 32px 0 12px; color: var(--text); }
+  p { margin-bottom: 16px; color: var(--text-muted); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 20px 0; }
+  .card-accent { border-left: 4px solid var(--accent); }
+  .card-green { border-left: 4px solid var(--accent3); }
+  .card-orange { border-left: 4px solid var(--orange); }
+  .card-purple { border-left: 4px solid var(--accent2); }
+  .card-red { border-left: 4px solid var(--red); }
+  .card-cyan { border-left: 4px solid var(--cyan); }
+  .card h4 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+  .card ul { padding-left: 20px; color: var(--text-muted); }
+  .card li { margin-bottom: 6px; }
+  .key-term { color: var(--accent); font-weight: 600; }
+  .diagram { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 32px; margin: 24px 0; overflow-x: auto; }
+  .diagram-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent2); margin-bottom: 20px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+  .quote { background: var(--surface2); border-left: 3px solid var(--accent2); padding: 16px 20px; margin: 20px 0; border-radius: 0 8px 8px 0; font-style: italic; color: var(--text-muted); }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  th { color: var(--accent); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
+  td { color: var(--text-muted); }
+  .question-block { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin: 16px 0; overflow: hidden; }
+  .question-header { padding: 16px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 0.95rem; }
+  .question-header:hover { background: var(--surface2); }
+  .question-body { padding: 0 20px 16px; display: none; color: var(--text-muted); border-top: 1px solid var(--border); padding-top: 16px; }
+  .question-block.open .question-body { display: block; }
+  .q-num { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: var(--accent2); color: white; border-radius: 50%; font-size: 0.8rem; font-weight: 700; margin-right: 12px; flex-shrink: 0; }
+  .chevron { transition: transform .2s; color: var(--text-muted); }
+  .question-block.open .chevron { transform: rotate(180deg); }
+  .section-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--accent2); font-weight: 700; margin-bottom: 8px; }
+  code { background: var(--surface2); padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; color: var(--accent3); }
+  .flow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; }
+  .flow-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; text-align: center; font-size: 0.85rem; min-width: 100px; }
+  .flow-box.primary { border-color: var(--accent); color: var(--accent); }
+  .flow-box.green { border-color: var(--accent3); color: var(--accent3); }
+  .flow-box.purple { border-color: var(--accent2); color: var(--accent2); }
+  .flow-box.orange { border-color: var(--orange); color: var(--orange); }
+  .flow-box.red { border-color: var(--red); color: var(--red); }
+  .flow-box.cyan { border-color: var(--cyan); color: var(--cyan); }
+  .flow-arrow { color: var(--text-muted); font-size: 1.2rem; }
+  .size-bar { height: 28px; border-radius: 6px; display: flex; align-items: center; padding: 0 12px; font-size: 0.8rem; font-weight: 600; margin: 6px 0; color: white; }
+  .timeline-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+  .timeline-label { min-width: 70px; font-size: 0.8rem; font-weight: 600; }
+  .timeline-bar { height: 28px; border-radius: 4px; display: flex; align-items: center; padding: 0 10px; font-size: 0.75rem; font-weight: 600; color: white; }
+  .timeline-gap { min-width: 20px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <p class="section-label">DDIA &mdash; Part II: Distributed Data</p>
+  <h1>Chapter 9: Consistency and Consensus</h1>
+  <p class="subtitle">"Is it better to be alive and wrong or right and dead?" &mdash; Jay Kreps. This chapter ties together the deepest themes of distributed systems: how strong can our guarantees be, what is the cost, and how do nodes agree on anything when the network is unreliable?</p>
+
+  <!-- BIG PICTURE -->
+  <h2>The Big Picture</h2>
+  <p>Chapter 9 is the culmination of Part II. After studying replication (Ch. 5), partitioning (Ch. 6), transactions (Ch. 7), and fault models (Ch. 8), we can finally ask: <strong>what guarantees can a distributed system actually provide, and at what cost?</strong></p>
+
+  <div class="diagram">
+    <div class="diagram-title">Chapter 9 Structure &mdash; Three Pillars</div>
+    <div class="flow">
+      <div class="flow-box primary" style="min-width:180px;"><strong>Linearizability</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">Strongest consistency model</span></div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box purple" style="min-width:180px;"><strong>Ordering Guarantees</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">Causality &amp; total order</span></div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box green" style="min-width:180px;"><strong>Consensus</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">Getting nodes to agree</span></div>
+    </div>
+    <p style="text-align:center; font-size:0.8rem; color:var(--text-muted); margin-top:16px;">These three topics are deeply linked: linearizability implies total ordering, total order broadcast is equivalent to consensus, and consensus enables linearizable storage.</p>
+  </div>
+
+  <!-- CONSISTENCY GUARANTEES -->
+  <h2>Consistency Guarantees</h2>
+  <p>Different replicas of a database may show different data at any given moment. The question is: <strong>what guarantees does the system provide about when replicas converge?</strong></p>
+
+  <div class="diagram">
+    <div class="diagram-title">Spectrum of Consistency Models</div>
+    <div style="position:relative; height:60px; background: linear-gradient(to right, #ef4444, #f59e0b, #3b82f6, #8b5cf6); border-radius:8px; margin-bottom:16px;">
+      <div style="position:absolute; left:5%; top:50%; transform:translateY(-50%); font-size:0.75rem; font-weight:700; color:white;">Weakest</div>
+      <div style="position:absolute; right:5%; top:50%; transform:translateY(-50%); font-size:0.75rem; font-weight:700; color:white;">Strongest</div>
+    </div>
+    <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+      <div style="text-align:center; flex:1; min-width:100px;">
+        <div style="font-size:0.8rem; font-weight:700; color:var(--red);">Eventual</div>
+        <div style="font-size:0.7rem; color:var(--text-muted);">Convergence<br>only</div>
+      </div>
+      <div style="text-align:center; flex:1; min-width:100px;">
+        <div style="font-size:0.8rem; font-weight:700; color:var(--orange);">Read-your-writes</div>
+        <div style="font-size:0.7rem; color:var(--text-muted);">Session<br>guarantees</div>
+      </div>
+      <div style="text-align:center; flex:1; min-width:100px;">
+        <div style="font-size:0.8rem; font-weight:700; color:var(--accent);">Causal</div>
+        <div style="font-size:0.7rem; color:var(--text-muted);">Partial order<br>preserved</div>
+      </div>
+      <div style="text-align:center; flex:1; min-width:100px;">
+        <div style="font-size:0.8rem; font-weight:700; color:var(--accent2);">Linearizable</div>
+        <div style="font-size:0.7rem; color:var(--text-muted);">Total order,<br>recency</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-orange">
+    <h4>Eventual Consistency = Convergence</h4>
+    <p>If you stop writing and wait long enough, all replicas will eventually return the same value. But "eventually" says <strong>nothing about when</strong>. Until convergence, reads could return anything. This is hard for developers because a database <em>looks</em> like a variable, but a variable in a single-threaded program never gives you stale data.</p>
+    <p style="margin:0; font-size:0.85rem;">Bugs from eventual consistency are subtle: the application works fine most of the time. Edge cases only appear during faults or high concurrency.</p>
+  </div>
+
+  <div class="quote">Transaction isolation is about avoiding race conditions from concurrent transactions. Distributed consistency is about coordinating replica state in the face of delays and faults. Related but mostly independent concerns.</div>
+
+  <!-- LINEARIZABILITY -->
+  <h2>Linearizability</h2>
+  <p>The idea: make the system <strong>appear as if there is only one copy of the data</strong>, and all operations on it are atomic. Also known as <span class="key-term">atomic consistency</span>, <span class="key-term">strong consistency</span>, or <span class="key-term">external consistency</span>. It is a <strong>recency guarantee</strong>: once a write completes, all subsequent reads must see that value.</p>
+
+  <h3>What Makes a System Linearizable?</h3>
+
+  <div class="diagram">
+    <div class="diagram-title">Linearizability Timeline &mdash; Register x (initially 0)</div>
+    <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:16px;">Each bar represents the duration of a client operation (from request sent to response received). The value must "flip" atomically at one point in time.</p>
+    <div style="display:flex; flex-direction:column; gap:6px;">
+      <div class="timeline-row">
+        <div class="timeline-label" style="color:var(--accent);">Client A</div>
+        <div class="timeline-bar" style="width:120px; background:var(--accent);">read(x) &rarr; 0</div>
+        <div class="timeline-gap" style="min-width:60px;"></div>
+        <div class="timeline-bar" style="width:120px; background:var(--accent);">read(x) &rarr; 1</div>
+      </div>
+      <div class="timeline-row">
+        <div class="timeline-label" style="color:var(--accent3);">Client B</div>
+        <div class="timeline-gap" style="min-width:40px;"></div>
+        <div class="timeline-bar" style="width:100px; background:var(--accent3);">read(x) &rarr; 0</div>
+        <div class="timeline-gap" style="min-width:30px;"></div>
+        <div class="timeline-bar" style="width:120px; background:var(--accent3);">read(x) &rarr; 1 &#10003;</div>
+      </div>
+      <div class="timeline-row">
+        <div class="timeline-label" style="color:var(--orange);">Client C</div>
+        <div class="timeline-gap" style="min-width:80px;"></div>
+        <div class="timeline-bar" style="width:180px; background:var(--orange);">write(x, 1) &rarr; ok</div>
+      </div>
+    </div>
+    <div style="margin-top:16px; border-top:1px solid var(--border); padding-top:12px;">
+      <p style="font-size:0.8rem; margin:0;"><strong>Key rule:</strong> Once <em>any</em> read returns the new value (1), all subsequent reads &mdash; on any client &mdash; must also return 1. The value cannot "flip back." There must exist a single point in time when x atomically changes from 0 to 1.</p>
+    </div>
+  </div>
+
+  <div class="card card-accent">
+    <h4>The Atomic Flip Point</h4>
+    <ul>
+      <li>Reads before the write completes may return old or new value (concurrent)</li>
+      <li>Once any read returns the new value, <strong>all subsequent reads must return it too</strong></li>
+      <li>Operations can be placed on a timeline; the markers must always move forward, never backward</li>
+      <li>A <code>cas(x, v_old, v_new)</code> operation atomically sets x to v_new only if current value equals v_old</li>
+    </ul>
+  </div>
+
+  <!-- LINEARIZABILITY VS SERIALIZABILITY -->
+  <h3>Linearizability vs. Serializability</h3>
+  <p>These terms sound similar but are fundamentally different guarantees:</p>
+  <table>
+    <tr><th>Aspect</th><th>Serializability</th><th>Linearizability</th></tr>
+    <tr><td><strong>What it is</strong></td><td>Isolation property of <em>transactions</em></td><td>Recency guarantee on <em>individual objects</em> (registers)</td></tr>
+    <tr><td><strong>Scope</strong></td><td>Multi-object transactions (reads + writes)</td><td>Single object (one key, one row)</td></tr>
+    <tr><td><strong>Ordering</strong></td><td>Transactions appear to execute in <em>some</em> serial order (order may differ from real time)</td><td>Operations respect <em>real-time</em> ordering</td></tr>
+    <tr><td><strong>Prevents</strong></td><td>All transaction anomalies</td><td>Stale reads, but NOT write skew</td></tr>
+    <tr><td><strong>Combined</strong></td><td colspan="2" style="color:var(--accent3);"><strong>Strict serializability</strong> (strong-1SR) = both. Achieved by 2PL or actual serial execution, but NOT by SSI (reads from snapshot &rarr; not linearizable).</td></tr>
+  </table>
+
+  <!-- WHEN IS LINEARIZABILITY NEEDED? -->
+  <h3>When Is Linearizability Needed?</h3>
+
+  <div class="grid3">
+    <div class="card card-accent">
+      <h4>Locking &amp; Leader Election</h4>
+      <p style="font-size:0.85rem;">Single-leader replication needs exactly one leader. A distributed lock must be linearizable: <strong>all nodes must agree who holds the lock</strong>. ZooKeeper and etcd provide this via consensus algorithms.</p>
+    </div>
+    <div class="card card-purple">
+      <h4>Uniqueness Constraints</h4>
+      <p style="font-size:0.85rem;">Unique usernames, unique file paths, no double-booking a seat &mdash; these all require a single up-to-date value that all nodes agree on. Similar to acquiring a "lock" on the chosen username.</p>
+    </div>
+    <div class="card card-orange">
+      <h4>Cross-Channel Timing</h4>
+      <p style="font-size:0.85rem;">When two communication channels exist (e.g., file storage + message queue), without linearizability the faster channel can "overtake" replication, causing the consumer to see stale data.</p>
+    </div>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Cross-Channel Race Condition &mdash; Image Resizer Example</div>
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="flow-box primary" style="min-width:120px;">Web Server</div>
+        <div style="display:flex; flex-direction:column; gap:4px; flex:1; min-width:200px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:0.8rem; color:var(--accent);">&rarr; 1. Write image</span>
+            <div class="flow-box" style="padding:6px 12px;">File Storage</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:0.8rem; color:var(--orange);">&rarr; 2. Send "resize" msg</span>
+            <div class="flow-box orange" style="padding:6px 12px;">Message Queue</div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="flow-box green" style="min-width:120px;">Image Resizer</div>
+        <div style="flex:1; min-width:200px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:0.8rem; color:var(--red);">&larr; 3. Receives msg BEFORE storage replicates</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:0.8rem; color:var(--red);">&rarr; 4. Reads OLD/empty image!</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p style="font-size:0.8rem; color:var(--text-muted); margin-top:12px;">If file storage were linearizable, step 4 would always see the new image. The message queue is faster than internal replication, causing a race condition.</p>
+  </div>
+
+  <!-- IMPLEMENTING LINEARIZABLE SYSTEMS -->
+  <h3>Implementing Linearizable Systems</h3>
+
+  <div class="diagram">
+    <div class="diagram-title">Replication Strategies &amp; Linearizability</div>
+    <table>
+      <tr><th>Replication</th><th>Linearizable?</th><th>Why</th></tr>
+      <tr>
+        <td><strong>Single-leader</strong></td>
+        <td style="color:var(--orange);">Potentially</td>
+        <td>Reads from leader or sync followers can be linearizable. But: snapshot isolation breaks it; delusional leaders violate it; async failover loses writes.</td>
+      </tr>
+      <tr>
+        <td><strong>Consensus (ZooKeeper, etcd)</strong></td>
+        <td style="color:var(--accent3);">Yes</td>
+        <td>Consensus protocols prevent split brain and stale replicas. Safely implements linearizable storage.</td>
+      </tr>
+      <tr>
+        <td><strong>Multi-leader</strong></td>
+        <td style="color:var(--red);">No</td>
+        <td>Concurrent writes on multiple nodes, async replication &rarr; conflicts &rarr; no single copy illusion.</td>
+      </tr>
+      <tr>
+        <td><strong>Leaderless (Dynamo-style)</strong></td>
+        <td style="color:var(--red);">Probably not</td>
+        <td>Even with strict quorums (w + r > n), race conditions possible. LWW with clocks is nonlinearizable. Linearizable CAS requires consensus.</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card card-red">
+    <h4>Quorums Are NOT Enough for Linearizability</h4>
+    <p>Even with strict quorums (w + r > n), a Dynamo-style system can violate linearizability. Client A reads new value 1 from a quorum, then Client B (reading after A) gets old value 0 from a different quorum. Making quorums linearizable requires synchronous read repair (performance penalty) and writer reads latest state first. But <strong>linearizable CAS still requires consensus</strong>.</p>
+  </div>
+
+  <!-- COST OF LINEARIZABILITY / CAP -->
+  <h2>The Cost of Linearizability</h2>
+
+  <div class="diagram">
+    <div class="diagram-title">The CAP Trade-off &mdash; Network Partition Scenario</div>
+    <div style="display:flex; gap:24px; justify-content:center; flex-wrap:wrap; margin-bottom:20px;">
+      <div style="border:2px solid var(--accent); border-radius:12px; padding:20px; text-align:center; min-width:180px;">
+        <div style="font-size:0.9rem; font-weight:700; color:var(--accent); margin-bottom:8px;">Datacenter 1</div>
+        <div style="font-size:0.8rem; color:var(--text-muted);">Leader</div>
+        <div style="font-size:0.8rem; color:var(--accent3);">Reads &amp; Writes OK</div>
+      </div>
+      <div style="display:flex; flex-direction:column; align-items:center; justify-content:center;">
+        <div style="font-size:1.5rem; color:var(--red);">&#10005;</div>
+        <div style="font-size:0.7rem; color:var(--red); font-weight:700;">NETWORK<br>PARTITION</div>
+      </div>
+      <div style="border:2px solid var(--orange); border-radius:12px; padding:20px; text-align:center; min-width:180px;">
+        <div style="font-size:0.9rem; font-weight:700; color:var(--orange); margin-bottom:8px;">Datacenter 2</div>
+        <div style="font-size:0.8rem; color:var(--text-muted);">Follower</div>
+        <div style="font-size:0.8rem; color:var(--red);">Linearizable? Unavailable<br>Non-linearizable? Available</div>
+      </div>
+    </div>
+    <div style="border-top:1px solid var(--border); padding-top:16px;">
+      <div class="grid2">
+        <div>
+          <p style="font-size:0.85rem; font-weight:700; color:var(--accent);">If linearizability required:</p>
+          <p style="font-size:0.8rem;">Follower DC must reject reads/writes (can't confirm recency). System becomes <strong>unavailable</strong> in that DC.</p>
+        </div>
+        <div>
+          <p style="font-size:0.85rem; font-weight:700; color:var(--accent3);">If linearizability NOT required:</p>
+          <p style="font-size:0.8rem;">Each DC processes requests independently (multi-leader style). System stays <strong>available</strong> but is not linearizable.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-red">
+    <h4>CAP Theorem &mdash; Better Stated</h4>
+    <p>CAP is often stated as "pick 2 of 3: Consistency, Availability, Partition tolerance." This is <strong>misleading</strong>. Network partitions <em>will</em> happen &mdash; they're not a choice. The real trade-off:</p>
+    <ul>
+      <li>When the network is working: you can have <strong>both</strong> consistency and availability</li>
+      <li>When a network partition occurs: choose <strong>either</strong> linearizability (some nodes become unavailable) <strong>or</strong> availability (accept non-linearizable behavior)</li>
+    </ul>
+    <p style="margin:0; font-size:0.85rem;">Better phrasing: <strong>"Consistent or Available when Partitioned."</strong> CAP as formally defined is very narrow (only linearizability, only partitions) and has been superseded by more precise results. It is of mostly historical interest.</p>
+  </div>
+
+  <div class="card card-cyan">
+    <h4>The Real Reason Most Systems Drop Linearizability: Performance</h4>
+    <p>Even modern multi-core CPUs are not linearizable &mdash; each core has its own cache, asynchronously synced to main memory. The reason is <strong>performance, not fault tolerance</strong>.</p>
+    <p style="margin:0;">Attiya &amp; Welch proved: if you want linearizability, response time is at least proportional to network delay uncertainty. <strong>A faster algorithm for linearizability does not exist.</strong> Weaker models can be much faster.</p>
+  </div>
+
+  <!-- ORDERING GUARANTEES -->
+  <h2>Ordering Guarantees</h2>
+  <p>Ordering is a recurring theme throughout the book: leaders determine write order (Ch. 5), serializability means sequential order (Ch. 7), timestamps attempt to order events (Ch. 8). There are deep connections between ordering, linearizability, and consensus.</p>
+
+  <h3>Ordering and Causality</h3>
+  <p><span class="key-term">Causality</span> imposes an ordering: cause comes before effect. A message is sent before received. The question comes before the answer. If a system respects this ordering, it is <span class="key-term">causally consistent</span>.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Causal Order (Partial) vs. Total Order</div>
+    <div class="grid2">
+      <div>
+        <p style="font-size:0.9rem; font-weight:700; color:var(--accent); margin-bottom:8px;">Total Order (Linearizability)</p>
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+          <div style="width:40px; height:40px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center; font-size:0.8rem; color:white;">A</div>
+          <span style="color:var(--text-muted);">&rarr;</span>
+          <div style="width:40px; height:40px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center; font-size:0.8rem; color:white;">B</div>
+          <span style="color:var(--text-muted);">&rarr;</span>
+          <div style="width:40px; height:40px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center; font-size:0.8rem; color:white;">C</div>
+          <span style="color:var(--text-muted);">&rarr;</span>
+          <div style="width:40px; height:40px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center; font-size:0.8rem; color:white;">D</div>
+        </div>
+        <p style="font-size:0.8rem;">Single timeline. Any two operations can be compared. No concurrency.</p>
+      </div>
+      <div>
+        <p style="font-size:0.9rem; font-weight:700; color:var(--accent2); margin-bottom:8px;">Partial Order (Causality)</p>
+        <div style="position:relative; height:80px; margin-bottom:8px;">
+          <div style="position:absolute; left:0; top:20px; width:40px; height:40px; border-radius:50%; background:var(--accent2); display:flex; align-items:center; justify-content:center; font-size:0.8rem; color:white;">A</div>
+          <div style="position:absolute; left:60px; top:0; width:40px; height:40px; border-radius:50%; background:var(--accent2); display:flex; align-items:center; justify-content:center; font-size:0.8rem; color:white;">B</div>
+          <div style="position:absolute; left:60px; top:40px; width:40px; height:40px; border-radius:50%; background:var(--orange); display:flex; align-items:center; justify-content:center; font-size:0.8rem; color:white;">C</div>
+          <div style="position:absolute; left:120px; top:20px; width:40px; height:40px; border-radius:50%; background:var(--accent2); display:flex; align-items:center; justify-content:center; font-size:0.8rem; color:white;">D</div>
+          <svg style="position:absolute; top:0; left:0; width:100%; height:100%;" viewBox="0 0 170 80">
+            <line x1="40" y1="40" x2="60" y2="20" stroke="#8b5cf6" stroke-width="1.5"/>
+            <line x1="40" y1="40" x2="60" y2="60" stroke="#8b5cf6" stroke-width="1.5"/>
+            <line x1="100" y1="20" x2="120" y2="40" stroke="#8b5cf6" stroke-width="1.5"/>
+            <line x1="100" y1="60" x2="120" y2="40" stroke="#8b5cf6" stroke-width="1.5"/>
+          </svg>
+        </div>
+        <p style="font-size:0.8rem;">Timeline branches &amp; merges. B and C are <strong>concurrent</strong> (incomparable). Like a Git history.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-green">
+    <h4>Linearizability Is Stronger Than Causal Consistency</h4>
+    <p>Linearizability <strong>implies</strong> causality &mdash; a linearizable system automatically preserves causal ordering. But linearizability is expensive (network delays, CAP trade-off).</p>
+    <p style="margin:0;"><strong>Good news:</strong> Causal consistency is the <strong>strongest consistency model that does not slow down due to network delays</strong> and remains available during network failures. Many systems that seem to need linearizability actually only need causal consistency.</p>
+  </div>
+
+  <!-- LAMPORT TIMESTAMPS -->
+  <h3>Lamport Timestamps</h3>
+  <p>How to create a total order consistent with causality without a single leader? Use <span class="key-term">Lamport timestamps</span>: a pair of (counter, nodeID).</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Lamport Timestamps &mdash; How They Work</div>
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <div style="display:flex; gap:24px; justify-content:center; flex-wrap:wrap;">
+        <div style="text-align:center; border:1px solid var(--accent); border-radius:8px; padding:16px; min-width:120px;">
+          <div style="font-size:0.8rem; font-weight:700; color:var(--accent);">Node 1</div>
+          <div style="font-size:0.75rem; color:var(--text-muted);">counter: 1 &rarr; 6</div>
+        </div>
+        <div style="text-align:center; border:1px solid var(--accent3); border-radius:8px; padding:16px; min-width:120px;">
+          <div style="font-size:0.8rem; font-weight:700; color:var(--accent3);">Node 2</div>
+          <div style="font-size:0.75rem; color:var(--text-muted);">counter: 1 &rarr; 5</div>
+        </div>
+        <div style="text-align:center; border:1px solid var(--orange); border-radius:8px; padding:16px; min-width:120px;">
+          <div style="font-size:0.8rem; font-weight:700; color:var(--orange);">Client A</div>
+          <div style="font-size:0.75rem; color:var(--text-muted);">max seen: 5</div>
+        </div>
+      </div>
+      <div style="border-top:1px solid var(--border); padding-top:12px;">
+        <p style="font-size:0.85rem; margin:0;"><strong>Key mechanism:</strong> Every node and client tracks the <strong>maximum counter</strong> seen so far. Each request includes this max. When a node receives a counter greater than its own, it jumps forward to that value. This ensures causal ordering: every causal dependency increases the timestamp.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-orange">
+    <h4>Lamport Timestamps Are Not Sufficient</h4>
+    <p>They define a total order <em>after the fact</em>, but cannot tell you <strong>right now</strong> whether your operation is safe. Example: two users try to register the same username concurrently. Lamport timestamps can pick a winner after collecting all operations, but a node cannot decide in real-time without checking every other node.</p>
+    <p style="margin:0;">To know when the total order is <strong>finalized</strong>, you need <span class="key-term">total order broadcast</span>.</p>
+  </div>
+
+  <div class="card card-purple">
+    <h4>Lamport Timestamps vs. Version Vectors</h4>
+    <ul>
+      <li><strong>Lamport timestamps</strong>: enforce a total order, but cannot distinguish concurrent from causally ordered operations. More compact.</li>
+      <li><strong>Version vectors</strong>: can distinguish concurrent operations from causally dependent ones. Used for conflict detection in leaderless databases.</li>
+    </ul>
+  </div>
+
+  <!-- TOTAL ORDER BROADCAST -->
+  <h3>Total Order Broadcast</h3>
+  <p>A protocol for exchanging messages between nodes, requiring two safety properties:</p>
+
+  <div class="grid2">
+    <div class="card card-accent">
+      <h4>Reliable Delivery</h4>
+      <p style="font-size:0.85rem; margin:0;">If a message is delivered to one node, it is delivered to <strong>all</strong> nodes. No messages are lost.</p>
+    </div>
+    <div class="card card-green">
+      <h4>Totally Ordered Delivery</h4>
+      <p style="font-size:0.85rem; margin:0;">Messages are delivered to <strong>every node in the same order</strong>. Once delivered, the order is fixed &mdash; no retroactive insertion.</p>
+    </div>
+  </div>
+
+  <div class="card card-cyan">
+    <h4>Uses of Total Order Broadcast</h4>
+    <ul>
+      <li><strong>Database replication:</strong> Each message = a write. Same writes in same order = consistent replicas. This is <span class="key-term">state machine replication</span>.</li>
+      <li><strong>Serializable transactions:</strong> Each message = a deterministic stored procedure executed in order.</li>
+      <li><strong>Append-only log:</strong> Delivering a message = appending to the log. All nodes see the same sequence.</li>
+      <li><strong>Fencing tokens:</strong> Lock acquisition requests are totally ordered; sequence number serves as fencing token (ZooKeeper's <code>zxid</code>).</li>
+    </ul>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">The Equivalence Triangle</div>
+    <div style="display:flex; flex-direction:column; align-items:center; gap:16px;">
+      <div class="flow-box primary" style="min-width:200px;"><strong>Linearizable CAS Register</strong></div>
+      <div style="display:flex; gap:40px; align-items:center;">
+        <div style="font-size:0.8rem; color:var(--text-muted);">&#8596;</div>
+      </div>
+      <div style="display:flex; gap:24px; flex-wrap:wrap; justify-content:center;">
+        <div class="flow-box green" style="min-width:200px;"><strong>Total Order Broadcast</strong></div>
+        <div style="font-size:0.8rem; color:var(--text-muted); display:flex; align-items:center;">&#8596;</div>
+        <div class="flow-box purple" style="min-width:200px;"><strong>Consensus</strong></div>
+      </div>
+    </div>
+    <p style="text-align:center; font-size:0.8rem; color:var(--text-muted); margin-top:16px;">All three are <strong>equivalent</strong>: if you can solve one, you can transform it into a solution for the others. This is a profound result.</p>
+  </div>
+
+  <!-- DISTRIBUTED TRANSACTIONS AND CONSENSUS -->
+  <h2>Distributed Transactions and Consensus</h2>
+  <p>Consensus: getting several nodes to <strong>agree on something</strong>. Sounds simple, but many broken systems have been built thinking it was easy.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Situations Requiring Consensus</div>
+    <div class="grid3">
+      <div class="flow-box primary"><strong>Leader Election</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">Agree on one leader</span></div>
+      <div class="flow-box green"><strong>Atomic Commit</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">All commit or all abort</span></div>
+      <div class="flow-box purple"><strong>Total Order</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">Agree on message order</span></div>
+      <div class="flow-box orange"><strong>Locks / Leases</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">Who holds the lock?</span></div>
+      <div class="flow-box cyan"><strong>Uniqueness</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">One winner for same key</span></div>
+      <div class="flow-box red"><strong>Membership</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">Who is alive?</span></div>
+    </div>
+  </div>
+
+  <div class="card card-purple">
+    <h4>The FLP Impossibility Result</h4>
+    <p>Fischer, Lynch, and Paterson (1985) proved that <strong>no algorithm can always reach consensus if there is a risk of a node crash</strong> &mdash; in the purely asynchronous model with deterministic algorithms. But if you allow timeouts, suspected-crash detection, or randomness, consensus becomes solvable. Distributed systems achieve consensus in practice.</p>
+  </div>
+
+  <!-- TWO-PHASE COMMIT -->
+  <h3>Atomic Commit and Two-Phase Commit (2PC)</h3>
+  <p>The most common algorithm for atomic commit across multiple nodes. <strong>Not to be confused with two-phase locking (2PL)</strong> &mdash; completely different concepts despite similar names.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Two-Phase Commit (2PC) &mdash; Detailed Flow</div>
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <!-- Phase 0 -->
+      <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+        <div style="min-width:100px; font-size:0.8rem; font-weight:700; color:var(--text-muted);">Setup</div>
+        <div style="flex:1; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <div class="flow-box" style="padding:8px 12px;">App requests<br>transaction ID</div>
+          <div class="flow-arrow">&rarr;</div>
+          <div class="flow-box primary" style="padding:8px 12px;"><strong>Coordinator</strong><br>assigns global txn ID</div>
+          <div class="flow-arrow">&rarr;</div>
+          <div class="flow-box" style="padding:8px 12px;">App does reads/writes<br>on each participant</div>
+        </div>
+      </div>
+      <!-- Phase 1 -->
+      <div style="border-top:1px solid var(--border); padding-top:12px; display:flex; align-items:flex-start; gap:16px; flex-wrap:wrap;">
+        <div style="min-width:100px; font-size:0.8rem; font-weight:700; color:var(--orange);">Phase 1<br>PREPARE</div>
+        <div style="flex:1;">
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:8px;">
+            <div class="flow-box primary" style="padding:8px 12px;"><strong>Coordinator</strong></div>
+            <div class="flow-arrow">&rarr;</div>
+            <div style="font-size:0.8rem; color:var(--orange);">"Can you commit?"</div>
+            <div class="flow-arrow">&rarr;</div>
+            <div class="flow-box green" style="padding:8px 12px;">Participant A</div>
+            <div class="flow-box green" style="padding:8px 12px;">Participant B</div>
+          </div>
+          <p style="font-size:0.8rem; margin:0;">Each participant writes all txn data to disk, checks constraints. Voting "yes" = <strong>promise to commit later</strong> (surrenders right to abort). Voting "no" = coordinator aborts all.</p>
+        </div>
+      </div>
+      <!-- Commit Point -->
+      <div style="border-top:2px solid var(--red); padding-top:12px; display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+        <div style="min-width:100px; font-size:0.8rem; font-weight:700; color:var(--red);">COMMIT<br>POINT</div>
+        <div style="flex:1;">
+          <p style="font-size:0.8rem; margin:0;">Coordinator writes decision to its <strong>transaction log on disk</strong>. This is the single atomic moment: the point of no return. If coordinator crashes after this, it will enforce the decision on recovery.</p>
+        </div>
+      </div>
+      <!-- Phase 2 -->
+      <div style="border-top:1px solid var(--border); padding-top:12px; display:flex; align-items:flex-start; gap:16px; flex-wrap:wrap;">
+        <div style="min-width:100px; font-size:0.8rem; font-weight:700; color:var(--accent3);">Phase 2<br>COMMIT</div>
+        <div style="flex:1;">
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:8px;">
+            <div class="flow-box primary" style="padding:8px 12px;"><strong>Coordinator</strong></div>
+            <div class="flow-arrow">&rarr;</div>
+            <div style="font-size:0.8rem; color:var(--accent3);">"Commit!" (or "Abort!")</div>
+            <div class="flow-arrow">&rarr;</div>
+            <div class="flow-box green" style="padding:8px 12px;">Participant A</div>
+            <div class="flow-box green" style="padding:8px 12px;">Participant B</div>
+          </div>
+          <p style="font-size:0.8rem; margin:0;">If request fails/times out, coordinator <strong>retries forever</strong>. The decision is irrevocable. Crashed participants commit when they recover.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-accent">
+    <h4>The Two Points of No Return</h4>
+    <ul>
+      <li><strong>Participant votes "yes":</strong> It promises it can definitely commit later (but coordinator may still abort)</li>
+      <li><strong>Coordinator writes decision:</strong> The commit/abort decision is irrevocable</li>
+    </ul>
+    <p style="margin:0; font-size:0.85rem;">These two promises together ensure atomicity. Single-node atomic commit lumps them into one event (writing the commit record).</p>
+  </div>
+
+  <!-- COORDINATOR FAILURE -->
+  <h3>Coordinator Failure: The "In Doubt" Problem</h3>
+
+  <div class="diagram">
+    <div class="diagram-title">Coordinator Crashes After Phase 1</div>
+    <div style="display:flex; gap:24px; justify-content:center; flex-wrap:wrap; margin-bottom:16px;">
+      <div style="border:2px solid var(--red); border-radius:12px; padding:16px; text-align:center; min-width:140px;">
+        <div style="font-size:0.9rem; font-weight:700; color:var(--red);">Coordinator</div>
+        <div style="font-size:2rem; margin:8px 0;">&#128165;</div>
+        <div style="font-size:0.75rem; color:var(--text-muted);">Decided "commit"<br>but crashed before<br>telling all participants</div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:12px; justify-content:center;">
+        <div style="border:2px solid var(--accent3); border-radius:8px; padding:12px; text-align:center;">
+          <div style="font-size:0.8rem; font-weight:700; color:var(--accent3);">DB 2: Committed</div>
+          <div style="font-size:0.7rem; color:var(--text-muted);">Received commit request</div>
+        </div>
+        <div style="border:2px solid var(--orange); border-radius:8px; padding:12px; text-align:center;">
+          <div style="font-size:0.8rem; font-weight:700; color:var(--orange);">DB 1: IN DOUBT &#10067;</div>
+          <div style="font-size:0.7rem; color:var(--text-muted);">Voted "yes," waiting...<br>Cannot abort (might conflict with DB 2)<br>Cannot commit (maybe others aborted)</div>
+        </div>
+      </div>
+    </div>
+    <div style="border-top:1px solid var(--border); padding-top:12px;">
+      <p style="font-size:0.85rem; margin:0;"><strong>The stuck participant holds locks the entire time.</strong> If coordinator's disk is lost, those locks may be held forever. The only escape: wait for coordinator recovery, or an admin manually resolves with a "heuristic decision" (which probably breaks atomicity).</p>
+    </div>
+  </div>
+
+  <div class="card card-red">
+    <h4>Why "In Doubt" Is So Dangerous</h4>
+    <ul>
+      <li>Database transactions hold <strong>row-level exclusive locks</strong> on modified rows</li>
+      <li>With 2PL, shared locks on read rows too</li>
+      <li>These locks <strong>cannot be released</strong> until the transaction commits or aborts</li>
+      <li>If coordinator is down for 20 minutes, locks are held for 20 minutes</li>
+      <li>If coordinator's log is permanently lost: locks held <strong>forever</strong> until manual intervention</li>
+      <li>Even rebooting the database doesn't help &mdash; correct 2PC must preserve in-doubt locks across restarts</li>
+    </ul>
+  </div>
+
+  <!-- THREE-PHASE COMMIT -->
+  <h3>Three-Phase Commit (3PC)</h3>
+  <div class="card card-orange">
+    <h4>A Theoretical Alternative</h4>
+    <p>3PC was proposed as a nonblocking alternative to 2PC. However, it <strong>assumes bounded network delay and bounded node response times</strong>. In real systems with unbounded delays and process pauses, 3PC cannot guarantee atomicity.</p>
+    <p style="margin:0;">Nonblocking atomic commit requires a <span class="key-term">perfect failure detector</span> &mdash; impossible with unbounded network delays (timeout != reliable crash detection). So <strong>2PC continues to be used</strong> despite its coordinator failure problem.</p>
+  </div>
+
+  <!-- DISTRIBUTED TRANSACTIONS IN PRACTICE -->
+  <h3>Distributed Transactions in Practice</h3>
+  <p>Two quite different types are often conflated:</p>
+
+  <div class="grid2">
+    <div class="card card-green">
+      <h4>Database-Internal</h4>
+      <p style="font-size:0.85rem;">All participants run the same database software (e.g., VoltDB, MySQL Cluster NDB). Can use optimized internal protocols. Often <strong>works quite well</strong>.</p>
+    </div>
+    <div class="card card-red">
+      <h4>Heterogeneous (XA)</h4>
+      <p style="font-size:0.85rem;">Participants are different technologies (two databases from different vendors, or a database + message broker). Must use lowest-common-denominator protocol. <strong>Much more challenging.</strong></p>
+    </div>
+  </div>
+
+  <div class="card card-accent">
+    <h4>XA Transactions</h4>
+    <p><strong>X/Open XA (eXtended Architecture)</strong>: A C API standard (1991) for 2PC across heterogeneous systems. Supported by PostgreSQL, MySQL, DB2, SQL Server, Oracle, ActiveMQ, HornetQ, IBM MQ.</p>
+    <ul>
+      <li>Coordinator is typically a <strong>library in the application process</strong> (not a separate service)</li>
+      <li>If the app crashes, the coordinator goes with it &rarr; participants stuck in doubt</li>
+      <li>Coordinator logs on local disk = application servers are <strong>no longer stateless</strong></li>
+      <li>Cannot detect deadlocks across systems, doesn't work with SSI</li>
+      <li>MySQL distributed transactions reported to be <strong>10x slower</strong> than single-node</li>
+    </ul>
+  </div>
+
+  <div class="card card-cyan">
+    <h4>Exactly-Once Message Processing</h4>
+    <p style="margin:0;">The killer use case for heterogeneous transactions: atomically commit a message acknowledgment and the database writes from processing that message in a single transaction. If either fails, both abort, and the message broker redelivers. This gives <strong>effectively exactly-once processing</strong> &mdash; but only if all systems support the same atomic commit protocol.</p>
+  </div>
+
+  <!-- FAULT-TOLERANT CONSENSUS -->
+  <h2>Fault-Tolerant Consensus</h2>
+  <p>A consensus algorithm must satisfy four properties:</p>
+
+  <div class="diagram">
+    <div class="diagram-title">The Four Properties of Consensus</div>
+    <div class="grid2">
+      <div class="card card-accent" style="margin:0;">
+        <h4>Uniform Agreement</h4>
+        <p style="font-size:0.85rem; margin:0;">No two nodes decide differently.</p>
+      </div>
+      <div class="card card-green" style="margin:0;">
+        <h4>Integrity</h4>
+        <p style="font-size:0.85rem; margin:0;">No node decides twice.</p>
+      </div>
+      <div class="card card-purple" style="margin:0;">
+        <h4>Validity</h4>
+        <p style="font-size:0.85rem; margin:0;">If a node decides value v, then v was proposed by some node. (Rules out trivially deciding null.)</p>
+      </div>
+      <div class="card card-orange" style="margin:0;">
+        <h4>Termination</h4>
+        <p style="font-size:0.85rem; margin:0;">Every non-crashed node eventually decides. (This is the <strong>liveness</strong> property = fault tolerance. 2PC violates this.)</p>
+      </div>
+    </div>
+  </div>
+
+  <p>The first three are <strong>safety properties</strong> (always hold, even during total failure). Termination is a <strong>liveness property</strong> (requires a majority of nodes to be working). Safety is maintained even if all nodes crash.</p>
+
+  <h3>Consensus Algorithms</h3>
+
+  <div class="diagram">
+    <div class="diagram-title">The Four Major Fault-Tolerant Consensus Algorithms</div>
+    <div class="grid2">
+      <div class="card card-accent" style="margin:0;">
+        <h4>Paxos (Lamport, 1998)</h4>
+        <p style="font-size:0.85rem;">The foundational algorithm. Notoriously difficult to understand and implement. Multi-Paxos optimizes repeated rounds. Used in Google's Chubby.</p>
+      </div>
+      <div class="card card-green" style="margin:0;">
+        <h4>Raft (Ongaro, 2014)</h4>
+        <p style="font-size:0.85rem;">Designed for understandability. Equivalent to Multi-Paxos but structured more clearly. Used in <strong>etcd</strong>, CockroachDB, TiKV.</p>
+      </div>
+      <div class="card card-purple" style="margin:0;">
+        <h4>Zab (ZooKeeper)</h4>
+        <p style="font-size:0.85rem;">ZooKeeper Atomic Broadcast. Primary-backup protocol. Implements total order broadcast directly. Used in <strong>ZooKeeper</strong>, which backs Kafka, HBase, Hadoop.</p>
+      </div>
+      <div class="card card-orange" style="margin:0;">
+        <h4>VSR (Viewstamped Replication)</h4>
+        <p style="font-size:0.85rem;">One of the earliest consensus protocols (1988, Oki &amp; Liskov). Uses "view numbers" for epoch numbering. Historically important.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-accent">
+    <h4>Consensus = Total Order Broadcast</h4>
+    <p>Most consensus algorithms decide on a <strong>sequence of values</strong> (not just one), making them total order broadcast algorithms. Each round of consensus = one message delivery:</p>
+    <ul>
+      <li><strong>Agreement</strong> &rarr; all nodes deliver same messages in same order</li>
+      <li><strong>Integrity</strong> &rarr; messages not duplicated</li>
+      <li><strong>Validity</strong> &rarr; messages not corrupted or fabricated</li>
+      <li><strong>Termination</strong> &rarr; messages not lost</li>
+    </ul>
+    <p style="margin:0;">Raft, VSR, and Zab implement total order broadcast directly. For Paxos, this optimization is called <strong>Multi-Paxos</strong>.</p>
+  </div>
+
+  <!-- EPOCH NUMBERING -->
+  <h3>Epoch Numbering and Quorums</h3>
+
+  <div class="diagram">
+    <div class="diagram-title">How Consensus Protocols Use Epochs</div>
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="flow-box orange" style="min-width:120px;">Leader dies<br>(or suspected)</div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-box primary" style="min-width:140px;">Vote for new leader<br><strong>Epoch N+1</strong></div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-box green" style="min-width:160px;">New leader proposes<br>values to quorum</div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-box purple" style="min-width:140px;">Quorum approves<br>(no higher epoch seen)</div>
+      </div>
+      <div style="border-top:1px solid var(--border); padding-top:12px;">
+        <table>
+          <tr><th>Algorithm</th><th>Epoch name</th></tr>
+          <tr><td>Paxos</td><td>Ballot number</td></tr>
+          <tr><td>Raft</td><td>Term number</td></tr>
+          <tr><td>VSR</td><td>View number</td></tr>
+          <tr><td>Zab</td><td>Epoch number</td></tr>
+        </table>
+      </div>
+      <p style="font-size:0.85rem; margin:0;"><strong>Key insight:</strong> Two rounds of voting. (1) Elect a leader for this epoch. (2) Vote on the leader's proposals. The quorums for these two votes <strong>must overlap</strong>, ensuring no conflicting decisions across epochs. This is what makes consensus different from 2PC: only a <strong>majority</strong> is required, not unanimity.</p>
+    </div>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">2PC vs. Fault-Tolerant Consensus &mdash; Key Differences</div>
+    <table>
+      <tr><th>Aspect</th><th>2PC</th><th>Consensus (Raft, Paxos, etc.)</th></tr>
+      <tr><td><strong>Coordinator</strong></td><td>Not elected; fixed</td><td>Elected via votes</td></tr>
+      <tr><td><strong>Required votes</strong></td><td>ALL participants must say "yes"</td><td>Only a <strong>majority</strong></td></tr>
+      <tr><td><strong>On leader failure</strong></td><td>Stuck forever (blocking)</td><td>New leader elected automatically</td></tr>
+      <tr><td><strong>Recovery</strong></td><td>Wait for coordinator</td><td>Defined recovery process</td></tr>
+      <tr><td><strong>Fault tolerance</strong></td><td>None (single coordinator)</td><td>Tolerates minority of node failures</td></tr>
+      <tr><td><strong>Safety guarantee</strong></td><td>Atomicity</td><td>Agreement + integrity + validity</td></tr>
+    </table>
+  </div>
+
+  <!-- LIMITATIONS OF CONSENSUS -->
+  <h3>Limitations of Consensus</h3>
+  <div class="card card-red">
+    <h4>The Price You Pay</h4>
+    <ul>
+      <li><strong>Synchronous replication:</strong> Proposals require majority vote before being decided &rarr; performance cost</li>
+      <li><strong>Minimum nodes:</strong> Need 3 nodes to tolerate 1 failure, 5 to tolerate 2</li>
+      <li><strong>Network partitions:</strong> Only the majority side can make progress; minority is blocked</li>
+      <li><strong>Fixed membership:</strong> Most algorithms assume a fixed set of voting nodes. Dynamic membership extensions exist but are less well understood.</li>
+      <li><strong>Timeouts and false alarms:</strong> Highly variable network delays cause false leader-death suspicions &rarr; frequent elections &rarr; system spends more time electing leaders than doing work</li>
+      <li><strong>Network sensitivity:</strong> Raft can get stuck bouncing leadership between two nodes if one network link is unreliable. Designing algorithms robust to unreliable networks is still open research.</li>
+    </ul>
+  </div>
+
+  <!-- ZOOKEEPER -->
+  <h2>Membership and Coordination Services</h2>
+  <p>ZooKeeper, etcd, and Consul are not general-purpose databases. They hold <strong>small amounts of slow-changing data</strong> (fits in memory), replicated via consensus. They "outsource" the hard parts of distributed coordination.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">What ZooKeeper Provides</div>
+    <div class="grid2">
+      <div class="card card-accent" style="margin:0;">
+        <h4>Linearizable Atomic Ops</h4>
+        <p style="font-size:0.85rem; margin:0;">Atomic compare-and-set to implement distributed locks. Lock = <strong>lease</strong> with expiry (released if client fails).</p>
+      </div>
+      <div class="card card-green" style="margin:0;">
+        <h4>Total Ordering</h4>
+        <p style="font-size:0.85rem; margin:0;">All operations get a monotonically increasing <code>zxid</code> (transaction ID) and <code>cversion</code>. Can serve as fencing tokens.</p>
+      </div>
+      <div class="card card-purple" style="margin:0;">
+        <h4>Failure Detection</h4>
+        <p style="font-size:0.85rem; margin:0;">Long-lived sessions with heartbeats. If heartbeats stop, session declared dead. Locks via <strong>ephemeral nodes</strong> auto-released on session timeout.</p>
+      </div>
+      <div class="card card-orange" style="margin:0;">
+        <h4>Change Notifications</h4>
+        <p style="font-size:0.85rem; margin:0;">Clients can <strong>watch</strong> for changes (new nodes joining, sessions expiring). Avoids polling. Event-driven coordination.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-green">
+    <h4>Who Uses ZooKeeper?</h4>
+    <ul>
+      <li><strong>Apache Kafka</strong> &mdash; broker coordination, partition assignment (historically; moving to KRaft)</li>
+      <li><strong>Apache HBase</strong> &mdash; region server coordination</li>
+      <li><strong>Hadoop YARN</strong> &mdash; resource manager election</li>
+      <li><strong>OpenStack Nova</strong> &mdash; service coordination</li>
+    </ul>
+    <p style="margin:0; font-size:0.85rem;">ZooKeeper runs on a small fixed number of nodes (usually 3 or 5), performing majority votes among them while supporting potentially thousands of clients. It "outsources" consensus, operation ordering, and failure detection to an external service.</p>
+  </div>
+
+  <div class="card card-cyan">
+    <h4>Service Discovery vs. Consensus</h4>
+    <p>ZooKeeper is often used for <strong>service discovery</strong> (finding IP addresses of services). But service discovery doesn't truly require consensus &mdash; DNS is not linearizable and works fine with caching. <strong>Leader election</strong> requires consensus. Since ZooKeeper already knows who the leader is, it makes sense to also serve that info to others, using read-only caching replicas for non-linearizable reads.</p>
+  </div>
+
+  <div class="card card-purple">
+    <h4>Membership Services</h4>
+    <p style="margin:0;">Coupling failure detection with consensus lets nodes agree on which nodes are alive. A node may be <em>incorrectly</em> declared dead, but at least there is <strong>agreement</strong>. This enables reliable leader election: choose the lowest-numbered live member &mdash; but only works if everyone agrees on the membership.</p>
+  </div>
+
+  <!-- CHAPTER SUMMARY DIAGRAM -->
+  <h2>Chapter Summary</h2>
+
+  <div class="diagram">
+    <div class="diagram-title">The Grand Unification of Chapter 9</div>
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <div class="flow" style="gap:8px;">
+        <div class="flow-box red" style="min-width:120px;">Eventual<br>Consistency</div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-box orange" style="min-width:120px;">Causal<br>Consistency</div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-box primary" style="min-width:120px;">Linearizability</div>
+      </div>
+      <div style="text-align:center; font-size:0.8rem; color:var(--text-muted);">&darr; requires &darr;</div>
+      <div class="flow" style="gap:8px;">
+        <div class="flow-box purple" style="min-width:120px;">Total Order<br>Broadcast</div>
+        <div style="font-size:0.8rem; color:var(--text-muted);">&#8596;</div>
+        <div class="flow-box green" style="min-width:120px;">Consensus</div>
+        <div style="font-size:0.8rem; color:var(--text-muted);">&#8596;</div>
+        <div class="flow-box cyan" style="min-width:140px;">Linearizable<br>CAS Register</div>
+      </div>
+      <div style="text-align:center; font-size:0.8rem; color:var(--text-muted);">&darr; implemented by &darr;</div>
+      <div class="flow" style="gap:8px;">
+        <div class="flow-box" style="min-width:80px;">Paxos</div>
+        <div class="flow-box" style="min-width:80px;">Raft</div>
+        <div class="flow-box" style="min-width:80px;">Zab</div>
+        <div class="flow-box" style="min-width:80px;">VSR</div>
+      </div>
+      <div style="text-align:center; font-size:0.8rem; color:var(--text-muted);">&darr; used in &darr;</div>
+      <div class="flow" style="gap:8px;">
+        <div class="flow-box green" style="min-width:100px;">ZooKeeper</div>
+        <div class="flow-box primary" style="min-width:80px;">etcd</div>
+        <div class="flow-box orange" style="min-width:80px;">Consul</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="quote">Not every system requires consensus. Leaderless and multi-leader systems don't use global consensus. The resulting conflicts are a consequence &mdash; but maybe we can learn to work with branching and merging version histories instead.</div>
+
+  <!-- FIRST PRINCIPLES QUESTIONS -->
+  <h2 style="color: var(--pink);">First-Principles Questions</h2>
+  <p>Test your understanding. Click to reveal the answer.</p>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">1</span>What exactly does linearizability guarantee, and why is it called a "recency guarantee"?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Linearizability makes the system behave <strong>as if there is only one copy of the data</strong> and all operations are atomic. It's a "recency guarantee" because once any write completes, <strong>all subsequent reads must see that value</strong> (or a later one). The system appears to have a single, atomic point in time where each operation takes effect. No stale reads are allowed once a new value has been observed by any client.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">2</span>Why can't Dynamo-style quorums (w + r > n) guarantee linearizability?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Even with strict quorums, race conditions occur due to variable network delays. Client A may read the new value from one quorum, while Client B (reading <em>after</em> A) gets the old value from a different quorum &mdash; violating linearizability. Making quorums linearizable requires <strong>synchronous read repair</strong> (waiting before returning results) and writers reading latest state first, both with performance penalties. A linearizable <strong>compare-and-set</strong> operation is impossible without full consensus.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">3</span>What is the real trade-off in the CAP theorem, and why is "pick 2 of 3" misleading?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">"Pick 2 of 3" is misleading because <strong>network partitions are not a choice</strong> &mdash; they happen whether you like it or not. The real trade-off: when the network is working, you get both consistency and availability. When a partition occurs, you must choose: (1) <strong>linearizability</strong> &mdash; some replicas become unavailable because they can't verify recency; or (2) <strong>availability</strong> &mdash; all replicas process requests, but behavior is not linearizable. Better phrased: "Consistent or Available when Partitioned." In practice, most systems drop linearizability for <strong>performance</strong> reasons, not just fault tolerance.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">4</span>What is the difference between causal consistency and linearizability, and why does it matter?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Linearizability provides a <strong>total order</strong>: every operation is placed on a single timeline, no concurrency. Causal consistency provides a <strong>partial order</strong>: causally related operations are ordered (cause before effect), but concurrent operations are incomparable. Linearizability implies causality, but causality does not require linearizability. <strong>Why it matters:</strong> causal consistency is the strongest model that doesn't slow down due to network delays and remains available during partitions. Many systems that seem to require linearizability actually only need causal consistency.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">5</span>Why are Lamport timestamps insufficient for implementing a uniqueness constraint, even though they provide a total order consistent with causality?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Lamport timestamps define a total order <strong>after the fact</strong> &mdash; once you have collected all operations, you can compare their timestamps. But when a node receives a username registration <strong>right now</strong>, it doesn't know if another node is concurrently registering the same username with a lower timestamp. To find out, it would need to check every other node (and if any node is unreachable, the system grinds to a halt). You need to know when the total order is <strong>finalized</strong>, which requires total order broadcast, which is equivalent to consensus.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">6</span>Why is two-phase commit (2PC) not a good consensus algorithm, despite achieving atomic commit?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">2PC violates the <strong>termination property</strong>: if the coordinator crashes after participants vote "yes" but before sending the commit/abort decision, participants are stuck "in doubt" forever &mdash; they cannot unilaterally commit or abort. They hold locks, blocking other transactions. The coordinator is a single point of failure with no automatic recovery mechanism. By contrast, true consensus algorithms (Raft, Paxos) elect new leaders automatically, require only a <strong>majority</strong> (not unanimity), and define recovery processes. 2PC is a <strong>blocking</strong> atomic commit protocol.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">7</span>What is the "in doubt" problem in 2PC, and why can't you just restart the database to fix it?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">When a participant has voted "yes" in phase 1 but hasn't received the coordinator's decision in phase 2, it is "in doubt." It cannot abort (another participant might have committed) or commit (the coordinator might have decided to abort). The participant <strong>holds locks on all rows it modified</strong>. Restarting the database doesn't help because a correct 2PC implementation <strong>preserves in-doubt transaction locks across restarts</strong> &mdash; otherwise it would risk violating atomicity. The only resolution is coordinator recovery or manual "heuristic decisions" by an administrator (which may break atomicity).</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">8</span>How do epoch numbers and quorums solve the "who is the leader?" problem in consensus algorithms?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Consensus protocols don't guarantee a unique leader forever &mdash; instead, they guarantee a unique leader <strong>within each epoch</strong> (ballot/term/view number). When a leader is suspected dead, nodes vote to elect a new leader with an incremented epoch number. Before a leader can make decisions, it must get approval from a <strong>quorum</strong> (majority). The key insight: the quorum for electing a leader and the quorum for approving proposals <strong>must overlap</strong> &mdash; at least one node participates in both. This ensures no conflicting decisions happen across epochs, even if the old leader is still alive.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">9</span>Why are linearizable compare-and-set, total order broadcast, and consensus all "equivalent" problems?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">They are equivalent in the formal sense that <strong>if you can solve any one, you can transform it into a solution for the others</strong>. (1) Given total order broadcast, you can build a linearizable CAS register (append claims to the log, first one wins). (2) Given a linearizable register with increment-and-get, you can build total order broadcast (use it to assign gap-free sequence numbers). (3) Total order broadcast is equivalent to repeated rounds of consensus (each round decides the next message). This equivalence is a profound result: all these seemingly different problems reduce to the same fundamental challenge.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">10</span>What does ZooKeeper actually provide, and why don't applications use it as a general-purpose database?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">ZooKeeper provides: (1) <strong>linearizable atomic operations</strong> (locks via CAS), (2) <strong>total ordering</strong> (zxid as fencing tokens), (3) <strong>failure detection</strong> (sessions with heartbeats, ephemeral nodes auto-released on timeout), and (4) <strong>change notifications</strong> (watch for changes without polling). It's not a general-purpose database because it's designed for <strong>small, slow-changing coordination data</strong> that fits in memory (e.g., "who is the leader for partition 7"). Consensus is expensive, so you only run it on 3-5 nodes for coordination metadata, not for your application's runtime data.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">11</span>What are the practical limitations that prevent consensus algorithms from being used everywhere?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Five key limitations: (1) <strong>Performance</strong>: synchronous replication for every proposal (votes before deciding). (2) <strong>Minimum node count</strong>: need 3 for 1-fault tolerance, 5 for 2-fault. (3) <strong>Partition sensitivity</strong>: only the majority partition can progress; minority is blocked. (4) <strong>Fixed membership</strong>: adding/removing nodes is complex and less well understood. (5) <strong>Network sensitivity</strong>: variable delays cause false leader-death suspicions, leading to frequent elections that waste more time than doing useful work. Raft specifically can oscillate leadership on a single unreliable link.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">12</span>Why does the book say "in order to elect a leader, we first need a leader" &mdash; and how is this paradox resolved?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Single-leader replication implements total order broadcast (writes go through the leader in order). Total order broadcast is equivalent to consensus. But choosing a leader requires consensus. So: to solve consensus, we need a leader; to get a leader, we need consensus. The paradox is resolved by <strong>epoch numbering</strong>: consensus algorithms don't permanently fix a leader. They use monotonically increasing epoch numbers, with a leader unique to each epoch. The protocol can bootstrap without a leader and converge to one through voting. Leadership can change, but within each epoch, decisions are consistent. The "chicken and egg" problem is solved by making leader election itself part of the consensus protocol.</div>
+  </div>
+
+</div>
+</body>
+</html>

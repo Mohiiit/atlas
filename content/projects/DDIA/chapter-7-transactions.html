@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Chapter 7 — Transactions</title>
+<style>
+  :root {
+    --bg: #0a0e17; --surface: #111827; --surface2: #1a2234; --border: #1e293b;
+    --text: #e2e8f0; --text-muted: #94a3b8; --accent: #3b82f6; --accent2: #8b5cf6;
+    --accent3: #10b981; --red: #ef4444; --orange: #f59e0b; --pink: #ec4899; --cyan: #06b6d4;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+  .container { max-width: 900px; margin: 0 auto; padding: 40px 24px 100px; }
+  h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent2), var(--pink)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 48px; border-bottom: 1px solid var(--border); padding-bottom: 24px; }
+  h2 { font-size: 1.5rem; font-weight: 700; margin: 48px 0 16px; color: var(--accent); }
+  h3 { font-size: 1.15rem; font-weight: 600; margin: 32px 0 12px; color: var(--text); }
+  p { margin-bottom: 16px; color: var(--text-muted); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 20px 0; }
+  .card-accent { border-left: 4px solid var(--accent); }
+  .card-green { border-left: 4px solid var(--accent3); }
+  .card-orange { border-left: 4px solid var(--orange); }
+  .card-purple { border-left: 4px solid var(--accent2); }
+  .card-red { border-left: 4px solid var(--red); }
+  .card-cyan { border-left: 4px solid var(--cyan); }
+  .card h4 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+  .card ul { padding-left: 20px; color: var(--text-muted); }
+  .card li { margin-bottom: 6px; }
+  .key-term { color: var(--accent); font-weight: 600; }
+  .diagram { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 32px; margin: 24px 0; overflow-x: auto; }
+  .diagram-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent2); margin-bottom: 20px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .grid4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .grid2, .grid3, .grid4 { grid-template-columns: 1fr; } }
+  .quote { background: var(--surface2); border-left: 3px solid var(--accent2); padding: 16px 20px; margin: 20px 0; border-radius: 0 8px 8px 0; font-style: italic; color: var(--text-muted); }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  th { color: var(--accent); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
+  td { color: var(--text-muted); }
+  .question-block { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin: 16px 0; overflow: hidden; }
+  .question-header { padding: 16px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 0.95rem; }
+  .question-header:hover { background: var(--surface2); }
+  .question-body { padding: 0 20px 16px; display: none; color: var(--text-muted); border-top: 1px solid var(--border); padding-top: 16px; }
+  .question-block.open .question-body { display: block; }
+  .q-num { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: var(--accent2); color: white; border-radius: 50%; font-size: 0.8rem; font-weight: 700; margin-right: 12px; flex-shrink: 0; }
+  .chevron { transition: transform .2s; color: var(--text-muted); }
+  .question-block.open .chevron { transform: rotate(180deg); }
+  .section-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--accent2); font-weight: 700; margin-bottom: 8px; }
+  code { background: var(--surface2); padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; color: var(--accent3); }
+  .flow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; }
+  .flow-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; text-align: center; font-size: 0.85rem; min-width: 100px; }
+  .flow-box.primary { border-color: var(--accent); color: var(--accent); }
+  .flow-box.green { border-color: var(--accent3); color: var(--accent3); }
+  .flow-box.purple { border-color: var(--accent2); color: var(--accent2); }
+  .flow-box.orange { border-color: var(--orange); color: var(--orange); }
+  .flow-box.red { border-color: var(--red); color: var(--red); }
+  .flow-box.cyan { border-color: var(--cyan); color: var(--cyan); }
+  .flow-arrow { color: var(--text-muted); font-size: 1.2rem; }
+  .size-bar { height: 28px; border-radius: 6px; display: flex; align-items: center; padding: 0 12px; font-size: 0.8rem; font-weight: 600; margin: 6px 0; color: white; }
+  .timeline { position: relative; padding-left: 24px; border-left: 2px solid var(--border); margin: 16px 0; }
+  .timeline-event { position: relative; padding: 12px 0 12px 16px; }
+  .timeline-event::before { content: ''; position: absolute; left: -29px; top: 18px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
+  .timeline-event.t-red::before { background: var(--red); }
+  .timeline-event.t-green::before { background: var(--accent3); }
+  .timeline-event.t-orange::before { background: var(--orange); }
+  .timeline-event.t-purple::before { background: var(--accent2); }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 700; }
+  .badge-green { background: rgba(16,185,129,0.15); color: var(--accent3); }
+  .badge-red { background: rgba(239,68,68,0.15); color: var(--red); }
+  .badge-orange { background: rgba(245,158,11,0.15); color: var(--orange); }
+  .badge-blue { background: rgba(59,130,246,0.15); color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="container">
+  <p class="section-label">DDIA — Part II: Distributed Data</p>
+  <h1>Chapter 7: Transactions</h1>
+  <p class="subtitle">"Some authors have claimed that general two-phase commit is too expensive to support, because of the performance or availability problems that it brings. We believe it is better to have application programmers deal with performance problems due to overuse of transactions as bottlenecks arise, rather than always coding around the lack of transactions." — Spanner paper (2012). Transactions are a mechanism for grouping reads and writes into a logical unit, simplifying the programming model so applications don't have to worry about partial failure and concurrency.</p>
+
+  <!-- WHY TRANSACTIONS -->
+  <h2>The Slippery Concept of a Transaction</h2>
+  <p>In the harsh reality of data systems, many things can go wrong: hardware/software faults mid-write, application crashes halfway through a series of operations, network interruptions, concurrent writes overwriting each other, and race conditions causing surprising bugs. For decades, <span class="key-term">transactions</span> have been the mechanism of choice for simplifying these issues.</p>
+
+  <div class="card card-accent">
+    <h4>What Is a Transaction?</h4>
+    <p>A way for an application to group several reads and writes into a <strong>logical unit</strong>. Conceptually, all operations execute as one: either the entire transaction succeeds (<span class="key-term">commit</span>) or it fails (<span class="key-term">abort/rollback</span>). If it fails, the application can safely retry.</p>
+    <p style="margin:0; font-size:0.85rem;">Transactions are not a law of nature. They were created to <strong>simplify the programming model</strong>. By using transactions, the application ignores certain error scenarios and concurrency issues, because the database handles them instead (these are called <em>safety guarantees</em>).</p>
+  </div>
+
+  <div class="quote">Both extremes are hyperbole: "transactions are the antithesis of scalability" and "transactions are essential for serious applications." The truth is that transactions have advantages and limitations, and understanding the trade-offs requires examining the details.</div>
+
+  <!-- ACID -->
+  <h2>The Meaning of ACID</h2>
+  <p>The safety guarantees of transactions are described by the acronym <span class="key-term">ACID</span> (coined in 1983 by Harder and Reuter). In practice, one database's ACID is not another's. ACID has unfortunately become mostly a marketing term. Systems that don't meet ACID criteria are sometimes called <span class="key-term">BASE</span> (Basically Available, Soft state, Eventual consistency) — which is even more vague.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">ACID — The Four Guarantees</div>
+    <div class="grid4">
+      <div style="text-align:center;">
+        <div style="width:64px; height:64px; border-radius:50%; background:rgba(59,130,246,0.15); border:2px solid var(--accent); display:flex; align-items:center; justify-content:center; margin:0 auto 12px; font-size:1.5rem; font-weight:800; color:var(--accent);">A</div>
+        <div style="font-weight:700; margin-bottom:4px; color:var(--accent);">Atomicity</div>
+        <div style="font-size:0.8rem; color:var(--text-muted);">All-or-nothing. If a fault occurs mid-transaction, all writes are discarded. Better name: <em>abortability</em>.</div>
+        <div style="font-size:0.75rem; margin-top:6px;"><span class="badge badge-blue">DB property</span></div>
+      </div>
+      <div style="text-align:center;">
+        <div style="width:64px; height:64px; border-radius:50%; background:rgba(139,92,246,0.15); border:2px solid var(--accent2); display:flex; align-items:center; justify-content:center; margin:0 auto 12px; font-size:1.5rem; font-weight:800; color:var(--accent2);">C</div>
+        <div style="font-weight:700; margin-bottom:4px; color:var(--accent2);">Consistency</div>
+        <div style="font-size:0.8rem; color:var(--text-muted);">Application-defined invariants must always hold (e.g., credits = debits). This is the <em>application's</em> job, not the DB's.</div>
+        <div style="font-size:0.75rem; margin-top:6px;"><span class="badge badge-orange">App property</span></div>
+      </div>
+      <div style="text-align:center;">
+        <div style="width:64px; height:64px; border-radius:50%; background:rgba(16,185,129,0.15); border:2px solid var(--accent3); display:flex; align-items:center; justify-content:center; margin:0 auto 12px; font-size:1.5rem; font-weight:800; color:var(--accent3);">I</div>
+        <div style="font-weight:700; margin-bottom:4px; color:var(--accent3);">Isolation</div>
+        <div style="font-size:0.8rem; color:var(--text-muted);">Concurrent transactions can't step on each other's toes. Classic definition: <em>serializability</em> — result same as serial execution.</div>
+        <div style="font-size:0.75rem; margin-top:6px;"><span class="badge badge-blue">DB property</span></div>
+      </div>
+      <div style="text-align:center;">
+        <div style="width:64px; height:64px; border-radius:50%; background:rgba(239,68,68,0.15); border:2px solid var(--red); display:flex; align-items:center; justify-content:center; margin:0 auto 12px; font-size:1.5rem; font-weight:800; color:var(--red);">D</div>
+        <div style="font-weight:700; margin-bottom:4px; color:var(--red);">Durability</div>
+        <div style="font-size:0.8rem; color:var(--text-muted);">Once committed, data won't be lost even if hardware fails. Implemented via WAL, nonvolatile storage, or replication.</div>
+        <div style="font-size:0.75rem; margin-top:6px;"><span class="badge badge-blue">DB property</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-orange">
+    <h4>"Consistency" Is Terribly Overloaded</h4>
+    <ul>
+      <li><strong>Replica consistency</strong> — eventual consistency in async replication (Ch. 5)</li>
+      <li><strong>Consistent hashing</strong> — partitioning approach (Ch. 6)</li>
+      <li><strong>CAP theorem</strong> — means linearizability (Ch. 9)</li>
+      <li><strong>ACID consistency</strong> — application-specific invariants always hold</li>
+    </ul>
+    <p style="margin:0; font-size:0.85rem;">The C in ACID was "tossed in to make the acronym work" (Joe Hellerstein). A, I, and D are properties of the <em>database</em>. C is a property of the <em>application</em>.</p>
+  </div>
+
+  <!-- SINGLE vs MULTI OBJECT -->
+  <h2>Single-Object vs. Multi-Object Operations</h2>
+  <p>Atomicity and isolation describe what happens when a client makes <strong>several writes</strong> within the same transaction. Multi-object transactions are needed when pieces of data must be kept in sync.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Why Multi-Object Transactions Are Needed</div>
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+        <div class="flow-box primary" style="min-width:180px;"><strong>Foreign key refs</strong></div>
+        <div style="flex:1; min-width:200px;"><p style="font-size:0.85rem; margin:0;">Inserting rows that reference each other — all foreign keys must be correct and up to date, or data becomes nonsensical.</p></div>
+      </div>
+      <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+        <div class="flow-box green" style="min-width:180px;"><strong>Denormalized data</strong></div>
+        <div style="flex:1; min-width:200px;"><p style="font-size:0.85rem; margin:0;">Document DBs encourage denormalization. When denormalized info is updated, multiple documents must change together or data goes out of sync.</p></div>
+      </div>
+      <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+        <div class="flow-box purple" style="min-width:180px;"><strong>Secondary indexes</strong></div>
+        <div style="flex:1; min-width:200px;"><p style="font-size:0.85rem; margin:0;">Without transaction isolation, a record might appear in one index but not another because the second index update hasn't happened yet.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card card-accent">
+      <h4>Single-Object Writes</h4>
+      <p style="font-size:0.85rem;">Storage engines provide atomicity (crash-recovery log) and isolation (object lock) at the single-object level. Some provide <code>increment</code> and <code>compare-and-set</code> operations. These are useful but are <strong>not transactions</strong> in the full sense — "lightweight transactions" is misleading marketing.</p>
+    </div>
+    <div class="card card-purple">
+      <h4>Multi-Object Transactions</h4>
+      <p style="font-size:0.85rem;">Group multiple operations on multiple objects into one unit. In relational DBs: everything between <code>BEGIN TRANSACTION</code> and <code>COMMIT</code> on a TCP connection. Many NoSQL DBs abandoned these (hard to implement across partitions) — but nothing <em>fundamentally</em> prevents it.</p>
+    </div>
+  </div>
+
+  <!-- HANDLING ERRORS -->
+  <h2>Handling Errors and Aborts</h2>
+  <p>A key transaction feature: abort and safely retry on error. ACID databases would rather abandon a transaction entirely than leave it half-finished. But retrying is not perfect:</p>
+
+  <div class="card card-red">
+    <h4>Pitfalls of Retrying Aborted Transactions</h4>
+    <ul>
+      <li><strong>Network ACK lost:</strong> Transaction succeeded but client thinks it failed &rarr; retry causes <em>duplicate execution</em> unless you have application-level deduplication</li>
+      <li><strong>Overload-caused error:</strong> Retrying makes the problem <em>worse</em>. Use exponential backoff, limit retries, distinguish overload errors from others</li>
+      <li><strong>Transient vs. permanent errors:</strong> Only retry on transient errors (deadlock, network blip). Constraint violations are permanent — retry is pointless</li>
+      <li><strong>Side effects outside DB:</strong> Sending an email on each retry? Side effects don't roll back with the transaction. Need two-phase commit across systems</li>
+      <li><strong>Client crash during retry:</strong> Any data the client was trying to write is lost</li>
+    </ul>
+    <p style="margin:0; font-size:0.85rem;">Many ORMs (Rails ActiveRecord, Django) don't retry aborted transactions — the error just bubbles up. This wastes the whole point of aborts.</p>
+  </div>
+
+  <!-- WEAK ISOLATION LEVELS -->
+  <h2>Weak Isolation Levels</h2>
+  <p>Serializable isolation has a performance cost. Many databases use weaker levels that protect against <em>some</em> concurrency issues but not all. These bugs have caused real financial losses, data corruption, and audit investigations. The answer is not "just use ACID" — even popular relational DBs use weak isolation.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Hierarchy of Isolation Levels</div>
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <div class="size-bar" style="width:100%; background:var(--accent3);">Serializable &mdash; prevents ALL race conditions</div>
+      <div class="size-bar" style="width:78%; background:var(--accent);">Snapshot Isolation / Repeatable Read &mdash; prevents dirty reads, dirty writes, read skew, (some) lost updates</div>
+      <div class="size-bar" style="width:55%; background:var(--orange);">Read Committed &mdash; prevents dirty reads, dirty writes</div>
+      <div class="size-bar" style="width:35%; background:var(--red);">Read Uncommitted &mdash; prevents dirty writes only</div>
+    </div>
+  </div>
+
+  <!-- READ COMMITTED -->
+  <h3>Read Committed</h3>
+  <p>The most basic useful isolation level. Default in PostgreSQL, Oracle 11g, SQL Server 2012. Two guarantees:</p>
+
+  <div class="grid2">
+    <div class="card card-accent">
+      <h4>No Dirty Reads</h4>
+      <p style="font-size:0.85rem;">You only see data that has been <strong>committed</strong>. If a transaction has written but not yet committed, other transactions see the <em>old value</em>. Prevents seeing partially updated state and data that gets rolled back.</p>
+    </div>
+    <div class="card card-green">
+      <h4>No Dirty Writes</h4>
+      <p style="font-size:0.85rem;">You only overwrite data that has been <strong>committed</strong>. If another transaction hasn't committed its write yet, you <em>wait</em>. Prevents mixing up writes from different transactions (e.g., car sale going to Bob but invoice to Alice).</p>
+    </div>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Read Committed — No Dirty Reads Implementation</div>
+    <div style="display:flex; gap:24px; flex-wrap:wrap;">
+      <div style="flex:1; min-width:280px;">
+        <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:12px;"><strong>Approach:</strong> For every object being written, the DB remembers <em>both</em> the old committed value and the new uncommitted value.</p>
+        <div class="timeline">
+          <div class="timeline-event t-purple">
+            <p style="margin:0; font-size:0.85rem;"><strong>Tx1</strong> writes <code>x = 3</code> (uncommitted)</p>
+          </div>
+          <div class="timeline-event">
+            <p style="margin:0; font-size:0.85rem;"><strong>Tx2</strong> reads <code>x</code> &rarr; gets <strong>old value (2)</strong></p>
+          </div>
+          <div class="timeline-event t-green">
+            <p style="margin:0; font-size:0.85rem;"><strong>Tx1</strong> commits</p>
+          </div>
+          <div class="timeline-event">
+            <p style="margin:0; font-size:0.85rem;"><strong>Tx2</strong> reads <code>x</code> &rarr; now gets <strong>new value (3)</strong></p>
+          </div>
+        </div>
+      </div>
+      <div style="flex:1; min-width:250px;">
+        <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:12px;"><strong>Why not use read locks?</strong></p>
+        <div class="card card-red" style="margin:0;">
+          <p style="font-size:0.85rem; margin:0;">A long-running write transaction would force all read-only transactions to wait. One slow write &rarr; cascading slowdown across the entire application. Instead: DB just serves the old committed value to readers.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-orange">
+    <h4>What Read Committed Does NOT Prevent</h4>
+    <p style="font-size:0.85rem;">It does <strong>not</strong> prevent the lost update problem (two concurrent counter increments), read skew (seeing inconsistent snapshots), write skew, or phantoms. For those, you need stronger isolation.</p>
+  </div>
+
+  <!-- SNAPSHOT ISOLATION -->
+  <h2>Snapshot Isolation and Repeatable Read</h2>
+  <p>Even with read committed, you can see <span class="key-term">read skew</span> (nonrepeatable reads): Alice has $1,000 split across two accounts ($500 each). A transfer of $100 is in progress. She sees one account before the transfer ($500) and the other after ($400) &mdash; it looks like $100 vanished. This is acceptable under read committed but unacceptable for backups and analytics.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Read Skew (Nonrepeatable Read) Example</div>
+    <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:center;">
+      <div style="flex:1; min-width:200px;">
+        <div class="flow-box" style="margin-bottom:8px;"><strong>Account 1</strong><br>$500</div>
+        <div class="flow-box" style="margin-bottom:8px;"><strong>Account 2</strong><br>$500</div>
+        <div style="font-size:0.8rem; text-align:center; color:var(--text-muted);">Before transfer</div>
+      </div>
+      <div style="font-size:2rem; color:var(--text-muted);">&rarr;</div>
+      <div style="flex:1; min-width:200px; background:rgba(239,68,68,0.1); border:1px dashed var(--red); border-radius:8px; padding:12px;">
+        <p style="font-size:0.85rem; color:var(--red); margin-bottom:8px; font-weight:600;">Alice reads mid-transfer:</p>
+        <div class="flow-box" style="margin-bottom:8px; border-color:var(--red);"><strong>Account 1</strong><br>$500 <span style="font-size:0.75rem;">(read before transfer)</span></div>
+        <div class="flow-box" style="margin-bottom:8px; border-color:var(--red);"><strong>Account 2</strong><br>$400 <span style="font-size:0.75rem;">(read after transfer)</span></div>
+        <div style="font-size:0.8rem; text-align:center; color:var(--red); font-weight:600;">Total: $900 (?!)</div>
+      </div>
+      <div style="font-size:2rem; color:var(--text-muted);">&rarr;</div>
+      <div style="flex:1; min-width:200px;">
+        <div class="flow-box green" style="margin-bottom:8px;"><strong>Account 1</strong><br>$600</div>
+        <div class="flow-box green" style="margin-bottom:8px;"><strong>Account 2</strong><br>$400</div>
+        <div style="font-size:0.8rem; text-align:center; color:var(--text-muted);">After transfer</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-green">
+    <h4>Snapshot Isolation: The Solution</h4>
+    <p>Each transaction reads from a <strong>consistent snapshot</strong> of the database &mdash; all data that was committed at the start of the transaction. Even if data is subsequently changed by other transactions, each transaction sees only the old data from that point in time.</p>
+    <p style="margin:0; font-size:0.85rem;">Key performance principle: <strong>readers never block writers, and writers never block readers</strong>. Supported by PostgreSQL, MySQL/InnoDB, Oracle, SQL Server.</p>
+  </div>
+
+  <!-- MVCC -->
+  <h3>MVCC (Multi-Version Concurrency Control)</h3>
+  <p>To implement snapshot isolation, the database keeps <strong>multiple versions</strong> of each object. Each version is tagged with the transaction ID that created or deleted it.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">MVCC Implementation — How PostgreSQL Does It</div>
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <div style="display:flex; gap:16px; flex-wrap:wrap;">
+        <div style="flex:1; min-width:280px;">
+          <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:8px;"><strong>Every row has:</strong></p>
+          <table>
+            <tr><th>Field</th><th>Purpose</th></tr>
+            <tr><td><code>created_by</code></td><td>Transaction ID that inserted this row</td></tr>
+            <tr><td><code>deleted_by</code></td><td>Transaction ID that deleted this row (initially empty)</td></tr>
+          </table>
+        </div>
+        <div style="flex:1; min-width:280px;">
+          <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:8px;"><strong>Key mechanics:</strong></p>
+          <ul style="font-size:0.85rem; color:var(--text-muted); padding-left:20px;">
+            <li>Deletes don't remove rows &mdash; they mark <code>deleted_by</code></li>
+            <li><strong>Updates = delete + create</strong> (old row marked deleted, new row created)</li>
+            <li>Garbage collection later removes rows invisible to all active transactions</li>
+            <li>Each transaction gets a unique, always-increasing <strong>txid</strong></li>
+          </ul>
+        </div>
+      </div>
+      <div style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:16px; margin-top:8px;">
+        <p style="font-size:0.85rem; color:var(--accent); font-weight:600; margin-bottom:8px;">Example: Tx 13 transfers $100 from Account 2</p>
+        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+          <div style="flex:1; min-width:200px; background:var(--surface2); padding:12px; border-radius:8px;">
+            <p style="font-size:0.8rem; font-weight:600; color:var(--red); margin-bottom:4px;">Old row (marked deleted)</p>
+            <code style="font-size:0.75rem;">Account 2 | balance=$500 | created_by=1 | deleted_by=13</code>
+          </div>
+          <div style="flex:1; min-width:200px; background:var(--surface2); padding:12px; border-radius:8px;">
+            <p style="font-size:0.8rem; font-weight:600; color:var(--accent3); margin-bottom:4px;">New row (created)</p>
+            <code style="font-size:0.75rem;">Account 2 | balance=$400 | created_by=13 | deleted_by=&mdash;</code>
+          </div>
+        </div>
+        <p style="font-size:0.8rem; color:var(--text-muted); margin:8px 0 0;">Tx 12 (started before Tx 13) still sees balance=$500 because Tx 13's changes are invisible to it.</p>
+      </div>
+    </div>
+  </div>
+
+  <h3>Visibility Rules for Consistent Snapshots</h3>
+  <p>When a transaction reads from the database, transaction IDs decide what's visible:</p>
+
+  <div class="card card-accent">
+    <h4>The Four Visibility Rules</h4>
+    <ol style="padding-left:20px; color:var(--text-muted);">
+      <li style="margin-bottom:8px;">At the start of each transaction, the DB lists all <strong>in-progress transactions</strong>. Any writes by those transactions are <strong>ignored</strong>, even if they subsequently commit.</li>
+      <li style="margin-bottom:8px;">Any writes made by <strong>aborted transactions</strong> are ignored.</li>
+      <li style="margin-bottom:8px;">Any writes made by transactions with a <strong>later transaction ID</strong> (started after current) are ignored, regardless of commit status.</li>
+      <li style="margin-bottom:8px;">All other writes are <strong>visible</strong>.</li>
+    </ol>
+  </div>
+
+  <div class="card card-green">
+    <h4>Simplified: An Object Is Visible If Both Are True</h4>
+    <ul>
+      <li>The transaction that <strong>created</strong> it had already committed when the reader started</li>
+      <li>The object is <strong>not marked for deletion</strong>, or if it is, the deleting transaction had not yet committed when the reader started</li>
+    </ul>
+  </div>
+
+  <div class="card card-purple">
+    <h4>Repeatable Read and Naming Confusion</h4>
+    <p style="font-size:0.85rem;">The SQL standard doesn't define snapshot isolation (it predates the concept). Oracle calls their snapshot isolation "serializable." PostgreSQL and MySQL call it "repeatable read." IBM DB2 uses "repeatable read" to mean serializability. <strong>Nobody really knows what "repeatable read" means.</strong></p>
+  </div>
+
+  <!-- PREVENTING LOST UPDATES -->
+  <h2>Preventing Lost Updates</h2>
+  <p>The <span class="key-term">lost update problem</span> occurs during <span class="key-term">read-modify-write cycles</span>: two transactions read a value, modify it, and write it back. The second write clobbers the first. Examples: incrementing counters, updating account balances, editing wiki pages, adding elements to a JSON list.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Lost Update: Two Concurrent Counter Increments</div>
+    <div style="display:flex; gap:32px; flex-wrap:wrap; justify-content:center;">
+      <div style="min-width:160px;">
+        <p style="font-size:0.85rem; font-weight:600; color:var(--accent); margin-bottom:8px;">Transaction 1</p>
+        <div class="timeline">
+          <div class="timeline-event"><p style="margin:0; font-size:0.85rem;">Read counter = <strong>42</strong></p></div>
+          <div class="timeline-event t-green"><p style="margin:0; font-size:0.85rem;">Set counter = 42 + 1</p></div>
+          <div class="timeline-event t-green"><p style="margin:0; font-size:0.85rem;">Write counter = <strong>43</strong></p></div>
+        </div>
+      </div>
+      <div style="min-width:160px;">
+        <p style="font-size:0.85rem; font-weight:600; color:var(--accent2); margin-bottom:8px;">Transaction 2</p>
+        <div class="timeline">
+          <div class="timeline-event t-purple"><p style="margin:0; font-size:0.85rem;">Read counter = <strong>42</strong></p></div>
+          <div class="timeline-event t-purple"><p style="margin:0; font-size:0.85rem;">Set counter = 42 + 1</p></div>
+          <div class="timeline-event t-red"><p style="margin:0; font-size:0.85rem;">Write counter = <strong>43</strong></p></div>
+        </div>
+      </div>
+      <div style="min-width:160px; display:flex; align-items:center;">
+        <div class="card card-red" style="margin:0;">
+          <p style="font-size:0.85rem; margin:0;"><strong>Result: 43</strong><br>Expected: 44<br>Tx1's increment is lost!</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Four Solutions to Lost Updates</div>
+    <div class="grid2">
+      <div class="card card-accent" style="margin:0;">
+        <h4>1. Atomic Write Operations</h4>
+        <p style="font-size:0.85rem;"><code>UPDATE counters SET value = value + 1 WHERE key = 'foo';</code></p>
+        <p style="font-size:0.85rem; margin:0;">Implemented via exclusive lock on the object (cursor stability) or single-threaded execution. <strong>Best choice</strong> when applicable. ORMs can accidentally bypass these!</p>
+      </div>
+      <div class="card card-green" style="margin:0;">
+        <h4>2. Explicit Locking (SELECT FOR UPDATE)</h4>
+        <p style="font-size:0.85rem;"><code>SELECT * FROM figures WHERE name='robot' FOR UPDATE;</code></p>
+        <p style="font-size:0.85rem; margin:0;">App locks rows, performs read-modify-write, then commits. Useful when logic is too complex for atomic ops (e.g., game rule validation). Easy to forget a lock &rarr; race condition.</p>
+      </div>
+      <div class="card card-purple" style="margin:0;">
+        <h4>3. Automatic Detection</h4>
+        <p style="font-size:0.85rem; margin:0;">Allow parallel execution. If the transaction manager detects a lost update, abort and force retry. Works in PostgreSQL, Oracle, SQL Server. <strong>MySQL/InnoDB does NOT detect lost updates</strong>. Great because it's automatic — less error-prone than manual locking.</p>
+      </div>
+      <div class="card card-orange" style="margin:0;">
+        <h4>4. Compare-and-Set (CAS)</h4>
+        <p style="font-size:0.85rem;"><code>UPDATE wiki_pages SET content='new' WHERE id=1234 AND content='old';</code></p>
+        <p style="font-size:0.85rem; margin:0;">Update only if value hasn't changed since last read. Caveat: if the WHERE reads from an old snapshot, CAS may not be safe. Check your DB's implementation!</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-cyan">
+    <h4>In Replicated Databases</h4>
+    <p style="font-size:0.85rem; margin:0;">Locks and CAS assume a single up-to-date copy. Multi-leader/leaderless replication allows concurrent writes on different nodes. Instead: allow conflicting versions (siblings) and merge after the fact. <strong>Commutative operations</strong> (increment, set-add) work well across replicas (Riak 2.0 datatypes). <strong>Last-write-wins (LWW)</strong> is prone to lost updates — unfortunately, it's the default in many replicated DBs.</p>
+  </div>
+
+  <!-- WRITE SKEW AND PHANTOMS -->
+  <h2>Write Skew and Phantoms</h2>
+  <p><span class="key-term">Write skew</span> is a generalization of lost updates: two transactions read the same data, then update <em>different</em> objects based on what they read. Neither dirty write nor lost update, but still a race condition.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Write Skew: The Doctor On-Call Example</div>
+    <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:16px;">Hospital rule: at least one doctor must be on call. Alice and Bob are both on call. Both feel unwell and click "go off call" at the same time.</p>
+    <div style="display:flex; gap:32px; flex-wrap:wrap; justify-content:center;">
+      <div style="min-width:200px;">
+        <p style="font-size:0.85rem; font-weight:600; color:var(--accent); margin-bottom:8px;">Alice's Transaction</p>
+        <div class="timeline">
+          <div class="timeline-event"><p style="margin:0; font-size:0.85rem;"><code>SELECT count(*) FROM doctors WHERE on_call=true AND shift_id=1234</code><br>&rarr; Returns <strong>2</strong></p></div>
+          <div class="timeline-event t-green"><p style="margin:0; font-size:0.85rem;">2 >= 2, so safe to proceed</p></div>
+          <div class="timeline-event t-orange"><p style="margin:0; font-size:0.85rem;"><code>UPDATE doctors SET on_call=false WHERE name='Alice'</code></p></div>
+          <div class="timeline-event t-green"><p style="margin:0; font-size:0.85rem;">COMMIT</p></div>
+        </div>
+      </div>
+      <div style="min-width:200px;">
+        <p style="font-size:0.85rem; font-weight:600; color:var(--accent2); margin-bottom:8px;">Bob's Transaction</p>
+        <div class="timeline">
+          <div class="timeline-event t-purple"><p style="margin:0; font-size:0.85rem;"><code>SELECT count(*) FROM doctors WHERE on_call=true AND shift_id=1234</code><br>&rarr; Returns <strong>2</strong></p></div>
+          <div class="timeline-event t-purple"><p style="margin:0; font-size:0.85rem;">2 >= 2, so safe to proceed</p></div>
+          <div class="timeline-event t-orange"><p style="margin:0; font-size:0.85rem;"><code>UPDATE doctors SET on_call=false WHERE name='Bob'</code></p></div>
+          <div class="timeline-event t-purple"><p style="margin:0; font-size:0.85rem;">COMMIT</p></div>
+        </div>
+      </div>
+      <div style="min-width:160px; display:flex; align-items:center;">
+        <div class="card card-red" style="margin:0;">
+          <p style="font-size:0.85rem; margin:0;"><strong>Result: 0 doctors on call!</strong><br>Both saw count=2 (snapshot isolation), both proceeded. Invariant violated.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-orange">
+    <h4>More Write Skew Examples</h4>
+    <ul>
+      <li><strong>Meeting room booking:</strong> Two users check that a room is free at noon, both insert a booking &rarr; double-booked</li>
+      <li><strong>Multiplayer game:</strong> Two players move different pieces to the same position, each checking it's empty first</li>
+      <li><strong>Username claiming:</strong> Two users concurrently register the same username (unique constraint solves this one)</li>
+      <li><strong>Double-spending:</strong> Two spending items inserted concurrently, neither sees the other, balance goes negative</li>
+    </ul>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">The Pattern Behind Write Skew (Phantom Pattern)</div>
+    <div class="flow">
+      <div class="flow-box primary"><strong>Step 1</strong><br>SELECT checks<br>a precondition</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box green"><strong>Step 2</strong><br>App decides<br>to proceed</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box orange"><strong>Step 3</strong><br>WRITE changes<br>the precondition</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box red"><strong>Problem</strong><br>Step 1 query would<br>now return differently</div>
+    </div>
+    <p style="font-size:0.85rem; color:var(--text-muted); margin-top:16px;">A <span class="key-term">phantom</span> is when a write in one transaction changes the result of a search query in another transaction. When the write <em>adds</em> a row (not modifies an existing one), <code>SELECT FOR UPDATE</code> can't lock anything because the row doesn't exist yet.</p>
+  </div>
+
+  <div class="card card-purple">
+    <h4>Materializing Conflicts</h4>
+    <p style="font-size:0.85rem;">If there's no object to lock (phantom), <em>artificially create</em> lock objects. Example: create a table of all room/time-slot combinations. Transactions lock (<code>SELECT FOR UPDATE</code>) the relevant slots before inserting bookings.</p>
+    <p style="font-size:0.85rem; margin:0;">This is ugly (leaks concurrency control into the data model), hard to get right, and should be a <strong>last resort</strong>. Serializable isolation is much preferable.</p>
+  </div>
+
+  <!-- SERIALIZABILITY -->
+  <h2>Serializability</h2>
+  <p><span class="key-term">Serializable isolation</span> guarantees that the result of concurrent transactions is the same as if they had executed one at a time, serially. It prevents <strong>all</strong> race conditions. Three approaches exist:</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Three Approaches to Serializable Isolation</div>
+    <div class="flow">
+      <div class="flow-box primary" style="min-width:160px;"><strong>Actual Serial Execution</strong><br><span style="font-size:0.75rem;">Single-threaded</span></div>
+      <div class="flow-box orange" style="min-width:160px;"><strong>Two-Phase Locking (2PL)</strong><br><span style="font-size:0.75rem;">Pessimistic</span></div>
+      <div class="flow-box green" style="min-width:160px;"><strong>Serializable Snapshot Isolation (SSI)</strong><br><span style="font-size:0.75rem;">Optimistic</span></div>
+    </div>
+  </div>
+
+  <!-- ACTUAL SERIAL EXECUTION -->
+  <h3>1. Actual Serial Execution</h3>
+  <p>The simplest approach: remove concurrency entirely. Execute one transaction at a time on a <strong>single thread</strong>. This became feasible around 2007 due to two developments:</p>
+
+  <div class="grid2">
+    <div class="card card-accent">
+      <h4>Why It Became Feasible</h4>
+      <ul>
+        <li><strong>RAM got cheap:</strong> active dataset fits in memory &rarr; transactions execute fast (no disk I/O waits)</li>
+        <li><strong>OLTP transactions are short:</strong> small number of reads and writes. Long analytics queries can run on snapshot isolation separately</li>
+      </ul>
+      <p style="font-size:0.85rem; margin:0;">Used by: VoltDB/H-Store, Redis, Datomic</p>
+    </div>
+    <div class="card card-orange">
+      <h4>Constraints</h4>
+      <ul>
+        <li>Every transaction must be <strong>small and fast</strong> (one slow tx stalls everything)</li>
+        <li>Active dataset must <strong>fit in memory</strong></li>
+        <li>Write throughput must fit on a <strong>single CPU core</strong></li>
+        <li>Cross-partition transactions are possible but very slow</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Interactive Transactions vs. Stored Procedures</div>
+    <div class="grid2">
+      <div>
+        <p style="font-size:0.85rem; font-weight:600; color:var(--red); margin-bottom:8px;">Interactive (traditional)</p>
+        <div class="flow" style="flex-direction:column; gap:4px;">
+          <div class="flow-box" style="min-width:240px;">App: <code>SELECT ...</code></div>
+          <div class="flow-arrow" style="transform:rotate(90deg);">&rarr;</div>
+          <div class="flow-box" style="min-width:240px;">DB: returns result</div>
+          <div class="flow-arrow" style="transform:rotate(90deg);">&rarr;</div>
+          <div class="flow-box" style="min-width:240px;">App: thinks... <code>UPDATE ...</code></div>
+          <div class="flow-arrow" style="transform:rotate(90deg);">&rarr;</div>
+          <div class="flow-box" style="min-width:240px;">DB: executes</div>
+          <div class="flow-arrow" style="transform:rotate(90deg);">&rarr;</div>
+          <div class="flow-box red" style="min-width:240px;">Lots of network round trips!</div>
+        </div>
+      </div>
+      <div>
+        <p style="font-size:0.85rem; font-weight:600; color:var(--accent3); margin-bottom:8px;">Stored Procedure</p>
+        <div class="flow" style="flex-direction:column; gap:4px;">
+          <div class="flow-box" style="min-width:240px;">App: send entire tx as code</div>
+          <div class="flow-arrow" style="transform:rotate(90deg);">&rarr;</div>
+          <div class="flow-box green" style="min-width:240px;">DB: executes everything<br>in one shot, no waiting</div>
+          <div class="flow-arrow" style="transform:rotate(90deg);">&rarr;</div>
+          <div class="flow-box" style="min-width:240px;">DB: returns result</div>
+          <div class="flow-arrow" style="transform:rotate(90deg);">&rarr;</div>
+          <div class="flow-box green" style="min-width:240px;">Fast! No network waits!</div>
+        </div>
+      </div>
+    </div>
+    <p style="font-size:0.85rem; color:var(--text-muted); margin-top:12px;">For single-threaded serial execution, interactive multi-statement transactions are not allowed. The entire transaction logic must be submitted as a <strong>stored procedure</strong> &mdash; no human in the loop.</p>
+  </div>
+
+  <div class="card card-cyan">
+    <h4>Partitioning for Scale</h4>
+    <p style="font-size:0.85rem; margin:0;">If each transaction only touches one partition, each partition runs its own serial thread &rarr; throughput scales linearly with CPU cores. But cross-partition transactions require lock-step coordination across all partitions and are <strong>orders of magnitude slower</strong> (~1,000 cross-partition writes/sec in VoltDB, vs. much higher single-partition throughput).</p>
+  </div>
+
+  <!-- TWO-PHASE LOCKING -->
+  <h3>2. Two-Phase Locking (2PL)</h3>
+  <p>For ~30 years, the <em>only</em> widely used serializability algorithm. Not to be confused with two-phase commit (2PC) — completely different things.</p>
+
+  <div class="card card-red">
+    <h4>The Key Difference from Snapshot Isolation</h4>
+    <p style="font-size:0.85rem; margin:0;">Snapshot isolation: <strong>readers never block writers, writers never block readers</strong>.<br>
+    2PL: <strong>writers block readers AND readers block writers</strong>. If Tx A read an object and Tx B wants to write it, B waits. If Tx A wrote an object and Tx B wants to read it, B waits (no reading old versions).</p>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">2PL — Shared and Exclusive Locks</div>
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <div style="display:flex; gap:16px; flex-wrap:wrap;">
+        <div style="flex:1; min-width:250px;">
+          <table>
+            <tr><th>Action</th><th>Lock Required</th></tr>
+            <tr><td>Read an object</td><td><span class="badge badge-blue">Shared lock</span> &mdash; multiple readers OK</td></tr>
+            <tr><td>Write an object</td><td><span class="badge badge-red">Exclusive lock</span> &mdash; no other locks allowed</td></tr>
+            <tr><td>Read then write</td><td><span class="badge badge-blue">Shared</span> &rarr; <span class="badge badge-red">Upgrade to exclusive</span></td></tr>
+          </table>
+        </div>
+        <div style="flex:1; min-width:250px;">
+          <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:8px;"><strong>Two Phases:</strong></p>
+          <div class="flow" style="justify-content:flex-start;">
+            <div class="flow-box primary"><strong>Phase 1</strong><br>Acquire locks<br>(while executing)</div>
+            <div class="flow-arrow">&rarr;</div>
+            <div class="flow-box orange"><strong>Phase 2</strong><br>Release ALL locks<br>(at commit/abort)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card card-red">
+      <h4>Deadlocks</h4>
+      <p style="font-size:0.85rem; margin:0;">With many locks, Tx A waits for B's lock, B waits for A's lock. The DB auto-detects deadlocks and aborts one transaction. Under 2PL, deadlocks occur much more frequently than under weaker isolation. Each aborted transaction must redo all its work.</p>
+    </div>
+    <div class="card card-orange">
+      <h4>Performance</h4>
+      <p style="font-size:0.85rem; margin:0;">Significantly worse throughput and response times than weak isolation. Reduced concurrency by design. One slow transaction can grind the whole system to a halt. <strong>Unstable latencies</strong>, very slow at high percentiles. This is why 2PL hasn't been universally adopted since the 1970s.</p>
+    </div>
+  </div>
+
+  <h3>Predicate Locks and Index-Range Locks</h3>
+  <p>To prevent <span class="key-term">phantoms</span> under 2PL, we need locks that apply to objects that <em>don't yet exist</em>.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Predicate Locks vs. Index-Range Locks</div>
+    <div class="grid2">
+      <div>
+        <p style="font-size:0.85rem; font-weight:600; color:var(--accent2); margin-bottom:8px;">Predicate Lock (Conceptual)</p>
+        <p style="font-size:0.85rem; color:var(--text-muted);">Locks <strong>all objects matching a search condition</strong>, including future ones. E.g., "lock all bookings for room 123 between noon and 1pm."</p>
+        <div class="card card-red" style="margin-top:8px;">
+          <p style="font-size:0.85rem; margin:0;"><strong>Problem:</strong> Checking for matching locks among many active transactions is very slow. Not practical.</p>
+        </div>
+      </div>
+      <div>
+        <p style="font-size:0.85rem; font-weight:600; color:var(--accent3); margin-bottom:8px;">Index-Range Lock (Practical Approximation)</p>
+        <p style="font-size:0.85rem; color:var(--text-muted);">Attach a shared lock to an <strong>index entry</strong>. Approximates the predicate by locking a larger range (e.g., all bookings for room 123 at <em>any</em> time, or all rooms between noon-1pm).</p>
+        <div class="card card-green" style="margin-top:8px;">
+          <p style="font-size:0.85rem; margin:0;"><strong>Trade-off:</strong> Locks more than strictly necessary, but much lower overhead. If no suitable index exists, falls back to a table-level lock.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SSI -->
+  <h3>3. Serializable Snapshot Isolation (SSI)</h3>
+  <p>A fairly new algorithm (2008, Michael Cahill's PhD thesis) that provides <strong>full serializability</strong> with only a small performance penalty over snapshot isolation. Used in PostgreSQL 9.1+ and FoundationDB.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Pessimistic vs. Optimistic Concurrency Control</div>
+    <div class="grid3">
+      <div style="text-align:center;">
+        <div style="font-size:2rem; margin-bottom:8px;">&#x1F512;</div>
+        <p style="font-size:0.85rem; font-weight:600; color:var(--orange); margin-bottom:4px;">2PL (Pessimistic)</p>
+        <p style="font-size:0.8rem; color:var(--text-muted);">If anything <em>might</em> go wrong, <strong>wait</strong> until safe. Like mutual exclusion in multithreading.</p>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:2rem; margin-bottom:8px;">&#x26D4;</div>
+        <p style="font-size:0.85rem; font-weight:600; color:var(--red); margin-bottom:4px;">Serial (Extreme Pessimistic)</p>
+        <p style="font-size:0.8rem; color:var(--text-muted);">Exclusive lock on the <em>entire DB</em> for each transaction. Compensate by making transactions very fast.</p>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:2rem; margin-bottom:8px;">&#x2705;</div>
+        <p style="font-size:0.85rem; font-weight:600; color:var(--accent3); margin-bottom:4px;">SSI (Optimistic)</p>
+        <p style="font-size:0.8rem; color:var(--text-muted);">Let transactions proceed <strong>without blocking</strong>. At commit time, check for conflicts. Abort if not serializable.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-green">
+    <h4>SSI's Core Insight: Detect Outdated Premises</h4>
+    <p style="font-size:0.85rem;">A transaction reads data, decides what to do based on the result (a <em>premise</em>), then writes. If the premise is no longer true at commit time, the transaction must be aborted. Two cases to detect:</p>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">SSI Detection Case 1: Stale MVCC Reads</div>
+    <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:12px;">A transaction reads from an MVCC snapshot, ignoring uncommitted writes. If those writes commit before this transaction commits, the read was stale.</p>
+    <div style="display:flex; gap:24px; flex-wrap:wrap; justify-content:center;">
+      <div style="min-width:200px;">
+        <p style="font-size:0.85rem; font-weight:600; color:var(--accent); margin-bottom:8px;">Tx 42</p>
+        <div class="timeline">
+          <div class="timeline-event t-purple"><p style="margin:0; font-size:0.85rem;">Read: on_call doctors<br>(sees Alice=true)</p></div>
+          <div class="timeline-event t-orange"><p style="margin:0; font-size:0.85rem;">Write: Alice.on_call = false</p></div>
+          <div class="timeline-event t-green"><p style="margin:0; font-size:0.85rem;">COMMIT <span class="badge badge-green">OK (first)</span></p></div>
+        </div>
+      </div>
+      <div style="min-width:200px;">
+        <p style="font-size:0.85rem; font-weight:600; color:var(--accent2); margin-bottom:8px;">Tx 43</p>
+        <div class="timeline">
+          <div class="timeline-event t-purple"><p style="margin:0; font-size:0.85rem;">Read: on_call doctors<br>(sees Alice=true — but Tx42 changed it!)</p></div>
+          <div class="timeline-event t-orange"><p style="margin:0; font-size:0.85rem;">Write: Bob.on_call = false</p></div>
+          <div class="timeline-event t-red"><p style="margin:0; font-size:0.85rem;">COMMIT <span class="badge badge-red">ABORT</span><br>Tx42's ignored write now committed &rarr; stale premise!</p></div>
+        </div>
+      </div>
+    </div>
+    <p style="font-size:0.85rem; color:var(--text-muted); margin-top:12px;"><strong>Why wait until commit?</strong> If Tx 43 were read-only, no need to abort. Also, Tx 42 might still abort. By waiting, SSI avoids unnecessary aborts and preserves snapshot isolation's support for long-running reads.</p>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">SSI Detection Case 2: Writes Affecting Prior Reads</div>
+    <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:12px;">When a transaction writes to the DB, it checks indexes for other transactions that recently read the affected data. Instead of blocking (like 2PL), it sets a <strong>tripwire notification</strong>.</p>
+    <div class="flow" style="flex-direction:column; gap:8px;">
+      <div class="flow-box primary" style="min-width:300px;">Tx 42 and Tx 43 both read rows matching <code>WHERE shift_id=1234</code></div>
+      <div class="flow-arrow" style="transform:rotate(90deg);">&rarr;</div>
+      <div class="flow-box orange" style="min-width:300px;">DB records: "Tx42 and Tx43 read index entry shift_id=1234"</div>
+      <div class="flow-arrow" style="transform:rotate(90deg);">&rarr;</div>
+      <div class="flow-box" style="min-width:300px;">Tx 42 writes to shift_id=1234 &rarr; <strong>notifies</strong> Tx 43: "your read may be stale"</div>
+      <div class="flow-arrow" style="transform:rotate(90deg);">&rarr;</div>
+      <div class="flow-box green" style="min-width:300px;">Tx 42 commits first &rarr; OK</div>
+      <div class="flow-arrow" style="transform:rotate(90deg);">&rarr;</div>
+      <div class="flow-box red" style="min-width:300px;">Tx 43 tries to commit &rarr; Tx 42's conflicting write already committed &rarr; <strong>ABORT</strong></div>
+    </div>
+  </div>
+
+  <div class="card card-accent">
+    <h4>SSI Performance Advantages</h4>
+    <ul>
+      <li><strong>No blocking:</strong> Writers don't block readers, readers don't block writers (like snapshot isolation)</li>
+      <li><strong>Predictable latency:</strong> No lock waits &rarr; much more stable query times than 2PL</li>
+      <li><strong>Scales beyond single CPU:</strong> FoundationDB distributes conflict detection across machines, allowing serializable isolation across partitions</li>
+      <li><strong>Read-only queries run on snapshots without locks</strong> &mdash; great for read-heavy workloads</li>
+    </ul>
+    <p style="margin:0; font-size:0.85rem;">Trade-off: read-write transactions should be fairly short. High contention &rarr; many aborts &rarr; wasted work. But still less sensitive to slow transactions than 2PL or serial execution.</p>
+  </div>
+
+  <!-- COMPARISON TABLE -->
+  <h2>Comparison of Isolation Levels</h2>
+
+  <div class="diagram">
+    <div class="diagram-title">Isolation Levels vs. Race Conditions Prevented</div>
+    <div style="overflow-x:auto;">
+      <table>
+        <tr>
+          <th>Race Condition</th>
+          <th>Read Uncommitted</th>
+          <th>Read Committed</th>
+          <th>Snapshot Isolation</th>
+          <th>Serializable</th>
+        </tr>
+        <tr>
+          <td><strong>Dirty reads</strong></td>
+          <td><span class="badge badge-red">No</span></td>
+          <td><span class="badge badge-green">Yes</span></td>
+          <td><span class="badge badge-green">Yes</span></td>
+          <td><span class="badge badge-green">Yes</span></td>
+        </tr>
+        <tr>
+          <td><strong>Dirty writes</strong></td>
+          <td><span class="badge badge-green">Yes</span></td>
+          <td><span class="badge badge-green">Yes</span></td>
+          <td><span class="badge badge-green">Yes</span></td>
+          <td><span class="badge badge-green">Yes</span></td>
+        </tr>
+        <tr>
+          <td><strong>Read skew</strong> (nonrepeatable reads)</td>
+          <td><span class="badge badge-red">No</span></td>
+          <td><span class="badge badge-red">No</span></td>
+          <td><span class="badge badge-green">Yes</span></td>
+          <td><span class="badge badge-green">Yes</span></td>
+        </tr>
+        <tr>
+          <td><strong>Lost updates</strong></td>
+          <td><span class="badge badge-red">No</span></td>
+          <td><span class="badge badge-red">No</span></td>
+          <td><span class="badge badge-orange">Some DBs</span></td>
+          <td><span class="badge badge-green">Yes</span></td>
+        </tr>
+        <tr>
+          <td><strong>Write skew</strong></td>
+          <td><span class="badge badge-red">No</span></td>
+          <td><span class="badge badge-red">No</span></td>
+          <td><span class="badge badge-red">No</span></td>
+          <td><span class="badge badge-green">Yes</span></td>
+        </tr>
+        <tr>
+          <td><strong>Phantom reads</strong> (in write context)</td>
+          <td><span class="badge badge-red">No</span></td>
+          <td><span class="badge badge-red">No</span></td>
+          <td><span class="badge badge-red">No</span></td>
+          <td><span class="badge badge-green">Yes</span></td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Serializability Approaches Compared</div>
+    <div style="overflow-x:auto;">
+      <table>
+        <tr>
+          <th>Aspect</th>
+          <th>Actual Serial Execution</th>
+          <th>Two-Phase Locking (2PL)</th>
+          <th>SSI</th>
+        </tr>
+        <tr>
+          <td><strong>Strategy</strong></td>
+          <td>Remove concurrency entirely</td>
+          <td>Pessimistic (block on conflict)</td>
+          <td>Optimistic (detect at commit)</td>
+        </tr>
+        <tr>
+          <td><strong>Readers block writers?</strong></td>
+          <td>N/A (single thread)</td>
+          <td><span style="color:var(--red);">Yes</span></td>
+          <td><span style="color:var(--accent3);">No</span></td>
+        </tr>
+        <tr>
+          <td><strong>Writers block readers?</strong></td>
+          <td>N/A (single thread)</td>
+          <td><span style="color:var(--red);">Yes</span></td>
+          <td><span style="color:var(--accent3);">No</span></td>
+        </tr>
+        <tr>
+          <td><strong>Throughput</strong></td>
+          <td>Limited to 1 CPU core</td>
+          <td>Reduced by lock contention</td>
+          <td>Best (scales across cores/nodes)</td>
+        </tr>
+        <tr>
+          <td><strong>Latency</strong></td>
+          <td>Fast if txns are small</td>
+          <td>Unstable (lock waits, deadlocks)</td>
+          <td>Predictable</td>
+        </tr>
+        <tr>
+          <td><strong>Deadlocks</strong></td>
+          <td>Impossible</td>
+          <td>Frequent</td>
+          <td>Impossible (no locks)</td>
+        </tr>
+        <tr>
+          <td><strong>Requirement</strong></td>
+          <td>Stored procedures, data in RAM</td>
+          <td>Short transactions preferred</td>
+          <td>Short read-write txns</td>
+        </tr>
+        <tr>
+          <td><strong>Used by</strong></td>
+          <td>VoltDB, Redis, Datomic</td>
+          <td>MySQL/InnoDB, SQL Server</td>
+          <td>PostgreSQL 9.1+, FoundationDB</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- FIRST PRINCIPLES QUESTIONS -->
+  <h2 style="color: var(--pink);">First-Principles Questions</h2>
+  <p>Test your understanding. Click to reveal the answer.</p>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">1</span>Why does the book say the "C" in ACID doesn't really belong?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Atomicity, Isolation, and Durability are properties of the <strong>database</strong>. But Consistency (in the ACID sense) means that application-defined invariants hold before and after every transaction. This is the <strong>application's responsibility</strong> — the database can't guarantee your invariants if you write transactions that violate them. The "C" was "tossed in to make the acronym work" (Joe Hellerstein). The database provides A, I, and D as tools that <em>help</em> the application maintain consistency, but consistency itself is not a database guarantee.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">2</span>What is the difference between "atomicity" in ACID vs. in multithreading?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">In <strong>multithreading</strong>, "atomic" means no other thread can see a half-finished result — it's about <em>concurrency</em>. In <strong>ACID</strong>, atomicity is NOT about concurrency (that's isolation). ACID atomicity means if a fault occurs mid-transaction, all writes are discarded — it's about <em>abortability</em> on error. The defining feature is: if the transaction is aborted, nothing it wrote takes effect, so it's safe to retry. A better term would be "abortability" rather than atomicity.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">3</span>Why doesn't read committed isolation prevent the "read skew" problem (Alice seeing $900 total)?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Read committed only guarantees you see <strong>committed</strong> data. Alice reads Account 1 ($500) — that's the committed value at that moment. Then the transfer commits. Then Alice reads Account 2 ($400) — that's also a committed value. Each individual read saw committed data, satisfying read committed. The problem is that Alice's two reads saw the database at <strong>different points in time</strong>. Read committed makes no promise about <em>consistency across multiple reads</em>. That requires <strong>snapshot isolation</strong>, which gives each transaction a frozen view of the database at one point in time.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">4</span>Explain MVCC's visibility rules — when is an object visible to a transaction?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">An object is visible to a transaction if <strong>both</strong> conditions hold: (1) the transaction that <em>created</em> the object had already committed when the reading transaction started, and (2) the object is <em>not</em> marked for deletion, or if it is, the transaction that requested deletion had not yet committed when the reading transaction started. Additionally, any writes by transactions that were in-progress when the reader started are ignored (even if they subsequently commit), and any writes by transactions with a later transaction ID are ignored regardless of their commit status. This creates a <strong>frozen snapshot</strong> of the database at the start of the transaction.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">5</span>Why is "repeatable read" such a confusing term across databases?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">The SQL standard was written in 1975 based on System R's isolation levels, before snapshot isolation was invented. It defines "repeatable read" which looks superficially similar to snapshot isolation. PostgreSQL and MySQL implement snapshot isolation but call it "repeatable read" to claim standards compliance. Oracle calls their snapshot isolation "serializable." IBM DB2 uses "repeatable read" to mean <em>actual serializability</em>. The SQL standard's definition is ambiguous and imprecise, implementations vary widely despite the same name, and the formal academic definition doesn't match most implementations. <strong>Nobody really knows what "repeatable read" means</strong> in practice — you must check each database's actual behavior.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">6</span>What is write skew, and why can't it be prevented by atomic operations or lost-update detection?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body"><strong>Write skew</strong> occurs when two transactions read the same data, make a decision based on it, then write to <em>different</em> objects. The doctor on-call example: both see 2 doctors on call, both go off call, result is 0. It's not a lost update (they wrote to different objects), so atomic single-object operations don't help. Automatic lost-update detection doesn't help either — PostgreSQL, Oracle, MySQL, and SQL Server all fail to detect write skew under their snapshot isolation levels. The only solutions are: (1) use <strong>true serializable isolation</strong>, (2) explicitly lock all rows the decision depends on with <code>SELECT FOR UPDATE</code>, or (3) use database constraints (limited applicability). Write skew is a generalization of lost updates to multiple objects.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">7</span>What is a phantom, and why does SELECT FOR UPDATE fail to prevent it?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">A <strong>phantom</strong> is when a write in one transaction changes the result of a search query in another transaction. In the meeting room booking example, two transactions check for existing bookings (none found), then both insert a booking — double-booked. <code>SELECT FOR UPDATE</code> fails because it locks <em>rows returned by the query</em>. If the query returns <strong>zero rows</strong> (checking for absence), there are no rows to lock! The write <em>adds</em> a row that would match the search condition, but that row didn't exist when the lock was attempted. Solutions: materializing conflicts (create lock objects in advance), predicate locks (conceptually lock the search condition), or index-range locks (practical approximation).</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">8</span>Why did single-threaded serial execution become feasible only around 2007, not earlier?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Two key developments: (1) <strong>RAM became cheap enough</strong> that many workloads can keep the entire active dataset in memory. When data is in RAM, transactions execute in microseconds instead of waiting for disk I/O, making single-threaded execution viable. (2) Database designers realized that <strong>OLTP transactions are short</strong> — small numbers of reads and writes. Long-running analytics queries can run separately on consistent snapshots via snapshot isolation. With stored procedures (no network round-trips mid-transaction) and in-memory data, a single thread can process transactions fast enough to match or exceed the throughput of concurrent systems that spend most of their time on locking overhead.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">9</span>How do index-range locks approximate predicate locks, and what is the trade-off?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">A <strong>predicate lock</strong> locks all objects matching a query condition (e.g., room 123 between noon-1pm). This is precise but slow — checking for matching predicates among many active transactions is expensive. <strong>Index-range locks</strong> simplify this by attaching a shared lock to an <em>index entry</em> that covers a superset of the predicate. For example, locking the index entry for room 123 (all times) or the index range noon-1pm (all rooms). This is safe because any write matching the original predicate will definitely match the broader approximation. The trade-off: more objects are locked than strictly necessary (reduced concurrency), but the overhead is much lower. If no suitable index exists, the fallback is a shared lock on the entire table — safe but bad for performance.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">10</span>How does SSI detect serialization conflicts, and why does it wait until commit time to abort?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">SSI detects two types of conflicts: (1) <strong>Stale MVCC reads</strong> — a transaction ignored another's uncommitted write (per MVCC rules). If that write commits before this transaction commits, the read was stale. The DB tracks which writes were ignored. (2) <strong>Writes affecting prior reads</strong> — when a transaction writes, it checks indexes for other transactions that recently read the affected data. Instead of blocking them (like 2PL), it <em>notifies</em> them that their read may be outdated. <strong>Why wait until commit?</strong> Three reasons: the transaction might be read-only (no risk of write skew), the conflicting transaction might abort (making the read valid after all), and waiting avoids unnecessary aborts. This preserves snapshot isolation's benefit of supporting long-running read-only queries.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">11</span>Why is 2PL's performance so much worse than snapshot isolation?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Three compounding factors: (1) <strong>Lock overhead</strong> — acquiring and releasing many fine-grained locks has a direct CPU cost. (2) <strong>Reduced concurrency</strong> — by design, any potentially conflicting transactions must wait. Writers block readers and vice versa (unlike snapshot isolation where they don't). One slow transaction holding locks can cascade delays to many others. (3) <strong>Deadlocks</strong> — much more frequent under 2PL than weaker isolation. Each deadlock wastes work (one transaction is aborted and must redo everything). The result: <strong>unstable latencies</strong>, with very slow responses at high percentiles. A single transaction that accesses many objects and acquires many locks can grind the entire system to a halt.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">12</span>Under what conditions does optimistic concurrency control (SSI) perform poorly, and when does it shine?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">SSI performs <strong>poorly under high contention</strong> — when many transactions access the same objects. This leads to a high proportion of transactions needing to abort and retry, wasting work. If the system is near maximum throughput, retried transactions add load that makes things worse (a vicious cycle). SSI performs <strong>well when</strong>: there is spare capacity, contention is low to moderate, and read-write transactions are short. Commutative operations (e.g., counter increments) can reduce apparent contention. SSI's big advantages are: no lock waits (predictable latency), readers never block writers, and conflict detection can be distributed across machines (FoundationDB). It is less sensitive to slow transactions than 2PL or serial execution, because it doesn't hold locks while waiting.</div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Chapter 6 — Partitioning</title>
+<style>
+  :root {
+    --bg: #0a0e17; --surface: #111827; --surface2: #1a2234; --border: #1e293b;
+    --text: #e2e8f0; --text-muted: #94a3b8; --accent: #3b82f6; --accent2: #8b5cf6;
+    --accent3: #10b981; --red: #ef4444; --orange: #f59e0b; --pink: #ec4899; --cyan: #06b6d4;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+  .container { max-width: 900px; margin: 0 auto; padding: 40px 24px 100px; }
+  h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent2), var(--pink)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 48px; border-bottom: 1px solid var(--border); padding-bottom: 24px; }
+  h2 { font-size: 1.5rem; font-weight: 700; margin: 48px 0 16px; color: var(--accent); }
+  h3 { font-size: 1.15rem; font-weight: 600; margin: 32px 0 12px; color: var(--text); }
+  p { margin-bottom: 16px; color: var(--text-muted); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 20px 0; }
+  .card-accent { border-left: 4px solid var(--accent); }
+  .card-green { border-left: 4px solid var(--accent3); }
+  .card-orange { border-left: 4px solid var(--orange); }
+  .card-purple { border-left: 4px solid var(--accent2); }
+  .card-red { border-left: 4px solid var(--red); }
+  .card-cyan { border-left: 4px solid var(--cyan); }
+  .card h4 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+  .card ul { padding-left: 20px; color: var(--text-muted); }
+  .card li { margin-bottom: 6px; }
+  .key-term { color: var(--accent); font-weight: 600; }
+  .diagram { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 32px; margin: 24px 0; overflow-x: auto; }
+  .diagram-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent2); margin-bottom: 20px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+  .quote { background: var(--surface2); border-left: 3px solid var(--accent2); padding: 16px 20px; margin: 20px 0; border-radius: 0 8px 8px 0; font-style: italic; color: var(--text-muted); }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  th { color: var(--accent); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
+  td { color: var(--text-muted); }
+  .question-block { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin: 16px 0; overflow: hidden; }
+  .question-header { padding: 16px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 0.95rem; }
+  .question-header:hover { background: var(--surface2); }
+  .question-body { padding: 0 20px 16px; display: none; color: var(--text-muted); border-top: 1px solid var(--border); padding-top: 16px; }
+  .question-block.open .question-body { display: block; }
+  .q-num { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: var(--accent2); color: white; border-radius: 50%; font-size: 0.8rem; font-weight: 700; margin-right: 12px; flex-shrink: 0; }
+  .chevron { transition: transform .2s; color: var(--text-muted); }
+  .question-block.open .chevron { transform: rotate(180deg); }
+  .section-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--accent2); font-weight: 700; margin-bottom: 8px; }
+  code { background: var(--surface2); padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; color: var(--accent3); }
+  .flow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; }
+  .flow-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; text-align: center; font-size: 0.85rem; min-width: 100px; }
+  .flow-box.primary { border-color: var(--accent); color: var(--accent); }
+  .flow-box.green { border-color: var(--accent3); color: var(--accent3); }
+  .flow-box.purple { border-color: var(--accent2); color: var(--accent2); }
+  .flow-box.orange { border-color: var(--orange); color: var(--orange); }
+  .flow-box.red { border-color: var(--red); color: var(--red); }
+  .flow-box.cyan { border-color: var(--cyan); color: var(--cyan); }
+  .flow-arrow { color: var(--text-muted); font-size: 1.2rem; }
+  .size-bar { height: 28px; border-radius: 6px; display: flex; align-items: center; padding: 0 12px; font-size: 0.8rem; font-weight: 600; margin: 6px 0; color: white; }
+  .node-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 16px 0; }
+  .node-box { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; text-align: center; }
+  .node-box .node-title { font-weight: 700; font-size: 0.9rem; margin-bottom: 8px; }
+  .partition-tag { display: inline-block; padding: 3px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; margin: 2px; }
+  .partition-tag.leader { background: rgba(59,130,246,0.2); color: var(--accent); border: 1px solid var(--accent); }
+  .partition-tag.follower { background: rgba(148,163,184,0.1); color: var(--text-muted); border: 1px solid var(--border); }
+</style>
+</head>
+<body>
+<div class="container">
+  <p class="section-label">DDIA — Part II: Distributed Data</p>
+  <h1>Chapter 6: Partitioning</h1>
+  <p class="subtitle">"We must break away from the sequential and not limit the computers." — Grace Murray Hopper (1962). When a dataset is too large for a single machine, you must split it across multiple nodes. This chapter explores how to do that well — and how hard it really is.</p>
+
+  <!-- WHY PARTITION -->
+  <h2>Why Partition? Scalability</h2>
+  <p>The main reason for partitioning data is <span class="key-term">scalability</span>. Different partitions can be placed on different nodes in a <span class="key-term">shared-nothing cluster</span>. A large dataset is distributed across many disks, and query load is distributed across many processors.</p>
+
+  <div class="card card-accent">
+    <h4>The Goal</h4>
+    <p>Spread data and query load <strong>evenly</strong> across nodes. If every node takes a fair share, then 10 nodes should handle 10x the data and 10x the throughput of a single node.</p>
+    <ul>
+      <li>Each partition is effectively a small database of its own</li>
+      <li>Queries on a single partition can execute independently on one node</li>
+      <li>Complex queries can be parallelized across nodes (but this is harder)</li>
+    </ul>
+  </div>
+
+  <div class="card card-orange">
+    <h4>Terminological Confusion</h4>
+    <p style="margin:0;">What this book calls a <strong>partition</strong> is called: a <strong>shard</strong> in MongoDB/Elasticsearch/SolrCloud, a <strong>region</strong> in HBase, a <strong>tablet</strong> in Bigtable, a <strong>vnode</strong> in Cassandra/Riak, and a <strong>vBucket</strong> in Couchbase. Same concept, different names.</p>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Skew and Hot Spots</div>
+    <div class="flow">
+      <div class="flow-box green"><strong>Fair partition</strong><br><span style="font-size:0.8rem;">Even load across nodes</span></div>
+      <div class="flow-arrow">&harr;</div>
+      <div class="flow-box orange"><strong>Skewed partition</strong><br><span style="font-size:0.8rem;">Some partitions get more data/queries</span></div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box red"><strong>Hot spot</strong><br><span style="font-size:0.8rem;">One partition gets disproportionate load; 9/10 nodes idle</span></div>
+    </div>
+  </div>
+
+  <!-- PARTITIONING AND REPLICATION -->
+  <h2>Partitioning and Replication Combined</h2>
+  <p>Partitioning is usually <strong>combined with replication</strong> so that copies of each partition are stored on multiple nodes for fault tolerance. Each record belongs to exactly one partition, but that partition may be replicated across several nodes.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Figure 6-1: Combining Replication and Partitioning</div>
+    <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:16px;">Each node is <strong>leader</strong> for some partitions and <strong>follower</strong> for others. Leader-follower replication applies per partition, not per node.</p>
+    <div class="node-grid">
+      <div class="node-box">
+        <div class="node-title" style="color:var(--accent);">Node 1</div>
+        <div class="partition-tag leader">P1 Leader</div>
+        <div class="partition-tag follower">P2 Follower</div>
+        <div class="partition-tag follower">P3 Follower</div>
+      </div>
+      <div class="node-box">
+        <div class="node-title" style="color:var(--accent3);">Node 2</div>
+        <div class="partition-tag follower">P1 Follower</div>
+        <div class="partition-tag leader">P2 Leader</div>
+        <div class="partition-tag follower">P4 Follower</div>
+      </div>
+      <div class="node-box">
+        <div class="node-title" style="color:var(--accent2);">Node 3</div>
+        <div class="partition-tag follower">P1 Follower</div>
+        <div class="partition-tag follower">P2 Follower</div>
+        <div class="partition-tag leader">P3 Leader</div>
+      </div>
+      <div class="node-box">
+        <div class="node-title" style="color:var(--orange);">Node 4</div>
+        <div class="partition-tag follower">P3 Follower</div>
+        <div class="partition-tag leader">P4 Leader</div>
+        <div class="partition-tag follower">P1 Follower</div>
+      </div>
+    </div>
+    <p style="font-size:0.8rem; color:var(--text-muted); margin:12px 0 0;">The choice of partitioning scheme is mostly <strong>independent</strong> of the replication scheme. You can combine any partitioning strategy with any replication approach (single-leader, multi-leader, leaderless).</p>
+  </div>
+
+  <!-- PARTITIONING KEY-VALUE DATA -->
+  <h2>Partitioning of Key-Value Data</h2>
+  <p>How do you decide which records to store on which nodes? The goal is to spread data and queries <strong>evenly</strong>. Random assignment distributes evenly but makes reads impossible (you'd have to query all nodes). We need smarter strategies.</p>
+
+  <!-- KEY RANGE PARTITIONING -->
+  <h3>Strategy 1: Partitioning by Key Range</h3>
+  <p>Assign a continuous range of keys to each partition, like volumes of a paper encyclopedia. Volume 1 gets A-B, Volume 2 gets C-D, etc. Ranges need <strong>not</strong> be evenly spaced — they adapt to data distribution.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Key Range Partitioning — Encyclopedia Analogy</div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;">
+      <div style="flex:1; min-width:80px; background:rgba(59,130,246,0.15); border:1px solid var(--accent); border-radius:8px; padding:12px; text-align:center;">
+        <div style="font-weight:700; color:var(--accent); font-size:0.9rem;">Partition 1</div>
+        <div style="font-size:0.8rem; color:var(--text-muted);">A — C</div>
+        <div style="font-size:2rem; margin:4px 0;">&#128214;</div>
+      </div>
+      <div style="flex:1; min-width:80px; background:rgba(139,92,246,0.15); border:1px solid var(--accent2); border-radius:8px; padding:12px; text-align:center;">
+        <div style="font-weight:700; color:var(--accent2); font-size:0.9rem;">Partition 2</div>
+        <div style="font-size:0.8rem; color:var(--text-muted);">D — G</div>
+        <div style="font-size:2rem; margin:4px 0;">&#128214;</div>
+      </div>
+      <div style="flex:1; min-width:80px; background:rgba(16,185,129,0.15); border:1px solid var(--accent3); border-radius:8px; padding:12px; text-align:center;">
+        <div style="font-weight:700; color:var(--accent3); font-size:0.9rem;">Partition 3</div>
+        <div style="font-size:0.8rem; color:var(--text-muted);">H — N</div>
+        <div style="font-size:2rem; margin:4px 0;">&#128214;</div>
+      </div>
+      <div style="flex:1; min-width:80px; background:rgba(245,158,11,0.15); border:1px solid var(--orange); border-radius:8px; padding:12px; text-align:center;">
+        <div style="font-weight:700; color:var(--orange); font-size:0.9rem;">Partition 4</div>
+        <div style="font-size:0.8rem; color:var(--text-muted);">O — T</div>
+        <div style="font-size:2rem; margin:4px 0;">&#128214;</div>
+      </div>
+      <div style="flex:1; min-width:80px; background:rgba(239,68,68,0.15); border:1px solid var(--red); border-radius:8px; padding:12px; text-align:center;">
+        <div style="font-weight:700; color:var(--red); font-size:0.9rem;">Partition 5</div>
+        <div style="font-size:0.8rem; color:var(--text-muted);">U — Z</div>
+        <div style="font-size:2rem; margin:4px 0;">&#128214;</div>
+      </div>
+    </div>
+    <p style="font-size:0.8rem; color:var(--text-muted); margin:0;">Boundaries adapt to actual data distribution. Within each partition, keys are <strong>sorted</strong> &rarr; efficient range scans. Used by Bigtable, HBase, RethinkDB, MongoDB (&lt;2.4).</p>
+  </div>
+
+  <div class="grid2">
+    <div class="card card-green">
+      <h4>Advantage: Range Queries</h4>
+      <p style="font-size:0.85rem;">Keys are sorted within each partition. You can treat the key as a concatenated index and efficiently fetch related records. E.g., sensor data keyed by timestamp: fetch all readings from March easily.</p>
+    </div>
+    <div class="card card-red">
+      <h4>Danger: Hot Spots</h4>
+      <p style="font-size:0.85rem;">If the key is a timestamp, all writes go to the partition for "today" while others sit idle. <strong>Fix:</strong> prefix timestamp with sensor name &rarr; <code>(sensor_name, timestamp)</code> so writes spread across partitions.</p>
+    </div>
+  </div>
+
+  <!-- HASH PARTITIONING -->
+  <h3>Strategy 2: Partitioning by Hash of Key</h3>
+  <p>Use a hash function to determine the partition for each key. A good hash function takes skewed data and makes it <strong>uniformly distributed</strong>. Assign each partition a <strong>range of hashes</strong> (not a range of keys).</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Hash-Based Partitioning</div>
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="flow-box primary" style="min-width:120px;"><strong>Input Keys</strong><br><span style="font-size:0.75rem;">user_29, user_30, user_31</span></div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-box orange" style="min-width:140px;"><strong>hash(key)</strong><br><span style="font-size:0.75rem;">Uniform random 0 to 2<sup>32</sup>-1</span></div>
+        <div class="flow-arrow">&rarr;</div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <div class="flow-box green" style="min-width:90px;">P0<br><span style="font-size:0.7rem;">hash 0 — b<sub>0</sub></span></div>
+          <div class="flow-box purple" style="min-width:90px;">P1<br><span style="font-size:0.7rem;">b<sub>0</sub> — b<sub>1</sub></span></div>
+          <div class="flow-box cyan" style="min-width:90px;">P2<br><span style="font-size:0.7rem;">b<sub>1</sub> — b<sub>2</sub></span></div>
+        </div>
+      </div>
+    </div>
+    <p style="font-size:0.8rem; color:var(--text-muted); margin:16px 0 0;">Hash function need not be cryptographic: Cassandra/MongoDB use MD5, Voldemort uses Fowler-Noll-Vo. <strong>Warning:</strong> Java's <code>Object.hashCode()</code> is NOT suitable — different processes produce different hashes for the same key.</p>
+  </div>
+
+  <div class="grid2">
+    <div class="card card-green">
+      <h4>Advantage: Even Distribution</h4>
+      <p style="font-size:0.85rem; margin:0;">Similar keys get scattered across all partitions. No more hot spots from sequential keys like timestamps.</p>
+    </div>
+    <div class="card card-red">
+      <h4>Disadvantage: No Range Queries</h4>
+      <p style="font-size:0.85rem; margin:0;">Adjacent keys are now scattered. In MongoDB with hash sharding, range queries hit <strong>all</strong> partitions. Riak, Couchbase, Voldemort don't support range queries on primary key at all.</p>
+    </div>
+  </div>
+
+  <div class="card card-purple">
+    <h4>Cassandra's Compromise: Compound Primary Keys</h4>
+    <p>A table can have a compound primary key <code>(partition_key, sort_key)</code>. Only the first part is hashed to determine the partition. The remaining columns are used as a concatenated index for sorting within that partition.</p>
+    <p style="margin:0; font-size:0.85rem;">Example: <code>(user_id, update_timestamp)</code> &rarr; hash distributes users across partitions, but within each user, updates are sorted by time. Elegant one-to-many data model.</p>
+  </div>
+
+  <!-- KEY RANGE vs HASH COMPARISON -->
+  <div class="diagram">
+    <div class="diagram-title">Key Range vs Hash Partitioning — Comparison</div>
+    <table>
+      <tr><th>Aspect</th><th>Key Range</th><th>Hash of Key</th></tr>
+      <tr><td><strong>Distribution</strong></td><td>Can be skewed if keys are clustered</td><td>Even distribution regardless of key patterns</td></tr>
+      <tr><td><strong>Range queries</strong></td><td>Efficient (keys are sorted within partition)</td><td>Impossible or requires scatter/gather</td></tr>
+      <tr><td><strong>Hot spots</strong></td><td>Likely with monotonic keys (timestamps)</td><td>Unlikely, but still possible if one key is extremely popular</td></tr>
+      <tr><td><strong>Boundaries</strong></td><td>Adapt to data; can be manual or automatic</td><td>Evenly spaced or pseudorandom</td></tr>
+      <tr><td><strong>Used by</strong></td><td>HBase, Bigtable, RethinkDB</td><td>Cassandra, MongoDB (hash mode), Voldemort, Riak</td></tr>
+    </table>
+  </div>
+
+  <!-- SKEWED WORKLOADS -->
+  <h3>Skewed Workloads and Relieving Hot Spots</h3>
+  <p>Hashing can reduce hot spots but cannot eliminate them entirely. If all reads and writes target the <strong>same key</strong>, all requests route to the same partition regardless of hashing.</p>
+
+  <div class="card card-orange">
+    <h4>The Celebrity Problem</h4>
+    <p>On a social media site, a celebrity with millions of followers posts an update. The key is the celebrity's user ID or the action ID. All the resulting writes (comments, likes) hit the <strong>same partition</strong>. Twitter famously dedicated 3% of its servers to Justin Bieber.</p>
+    <ul>
+      <li><strong>Workaround:</strong> Append a random 2-digit number to the hot key &rarr; splits writes across 100 different keys &rarr; 100 different partitions</li>
+      <li><strong>Trade-off:</strong> Reads must now query all 100 keys and merge results. Only worth it for the small number of known hot keys.</li>
+      <li>Today, most systems do NOT automatically detect/compensate for hot keys — it remains the application's responsibility</li>
+    </ul>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Hot Key Splitting Strategy</div>
+    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:center;">
+      <div class="flow-box red" style="min-width:140px;"><strong>celebrity_123</strong><br><span style="font-size:0.75rem;">All writes &rarr; 1 partition</span></div>
+      <div class="flow-arrow">&rarr;</div>
+      <div style="font-size:0.85rem; color:var(--text-muted);">Append random suffix</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <div class="flow-box green" style="padding:6px 12px; font-size:0.75rem;">celebrity_123_00 &rarr; P<sub>a</sub></div>
+        <div class="flow-box green" style="padding:6px 12px; font-size:0.75rem;">celebrity_123_01 &rarr; P<sub>b</sub></div>
+        <div class="flow-box green" style="padding:6px 12px; font-size:0.75rem;">... up to _99 &rarr; P<sub>n</sub></div>
+      </div>
+    </div>
+    <p style="font-size:0.8rem; color:var(--text-muted); margin:12px 0 0;">Writes are spread across up to 100 partitions. Reads must fan out and aggregate. Additional bookkeeping required to track which keys are "hot."</p>
+  </div>
+
+  <!-- PARTITIONING AND SECONDARY INDEXES -->
+  <h2>Partitioning and Secondary Indexes</h2>
+  <p>Everything above assumes key-value access (look up by primary key). But secondary indexes are the bread and butter of relational databases and search engines. The problem: <strong>secondary indexes don't map neatly to partitions.</strong> Two approaches exist.</p>
+
+  <h3>Approach 1: Document-Partitioned Index (Local Index)</h3>
+  <p>Each partition maintains its <strong>own</strong> secondary index, covering only the documents in that partition. When you write a document, you only update the local partition's index.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Document-Partitioned (Local) Secondary Index</div>
+    <div class="grid2" style="margin-bottom:16px;">
+      <div class="node-box" style="text-align:left;">
+        <div class="node-title" style="color:var(--accent);">Partition 0 (IDs 0-499)</div>
+        <p style="font-size:0.8rem; color:var(--text-muted); margin:4px 0;">Documents: red car #11, blue car #23, red car #78</p>
+        <p style="font-size:0.8rem; margin:0;"><strong style="color:var(--accent3);">Local index:</strong><br>
+          <span style="color:var(--text-muted);">color:red &rarr; [11, 78]</span><br>
+          <span style="color:var(--text-muted);">color:blue &rarr; [23]</span>
+        </p>
+      </div>
+      <div class="node-box" style="text-align:left;">
+        <div class="node-title" style="color:var(--accent2);">Partition 1 (IDs 500-999)</div>
+        <p style="font-size:0.8rem; color:var(--text-muted); margin:4px 0;">Documents: red car #512, black car #700</p>
+        <p style="font-size:0.8rem; margin:0;"><strong style="color:var(--accent3);">Local index:</strong><br>
+          <span style="color:var(--text-muted);">color:red &rarr; [512]</span><br>
+          <span style="color:var(--text-muted);">color:black &rarr; [700]</span>
+        </p>
+      </div>
+    </div>
+    <p style="font-size:0.8rem; color:var(--text-muted); margin:0;"><strong>Problem:</strong> To find ALL red cars, you must query <strong>every</strong> partition and merge results. This is called <span class="key-term">scatter/gather</span> and is prone to <strong>tail latency amplification</strong>.</p>
+  </div>
+
+  <h3>Approach 2: Term-Partitioned Index (Global Index)</h3>
+  <p>Construct a <strong>global index</strong> that covers data in all partitions. The global index itself is partitioned — but by the <strong>indexed term</strong>, not by the document's primary key.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Term-Partitioned (Global) Secondary Index</div>
+    <div class="grid2" style="margin-bottom:16px;">
+      <div class="node-box" style="text-align:left;">
+        <div class="node-title" style="color:var(--accent);">Index Partition 0 (terms a-r)</div>
+        <p style="font-size:0.8rem; margin:0;">
+          <span style="color:var(--text-muted);">color:black &rarr; [700]</span><br>
+          <span style="color:var(--text-muted);">color:blue &rarr; [23]</span><br>
+          <span style="color:var(--orange);">color:red &rarr; [11, 78, 512]</span><br>
+          <span style="font-size:0.75rem; color:var(--accent3);">(all red cars from ALL partitions in one place!)</span>
+        </p>
+      </div>
+      <div class="node-box" style="text-align:left;">
+        <div class="node-title" style="color:var(--accent2);">Index Partition 1 (terms s-z)</div>
+        <p style="font-size:0.8rem; margin:0;">
+          <span style="color:var(--text-muted);">color:silver &rarr; [44, 888]</span><br>
+          <span style="color:var(--text-muted);">color:white &rarr; [102]</span><br>
+          <span style="color:var(--text-muted);">color:yellow &rarr; [333]</span>
+        </p>
+      </div>
+    </div>
+    <p style="font-size:0.8rem; color:var(--text-muted); margin:0;"><strong>Advantage:</strong> Reading is efficient — a lookup goes to a <strong>single</strong> index partition. <strong>Disadvantage:</strong> Writes are slower — a single document write may update <strong>multiple</strong> index partitions (each term might live on a different node).</p>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Local vs Global Secondary Indexes — Comparison</div>
+    <table>
+      <tr><th>Aspect</th><th>Document-Partitioned (Local)</th><th>Term-Partitioned (Global)</th></tr>
+      <tr><td><strong>Index scope</strong></td><td>Covers only documents in this partition</td><td>Covers all documents across all partitions</td></tr>
+      <tr><td><strong>Write cost</strong></td><td>Fast — update only the local partition's index</td><td>Slow — may need to update index entries on multiple nodes</td></tr>
+      <tr><td><strong>Read cost</strong></td><td>Expensive — scatter/gather to ALL partitions</td><td>Cheap — read from single index partition</td></tr>
+      <tr><td><strong>Consistency</strong></td><td>Synchronous with write</td><td>Often asynchronous (eventual consistency)</td></tr>
+      <tr><td><strong>Used by</strong></td><td>MongoDB, Riak, Cassandra, Elasticsearch, VoltDB</td><td>DynamoDB, Riak (search), Oracle DW</td></tr>
+    </table>
+  </div>
+
+  <!-- REBALANCING PARTITIONS -->
+  <h2>Rebalancing Partitions</h2>
+  <p>Over time, things change: query throughput grows, dataset grows, machines fail. Data and requests must be moved from one node to another. This process is called <span class="key-term">rebalancing</span>.</p>
+
+  <div class="card card-accent">
+    <h4>Rebalancing Requirements</h4>
+    <ul>
+      <li><strong>Fair share:</strong> After rebalancing, load should be shared fairly between nodes</li>
+      <li><strong>Availability:</strong> Database must continue accepting reads and writes during rebalancing</li>
+      <li><strong>Minimal movement:</strong> Move no more data than necessary to minimize network/disk I/O</li>
+    </ul>
+  </div>
+
+  <h3>Anti-Pattern: hash mod N</h3>
+  <div class="card card-red">
+    <h4>Why Not <code>hash(key) mod N</code>?</h4>
+    <p>If the number of nodes N changes, <strong>most keys must be moved</strong>. Example: <code>hash(key) = 123456</code>.</p>
+    <ul>
+      <li>10 nodes: key goes to node <strong>6</strong> (123456 mod 10 = 6)</li>
+      <li>11 nodes: key moves to node <strong>3</strong> (123456 mod 11 = 3)</li>
+      <li>12 nodes: key moves to node <strong>0</strong> (123456 mod 12 = 0)</li>
+    </ul>
+    <p style="margin:0;">Adding one node shuffles almost <strong>every key</strong>. This makes rebalancing excessively expensive. We need strategies where only a small fraction of keys move when nodes change.</p>
+  </div>
+
+  <h3>Rebalancing Strategies</h3>
+
+  <div class="grid3">
+    <div class="card card-accent">
+      <h4>1. Fixed Number of Partitions</h4>
+      <p style="font-size:0.85rem;">Create many more partitions than nodes up front (e.g., 1000 partitions across 10 nodes = 100 per node). When a new node joins, it <strong>steals</strong> a few partitions from existing nodes. Only whole partitions move.</p>
+      <p style="font-size:0.85rem; margin:0; color:var(--orange);">Used by: Riak, Elasticsearch, Couchbase, Voldemort</p>
+    </div>
+    <div class="card card-green">
+      <h4>2. Dynamic Partitioning</h4>
+      <p style="font-size:0.85rem;">Partitions split when they exceed a size threshold (HBase default: 10 GB) and merge when they shrink. Number of partitions adapts to data volume automatically.</p>
+      <p style="font-size:0.85rem; margin:0; color:var(--orange);">Used by: HBase, RethinkDB, MongoDB (&ge;2.4)</p>
+    </div>
+    <div class="card card-purple">
+      <h4>3. Proportional to Nodes</h4>
+      <p style="font-size:0.85rem;">Fixed number of partitions <strong>per node</strong> (Cassandra: 256/node). When a new node joins, it randomly splits existing partitions and takes half. Partition count grows with cluster size.</p>
+      <p style="font-size:0.85rem; margin:0; color:var(--orange);">Used by: Cassandra, Ketama</p>
+    </div>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Fixed Partitions: Adding a Node</div>
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <div>
+        <p style="font-size:0.8rem; font-weight:600; color:var(--accent); margin-bottom:8px;">BEFORE: 4 nodes, 16 partitions (4 each)</p>
+        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:8px;">
+          <div class="node-box"><div class="node-title" style="color:var(--accent); font-size:0.8rem;">Node 1</div><span style="font-size:0.75rem; color:var(--text-muted);">P0 P1 P2 P3</span></div>
+          <div class="node-box"><div class="node-title" style="color:var(--accent3); font-size:0.8rem;">Node 2</div><span style="font-size:0.75rem; color:var(--text-muted);">P4 P5 P6 P7</span></div>
+          <div class="node-box"><div class="node-title" style="color:var(--accent2); font-size:0.8rem;">Node 3</div><span style="font-size:0.75rem; color:var(--text-muted);">P8 P9 P10 P11</span></div>
+          <div class="node-box"><div class="node-title" style="color:var(--orange); font-size:0.8rem;">Node 4</div><span style="font-size:0.75rem; color:var(--text-muted);">P12 P13 P14 P15</span></div>
+        </div>
+      </div>
+      <div style="text-align:center; color:var(--text-muted); font-size:1.2rem;">&darr; Node 5 joins, steals one partition from each existing node &darr;</div>
+      <div>
+        <p style="font-size:0.8rem; font-weight:600; color:var(--accent3); margin-bottom:8px;">AFTER: 5 nodes, 16 partitions (~3 each)</p>
+        <div style="display:grid; grid-template-columns:repeat(5,1fr); gap:8px;">
+          <div class="node-box"><div class="node-title" style="color:var(--accent); font-size:0.8rem;">Node 1</div><span style="font-size:0.75rem; color:var(--text-muted);">P0 P1 P2</span></div>
+          <div class="node-box"><div class="node-title" style="color:var(--accent3); font-size:0.8rem;">Node 2</div><span style="font-size:0.75rem; color:var(--text-muted);">P4 P5 P6</span></div>
+          <div class="node-box"><div class="node-title" style="color:var(--accent2); font-size:0.8rem;">Node 3</div><span style="font-size:0.75rem; color:var(--text-muted);">P8 P9 P10</span></div>
+          <div class="node-box"><div class="node-title" style="color:var(--orange); font-size:0.8rem;">Node 4</div><span style="font-size:0.75rem; color:var(--text-muted);">P12 P13 P14</span></div>
+          <div class="node-box" style="border-color:var(--pink);"><div class="node-title" style="color:var(--pink); font-size:0.8rem;">Node 5 (new)</div><span style="font-size:0.75rem; color:var(--text-muted);">P3 P7 P11 P15</span></div>
+        </div>
+      </div>
+    </div>
+    <p style="font-size:0.8rem; color:var(--text-muted); margin:12px 0 0;">Key assignment to partitions <strong>does not change</strong>. Only the assignment of partitions to nodes changes. Old assignment used during transfer.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h4>Choosing the Right Number of Fixed Partitions</h4>
+    <p>If the total data size is highly variable, fixed partitions create a dilemma:</p>
+    <ul>
+      <li><strong>Too few partitions:</strong> Each partition becomes huge &rarr; rebalancing and recovery are expensive</li>
+      <li><strong>Too many partitions:</strong> Management overhead per partition adds up</li>
+      <li>The number of partitions is the <strong>maximum</strong> number of nodes you can have</li>
+    </ul>
+    <p style="margin:0;">The "right" number is hard to get right if you don't know how much the data will grow. Dynamic partitioning solves this but is more complex.</p>
+  </div>
+
+  <div class="card card-cyan">
+    <h4>Dynamic Partitioning: Pre-Splitting Caveat</h4>
+    <p style="margin:0;">An empty database with dynamic partitioning starts with a <strong>single partition</strong> — all writes go to one node while others sit idle. HBase and MongoDB support <span class="key-term">pre-splitting</span>: configuring an initial set of partition boundaries on an empty database. But you need to know the key distribution in advance.</p>
+  </div>
+
+  <!-- AUTOMATIC VS MANUAL -->
+  <h3>Operations: Automatic vs. Manual Rebalancing</h3>
+
+  <div class="diagram">
+    <div class="diagram-title">The Automation Spectrum</div>
+    <div style="display:flex; align-items:stretch; gap:0; margin:16px 0;">
+      <div style="flex:1; background:rgba(16,185,129,0.15); border:1px solid var(--accent3); border-radius:8px 0 0 8px; padding:16px; text-align:center;">
+        <div style="font-weight:700; color:var(--accent3); font-size:0.85rem;">Fully Automatic</div>
+        <p style="font-size:0.8rem; color:var(--text-muted); margin:8px 0 0;">System decides when and where to move partitions. No admin interaction.</p>
+      </div>
+      <div style="flex:1; background:rgba(245,158,11,0.15); border:1px solid var(--orange); padding:16px; text-align:center;">
+        <div style="font-weight:700; color:var(--orange); font-size:0.85rem;">Semi-Automatic</div>
+        <p style="font-size:0.8rem; color:var(--text-muted); margin:8px 0 0;">System suggests a plan. Admin approves before execution. (Couchbase, Riak, Voldemort)</p>
+      </div>
+      <div style="flex:1; background:rgba(239,68,68,0.15); border:1px solid var(--red); border-radius:0 8px 8px 0; padding:16px; text-align:center;">
+        <div style="font-weight:700; color:var(--red); font-size:0.85rem;">Fully Manual</div>
+        <p style="font-size:0.8rem; color:var(--text-muted); margin:8px 0 0;">Admin explicitly configures partition-to-node assignment.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-red">
+    <h4>The Danger of Full Automation</h4>
+    <p>Automatic rebalancing combined with automatic failure detection can cause <strong>cascading failures</strong>:</p>
+    <ul>
+      <li>One node is overloaded and responds slowly</li>
+      <li>Other nodes conclude it is dead</li>
+      <li>Automatic rebalancing moves load away from "dead" node &rarr; additional network/disk I/O</li>
+      <li>This overloads the already-struggling node <strong>even more</strong>, plus stresses others</li>
+      <li>Cascading failure spirals out of control</li>
+    </ul>
+    <p style="margin:0;">Having a <strong>human in the loop</strong> is slower but prevents operational surprises.</p>
+  </div>
+
+  <!-- REQUEST ROUTING -->
+  <h2>Request Routing</h2>
+  <p>Once data is partitioned across nodes, how does a client know which node to talk to? As partitions are rebalanced, the assignment changes. This is an instance of the general <span class="key-term">service discovery</span> problem.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Three Approaches to Request Routing</div>
+    <div style="display:flex; flex-direction:column; gap:20px;">
+      <!-- Approach 1 -->
+      <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+        <div class="flow-box primary" style="min-width:160px;"><strong>1. Contact Any Node</strong></div>
+        <div style="flex:1; min-width:200px;">
+          <p style="font-size:0.85rem; margin:0;">Client contacts any node via round-robin load balancer. If that node owns the partition, it handles the request directly. Otherwise, it <strong>forwards</strong> to the correct node, gets the reply, and passes it back.</p>
+        </div>
+      </div>
+      <!-- Approach 2 -->
+      <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+        <div class="flow-box orange" style="min-width:160px;"><strong>2. Routing Tier</strong></div>
+        <div style="flex:1; min-width:200px;">
+          <p style="font-size:0.85rem; margin:0;">All requests go to a <strong>partition-aware load balancer</strong> (routing tier). It determines the correct node and forwards. The routing tier handles no data itself — it is only a router.</p>
+        </div>
+      </div>
+      <!-- Approach 3 -->
+      <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+        <div class="flow-box green" style="min-width:160px;"><strong>3. Client-Aware</strong></div>
+        <div style="flex:1; min-width:200px;">
+          <p style="font-size:0.85rem; margin:0;">Client is aware of the partitioning scheme and connects <strong>directly</strong> to the correct node. No intermediary needed. Requires the client library to stay up-to-date with partition assignments.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Request Routing — Visual Flow</div>
+    <div style="display:flex; flex-direction:column; gap:24px;">
+      <!-- Approach 1 Visual -->
+      <div>
+        <p style="font-size:0.8rem; font-weight:600; color:var(--accent); margin-bottom:8px;">Approach 1: Any Node Forwards</p>
+        <div class="flow">
+          <div class="flow-box" style="border-color:var(--pink); color:var(--pink);">Client</div>
+          <div class="flow-arrow">&rarr;</div>
+          <div class="flow-box primary">Node A<br><span style="font-size:0.7rem;">(random)</span></div>
+          <div class="flow-arrow">&rarr;</div>
+          <div class="flow-box green">Node C<br><span style="font-size:0.7rem;">(owns partition)</span></div>
+          <div class="flow-arrow">&rarr;</div>
+          <div class="flow-box primary">Node A</div>
+          <div class="flow-arrow">&rarr;</div>
+          <div class="flow-box" style="border-color:var(--pink); color:var(--pink);">Client</div>
+        </div>
+      </div>
+      <!-- Approach 2 Visual -->
+      <div>
+        <p style="font-size:0.8rem; font-weight:600; color:var(--orange); margin-bottom:8px;">Approach 2: Routing Tier</p>
+        <div class="flow">
+          <div class="flow-box" style="border-color:var(--pink); color:var(--pink);">Client</div>
+          <div class="flow-arrow">&rarr;</div>
+          <div class="flow-box orange">Routing Tier<br><span style="font-size:0.7rem;">(partition-aware LB)</span></div>
+          <div class="flow-arrow">&rarr;</div>
+          <div class="flow-box green">Correct Node</div>
+          <div class="flow-arrow">&rarr;</div>
+          <div class="flow-box" style="border-color:var(--pink); color:var(--pink);">Client</div>
+        </div>
+      </div>
+      <!-- Approach 3 Visual -->
+      <div>
+        <p style="font-size:0.8rem; font-weight:600; color:var(--accent3); margin-bottom:8px;">Approach 3: Client-Aware</p>
+        <div class="flow">
+          <div class="flow-box" style="border-color:var(--pink); color:var(--pink);">Client<br><span style="font-size:0.7rem;">(knows partitioning)</span></div>
+          <div class="flow-arrow">&rarr;</div>
+          <div class="flow-box green">Correct Node</div>
+          <div class="flow-arrow">&rarr;</div>
+          <div class="flow-box" style="border-color:var(--pink); color:var(--pink);">Client</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SERVICE DISCOVERY -->
+  <h3>Service Discovery: How to Stay Up-to-Date</h3>
+  <p>The key challenge: how does the routing component (whether it is a node, routing tier, or client) learn about changes in partition-to-node assignments?</p>
+
+  <div class="grid2">
+    <div class="card card-accent">
+      <h4>Coordination Service (ZooKeeper)</h4>
+      <p style="font-size:0.85rem;">A separate coordination service (ZooKeeper, etcd) maintains the authoritative mapping of partitions to nodes. Nodes register themselves. Routing tier or clients <strong>subscribe</strong> to changes and get notified when assignments change.</p>
+      <ul style="font-size:0.85rem;">
+        <li><strong>LinkedIn Espresso</strong> uses Helix (on ZooKeeper)</li>
+        <li><strong>HBase, SolrCloud, Kafka</strong> use ZooKeeper directly</li>
+        <li><strong>MongoDB</strong> uses its own config server + mongos routing daemons</li>
+      </ul>
+    </div>
+    <div class="card card-purple">
+      <h4>Gossip Protocol</h4>
+      <p style="font-size:0.85rem;">Nodes disseminate partition assignment changes among themselves using a gossip protocol. Any node can accept requests and forward to the correct node (Approach 1). No external dependency.</p>
+      <ul style="font-size:0.85rem;">
+        <li><strong>Cassandra and Riak</strong> use this approach</li>
+        <li>More complexity in database nodes</li>
+        <li>Avoids dependency on external coordination service</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">ZooKeeper-Based Service Discovery</div>
+    <div style="display:flex; flex-direction:column; gap:12px; align-items:center;">
+      <div class="flow">
+        <div class="flow-box" style="border-color:var(--pink); color:var(--pink);">Client / Routing Tier</div>
+        <div class="flow-arrow" style="transform:rotate(90deg);">&#8595;</div>
+      </div>
+      <div style="font-size:0.8rem; color:var(--text-muted);">subscribes to partition changes</div>
+      <div class="flow-box orange" style="min-width:200px;"><strong>ZooKeeper</strong><br><span style="font-size:0.75rem;">Authoritative partition &harr; node mapping</span></div>
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <div style="font-size:0.8rem; color:var(--text-muted);">&uarr; registers</div>
+        <div style="font-size:0.8rem; color:var(--text-muted);">&uarr; registers</div>
+        <div style="font-size:0.8rem; color:var(--text-muted);">&uarr; registers</div>
+      </div>
+      <div class="flow" style="gap:8px;">
+        <div class="flow-box primary">Node 1<br><span style="font-size:0.7rem;">P0, P1</span></div>
+        <div class="flow-box green">Node 2<br><span style="font-size:0.7rem;">P2, P3</span></div>
+        <div class="flow-box purple">Node 3<br><span style="font-size:0.7rem;">P4, P5</span></div>
+      </div>
+    </div>
+    <p style="font-size:0.8rem; color:var(--text-muted); margin:12px 0 0;">When partition ownership changes (e.g., rebalancing), ZooKeeper <strong>notifies</strong> all subscribers so routing decisions stay correct. DNS is sufficient for finding the IP addresses of the routing tier itself.</p>
+  </div>
+
+  <!-- PARALLEL QUERY EXECUTION -->
+  <h2>Parallel Query Execution</h2>
+  <p>Everything above focused on simple queries: read/write a single key, or scatter/gather on secondary indexes. But <span class="key-term">massively parallel processing (MPP)</span> relational databases used for analytics go much further.</p>
+
+  <div class="card card-cyan">
+    <h4>MPP Query Execution</h4>
+    <p>A typical data warehouse query involves joins, filtering, grouping, and aggregation. The MPP query optimizer breaks this into <strong>execution stages</strong> that can run in parallel on different nodes. Queries scanning large parts of the dataset benefit enormously.</p>
+    <p style="margin:0; font-size:0.85rem;">This is a specialized topic covered in Chapter 10. Key examples: Teradata, Vertica, Amazon Redshift, Apache Impala.</p>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Simple Query vs MPP Parallel Query</div>
+    <div class="grid2">
+      <div style="text-align:center;">
+        <p style="font-weight:600; color:var(--accent); font-size:0.9rem; margin-bottom:8px;">Simple Key-Value Query</p>
+        <div class="flow" style="flex-direction:column;">
+          <div class="flow-box" style="border-color:var(--pink); color:var(--pink);">Client: GET key=42</div>
+          <div class="flow-arrow" style="transform:rotate(90deg);">&darr;</div>
+          <div class="flow-box green">Single Node (owns P for hash(42))</div>
+          <div class="flow-arrow" style="transform:rotate(90deg);">&darr;</div>
+          <div class="flow-box" style="border-color:var(--pink); color:var(--pink);">Result</div>
+        </div>
+      </div>
+      <div style="text-align:center;">
+        <p style="font-weight:600; color:var(--accent2); font-size:0.9rem; margin-bottom:8px;">MPP Analytical Query</p>
+        <div class="flow" style="flex-direction:column;">
+          <div class="flow-box" style="border-color:var(--pink); color:var(--pink);">SELECT SUM... GROUP BY... JOIN...</div>
+          <div class="flow-arrow" style="transform:rotate(90deg);">&darr;</div>
+          <div style="display:flex; gap:6px;">
+            <div class="flow-box primary" style="padding:8px; font-size:0.75rem;">Stage 1<br>Node A</div>
+            <div class="flow-box green" style="padding:8px; font-size:0.75rem;">Stage 1<br>Node B</div>
+            <div class="flow-box purple" style="padding:8px; font-size:0.75rem;">Stage 1<br>Node C</div>
+          </div>
+          <div class="flow-arrow" style="transform:rotate(90deg);">&darr;</div>
+          <div class="flow-box orange" style="padding:8px; font-size:0.8rem;">Stage 2: Merge &amp; Aggregate</div>
+          <div class="flow-arrow" style="transform:rotate(90deg);">&darr;</div>
+          <div class="flow-box" style="border-color:var(--pink); color:var(--pink);">Result</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHAPTER SUMMARY -->
+  <h2>Chapter Summary</h2>
+
+  <div class="diagram">
+    <div class="diagram-title">Chapter 6 at a Glance</div>
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <div class="flow">
+        <div class="flow-box primary"><strong>Partitioning</strong><br><span style="font-size:0.75rem;">Split data across nodes</span></div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-box green"><strong>By Key Range</strong><br><span style="font-size:0.75rem;">Sorted, range-scannable</span></div>
+        <div class="flow-arrow">or</div>
+        <div class="flow-box purple"><strong>By Hash</strong><br><span style="font-size:0.75rem;">Even distribution</span></div>
+        <div class="flow-arrow">or</div>
+        <div class="flow-box orange"><strong>Compound</strong><br><span style="font-size:0.75rem;">Hash + sort (Cassandra)</span></div>
+      </div>
+      <div class="flow">
+        <div class="flow-box primary"><strong>Secondary Indexes</strong></div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-box green"><strong>Local (Document)</strong><br><span style="font-size:0.75rem;">Fast writes, scatter reads</span></div>
+        <div class="flow-arrow">or</div>
+        <div class="flow-box purple"><strong>Global (Term)</strong><br><span style="font-size:0.75rem;">Fast reads, slow writes</span></div>
+      </div>
+      <div class="flow">
+        <div class="flow-box primary"><strong>Rebalancing</strong></div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-box green"><strong>Fixed partitions</strong></div>
+        <div class="flow-arrow">or</div>
+        <div class="flow-box purple"><strong>Dynamic split/merge</strong></div>
+        <div class="flow-arrow">or</div>
+        <div class="flow-box orange"><strong>Proportional to nodes</strong></div>
+      </div>
+      <div class="flow">
+        <div class="flow-box primary"><strong>Routing</strong></div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-box green"><strong>Any node</strong></div>
+        <div class="flow-arrow">or</div>
+        <div class="flow-box purple"><strong>Routing tier</strong></div>
+        <div class="flow-arrow">or</div>
+        <div class="flow-box orange"><strong>Client-aware</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="quote">"By design, every partition operates mostly independently — that's what allows a partitioned database to scale to multiple machines. However, operations that need to write to several partitions can be difficult to reason about: for example, what happens if the write to one partition succeeds, but another fails?"</div>
+
+  <!-- FIRST PRINCIPLES QUESTIONS -->
+  <h2 style="color: var(--pink);">First-Principles Questions</h2>
+  <p>Test your understanding. Click to reveal the answer.</p>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">1</span>Why can't you just assign records to nodes randomly?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Random assignment distributes data evenly, which is good. But when you want to <strong>read</strong> a particular record, you have no way of knowing which node it is on. You would have to query <strong>all nodes in parallel</strong> for every read, which is extremely wasteful. We need a deterministic mapping from key to partition so that reads can go directly to the right node.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">2</span>Why does key-range partitioning lead to hot spots with timestamp keys?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">With key-range partitioning, each partition covers a contiguous range of keys. If the key is a timestamp, the partitions correspond to <strong>time ranges</strong> (e.g., one partition per day). Since all new data has the current timestamp, <strong>all writes go to the partition for "today"</strong> while all other partitions sit idle. The fix is to prefix the timestamp with something that distributes writes (e.g., sensor name), so the first element of the compound key scatters data across partitions.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">3</span>What does hashing the key buy you, and what do you lose?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Hashing <strong>buys you</strong> even distribution: even if keys are sequential or clustered (like timestamps or user IDs), their hashes are uniformly scattered across the hash space, eliminating most hot spots. You <strong>lose</strong> the ability to do efficient range queries, because keys that were adjacent in the original key space are now scattered across different partitions. MongoDB with hash sharding must send range queries to all partitions.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">4</span>How does Cassandra get the best of both key-range and hash partitioning?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Cassandra uses <strong>compound primary keys</strong>. The first column is hashed to determine the partition (giving even distribution). The remaining columns are used as a concatenated index <strong>within</strong> that partition, maintaining sort order. Example: <code>(user_id, timestamp)</code> — user_id is hashed for distribution, but within one user's partition, all updates are sorted by timestamp. You can do efficient range scans on the second column if you fix the first.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">5</span>Why is hash mod N a terrible rebalancing strategy?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">If you assign keys using <code>hash(key) mod N</code>, then when N (the number of nodes) changes by even 1, the modular arithmetic changes for <strong>almost every key</strong>. For example, key with hash 123456 goes to node 6 when N=10, node 3 when N=11, and node 0 when N=12. This means adding or removing a single node requires migrating nearly <strong>all</strong> data across the cluster, making rebalancing prohibitively expensive.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">6</span>What is the trade-off between document-partitioned (local) and term-partitioned (global) secondary indexes?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body"><strong>Document-partitioned (local):</strong> Each partition maintains its own secondary index covering only its documents. Writes are fast (only update local partition), but reads require <strong>scatter/gather</strong> to all partitions — slow and prone to tail latency amplification. <strong>Term-partitioned (global):</strong> The index is partitioned by the indexed term. Reads are fast (query one index partition), but writes are slow because a single document write may need to update index entries on <strong>multiple partitions</strong> across different nodes, often done asynchronously.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">7</span>How can fully automatic rebalancing cause cascading failures?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Scenario: One node is overloaded and responds slowly. Automatic failure detection concludes it is "dead." Automatic rebalancing kicks in and moves partitions <strong>away</strong> from the "dead" node. This transfer generates heavy network and disk I/O, putting additional load on the already-overloaded node AND on the other nodes receiving the transferred partitions. The extra load makes things <strong>worse</strong>, potentially causing more nodes to appear "dead," triggering more rebalancing — a vicious cycle. Having a human approve rebalancing decisions prevents this.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">8</span>What are the three approaches to request routing, and which databases use each?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body"><strong>1. Any node:</strong> Client contacts any node; if it doesn't own the partition, it forwards the request. Used by Cassandra and Riak (gossip protocol). <strong>2. Routing tier:</strong> A dedicated partition-aware load balancer forwards requests. Used by LinkedIn Espresso (Helix/ZooKeeper), MongoDB (mongos), HBase, Kafka. <strong>3. Client-aware:</strong> Client knows the partitioning and connects directly to the right node. In all cases, the key challenge is keeping the routing information up to date as partitions are rebalanced.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">9</span>Why does ZooKeeper solve the request routing problem better than having each node figure it out?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">The routing problem requires <strong>consensus</strong> — all participants must agree on which partition lives on which node. Achieving consensus in a distributed system is notoriously hard (see Chapter 9). ZooKeeper is a purpose-built coordination service that <strong>already solves consensus</strong>. Nodes register their partition assignments with ZooKeeper, and routing tiers or clients <strong>subscribe</strong> to changes. ZooKeeper guarantees that all subscribers see a consistent view. The alternative — gossip protocol (Cassandra, Riak) — avoids the external dependency but pushes the complexity into the database nodes themselves.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">10</span>Why can't hashing alone solve the celebrity hot-spot problem?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Hashing distributes <strong>different</strong> keys evenly. But if millions of reads and writes target the <strong>same key</strong> (e.g., a celebrity's user ID), the hash of that key is always the same value, routing everything to the <strong>same partition</strong>. Hashing only helps when the hot-spot problem is caused by many similar-but-different keys clustering together. For truly identical keys, the application must split the key itself (e.g., append random suffixes) and handle the fan-out on reads.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">11</span>What is scatter/gather and why is it problematic?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Scatter/gather is the pattern where a query on a document-partitioned secondary index must be sent to <strong>all partitions</strong> (scatter), and the results from all partitions are combined (gather). It is problematic because: (1) It is slow even with parallel execution — the response time is determined by the <strong>slowest</strong> partition (tail latency amplification). (2) It puts load on every node in the cluster for every query. (3) It gets worse as the number of partitions grows. This is why most database vendors recommend designing your partitioning scheme so secondary index queries can be served from a single partition when possible.</div>
+  </div>
+
+</div>
+</body>
+</html>

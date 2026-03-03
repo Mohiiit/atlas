@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Chapter 8 — The Trouble with Distributed Systems</title>
+<style>
+  :root {
+    --bg: #0a0e17; --surface: #111827; --surface2: #1a2234; --border: #1e293b;
+    --text: #e2e8f0; --text-muted: #94a3b8; --accent: #3b82f6; --accent2: #8b5cf6;
+    --accent3: #10b981; --red: #ef4444; --orange: #f59e0b; --pink: #ec4899; --cyan: #06b6d4;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+  .container { max-width: 900px; margin: 0 auto; padding: 40px 24px 100px; }
+  h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent2), var(--pink)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 48px; border-bottom: 1px solid var(--border); padding-bottom: 24px; }
+  h2 { font-size: 1.5rem; font-weight: 700; margin: 48px 0 16px; color: var(--accent); }
+  h3 { font-size: 1.15rem; font-weight: 600; margin: 32px 0 12px; color: var(--text); }
+  p { margin-bottom: 16px; color: var(--text-muted); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 20px 0; }
+  .card-accent { border-left: 4px solid var(--accent); }
+  .card-green { border-left: 4px solid var(--accent3); }
+  .card-orange { border-left: 4px solid var(--orange); }
+  .card-purple { border-left: 4px solid var(--accent2); }
+  .card-red { border-left: 4px solid var(--red); }
+  .card-cyan { border-left: 4px solid var(--cyan); }
+  .card h4 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+  .card ul { padding-left: 20px; color: var(--text-muted); }
+  .card li { margin-bottom: 6px; }
+  .key-term { color: var(--accent); font-weight: 600; }
+  .diagram { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 32px; margin: 24px 0; overflow-x: auto; }
+  .diagram-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent2); margin-bottom: 20px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+  .quote { background: var(--surface2); border-left: 3px solid var(--accent2); padding: 16px 20px; margin: 20px 0; border-radius: 0 8px 8px 0; font-style: italic; color: var(--text-muted); }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  th { color: var(--accent); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
+  td { color: var(--text-muted); }
+  .question-block { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin: 16px 0; overflow: hidden; }
+  .question-header { padding: 16px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 0.95rem; }
+  .question-header:hover { background: var(--surface2); }
+  .question-body { padding: 0 20px 16px; display: none; color: var(--text-muted); border-top: 1px solid var(--border); padding-top: 16px; }
+  .question-block.open .question-body { display: block; }
+  .q-num { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: var(--accent2); color: white; border-radius: 50%; font-size: 0.8rem; font-weight: 700; margin-right: 12px; flex-shrink: 0; }
+  .chevron { transition: transform .2s; color: var(--text-muted); }
+  .question-block.open .chevron { transform: rotate(180deg); }
+  .section-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--accent2); font-weight: 700; margin-bottom: 8px; }
+  code { background: var(--surface2); padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; color: var(--accent3); }
+  .flow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; }
+  .flow-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; text-align: center; font-size: 0.85rem; min-width: 100px; }
+  .flow-box.primary { border-color: var(--accent); color: var(--accent); }
+  .flow-box.green { border-color: var(--accent3); color: var(--accent3); }
+  .flow-box.purple { border-color: var(--accent2); color: var(--accent2); }
+  .flow-box.orange { border-color: var(--orange); color: var(--orange); }
+  .flow-box.red { border-color: var(--red); color: var(--red); }
+  .flow-box.cyan { border-color: var(--cyan); color: var(--cyan); }
+  .flow-arrow { color: var(--text-muted); font-size: 1.2rem; }
+  .size-bar { height: 28px; border-radius: 6px; display: flex; align-items: center; padding: 0 12px; font-size: 0.8rem; font-weight: 600; margin: 6px 0; color: white; }
+</style>
+</head>
+<body>
+<div class="container">
+  <p class="section-label">DDIA — Part II: Distributed Data</p>
+  <h1>Chapter 8: The Trouble with Distributed Systems</h1>
+  <p class="subtitle">"A distributed system is one in which the failure of a computer you didn't even know existed can render your own computer unusable." — Leslie Lamport. This chapter is a deeply pessimistic exploration of everything that can go wrong in distributed systems: networks, clocks, and processes. Understanding these problems is the prerequisite to solving them.</p>
+
+  <!-- FAULTS AND PARTIAL FAILURES -->
+  <h2>Faults and Partial Failures</h2>
+  <p>A program on a single computer is fundamentally <strong>deterministic</strong>: it either works or it doesn't. Hardware problems (bad RAM, disk corruption) can introduce nondeterminism, but we generally expect well-written software on a single node to be predictable. Distributed systems are different: <span class="key-term">partial failures</span> are nondeterministic. Some parts may be broken while others work fine, and you may not even know whether an operation succeeded or failed.</p>
+
+  <div class="quote">"In my limited experience I've dealt with long-lived network partitions in a single data center, PDU failures, switch failures, accidental power cycles of whole racks, whole-DC backbone failures, whole-DC power failures, and a hypoglycemic driver smashing his Ford pickup truck into a DC's HVAC system. And I'm not even an ops guy." — Coda Hale</div>
+
+  <div class="card card-red">
+    <h4>The Core Difficulty</h4>
+    <p>If you try to do anything involving multiple nodes and the network, it may sometimes work and sometimes unpredictably fail. You may not even know whether something succeeded or not, because the time it takes for a message to travel across a network is itself nondeterministic. <strong>Suspicion, pessimism, and paranoia pay off</strong> in distributed systems.</p>
+  </div>
+
+  <!-- CLOUD VS SUPERCOMPUTING VS ENTERPRISE -->
+  <h2>Cloud Computing vs. Supercomputing</h2>
+  <p>There is a spectrum of philosophies for building large-scale systems. The approach to handling faults differs fundamentally between them:</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Spectrum of Computing Philosophies</div>
+    <div class="flow">
+      <div class="flow-box red" style="min-width:160px;"><strong>Supercomputing (HPC)</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">Specialized HW, shared memory, RDMA. Treats partial failure as total failure.</span></div>
+      <div class="flow-arrow">&larr;&nbsp;&nbsp;&nbsp;&rarr;</div>
+      <div class="flow-box orange" style="min-width:160px;"><strong>Enterprise Datacenter</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">Middle ground. Mix of commodity and specialized hardware.</span></div>
+      <div class="flow-arrow">&larr;&nbsp;&nbsp;&nbsp;&rarr;</div>
+      <div class="flow-box green" style="min-width:160px;"><strong>Cloud Computing</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">Commodity HW, IP/Ethernet, multi-tenant, elastic. Must tolerate partial failures.</span></div>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>Aspect</th><th>Supercomputing</th><th>Cloud / Internet Services</th></tr>
+    <tr><td><strong>Failure handling</strong></td><td>Checkpoint &rarr; stop cluster &rarr; repair &rarr; restart from checkpoint. Partial failure escalates to total failure.</td><td>Must serve users 24/7 with low latency. Tolerate partial failures; rolling upgrades without downtime.</td></tr>
+    <tr><td><strong>Hardware</strong></td><td>Specialized, reliable nodes. Shared memory, RDMA.</td><td>Commodity machines, higher failure rates. Economies of scale.</td></tr>
+    <tr><td><strong>Network</strong></td><td>Specialized topologies (meshes, toruses). Known communication patterns.</td><td>IP/Ethernet, Clos topologies. Unreliable, asynchronous packet networks.</td></tr>
+    <tr><td><strong>Scale assumption</strong></td><td>Nodes close together, controlled environment.</td><td>Geographically distributed. Internet between datacenters.</td></tr>
+    <tr><td><strong>Philosophy</strong></td><td>Like a single-node computer: crash everything on failure.</td><td>Build reliable systems from unreliable components. Something is <em>always</em> broken.</td></tr>
+  </table>
+
+  <div class="card card-green">
+    <h4>Building Reliable Systems from Unreliable Components</h4>
+    <p>This is an old idea in computing. <strong>Error-correcting codes</strong> transmit data accurately over a noisy channel. <strong>TCP</strong> provides reliable transport over unreliable IP (retransmitting lost packets, eliminating duplicates, reordering). The higher-level system is more reliable than its parts, though there are always limits.</p>
+  </div>
+
+  <!-- UNRELIABLE NETWORKS -->
+  <h2>Unreliable Networks</h2>
+  <p>The distributed systems in this book are <span class="key-term">shared-nothing</span> systems: machines connected by an asynchronous packet network. The network is the <em>only</em> way they communicate. When you send a request and expect a response, many things can go wrong:</p>
+
+  <div class="diagram">
+    <div class="diagram-title">What Can Go Wrong When Sending a Network Request</div>
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="flow-box red" style="min-width:60px;">1</div>
+        <div style="flex:1; min-width:200px;"><p style="margin:0; font-size:0.85rem;">Your <strong>request is lost</strong> (someone unplugged a cable)</p></div>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="flow-box orange" style="min-width:60px;">2</div>
+        <div style="flex:1; min-width:200px;"><p style="margin:0; font-size:0.85rem;">Your request is <strong>waiting in a queue</strong> — will be delivered later</p></div>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="flow-box red" style="min-width:60px;">3</div>
+        <div style="flex:1; min-width:200px;"><p style="margin:0; font-size:0.85rem;">The <strong>remote node has failed</strong> (crashed or powered down)</p></div>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="flow-box orange" style="min-width:60px;">4</div>
+        <div style="flex:1; min-width:200px;"><p style="margin:0; font-size:0.85rem;">Remote node <strong>temporarily stopped responding</strong> (GC pause) — will respond later</p></div>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="flow-box red" style="min-width:60px;">5</div>
+        <div style="flex:1; min-width:200px;"><p style="margin:0; font-size:0.85rem;">Remote node processed your request but the <strong>response was lost</strong></p></div>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="flow-box orange" style="min-width:60px;">6</div>
+        <div style="flex:1; min-width:200px;"><p style="margin:0; font-size:0.85rem;">Remote node processed your request but the <strong>response is delayed</strong></p></div>
+      </div>
+    </div>
+    <p style="margin-top:16px; font-size:0.85rem; color:var(--red); font-weight:600;">Key insight: If you don't get a response, it is IMPOSSIBLE to tell why. All these failures look the same from the sender's perspective.</p>
+  </div>
+
+  <p>The only option is a <span class="key-term">timeout</span>: after some time, give up waiting and assume the response won't arrive. But even after a timeout, you still don't know if the remote node got your request or not.</p>
+
+  <!-- NETWORK FAULTS IN PRACTICE -->
+  <h3>Network Faults in Practice</h3>
+  <div class="card card-orange">
+    <h4>Even Datacenters Have Network Problems</h4>
+    <ul>
+      <li>One study found <strong>~12 network faults per month</strong> in a medium-sized datacenter, half disconnecting a single machine, half disconnecting an entire rack</li>
+      <li>Adding redundant networking gear doesn't help as much as hoped — doesn't guard against <strong>human error</strong> (misconfigured switches), a major cause of outages</li>
+      <li>EC2 is notorious for frequent <strong>transient network glitches</strong></li>
+      <li>A software upgrade for a switch can trigger topology reconfiguration, delaying packets for <strong>over a minute</strong></li>
+      <li>Sharks bite undersea cables. A network interface can drop all inbound packets but send outbound successfully.</li>
+      <li>Even if faults are rare, software must be able to handle them — untested error handling can cause <strong>permanent deadlocks</strong> or even <strong>data deletion</strong></li>
+    </ul>
+  </div>
+
+  <div class="card card-accent">
+    <h4>Network Partitions (Netsplits)</h4>
+    <p>When part of the network is cut off from the rest, it's called a <span class="key-term">network partition</span>. Handling network faults doesn't always mean <em>tolerating</em> them — showing error messages to users during problems is valid — but you must <strong>know how your software reacts</strong> and ensure it can recover. This is the idea behind <strong>Chaos Monkey</strong>: deliberately trigger problems and test the response.</p>
+  </div>
+
+  <!-- DETECTING FAULTS -->
+  <h3>Detecting Faults</h3>
+  <p>Many systems need to automatically detect faulty nodes (load balancers removing dead nodes, followers being promoted to leader). But the network makes this hard.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Limited Feedback You Might Get</div>
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="flow-box green" style="min-width:180px;"><strong>TCP RST/FIN</strong></div>
+        <div style="flex:1; min-width:200px;"><p style="margin:0; font-size:0.85rem;">If you can reach the machine but no process is listening on the port, the OS sends RST/FIN. But if the node crashed <em>while handling</em> your request, you don't know how much was processed.</p></div>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="flow-box green" style="min-width:180px;"><strong>Process crash notification</strong></div>
+        <div style="flex:1; min-width:200px;"><p style="margin:0; font-size:0.85rem;">If the process crashed but the OS is still running, a script can notify other nodes (HBase does this). Faster than waiting for timeout.</p></div>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="flow-box green" style="min-width:180px;"><strong>ICMP Unreachable</strong></div>
+        <div style="flex:1; min-width:200px;"><p style="margin:0; font-size:0.85rem;">A router may reply with ICMP Destination Unreachable if the IP is unreachable. But the router doesn't have magic detection either.</p></div>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="flow-box red" style="min-width:180px;"><strong>No response at all</strong></div>
+        <div style="flex:1; min-width:200px;"><p style="margin:0; font-size:0.85rem;">In general, assume you'll get <strong>no response</strong>. Retry, wait for timeout, eventually declare dead. Even TCP ACK only confirms delivery, not processing.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TIMEOUTS AND UNBOUNDED DELAYS -->
+  <h2>Timeouts and Unbounded Delays</h2>
+  <p>If a timeout is the only sure way of detecting a fault, how long should it be? There is no simple answer.</p>
+
+  <div class="grid2">
+    <div class="card card-red">
+      <h4>Long Timeout</h4>
+      <ul>
+        <li>Long wait until node is declared dead</li>
+        <li>Users see errors or hangs during this time</li>
+        <li>Delays recovery and failover</li>
+      </ul>
+    </div>
+    <div class="card card-orange">
+      <h4>Short Timeout</h4>
+      <ul>
+        <li>Detects faults faster</li>
+        <li>Higher risk of <strong>false positives</strong> (declaring alive node dead during temporary slowdown)</li>
+        <li>Premature failover causes duplicate actions (e.g., email sent twice)</li>
+        <li>Transferring load from "dead" node to others can cause <strong>cascading failure</strong></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card card-accent">
+    <h4>The Ideal Timeout (If Networks Were Reliable)</h4>
+    <p>If packets were guaranteed to arrive within time <code>d</code>, and nodes handled requests within time <code>r</code>, then a reasonable timeout would be <code>2d + r</code>. But <strong>asynchronous networks have unbounded delays</strong> and most servers can't guarantee a maximum processing time. There is no "correct" timeout value.</p>
+  </div>
+
+  <!-- NETWORK CONGESTION AND QUEUEING -->
+  <h3>Network Congestion and Queueing</h3>
+  <p>The variability of packet delays is most often due to <span class="key-term">queueing</span>, which can happen at multiple points:</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Where Queueing Delays Happen (The 5 Stages of Delay)</div>
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <div style="display:flex; align-items:flex-start; gap:16px;">
+        <div style="background:var(--red); color:white; border-radius:50%; min-width:32px; height:32px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.85rem;">1</div>
+        <div>
+          <p style="margin:0; font-weight:600; color:var(--text);">Network Switch Queue</p>
+          <p style="margin:4px 0 0; font-size:0.85rem;">Multiple nodes sending to same destination &rarr; switch queues packets. If queue fills up, packets are <strong>dropped</strong> and must be resent.</p>
+        </div>
+      </div>
+      <div style="display:flex; align-items:flex-start; gap:16px;">
+        <div style="background:var(--orange); color:white; border-radius:50%; min-width:32px; height:32px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.85rem;">2</div>
+        <div>
+          <p style="margin:0; font-weight:600; color:var(--text);">OS Incoming Queue</p>
+          <p style="margin:4px 0 0; font-size:0.85rem;">All CPU cores busy &rarr; incoming requests queued by the OS until application is ready. Can take <strong>arbitrary time</strong> under load.</p>
+        </div>
+      </div>
+      <div style="display:flex; align-items:flex-start; gap:16px;">
+        <div style="background:var(--accent2); color:white; border-radius:50%; min-width:32px; height:32px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.85rem;">3</div>
+        <div>
+          <p style="margin:0; font-weight:600; color:var(--text);">VM Monitor Buffer</p>
+          <p style="margin:4px 0 0; font-size:0.85rem;">In virtualized environments, VM is paused for tens of ms while another VM uses a CPU core. Network data queued by the hypervisor.</p>
+        </div>
+      </div>
+      <div style="display:flex; align-items:flex-start; gap:16px;">
+        <div style="background:var(--accent); color:white; border-radius:50%; min-width:32px; height:32px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.85rem;">4</div>
+        <div>
+          <p style="margin:0; font-weight:600; color:var(--text);">TCP Flow Control (Backpressure)</p>
+          <p style="margin:4px 0 0; font-size:0.85rem;">TCP limits send rate to avoid overloading the network or receiver &rarr; additional queueing <strong>at the sender</strong> before data enters the network.</p>
+        </div>
+      </div>
+      <div style="display:flex; align-items:flex-start; gap:16px;">
+        <div style="background:var(--accent3); color:white; border-radius:50%; min-width:32px; height:32px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.85rem;">5</div>
+        <div>
+          <p style="margin:0; font-weight:600; color:var(--text);">TCP Retransmission</p>
+          <p style="margin:4px 0 0; font-size:0.85rem;">If a packet isn't ACK'd within a timeout, TCP retransmits. The application sees <strong>delay</strong> (waiting for timeout + retransmit + ACK) but not the packet loss itself.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-cyan">
+    <h4>TCP vs. UDP: A Trade-off</h4>
+    <p>Latency-sensitive apps (VoIP, video calls) use <strong>UDP</strong> instead of TCP. UDP skips flow control and retransmission, reducing variable delays. The trade-off: lost packets stay lost. For VoIP, a lost packet's time slot is filled with silence &mdash; retransmitting would be too late. <em>"Could you repeat that please? The sound just cut out for a moment."</em> The retry happens at the human layer.</p>
+  </div>
+
+  <p>In multi-tenant cloud environments, you share network resources with other customers. A <span class="key-term">noisy neighbor</span> running MapReduce can saturate links. You can only choose timeouts experimentally by measuring round-trip time distributions. Even better: use a <span class="key-term">Phi Accrual failure detector</span> (used by Akka and Cassandra) that automatically adjusts timeouts based on observed response time variability.</p>
+
+  <!-- SYNCHRONOUS VS ASYNCHRONOUS NETWORKS -->
+  <h2>Synchronous vs. Asynchronous Networks</h2>
+  <p>Why can't we just make the network reliable at the hardware level? To answer this, compare computer networks to the traditional telephone network:</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Telephone Circuit Switching vs. Internet Packet Switching</div>
+    <table>
+      <tr><th>Property</th><th>Telephone Network (Circuit-Switched)</th><th>Internet / Datacenter (Packet-Switched)</th></tr>
+      <tr><td><strong>Bandwidth allocation</strong></td><td>Fixed, guaranteed bandwidth reserved for entire call (e.g., 16 bits per 250&mu;s frame in ISDN)</td><td>Dynamic. Packets opportunistically use available bandwidth. Idle connections use zero bandwidth.</td></tr>
+      <tr><td><strong>Queueing</strong></td><td>None. Space is pre-reserved at every hop.</td><td>Packets queue at switches, OS, hypervisors, etc. Unbounded delays.</td></tr>
+      <tr><td><strong>Latency</strong></td><td><strong>Bounded</strong>. Fixed maximum end-to-end latency.</td><td><strong>Unbounded</strong>. Variable delays from congestion and queueing.</td></tr>
+      <tr><td><strong>Optimized for</strong></td><td>Constant-rate traffic (audio/video calls)</td><td><strong>Bursty traffic</strong> (web pages, emails, file transfers). Higher utilization of the wire.</td></tr>
+      <tr><td><strong>Efficiency</strong></td><td>Wastes capacity when circuit is idle. If you guess bandwidth wrong, transfer is slow or circuit can't be set up.</td><td>TCP dynamically adapts to available capacity. Maximizes wire utilization &rarr; cheaper per byte.</td></tr>
+    </table>
+  </div>
+
+  <div class="card card-purple">
+    <h4>Why Packet Switching Wins for Data</h4>
+    <p>Datacenter networks use packet switching because data transfers are <span class="key-term">bursty</span>. A web request doesn't need a fixed bandwidth &mdash; it just wants to complete as fast as possible. Circuit switching would waste capacity. The trade-off: variable delays are the price we pay for better utilization and lower cost.</p>
+    <p style="margin:0; font-size:0.85rem;"><strong>Variable delays are not a law of nature</strong> &mdash; they are the result of a cost/benefit trade-off. Bounded delays are achievable (with static resource partitioning, QoS, dedicated hardware) but expensive and lower utilization. Multi-tenancy with dynamic partitioning is cheaper but has variable delays.</p>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Resource Partitioning: Static vs. Dynamic</div>
+    <div class="flow">
+      <div class="flow-box red" style="min-width:200px;">
+        <strong>Static (Circuit)</strong><br>
+        <span style="font-size:0.75rem; color:var(--text-muted);">Dedicated bandwidth per call.<br>Low utilization. Bounded delay.<br>Expensive per byte.</span>
+      </div>
+      <div class="flow-arrow">&harr;</div>
+      <div class="flow-box green" style="min-width:200px;">
+        <strong>Dynamic (Packet)</strong><br>
+        <span style="font-size:0.75rem; color:var(--text-muted);">Shared bandwidth on demand.<br>High utilization. Unbounded delay.<br>Cheaper per byte.</span>
+      </div>
+    </div>
+    <p style="margin-top:12px; font-size:0.85rem; text-align:center; color:var(--text-muted);">Same trade-off applies to CPUs: dynamic thread scheduling (time-sharing) vs. dedicated CPU cycles.</p>
+  </div>
+
+  <!-- UNRELIABLE CLOCKS -->
+  <h2>Unreliable Clocks</h2>
+  <p>Clocks are crucial in distributed systems &mdash; for timeouts, performance measurement, cache expiry, timestamps in logs, event ordering, and more. But in a distributed system, time is tricky: communication is not instantaneous, each machine has its own clock (a quartz crystal oscillator), and these clocks <strong>drift</strong> at different rates.</p>
+
+  <h3>Monotonic vs. Time-of-Day Clocks</h3>
+  <p>Modern computers have two types of clocks that serve fundamentally different purposes:</p>
+
+  <div class="grid2">
+    <div class="card card-accent">
+      <h4>Time-of-Day Clocks</h4>
+      <ul>
+        <li>Returns current date and time (wall-clock time)</li>
+        <li><code>clock_gettime(CLOCK_REALTIME)</code> on Linux, <code>System.currentTimeMillis()</code> in Java</li>
+        <li>Synchronized with NTP &rarr; timestamp from one machine <em>ideally</em> means the same on another</li>
+        <li><strong>Can jump backward</strong> if NTP resets the clock</li>
+        <li>May ignore leap seconds</li>
+        <li>Historically coarse-grained (10ms steps on old Windows)</li>
+        <li style="color:var(--red);"><strong>Unsuitable for measuring elapsed time</strong></li>
+      </ul>
+    </div>
+    <div class="card card-green">
+      <h4>Monotonic Clocks</h4>
+      <ul>
+        <li>Suitable for measuring <strong>durations</strong> (intervals)</li>
+        <li><code>clock_gettime(CLOCK_MONOTONIC)</code> on Linux, <code>System.nanoTime()</code> in Java</li>
+        <li><strong>Guaranteed to always move forward</strong></li>
+        <li>Absolute value is meaningless (e.g., nanoseconds since boot)</li>
+        <li>Makes no sense to compare between two different machines</li>
+        <li>NTP may <em>slew</em> the clock speed (&plusmn;0.05%) but never jump it</li>
+        <li>Microsecond resolution or better on most systems</li>
+        <li style="color:var(--accent3);"><strong>Good for timeouts and response time measurement</strong></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- CLOCK SYNCHRONIZATION AND ACCURACY -->
+  <h3>Clock Synchronization and Accuracy</h3>
+  <p>Time-of-day clocks need synchronization via NTP, but this is unreliable:</p>
+
+  <div class="card card-red">
+    <h4>Why You Can't Trust Clocks</h4>
+    <ul>
+      <li><strong>Quartz drift</strong>: Google assumes 200 ppm (parts per million) clock drift &rarr; 6 ms drift in 30 seconds, 17 seconds drift per day</li>
+      <li><strong>NTP reset</strong>: If clock differs too much from NTP server, it may be forcibly reset &rarr; time jumps backward or forward</li>
+      <li><strong>NTP firewalled</strong>: If node is accidentally cut off from NTP servers, the misconfiguration may go unnoticed for a long time</li>
+      <li><strong>Network delay limits NTP accuracy</strong>: Minimum 35 ms error over the internet; spikes to ~1 second are common</li>
+      <li><strong>NTP servers can be wrong</strong>: Some report time off by hours. Clients query multiple servers and ignore outliers, but it's still risky.</li>
+      <li><strong>Leap seconds</strong>: A minute that is 59 or 61 seconds long. Has crashed many large systems. Best workaround: "smearing" the adjustment over a day.</li>
+      <li><strong>VM clock virtualization</strong>: VM pauses for tens of ms while another VM runs &rarr; clock appears to jump forward</li>
+      <li><strong>User devices</strong>: Users may deliberately set wrong time (e.g., to circumvent game time limits)</li>
+    </ul>
+  </div>
+
+  <!-- RELYING ON SYNCHRONIZED CLOCKS -->
+  <h3>Relying on Synchronized Clocks: Dangerous!</h3>
+  <p>Incorrect clocks are <strong>silent failures</strong>: unlike a broken CPU or misconfigured network that fails loudly, a drifting clock keeps working but gradually diverges from reality. If software relies on clock accuracy, the result is subtle, silent data loss.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Danger: Using Timestamps to Order Events (Last-Write-Wins)</div>
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <div style="display:flex; gap:20px; flex-wrap:wrap;">
+        <div style="flex:1; min-width:260px;">
+          <p style="font-size:0.85rem; margin-bottom:8px;"><strong>Scenario</strong>: Two clients write to a multi-leader database. Writes tagged with local wall-clock timestamps.</p>
+          <div style="background:var(--surface); padding:16px; border-radius:8px; border:1px solid var(--border);">
+            <p style="font-size:0.85rem; margin:0;">Client A writes <code>x = 1</code> on Node 1 at timestamp <strong>42.004</strong></p>
+            <p style="font-size:0.85rem; margin:4px 0;">Client B writes <code>x = 2</code> on Node 3 at timestamp <strong>42.003</strong></p>
+            <p style="font-size:0.85rem; margin:4px 0; color:var(--orange);">B's write is causally <em>later</em> (it increments A's value), but has an <em>earlier</em> timestamp!</p>
+            <p style="font-size:0.85rem; margin:4px 0 0; color:var(--red);"><strong>Result</strong>: Node 2 applies LWW, keeps x=1, drops x=2. Client B's increment is silently lost.</p>
+          </div>
+        </div>
+        <div style="flex:1; min-width:220px;">
+          <p style="font-size:0.85rem; font-weight:600; color:var(--red); margin-bottom:8px;">Problems with LWW (Last Write Wins):</p>
+          <ul style="font-size:0.85rem; padding-left:16px; color:var(--text-muted);">
+            <li>Writes can <strong>mysteriously disappear</strong>: a node with a lagging clock can't overwrite values from a node with a fast clock</li>
+            <li>Can't distinguish <strong>sequential vs. concurrent</strong> writes (need version vectors for causality)</li>
+            <li>Two nodes can generate <strong>identical timestamps</strong> (millisecond resolution) &mdash; tiebreaker needed but still violates causality</li>
+          </ul>
+          <p style="font-size:0.85rem; margin-top:8px; color:var(--accent3);"><strong>Solution</strong>: Use <em>logical clocks</em> (incrementing counters) instead of physical clocks for ordering events.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Clock Readings Have a Confidence Interval</h3>
+  <p>A clock reading is not a point in time &mdash; it's a <strong>range</strong>. If you only know the time &plusmn;100 ms, the microsecond digits are meaningless.</p>
+
+  <div class="card card-purple">
+    <h4>Google's TrueTime API (Spanner)</h4>
+    <p>Unlike most systems, Google's TrueTime explicitly reports the <strong>confidence interval</strong>: you get back <code>[earliest, latest]</code>. Spanner uses this for snapshot isolation across datacenters: if two transactions' confidence intervals don't overlap, their order is certain. To ensure this, Spanner <strong>deliberately waits</strong> for the length of the confidence interval before committing. To keep waits short, Google deploys GPS receivers and atomic clocks in every datacenter, achieving ~7 ms uncertainty.</p>
+  </div>
+
+  <!-- PROCESS PAUSES -->
+  <h2>Process Pauses</h2>
+  <p>Even if you fix clock issues, there's another problem: a thread can be <strong>paused for an arbitrary length of time</strong> and resume without knowing it was paused. This breaks any assumptions about "checking a condition and then acting on it."</p>
+
+  <div class="card card-red">
+    <h4>The Lease Example: A Dangerous Pattern</h4>
+    <p>A leader obtains a lease (a lock with a timeout) and checks <code>if (lease.isValid())</code> before processing a request. But what if the thread pauses for 15 seconds <em>between</em> the check and the processing? The lease expires, another node becomes leader, but the original thread resumes and processes the request anyway &mdash; believing it still holds the lease. <strong>Two nodes now act as leader simultaneously.</strong></p>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Reasons a Process Can Pause for a Long Time</div>
+    <div class="grid2">
+      <div class="card" style="margin:0;">
+        <h4 style="color:var(--red);">Garbage Collection (GC)</h4>
+        <p style="font-size:0.85rem;">Stop-the-world GC pauses can last <strong>several minutes</strong>. Even "concurrent" collectors (CMS, G1) must stop the world occasionally.</p>
+      </div>
+      <div class="card" style="margin:0;">
+        <h4 style="color:var(--orange);">VM Suspension</h4>
+        <p style="font-size:0.85rem;">A VM can be <strong>suspended and resumed</strong> (live migration). Pause length depends on memory write rate. Arbitrary duration.</p>
+      </div>
+      <div class="card" style="margin:0;">
+        <h4 style="color:var(--accent2);">Context Switches &amp; Steal Time</h4>
+        <p style="font-size:0.85rem;">OS context-switches to another thread, or hypervisor switches to another VM. Under heavy load, a paused thread may wait a long time to run again.</p>
+      </div>
+      <div class="card" style="margin:0;">
+        <h4 style="color:var(--accent);">Synchronous Disk I/O</h4>
+        <p style="font-size:0.85rem;">Thread blocks on slow disk I/O. Java classloader lazily loads classes, causing surprise disk access. Network filesystem (EBS) adds network delay variability.</p>
+      </div>
+      <div class="card" style="margin:0;">
+        <h4 style="color:var(--cyan);">Memory Swapping (Paging)</h4>
+        <p style="font-size:0.85rem;">A memory access triggers a <strong>page fault</strong> requiring disk I/O. Under memory pressure, system thrashes — spending most time swapping pages.</p>
+      </div>
+      <div class="card" style="margin:0;">
+        <h4 style="color:var(--pink);">SIGSTOP / Laptop Lid Close</h4>
+        <p style="font-size:0.85rem;">Unix SIGSTOP (Ctrl-Z) stops a process immediately until SIGCONT. Could be sent accidentally by an ops engineer.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-green">
+    <h4>Mitigating GC Pauses</h4>
+    <p>An emerging approach: treat GC pauses like <strong>brief planned outages</strong>. When GC is needed, stop sending requests to that node, let it drain, GC, then resume. This hides GC pauses from clients. Another approach: use short-lived objects only (restart processes periodically before long-lived objects accumulate), using the runtime more like a short-lived process.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h4>Real-Time Systems: The Expensive Alternative</h4>
+    <p>In safety-critical systems (aircraft, rockets, cars), software must respond within a strict deadline. This requires an RTOS, extensive testing, limited libraries, limited languages, and restricted memory allocation. Very expensive, lower throughput. Not appropriate for server-side data processing. <strong>"Real-time" does not mean "high-performance"</strong> &mdash; it means "guaranteed timely response."</p>
+  </div>
+
+  <!-- KNOWLEDGE, TRUTH, AND LIES -->
+  <h2>Knowledge, Truth, and Lies</h2>
+  <p>A node in a distributed system cannot <em>know</em> anything for sure. It can only make guesses based on messages received (or not received). If a remote node doesn't respond, you can't distinguish network problems from node problems. This borders on the philosophical: <strong>what do we know to be true in our system?</strong></p>
+
+  <div class="diagram">
+    <div class="diagram-title">The Epistemological Problem of Distributed Systems</div>
+    <div class="flow">
+      <div class="flow-box primary" style="min-width:140px;"><strong>Node A</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">Sends request to B</span></div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box orange" style="min-width:140px;"><strong>??? Network ???</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">Lost? Delayed? Queued?</span></div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box red" style="min-width:140px;"><strong>Node B</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">Down? Slow? GC paused?</span></div>
+    </div>
+    <p style="margin-top:12px; text-align:center; font-size:0.85rem; color:var(--text-muted);">Node A gets no response. It <strong>cannot distinguish</strong> between these possibilities. It can only <em>guess</em>.</p>
+  </div>
+
+  <!-- THE TRUTH IS DEFINED BY THE MAJORITY -->
+  <h3>The Truth Is Defined by the Majority</h3>
+
+  <div class="card card-purple">
+    <h4>A Node Cannot Trust Its Own Judgment</h4>
+    <p>Consider a node with an asymmetric fault: it can <strong>receive</strong> all messages but its <strong>outgoing</strong> messages are dropped. The node works perfectly, but the other nodes declare it dead because they can't hear its responses. <em>"I'm not dead!" the node screams &mdash; but nobody hears.</em> Similarly, a node in a GC pause is declared dead, even though from its perspective it was only paused for a moment.</p>
+  </div>
+
+  <p>The solution: a node cannot independently declare itself as anything (leader, lock holder, etc.). Decisions require a <span class="key-term">quorum</span> &mdash; a minimum number of votes from nodes. Most commonly, decisions require a <strong>majority</strong> (more than half). With three nodes, one failure can be tolerated; with five, two. There can only be one majority, so conflicting decisions are prevented.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Quorum Decision Making</div>
+    <div class="flow">
+      <div class="flow-box green" style="min-width:100px;">Node 1<br><span style="font-size:0.75rem;">VOTE: Yes</span></div>
+      <div class="flow-box green" style="min-width:100px;">Node 2<br><span style="font-size:0.75rem;">VOTE: Yes</span></div>
+      <div class="flow-box red" style="min-width:100px;">Node 3<br><span style="font-size:0.75rem;">No response</span></div>
+    </div>
+    <p style="margin-top:12px; text-align:center; font-size:0.85rem; color:var(--accent3);"><strong>Quorum reached</strong> (2 out of 3). Decision proceeds. Only ONE majority can exist at any time.</p>
+  </div>
+
+  <h3>The Leader and the Lock Problem</h3>
+  <p>Systems often require <strong>only one</strong> of something: one leader per partition, one lock holder per resource, one user per username. But in a distributed system, even if a node believes it's "the chosen one," the majority may have demoted it (due to a GC pause or network issue). If the deposed leader keeps acting as leader, <strong>data corruption</strong> can result.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Unsafe: Expired Lease Leads to Data Corruption</div>
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <div class="flow">
+        <div class="flow-box primary">Client 1 gets lease</div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-box orange">Long GC pause...</div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-box red">Lease expires!</div>
+      </div>
+      <div class="flow">
+        <div class="flow-box green">Client 2 gets new lease</div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-box green">Writes to file</div>
+      </div>
+      <div class="flow">
+        <div class="flow-box red">Client 1 wakes up</div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-box red">Thinks lease is valid</div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-box red" style="border-color:var(--red); background:rgba(239,68,68,0.1);">Also writes to file &mdash; CORRUPTION!</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FENCING TOKENS -->
+  <h3>Fencing Tokens: The Solution</h3>
+
+  <div class="diagram">
+    <div class="diagram-title">Fencing Tokens Prevent Stale Writes</div>
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="flow-box primary" style="min-width:210px;">Lock server grants lease to Client 1 with <strong>token 33</strong></div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-box orange">Client 1 enters GC pause...</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="flow-box primary" style="min-width:210px;">Lease expires. Lock server grants Client 2 <strong>token 34</strong></div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-box green">Client 2 writes with token 34 &check;</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="flow-box orange" style="min-width:210px;">Client 1 wakes up, sends write with <strong>token 33</strong></div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-box green" style="border-color:var(--accent3); background:rgba(16,185,129,0.1);">Storage rejects: 33 &lt; 34. Already seen higher token. <strong>SAFE!</strong></div>
+      </div>
+    </div>
+    <p style="margin-top:16px; font-size:0.85rem; color:var(--text-muted);">The fencing token is a monotonically increasing number. The <strong>resource itself</strong> (storage server) must check the token and reject writes with older tokens than the highest it has seen. ZooKeeper's <code>zxid</code> or node version <code>cversion</code> can serve as fencing tokens.</p>
+  </div>
+
+  <div class="card card-green">
+    <h4>Key Insight: Server-Side Validation</h4>
+    <p>The resource must <strong>actively check</strong> fencing tokens. It's not enough for clients to check their own lock status &mdash; a paused client won't know its lock expired. Server-side checking also protects against accidentally abusive clients. This is a general principle: <strong>don't trust clients to enforce invariants</strong>.</p>
+  </div>
+
+  <!-- BYZANTINE FAULTS -->
+  <h2>Byzantine Faults</h2>
+  <p>Fencing tokens protect against nodes that are <em>inadvertently</em> acting in error. But what if a node <strong>deliberately lies</strong>? Sends fake fencing tokens? This is a <span class="key-term">Byzantine fault</span>: nodes sending arbitrary, faulty, or corrupted responses.</p>
+
+  <div class="card card-purple">
+    <h4>The Byzantine Generals Problem</h4>
+    <p>A generalization of the Two Generals Problem: <em>n</em> generals must agree on a battle plan, but some are <strong>traitors</strong> who send conflicting messages. A system is <span class="key-term">Byzantine fault-tolerant</span> if it operates correctly even when some nodes malfunction or malicious attackers interfere. Requires a supermajority of more than <strong>two-thirds</strong> of nodes to be honest.</p>
+  </div>
+
+  <div class="grid2">
+    <div class="card card-red">
+      <h4>When Byzantine Tolerance Matters</h4>
+      <ul>
+        <li><strong>Aerospace</strong>: radiation can corrupt CPU/memory, causing unpredictable responses. System failure = crash. Flight control systems must tolerate Byzantine faults.</li>
+        <li><strong>Multi-organization systems</strong>: participants may cheat or defraud (e.g., blockchain / Bitcoin &mdash; mutually untrusting parties agreeing on transactions without central authority).</li>
+      </ul>
+    </div>
+    <div class="card card-green">
+      <h4>When You Can Ignore It</h4>
+      <ul>
+        <li>In your own datacenter, all nodes are controlled by your organization</li>
+        <li>Radiation levels are low enough that memory corruption isn't a major problem</li>
+        <li>Byzantine protocols are <strong>very complex</strong> and impractical for most systems</li>
+        <li>If an attacker compromises one node, they can probably compromise all (same software)</li>
+        <li>Traditional security (auth, encryption, firewalls) remains the main defense</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card card-cyan">
+    <h4>Weak Forms of "Lying": Worth Defending Against</h4>
+    <ul>
+      <li><strong>Corrupted packets</strong>: TCP/UDP checksums catch most, but not all. Add application-level checksums.</li>
+      <li><strong>Malicious user input</strong>: Sanitize inputs, check value ranges, limit string sizes. Prevent SQL injection, XSS, etc.</li>
+      <li><strong>Misconfigured NTP servers</strong>: Query multiple servers, ignore outliers. More robust than trusting one source.</li>
+    </ul>
+  </div>
+
+  <!-- SYSTEM MODEL AND REALITY -->
+  <h2>System Model and Reality</h2>
+  <p>To reason about distributed algorithms, we need to formalize our assumptions about faults into a <span class="key-term">system model</span>: an abstraction describing what an algorithm may assume.</p>
+
+  <h3>Timing Models</h3>
+  <div class="grid3">
+    <div class="card card-accent">
+      <h4>Synchronous</h4>
+      <p style="font-size:0.85rem;">Bounded network delay, bounded process pauses, bounded clock error. You know the upper bounds. <strong>Not realistic</strong> for most systems.</p>
+    </div>
+    <div class="card card-green">
+      <h4>Partially Synchronous</h4>
+      <p style="font-size:0.85rem;">Behaves synchronously <strong>most of the time</strong>, but sometimes exceeds bounds. <strong>Most realistic</strong> model. Networks usually behave well, but occasionally don't.</p>
+    </div>
+    <div class="card card-orange">
+      <h4>Asynchronous</h4>
+      <p style="font-size:0.85rem;">No timing assumptions at all. Not even a clock. Can't use timeouts. <strong>Very restrictive</strong>. Some algorithms work here, but most don't.</p>
+    </div>
+  </div>
+
+  <h3>Node Failure Models</h3>
+  <div class="grid3">
+    <div class="card card-accent">
+      <h4>Crash-Stop</h4>
+      <p style="font-size:0.85rem;">A node fails by crashing. Once it stops, it's <strong>gone forever</strong>. It never comes back. Simplest model.</p>
+    </div>
+    <div class="card card-green">
+      <h4>Crash-Recovery</h4>
+      <p style="font-size:0.85rem;">Nodes may crash and <strong>come back</strong> after unknown time. Stable storage (disk) survives crashes; in-memory state is lost. <strong>Most practical</strong> model.</p>
+    </div>
+    <div class="card card-red">
+      <h4>Byzantine</h4>
+      <p style="font-size:0.85rem;">Nodes may do <strong>absolutely anything</strong>, including lying and sending malicious messages. Hardest to tolerate.</p>
+    </div>
+  </div>
+
+  <div class="card card-purple">
+    <h4>The Most Useful Model for Real Systems</h4>
+    <p><strong>Partially synchronous + crash-recovery</strong> is generally the most useful system model. Most of the time, the network and processes behave well. But we must handle the cases where they don't.</p>
+  </div>
+
+  <!-- CORRECTNESS OF ALGORITHMS -->
+  <h3>Correctness of Algorithms: Safety and Liveness</h3>
+  <p>To define what it means for a distributed algorithm to be "correct," we describe its <span class="key-term">properties</span>. For a fencing token algorithm:</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Properties of a Correct Fencing Token Algorithm</div>
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <div class="flow-box primary" style="min-width:160px;"><strong>Uniqueness</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">No two requests get same token</span></div>
+        <div style="font-size:0.75rem; color:var(--accent); font-weight:700; padding:4px 8px; border:1px solid var(--accent); border-radius:4px;">SAFETY</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px;">
+        <div class="flow-box primary" style="min-width:160px;"><strong>Monotonic Sequence</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">If x completes before y begins, t<sub>x</sub> &lt; t<sub>y</sub></span></div>
+        <div style="font-size:0.75rem; color:var(--accent); font-weight:700; padding:4px 8px; border:1px solid var(--accent); border-radius:4px;">SAFETY</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px;">
+        <div class="flow-box green" style="min-width:160px;"><strong>Availability</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">A non-crashed node eventually gets a response</span></div>
+        <div style="font-size:0.75rem; color:var(--accent3); font-weight:700; padding:4px 8px; border:1px solid var(--accent3); border-radius:4px;">LIVENESS</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card card-accent">
+      <h4>Safety Properties</h4>
+      <ul>
+        <li>Informally: <strong>"nothing bad happens"</strong></li>
+        <li>If violated, you can point to a specific moment when it broke</li>
+        <li>Once violated, <strong>cannot be undone</strong> &mdash; the damage is done</li>
+        <li>Must hold <strong>always</strong>, in all possible situations, even total failures</li>
+      </ul>
+    </div>
+    <div class="card card-green">
+      <h4>Liveness Properties</h4>
+      <ul>
+        <li>Informally: <strong>"something good eventually happens"</strong></li>
+        <li>Often includes the word <strong>"eventually"</strong> (e.g., eventual consistency is a liveness property)</li>
+        <li>May not hold at a point in time, but there's always hope it will be satisfied later</li>
+        <li>Allowed to have <strong>caveats</strong> (e.g., "only if a majority of nodes are alive and network recovers")</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card card-orange">
+    <h4>Mapping Models to Reality</h4>
+    <p>Theoretical models are invaluable for reasoning about correctness, but real implementations face messier facts: stable storage can be corrupted, firmware bugs can prevent a server from recognizing its disks on reboot, quorum algorithms break if a node has "amnesia." The difference between theory and practice: <code>printf("Sucks to be you")</code> and <code>exit(666)</code> &mdash; i.e., letting a human operator clean up. This is arguably the difference between computer science and software engineering.</p>
+    <p style="margin:0;">Still, proving algorithms correct is a crucial first step: theoretical analysis uncovers bugs that might remain hidden for years in production and only surface when unusual circumstances defeat your timing assumptions.</p>
+  </div>
+
+  <!-- CHAPTER SUMMARY DIAGRAM -->
+  <h2>Chapter Summary</h2>
+  <div class="diagram">
+    <div class="diagram-title">The Three Categories of Trouble in Distributed Systems</div>
+    <div class="grid3">
+      <div style="text-align:center;">
+        <div style="background:var(--red); color:white; border-radius:50%; width:64px; height:64px; display:flex; align-items:center; justify-content:center; font-size:1.5rem; font-weight:700; margin:0 auto 12px;">1</div>
+        <p style="font-weight:700; color:var(--red); margin-bottom:4px;">Unreliable Networks</p>
+        <p style="font-size:0.8rem;">Packets lost, delayed, duplicated, reordered. No way to know if message arrived. Timeouts are the only detection mechanism.</p>
+      </div>
+      <div style="text-align:center;">
+        <div style="background:var(--orange); color:white; border-radius:50%; width:64px; height:64px; display:flex; align-items:center; justify-content:center; font-size:1.5rem; font-weight:700; margin:0 auto 12px;">2</div>
+        <p style="font-weight:700; color:var(--orange); margin-bottom:4px;">Unreliable Clocks</p>
+        <p style="font-size:0.8rem;">Quartz drift, NTP jumps, leap seconds. Using timestamps for ordering is dangerous. Logical clocks are safer.</p>
+      </div>
+      <div style="text-align:center;">
+        <div style="background:var(--accent2); color:white; border-radius:50%; width:64px; height:64px; display:flex; align-items:center; justify-content:center; font-size:1.5rem; font-weight:700; margin:0 auto 12px;">3</div>
+        <p style="font-weight:700; color:var(--accent2); margin-bottom:4px;">Process Pauses</p>
+        <p style="font-size:0.8rem;">GC, VM suspension, context switches, disk I/O, paging. A node can be declared dead while merely paused.</p>
+      </div>
+    </div>
+    <div style="text-align:center; margin-top:24px; padding-top:16px; border-top:1px solid var(--border);">
+      <p style="font-size:0.9rem; color:var(--text);">Tolerating these faults requires: <strong>Quorums</strong> for decision-making, <strong>fencing tokens</strong> for mutual exclusion, and careful reasoning about <strong>safety and liveness</strong> properties.</p>
+    </div>
+  </div>
+
+  <!-- FIRST PRINCIPLES QUESTIONS -->
+  <h2 style="color: var(--pink);">First-Principles Questions</h2>
+  <p>Test your understanding. Click to reveal the answer.</p>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">1</span>Why are partial failures the defining characteristic of distributed systems, and why are they harder than total failures?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">In a single-node system, hardware either works or it doesn't &mdash; failures are typically total and deterministic. In a distributed system, <strong>some parts can fail while others work fine</strong>, and you may not even know whether an operation succeeded. Partial failures are <strong>nondeterministic</strong>: the same operation may succeed sometimes and fail others, depending on network delays, queueing, GC pauses, and other unpredictable factors. This nondeterminism makes reasoning about correctness fundamentally harder.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">2</span>Why does a supercomputer handle faults by escalating to total failure, while cloud systems cannot?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Supercomputers run offline batch jobs (weather simulation, molecular dynamics) that can be checkpointed and restarted. Stopping the entire cluster for repair is acceptable. Cloud/internet services must serve users <strong>24/7 with low latency</strong> &mdash; stopping the service is not an option. Additionally, cloud systems use commodity hardware with higher failure rates and are often geographically distributed. With thousands of nodes, <strong>something is always broken</strong>, so the system must tolerate partial failures and keep running.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">3</span>If you send a network request and get no response, why is it impossible to know what happened?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">In an asynchronous network, six different things could have happened and they all look identical (no response): (1) request lost, (2) request queued, (3) remote node crashed, (4) remote node is in a GC pause, (5) remote node processed request but response was lost, (6) response is delayed. The sender has <strong>zero information</strong> to distinguish these cases. Even a TCP ACK only confirms delivery, not processing. This fundamental ambiguity is why distributed systems are so hard.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">4</span>Why is there no "correct" timeout value, and what happens if you set it too short or too long?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body"><strong>Too long</strong>: slow to detect failures, users wait or see errors, delayed failover. <strong>Too short</strong>: false positives (declaring alive nodes dead during temporary slowdowns), which triggers unnecessary failovers, duplicate action execution, and extra load on remaining nodes &mdash; potentially causing a <strong>cascading failure</strong> where overloaded nodes are declared dead too. A "correct" timeout would require <code>2d + r</code> (max network delay + max processing time), but asynchronous networks have <strong>unbounded delays</strong> and servers can't guarantee bounded processing time. You can only determine timeouts experimentally.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">5</span>At which five points in the system can queueing delays occur, and why does this make network delay fundamentally unbounded?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">(1) <strong>Network switch queue</strong>: multiple senders to same destination, switch buffers packets, drops if full. (2) <strong>OS incoming queue</strong>: all CPU cores busy, requests wait until application is ready. (3) <strong>VM monitor buffer</strong>: hypervisor pauses VM, queues incoming data. (4) <strong>TCP flow control</strong>: sender-side queueing to avoid overloading receiver (backpressure). (5) <strong>TCP retransmission</strong>: lost packets are retransmitted after a timeout, adding delay invisible to the application. Since each of these queues can grow without bound (especially under load), total delay is <strong>unbounded</strong>. Near maximum capacity, delays spike dramatically.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">6</span>Why do datacenter networks use packet switching instead of circuit switching, even though circuit switching provides bounded delays?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Data transfers are <strong>bursty</strong>: a web request doesn't need constant bandwidth, it just wants to complete fast. Circuit switching reserves a fixed bandwidth that is wasted when idle. If you guess bandwidth too low, transfers are slow; too high, the circuit can't be established. Packet switching <strong>dynamically shares bandwidth</strong>, adapting to available capacity via TCP. This <strong>maximizes wire utilization</strong>, making each byte cheaper. Variable delays are the cost/benefit trade-off for better utilization. The same principle applies to CPU time-sharing vs. dedicated CPU cycles.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">7</span>Why should you never use time-of-day clocks to measure elapsed time, and what should you use instead?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Time-of-day clocks can <strong>jump backward</strong> when NTP resets them, ignore leap seconds, and have coarse resolution. Two readings may show negative elapsed time. <strong>Monotonic clocks</strong> are the correct choice: they are guaranteed to always move forward, offer microsecond resolution, and NTP only adjusts their <em>rate</em> (slewing by up to &plusmn;0.05%) without ever causing jumps. The absolute value is meaningless (can't compare between machines), but the <em>difference</em> between two readings on the same machine is a reliable duration measurement.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">8</span>Why is using timestamps for "Last Write Wins" ordering dangerous, even with tightly NTP-synchronized clocks?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Even with excellent NTP sync (clock skew < 3 ms), timestamps can order events <strong>incorrectly</strong>. A causally-later write (B increments A's value) can have an <em>earlier</em> timestamp than A's write, causing LWW to silently drop B's update. Problems: (1) Writes from a node with a lagging clock mysteriously disappear. (2) Can't distinguish sequential vs. truly concurrent writes (need version vectors). (3) Identical timestamps at millisecond resolution need tiebreakers that violate causality. NTP accuracy is limited by network round-trip time &mdash; you'd need the clock source to be more accurate than what you're measuring. <strong>Logical clocks</strong> (incrementing counters) are safer for ordering.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">9</span>How does Google Spanner use TrueTime's confidence intervals to implement distributed snapshot isolation?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">TrueTime returns <code>[earliest, latest]</code> instead of a single timestamp. Spanner observes: if two transactions A and B have non-overlapping confidence intervals (A<sub>latest</sub> &lt; B<sub>earliest</sub>), then B definitely happened after A. To ensure intervals don't overlap for causally related transactions, Spanner <strong>deliberately waits</strong> for the length of the confidence interval before committing a read-write transaction. To minimize wait times, Google deploys GPS receivers and atomic clocks in every datacenter, achieving ~7 ms uncertainty. This allows snapshot isolation across datacenters using physical timestamps &mdash; something no other mainstream database achieves.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">10</span>What is a fencing token, and why must the resource (not the client) check it?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">A <strong>fencing token</strong> is a monotonically increasing number returned by the lock service every time a lock/lease is granted. Clients include their token with every write. The storage service remembers the highest token it has seen and <strong>rejects writes with lower tokens</strong>. This prevents a paused client (whose lease expired) from corrupting data after waking up: its old token (e.g., 33) is rejected because the storage already processed a write with a higher token (34). The resource must check because a <strong>paused client doesn't know it was paused</strong> &mdash; it can't check its own lock status reliably. Server-side checking also protects against accidentally abusive clients.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">11</span>What is the difference between safety and liveness properties, and why does the distinction matter?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body"><strong>Safety</strong> = "nothing bad happens." If violated, you can point to a specific moment; the violation is permanent (damage done). Example: uniqueness, monotonic sequence. <strong>Liveness</strong> = "something good eventually happens." May not hold now but could be satisfied later. Often includes "eventually." Example: availability, eventual consistency. The distinction matters because distributed algorithms require safety to hold <strong>always</strong> (even if all nodes crash and the network fails), while liveness can have caveats (e.g., "only if a majority of nodes survive and the network eventually recovers"). This separation lets us make practical guarantees in an imperfect world.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">12</span>Why is "partially synchronous with crash-recovery" the most useful system model, and what are its alternatives?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">It's the most <strong>realistic</strong> model: networks and processes behave well most of the time (synchronous), but occasionally have unbounded delays and crashes. Nodes can crash and recover with data on stable storage preserved. Alternatives: <strong>Synchronous</strong> (bounded delays, bounded pauses, bounded clock error) &mdash; too optimistic, real systems exceed these bounds. <strong>Asynchronous</strong> (no timing assumptions at all, no clocks, no timeouts) &mdash; too restrictive, most practical algorithms can't work without timeouts. <strong>Crash-stop</strong> (crashed nodes never return) &mdash; too pessimistic. <strong>Byzantine</strong> (nodes may lie) &mdash; needed for aerospace/blockchain but too complex and expensive for typical datacenter systems.</div>
+  </div>
+
+</div>
+</body>
+</html>

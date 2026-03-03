@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Chapter 10 — Batch Processing</title>
+<style>
+  :root {
+    --bg: #0a0e17; --surface: #111827; --surface2: #1a2234; --border: #1e293b;
+    --text: #e2e8f0; --text-muted: #94a3b8; --accent: #3b82f6; --accent2: #8b5cf6;
+    --accent3: #10b981; --red: #ef4444; --orange: #f59e0b; --pink: #ec4899; --cyan: #06b6d4;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+  .container { max-width: 900px; margin: 0 auto; padding: 40px 24px 100px; }
+  h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent2), var(--pink)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 48px; border-bottom: 1px solid var(--border); padding-bottom: 24px; }
+  h2 { font-size: 1.5rem; font-weight: 700; margin: 48px 0 16px; color: var(--accent); }
+  h3 { font-size: 1.15rem; font-weight: 600; margin: 32px 0 12px; color: var(--text); }
+  p { margin-bottom: 16px; color: var(--text-muted); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 20px 0; }
+  .card-accent { border-left: 4px solid var(--accent); }
+  .card-green { border-left: 4px solid var(--accent3); }
+  .card-orange { border-left: 4px solid var(--orange); }
+  .card-purple { border-left: 4px solid var(--accent2); }
+  .card-red { border-left: 4px solid var(--red); }
+  .card-cyan { border-left: 4px solid var(--cyan); }
+  .card h4 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+  .card ul { padding-left: 20px; color: var(--text-muted); }
+  .card li { margin-bottom: 6px; }
+  .key-term { color: var(--accent); font-weight: 600; }
+  .diagram { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 32px; margin: 24px 0; overflow-x: auto; }
+  .diagram-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent2); margin-bottom: 20px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+  .quote { background: var(--surface2); border-left: 3px solid var(--accent2); padding: 16px 20px; margin: 20px 0; border-radius: 0 8px 8px 0; font-style: italic; color: var(--text-muted); }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  th { color: var(--accent); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
+  td { color: var(--text-muted); }
+  .question-block { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin: 16px 0; overflow: hidden; }
+  .question-header { padding: 16px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 0.95rem; }
+  .question-header:hover { background: var(--surface2); }
+  .question-body { padding: 0 20px 16px; display: none; color: var(--text-muted); border-top: 1px solid var(--border); padding-top: 16px; }
+  .question-block.open .question-body { display: block; }
+  .q-num { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: var(--accent2); color: white; border-radius: 50%; font-size: 0.8rem; font-weight: 700; margin-right: 12px; flex-shrink: 0; }
+  .chevron { transition: transform .2s; color: var(--text-muted); }
+  .question-block.open .chevron { transform: rotate(180deg); }
+  .section-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--accent2); font-weight: 700; margin-bottom: 8px; }
+  code { background: var(--surface2); padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; color: var(--accent3); }
+  .flow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; }
+  .flow-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; text-align: center; font-size: 0.85rem; min-width: 100px; }
+  .flow-box.primary { border-color: var(--accent); color: var(--accent); }
+  .flow-box.green { border-color: var(--accent3); color: var(--accent3); }
+  .flow-box.purple { border-color: var(--accent2); color: var(--accent2); }
+  .flow-box.orange { border-color: var(--orange); color: var(--orange); }
+  .flow-box.red { border-color: var(--red); color: var(--red); }
+  .flow-arrow { color: var(--text-muted); font-size: 1.2rem; }
+  .size-bar { height: 28px; border-radius: 6px; display: flex; align-items: center; padding: 0 12px; font-size: 0.8rem; font-weight: 600; margin: 6px 0; color: white; }
+</style>
+</head>
+<body>
+<div class="container">
+  <p class="section-label">DDIA — Part III: Derived Data</p>
+  <h1>Chapter 10: Batch Processing</h1>
+  <p class="subtitle">"A system cannot be successful if it is too strongly influenced by a single person. Once the initial design is complete and fairly robust, the real test begins as people with many different viewpoints undertake their own experiments." — Donald Knuth. This chapter explores how large-scale batch processing systems transform immutable inputs into derived outputs, drawing a line from Unix pipes to MapReduce to modern dataflow engines.</p>
+
+  <!-- THREE TYPES OF SYSTEMS -->
+  <h2>Three Types of Systems</h2>
+  <p>Before diving into batch processing, the book distinguishes three fundamentally different styles of data processing systems, each optimized for a different use case:</p>
+
+  <div class="diagram">
+    <div class="diagram-title">System Classification by Processing Style</div>
+    <div style="display:flex; flex-direction:column; gap:20px;">
+      <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+        <div class="flow-box primary" style="min-width:180px;"><strong>Services</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">Online Systems</span></div>
+        <div style="flex:1; min-width:200px;">
+          <p style="font-size:0.85rem; margin:0;">Wait for client requests, handle them ASAP. Key metric: <strong>response time</strong>. Availability is critical. Examples: web servers, REST APIs, databases serving queries.</p>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+        <div class="flow-box green" style="min-width:180px;"><strong>Batch Processing</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">Offline Systems</span></div>
+        <div style="flex:1; min-width:200px;">
+          <p style="font-size:0.85rem; margin:0;">Takes a large <strong>bounded</strong> dataset, crunches it, produces output. No user waiting. Key metric: <strong>throughput</strong> (time to process N records). Runs periodically (e.g., daily). Examples: MapReduce, Spark jobs.</p>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+        <div class="flow-box purple" style="min-width:180px;"><strong>Stream Processing</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">Near-Real-Time</span></div>
+        <div style="flex:1; min-width:200px;">
+          <p style="font-size:0.85rem; margin:0;">Between online and offline. Consumes <strong>unbounded</strong> input events shortly after they happen. Lower latency than batch but same produce-output pattern. Covered in Chapter 11.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-green">
+    <h4>Why Study Batch Processing?</h4>
+    <p style="margin:0;">Batch processing is an important building block for reliable, scalable, maintainable applications. MapReduce, published by Google in 2004, provided a clear model for why and how batch processing works at scale. Although its importance has declined in favor of newer dataflow engines, understanding it illuminates the design principles that carry forward.</p>
+  </div>
+
+  <!-- UNIX TOOLS -->
+  <h2>Batch Processing with Unix Tools</h2>
+  <p>The chapter starts with a deceptively simple example: analyzing a web server access log to find the five most popular pages. Using a chain of Unix commands:</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Unix Pipeline for Log Analysis</div>
+    <div class="flow">
+      <div class="flow-box primary"><code>cat</code><br><span style="font-size:0.75rem;">Read log</span></div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box green"><code>awk '{print $7}'</code><br><span style="font-size:0.75rem;">Extract URL</span></div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box purple"><code>sort</code><br><span style="font-size:0.75rem;">Alphabetical</span></div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box orange"><code>uniq -c</code><br><span style="font-size:0.75rem;">Count</span></div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box red"><code>sort -rn</code><br><span style="font-size:0.75rem;">Rank</span></div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box primary"><code>head -n 5</code><br><span style="font-size:0.75rem;">Top 5</span></div>
+    </div>
+    <p style="font-size:0.85rem; margin:16px 0 0; color:var(--text-muted);">This chain processes gigabytes of logs in seconds. The <code>sort</code> utility automatically handles larger-than-memory datasets (spills to disk) and parallelizes across CPU cores.</p>
+  </div>
+
+  <h3>Sorting vs. In-Memory Aggregation</h3>
+  <div class="grid2">
+    <div class="card card-accent">
+      <h4>In-Memory Hash Table (Ruby/Python)</h4>
+      <ul>
+        <li>Build a hash map: URL &rarr; count</li>
+        <li>Works if <strong>working set</strong> (distinct URLs) fits in memory</li>
+        <li>Simple, fast for small cardinality</li>
+        <li>Fails when distinct keys exceed available RAM</li>
+      </ul>
+    </div>
+    <div class="card card-green">
+      <h4>Sort-Based (Unix Pipeline)</h4>
+      <ul>
+        <li>Sort all URLs, then count adjacent duplicates</li>
+        <li>Scales to datasets <strong>larger than memory</strong></li>
+        <li>Uses mergesort: sort chunks in RAM, write to disk, merge sorted segments</li>
+        <li>Sequential access patterns &mdash; great disk performance</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- UNIX PHILOSOPHY -->
+  <h2>The Unix Philosophy</h2>
+  <p>The ease of composing Unix tools into powerful pipelines is no accident. Doug McIlroy, inventor of Unix pipes, described them in 1964: <em>"We should have some ways of connecting programs like a garden hose."</em></p>
+
+  <div class="diagram">
+    <div class="diagram-title">Four Principles of Unix Philosophy (1978)</div>
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+      <div class="card card-accent" style="margin:0;">
+        <h4>1. Do One Thing Well</h4>
+        <p style="font-size:0.85rem; margin:0;">Build afresh rather than complicating old programs with new "features". <code>sort</code> is a better sort than most standard libraries (handles disk spill, multi-thread).</p>
+      </div>
+      <div class="card card-green" style="margin:0;">
+        <h4>2. Composability via stdout</h4>
+        <p style="font-size:0.85rem; margin:0;">Expect output of every program to become input to another, as yet unknown, program. Don't clutter output. Avoid interactive input.</p>
+      </div>
+      <div class="card card-purple" style="margin:0;">
+        <h4>3. Rapid Prototyping</h4>
+        <p style="font-size:0.85rem; margin:0;">Design and build software to be tried early, ideally within weeks. Don't hesitate to throw away clumsy parts and rebuild.</p>
+      </div>
+      <div class="card card-orange" style="margin:0;">
+        <h4>4. Tools Over Manual Work</h4>
+        <p style="font-size:0.85rem; margin:0;">Use tools to lighten a programming task, even if you have to build them first and throw some out after use.</p>
+      </div>
+    </div>
+  </div>
+
+  <h3>What Makes Unix Composability Work?</h3>
+  <div class="diagram">
+    <div class="diagram-title">Three Pillars of Unix Composability</div>
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <div style="display:flex; align-items:start; gap:16px; flex-wrap:wrap;">
+        <div class="flow-box primary" style="min-width:160px;"><strong>Uniform Interface</strong></div>
+        <div style="flex:1; min-width:200px;">
+          <p style="font-size:0.85rem; margin:0;">Everything is a file (file descriptor): actual files, stdin/stdout, pipes, sockets, device drivers. All programs use the same interface. By convention: ASCII text, newline-separated records. This is what allows <em>any</em> program's output to connect to <em>any</em> other program's input.</p>
+        </div>
+      </div>
+      <div style="display:flex; align-items:start; gap:16px; flex-wrap:wrap;">
+        <div class="flow-box green" style="min-width:160px;"><strong>Separation of Logic &amp; Wiring</strong></div>
+        <div style="flex:1; min-width:200px;">
+          <p style="font-size:0.85rem; margin:0;">Programs use stdin/stdout without knowing where input comes from or output goes. The <strong>shell user</strong> wires things together. This is a form of <span class="key-term">loose coupling</span> / <span class="key-term">inversion of control</span>. The <code>sort</code> program doesn't care if it's talking to <code>awk</code> or your custom tool.</p>
+        </div>
+      </div>
+      <div style="display:flex; align-items:start; gap:16px; flex-wrap:wrap;">
+        <div class="flow-box purple" style="min-width:160px;"><strong>Transparency &amp; Experimentation</strong></div>
+        <div style="flex:1; min-width:200px;">
+          <p style="font-size:0.85rem; margin:0;">Inputs are treated as <strong>immutable</strong>. You can rerun commands freely. You can pipe into <code>less</code> at any stage to inspect. You can save intermediate output to files. Easy to debug, easy to experiment.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-red">
+    <h4>The Biggest Limitation of Unix Tools</h4>
+    <p style="margin:0;">They run only on a <strong>single machine</strong>. And that's where tools like Hadoop come in &mdash; extending the Unix philosophy to distributed systems.</p>
+  </div>
+
+  <!-- MAPREDUCE AND DISTRIBUTED FILESYSTEMS -->
+  <h2>MapReduce and Distributed Filesystems</h2>
+  <p>MapReduce is like Unix tools, but distributed across potentially thousands of machines. Like Unix tools, it is a brute-force but surprisingly effective tool. A single MapReduce job is comparable to a single Unix process: it takes inputs, produces outputs, does <strong>not modify</strong> the input, and has <strong>no side effects</strong> other than producing output.</p>
+
+  <div class="quote">"Where Unix tools use stdin and stdout, MapReduce reads and writes files on a distributed filesystem."</div>
+
+  <h3>HDFS Architecture</h3>
+  <p>Hadoop's implementation of MapReduce uses <span class="key-term">HDFS</span> (Hadoop Distributed File System), an open-source reimplementation of Google's GFS. It follows the <strong>shared-nothing</strong> principle.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">HDFS Architecture</div>
+    <div style="display:flex; flex-direction:column; align-items:center; gap:16px;">
+      <div class="flow-box purple" style="min-width:280px; padding:16px 24px;">
+        <strong>NameNode</strong> (Central Server)<br>
+        <span style="font-size:0.8rem; color:var(--text-muted);">Tracks which file blocks are stored on which machine<br>Metadata only &mdash; not on the data path</span>
+      </div>
+      <div style="display:flex; gap:8px; color:var(--text-muted);">
+        <span>&darr;</span><span>&darr;</span><span>&darr;</span><span>&darr;</span><span>&darr;</span>
+      </div>
+      <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center;">
+        <div class="flow-box green" style="min-width:120px;">
+          <strong>DataNode 1</strong><br>
+          <span style="font-size:0.75rem; color:var(--text-muted);">Block A, Block C<br>Block D (replica)</span>
+        </div>
+        <div class="flow-box green" style="min-width:120px;">
+          <strong>DataNode 2</strong><br>
+          <span style="font-size:0.75rem; color:var(--text-muted);">Block A (replica)<br>Block B</span>
+        </div>
+        <div class="flow-box green" style="min-width:120px;">
+          <strong>DataNode 3</strong><br>
+          <span style="font-size:0.75rem; color:var(--text-muted);">Block B (replica)<br>Block C (replica)</span>
+        </div>
+        <div class="flow-box green" style="min-width:120px;">
+          <strong>DataNode 4</strong><br>
+          <span style="font-size:0.75rem; color:var(--text-muted);">Block D<br>Block A (replica)</span>
+        </div>
+      </div>
+      <p style="font-size:0.8rem; color:var(--text-muted); margin:8px 0 0; text-align:center;">Each file block is replicated across multiple machines for fault tolerance.<br>Daemon process on each machine exposes files over the network.<br>Scales to tens of thousands of machines, hundreds of petabytes.</p>
+    </div>
+  </div>
+
+  <div class="card card-green">
+    <h4>Key HDFS Properties</h4>
+    <ul>
+      <li><strong>Shared-nothing</strong>: no special hardware, just commodity machines connected by datacenter network</li>
+      <li><strong>Replication</strong>: file blocks replicated on multiple machines (or erasure coding like Reed-Solomon)</li>
+      <li><strong>Scale</strong>: biggest deployments run on tens of thousands of machines with hundreds of PB</li>
+      <li><strong>Cost</strong>: much cheaper than equivalent dedicated storage appliance capacity</li>
+    </ul>
+  </div>
+
+  <!-- MAPREDUCE JOB EXECUTION -->
+  <h2>MapReduce Job Execution</h2>
+  <p>The pattern of data processing in MapReduce mirrors the Unix log analysis example. There are four fundamental steps:</p>
+
+  <div class="diagram">
+    <div class="diagram-title">MapReduce: Four Steps</div>
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="flow-box primary" style="min-width:140px;"><strong>Step 1: Split</strong></div>
+        <p style="font-size:0.85rem; margin:0; flex:1; min-width:200px;">Read input files, break into <strong>records</strong>. (In the log example, each line is a record; <code>\n</code> is the separator.)</p>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="flow-box green" style="min-width:140px;"><strong>Step 2: Map</strong></div>
+        <p style="font-size:0.85rem; margin:0; flex:1; min-width:200px;">Call the <span class="key-term">mapper</span> function to extract a <strong>key-value pair</strong> from each input record. (Like <code>awk '{print $7}'</code> extracting the URL.)</p>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="flow-box orange" style="min-width:140px;"><strong>Step 3: Sort</strong></div>
+        <p style="font-size:0.85rem; margin:0; flex:1; min-width:200px;"><strong>Implicit</strong> in MapReduce &mdash; you don't write it. All key-value pairs are sorted by key before reaching the reducer. (Like the first <code>sort</code> command.)</p>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="flow-box red" style="min-width:140px;"><strong>Step 4: Reduce</strong></div>
+        <p style="font-size:0.85rem; margin:0; flex:1; min-width:200px;">Call the <span class="key-term">reducer</span> to iterate over sorted key-value pairs. Multiple occurrences of the same key are adjacent &rarr; easy to combine without much state. (Like <code>uniq -c</code>.)</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card card-accent">
+      <h4>Mapper</h4>
+      <p style="font-size:0.85rem;">Called once for every input record. Extracts key and value. May generate any number of key-value pairs (including none). <strong>Stateless</strong> &mdash; no state from one record to the next. Each record handled independently.</p>
+    </div>
+    <div class="card card-red">
+      <h4>Reducer</h4>
+      <p style="font-size:0.85rem;">Framework collects all values belonging to the same key and calls reducer with an iterator over that collection. Produces output records. The role of the mapper is to <em>prepare</em> data for sorting; the role of the reducer is to <em>process</em> sorted data.</p>
+    </div>
+  </div>
+
+  <h3>Distributed Execution of MapReduce</h3>
+  <p>The key difference from Unix pipelines: MapReduce <strong>parallelizes</strong> computation across many machines without you writing explicit parallelism code.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Distributed MapReduce Execution Flow</div>
+    <div style="display:flex; flex-direction:column; gap:24px;">
+      <!-- Input layer -->
+      <div>
+        <p style="font-size:0.8rem; color:var(--accent); font-weight:700; margin-bottom:8px;">INPUT (HDFS Files)</p>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <div class="flow-box" style="min-width:100px; font-size:0.8rem;">File Block 1</div>
+          <div class="flow-box" style="min-width:100px; font-size:0.8rem;">File Block 2</div>
+          <div class="flow-box" style="min-width:100px; font-size:0.8rem;">File Block 3</div>
+        </div>
+      </div>
+      <div style="text-align:center; color:var(--text-muted);">&darr; &darr; &darr; (computation moved near data)</div>
+      <!-- Map layer -->
+      <div>
+        <p style="font-size:0.8rem; color:var(--accent3); font-weight:700; margin-bottom:8px;">MAP PHASE (parallel)</p>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <div class="flow-box green" style="min-width:100px; font-size:0.8rem;">Mapper m1<br><span style="color:var(--text-muted);">key-value pairs</span></div>
+          <div class="flow-box green" style="min-width:100px; font-size:0.8rem;">Mapper m2<br><span style="color:var(--text-muted);">key-value pairs</span></div>
+          <div class="flow-box green" style="min-width:100px; font-size:0.8rem;">Mapper m3<br><span style="color:var(--text-muted);">key-value pairs</span></div>
+        </div>
+      </div>
+      <div style="text-align:center; color:var(--text-muted);">&darr; partition by hash(key), sort, write to local disk &darr;</div>
+      <!-- Shuffle -->
+      <div>
+        <p style="font-size:0.8rem; color:var(--orange); font-weight:700; margin-bottom:8px;">SHUFFLE (network transfer)</p>
+        <div class="card card-orange" style="margin:0; padding:12px 16px;">
+          <p style="font-size:0.85rem; margin:0;">Reducers connect to each mapper, download their partition of sorted key-value pairs. <strong>Not random</strong> despite the name &mdash; it is a deterministic partitioning, sorting, and copying process. Each mapper output is partitioned by reducer based on hash(key).</p>
+        </div>
+      </div>
+      <div style="text-align:center; color:var(--text-muted);">&darr; merge sorted files from all mappers &darr;</div>
+      <!-- Reduce layer -->
+      <div>
+        <p style="font-size:0.8rem; color:var(--red); font-weight:700; margin-bottom:8px;">REDUCE PHASE (parallel)</p>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <div class="flow-box red" style="min-width:100px; font-size:0.8rem;">Reducer r1<br><span style="color:var(--text-muted);">output file</span></div>
+          <div class="flow-box red" style="min-width:100px; font-size:0.8rem;">Reducer r2<br><span style="color:var(--text-muted);">output file</span></div>
+          <div class="flow-box red" style="min-width:100px; font-size:0.8rem;">Reducer r3<br><span style="color:var(--text-muted);">output file</span></div>
+        </div>
+      </div>
+      <div style="text-align:center; color:var(--text-muted);">&darr; write to HDFS (replicated) &darr;</div>
+      <!-- Output -->
+      <div>
+        <p style="font-size:0.8rem; color:var(--accent2); font-weight:700; margin-bottom:8px;">OUTPUT (HDFS Files)</p>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <div class="flow-box purple" style="min-width:100px; font-size:0.8rem;">Output Part 1</div>
+          <div class="flow-box purple" style="min-width:100px; font-size:0.8rem;">Output Part 2</div>
+          <div class="flow-box purple" style="min-width:100px; font-size:0.8rem;">Output Part 3</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-cyan">
+    <h4>Key Design Decision: Putting Computation Near the Data</h4>
+    <p style="margin:0;">The MapReduce scheduler tries to run each mapper on one of the machines that <strong>stores a replica</strong> of the input file block. This saves copying the input over the network. The framework also copies your application code (e.g., JAR files) to the machines where the map tasks will run.</p>
+  </div>
+
+  <h3>MapReduce Workflows</h3>
+  <p>A single MapReduce job can't solve complex problems (e.g., finding the most popular URLs requires a <em>second</em> sorting stage). So jobs are <span class="key-term">chained into workflows</span>: the output directory of one job becomes the input directory of the next.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Chained MapReduce Workflow</div>
+    <div class="flow">
+      <div class="flow-box primary">MR Job 1<br><span style="font-size:0.75rem;">Count per URL</span></div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box" style="font-size:0.8rem; color:var(--text-muted);">HDFS<br>directory</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box green">MR Job 2<br><span style="font-size:0.75rem;">Rank by count</span></div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box" style="font-size:0.8rem; color:var(--text-muted);">HDFS<br>directory</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box purple">MR Job 3<br><span style="font-size:0.75rem;">Join with metadata</span></div>
+    </div>
+    <p style="font-size:0.8rem; margin:12px 0 0; color:var(--text-muted);">Unlike Unix pipes (streaming in-memory buffer), chained MR jobs materialize intermediate state to disk. A job only starts when all preceding jobs complete successfully. Workflow schedulers: <strong>Oozie, Azkaban, Luigi, Airflow</strong>. Common: 50-100 MR jobs for recommendation systems.</p>
+  </div>
+
+  <!-- REDUCE-SIDE JOINS -->
+  <h2>Reduce-Side Joins and Grouping</h2>
+  <p>In batch processing, a "join" means resolving <strong>all occurrences</strong> of some association within a dataset (not looking up one particular record). MapReduce has no indexes &mdash; it performs a <span class="key-term">full table scan</span>. For analytic queries over large datasets, this is actually reasonable.</p>
+
+  <h3>Sort-Merge Joins</h3>
+  <p>The canonical example: joining a log of user activity events with a user profile database. One set of mappers extracts (user_id, activity_event), another extracts (user_id, date_of_birth). The framework brings all records with the same user ID together at the same reducer.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Sort-Merge Join Flow</div>
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <div style="display:flex; gap:16px; flex-wrap:wrap; justify-content:center;">
+        <div class="flow-box primary" style="min-width:180px;">
+          <strong>Activity Events</strong><br>
+          <span style="font-size:0.75rem; color:var(--text-muted);">Mapper: extract (user_id, event)</span>
+        </div>
+        <div class="flow-box green" style="min-width:180px;">
+          <strong>User Database</strong><br>
+          <span style="font-size:0.75rem; color:var(--text-muted);">Mapper: extract (user_id, DOB)</span>
+        </div>
+      </div>
+      <div style="text-align:center; color:var(--text-muted);">&darr; partition by user_id, sort &darr;</div>
+      <div style="display:flex; justify-content:center;">
+        <div class="flow-box orange" style="min-width:300px; padding:16px;">
+          <strong>Reducer for user_id = 123</strong><br>
+          <span style="font-size:0.8rem; color:var(--text-muted);">
+            1. Reads user profile first (secondary sort)<br>
+            2. Stores DOB in local variable<br>
+            3. Iterates over activity events<br>
+            4. Outputs (viewed_url, viewer_age)
+          </span>
+        </div>
+      </div>
+      <div style="text-align:center; color:var(--text-muted);">&darr;</div>
+      <div style="display:flex; justify-content:center;">
+        <div class="flow-box purple" style="min-width:200px;">
+          <strong>Output</strong><br>
+          <span style="font-size:0.75rem; color:var(--text-muted);">Joined records on HDFS</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-green">
+    <h4>Why This Works So Well</h4>
+    <ul>
+      <li>The reducer processes all records for a user in one go &mdash; only needs <strong>one user record in memory</strong></li>
+      <li><strong>No network requests</strong> during reduce &mdash; all data pre-fetched by the shuffle</li>
+      <li><strong>Secondary sort</strong> ensures user profile record comes before activity events</li>
+      <li>Mappers "send messages" to reducers: the key acts as a destination address</li>
+      <li>MapReduce separates <strong>physical network communication</strong> from <strong>application logic</strong></li>
+    </ul>
+  </div>
+
+  <h3>GROUP BY</h3>
+  <div class="card card-accent">
+    <h4>Grouping = Same Pattern as Joining</h4>
+    <p>Set up mappers so key-value pairs use the desired <strong>grouping key</strong>. Partitioning and sorting bring all records with the same key to the same reducer. Common uses:</p>
+    <ul>
+      <li>Counting records per group (<code>COUNT(*)</code>)</li>
+      <li>Summing values (<code>SUM(fieldname)</code>)</li>
+      <li>Top-k records by some ranking function</li>
+      <li><span class="key-term">Sessionization</span>: collating all activity events for a user session (using session cookie as grouping key)</li>
+    </ul>
+  </div>
+
+  <h3>Handling Skew (Hot Keys)</h3>
+  <p>The "bring all same-key records together" pattern breaks down when a single key has disproportionately many records &mdash; <span class="key-term">linchpin objects</span> or <span class="key-term">hot keys</span> (e.g., a celebrity with millions of followers).</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Strategies for Handling Hot Keys</div>
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <div class="card card-orange" style="margin:0;">
+        <h4>Pig: Skewed Join</h4>
+        <p style="font-size:0.85rem; margin:0;">First runs a <strong>sampling job</strong> to detect hot keys. Then sends records for hot keys to <strong>random reducers</strong> (instead of one deterministic reducer). The other join input for hot keys is <strong>replicated</strong> to all those reducers.</p>
+      </div>
+      <div class="card card-purple" style="margin:0;">
+        <h4>Hive: Skewed Join Optimization</h4>
+        <p style="font-size:0.85rem; margin:0;">Hot keys specified <strong>explicitly in table metadata</strong>. Records for hot keys stored in separate files. Uses a <strong>map-side join</strong> for hot keys instead of reduce-side.</p>
+      </div>
+      <div class="card card-cyan" style="margin:0;">
+        <h4>Two-Stage Aggregation</h4>
+        <p style="font-size:0.85rem; margin:0;">Stage 1: send records to <strong>random reducers</strong>, each produces partial aggregates. Stage 2: combine partial aggregates into final result. Distributes the load across reducers.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAP-SIDE JOINS -->
+  <h2>Map-Side Joins</h2>
+  <p>Reduce-side joins are general (no assumptions about input data), but expensive due to sorting, shuffling, and merging. If you <em>can</em> make assumptions about your input, <span class="key-term">map-side joins</span> are much faster: no reducers, no sorting. Each mapper reads one input file block and writes one output file.</p>
+
+  <div class="grid3">
+    <div class="card card-accent">
+      <h4>Broadcast Hash Join</h4>
+      <p style="font-size:0.85rem;">One input is <strong>small enough to fit in memory</strong>. Each mapper loads the small input into a <strong>hash table</strong>, then scans the large input, looking up each record. The small input is "broadcast" to all partitions of the large input.</p>
+      <p style="font-size:0.8rem; color:var(--text-muted); margin:0;">Pig: "replicated join", Hive: "MapJoin"</p>
+    </div>
+    <div class="card card-green">
+      <h4>Partitioned Hash Join</h4>
+      <p style="font-size:0.85rem;">Both inputs <strong>partitioned the same way</strong> (same key, same hash function, same number of partitions). Each mapper loads only <strong>its partition</strong> of the small input. Much less data per mapper.</p>
+      <p style="font-size:0.8rem; color:var(--text-muted); margin:0;">Hive: "bucketed map join"</p>
+    </div>
+    <div class="card card-purple">
+      <h4>Map-Side Merge Join</h4>
+      <p style="font-size:0.85rem;">Both inputs partitioned <strong>and sorted</strong> by the same key. Mapper does incremental merge (like a reducer merge). Input doesn't need to fit in memory &mdash; reads both files in ascending key order.</p>
+      <p style="font-size:0.8rem; color:var(--text-muted); margin:0;">Requires prior MR jobs to prepare sorted inputs</p>
+    </div>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Map-Side Join Type Decision Tree</div>
+    <div style="display:flex; flex-direction:column; align-items:center; gap:12px;">
+      <div class="flow-box primary" style="min-width:280px;">Is one input <strong>small enough for memory</strong>?</div>
+      <div style="display:flex; gap:40px;">
+        <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
+          <span style="color:var(--accent3);">YES</span>
+          <div class="flow-box green">Broadcast Hash Join</div>
+        </div>
+        <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
+          <span style="color:var(--red);">NO</span>
+          <div class="flow-box orange" style="min-width:280px;">Are both inputs <strong>partitioned the same way</strong>?</div>
+        </div>
+      </div>
+      <div style="display:flex; gap:40px; margin-left:160px;">
+        <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
+          <span style="color:var(--accent3);">YES, but unsorted</span>
+          <div class="flow-box green">Partitioned Hash Join</div>
+        </div>
+        <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
+          <span style="color:var(--accent3);">YES, and sorted</span>
+          <div class="flow-box purple">Map-Side Merge Join</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OUTPUT OF BATCH WORKFLOWS -->
+  <h2>The Output of Batch Workflows</h2>
+  <p>What is the result of all this processing? Batch process output is <strong>not</strong> a report for a human (that's analytics). It's typically a derived data structure:</p>
+
+  <div class="grid2">
+    <div class="card card-accent">
+      <h4>Building Search Indexes</h4>
+      <p style="font-size:0.85rem;">Google's original use of MapReduce. Mappers partition documents, each reducer builds the index (term dictionary + postings lists) for its partition. Index files are <strong>immutable</strong> once written. To update: rerun the entire indexing workflow and replace old index files wholesale.</p>
+    </div>
+    <div class="card card-green">
+      <h4>Key-Value Stores as Batch Output</h4>
+      <p style="font-size:0.85rem;">Machine learning models, recommendation systems, people-you-may-know. Build a <strong>brand-new database</strong> inside the batch job, write files to HDFS, bulk-load into read-only servers (Voldemort, Terrapin, ElephantDB, HBase). Server atomically switches from old to new files.</p>
+    </div>
+  </div>
+
+  <div class="card card-red">
+    <h4>Why NOT Write Directly to a Database from MapReduce</h4>
+    <ul>
+      <li>Network request per record is <strong>orders of magnitude slower</strong> than batch throughput</li>
+      <li>All mappers/reducers writing concurrently can <strong>overwhelm the database</strong></li>
+      <li>Breaks MapReduce's <strong>all-or-nothing guarantee</strong>: partial results become externally visible; you lose the ability to safely retry failed tasks</li>
+    </ul>
+  </div>
+
+  <h3>Philosophy of Batch Process Outputs</h3>
+  <div class="diagram">
+    <div class="diagram-title">MapReduce Inherits the Unix Philosophy</div>
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+      <div class="card card-green" style="margin:0;">
+        <h4>Inputs Are Immutable</h4>
+        <p style="font-size:0.85rem; margin:0;">Never modify input data. If you introduce a bug, simply roll back code and rerun &mdash; output will be correct again. This is <span class="key-term">human fault tolerance</span>.</p>
+      </div>
+      <div class="card card-purple" style="margin:0;">
+        <h4>No Side Effects</h4>
+        <p style="font-size:0.85rem; margin:0;">Output is the only externally visible result. Failed tasks are discarded. Framework can safely retry. Output is completely replaced each run.</p>
+      </div>
+      <div class="card card-accent" style="margin:0;">
+        <h4>Easy Rollback</h4>
+        <p style="font-size:0.85rem; margin:0;">Keep old output in a different directory, switch back if needed. Feature development proceeds faster when mistakes are <strong>reversible</strong>.</p>
+      </div>
+      <div class="card card-orange" style="margin:0;">
+        <h4>Separation of Concerns</h4>
+        <p style="font-size:0.85rem; margin:0;">Jobs separate logic from wiring (input/output directories). Same files can be used as input to many different jobs, including monitoring jobs.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMPARING HADOOP TO MPP -->
+  <h2>Comparing Hadoop to Distributed Databases (MPP)</h2>
+  <p>MapReduce was not new algorithmically &mdash; MPP databases (Teradata, Gamma, Tandem NonStop SQL) had implemented parallel join algorithms for over a decade. The biggest difference: MPP databases focus on <strong>parallel SQL</strong>; Hadoop + HDFS provides a <strong>general-purpose operating system</strong> that can run arbitrary programs.</p>
+
+  <table>
+    <tr><th>Aspect</th><th>Hadoop / MapReduce</th><th>MPP Databases</th></tr>
+    <tr><td><strong>Storage</strong></td><td>Files in any format (raw bytes). Schema-on-read. "Data lake" approach.</td><td>Structured data in proprietary format. Careful up-front modeling required.</td></tr>
+    <tr><td><strong>Processing Model</strong></td><td>Arbitrary code (Java, Python, etc.) &mdash; ML, NLP, image analysis, custom algorithms</td><td>SQL queries. Elegant but limited to what SQL can express.</td></tr>
+    <tr><td><strong>Diversity</strong></td><td>Multiple processing engines on same cluster (HBase, Impala, Spark, MR)</td><td>Monolithic, tightly integrated system</td></tr>
+    <tr><td><strong>Fault Tolerance</strong></td><td>Retries individual tasks. Writes to disk eagerly. Designed for <strong>preemption</strong>.</td><td>Aborts entire query on failure. Retries entire query. Keeps data in memory.</td></tr>
+    <tr><td><strong>Best For</strong></td><td>Large jobs (hours/days), mixed workloads, diverse data formats</td><td>Interactive analytic queries (seconds/minutes), business reporting</td></tr>
+  </table>
+
+  <div class="card card-cyan">
+    <h4>Why MapReduce Writes to Disk So Eagerly</h4>
+    <p style="font-size:0.85rem;">At Google, MapReduce tasks running at low priority have ~5% chance of being <strong>preempted</strong> per hour to make room for higher-priority processes. For a job with 100 tasks of 10 minutes each, there's a >50% chance at least one task is killed. MapReduce was designed to tolerate frequent termination &mdash; not because hardware is unreliable, but because <strong>preemption enables better resource utilization</strong>.</p>
+    <p style="font-size:0.85rem; margin:0;">In open source clusters (YARN, Mesos, Kubernetes), preemption is less common, making MapReduce's design decisions less justified &mdash; hence the rise of dataflow engines.</p>
+  </div>
+
+  <!-- BEYOND MAPREDUCE -->
+  <h2>Beyond MapReduce</h2>
+  <p>MapReduce is robust but has fundamental performance problems. Implementing complex jobs with raw MapReduce APIs is laborious. Higher-level languages (Pig, Hive, Cascading, Crunch) helped, but the underlying execution model itself has issues.</p>
+
+  <h3>Materialization of Intermediate State</h3>
+  <p>In MapReduce workflows, the output of one job is written to HDFS, and the next job reads it. This process of writing intermediate state to files is called <span class="key-term">materialization</span>. Compare with Unix pipes, which stream data incrementally using a small in-memory buffer.</p>
+
+  <div class="card card-red">
+    <h4>Three Problems with Materializing Intermediate State</h4>
+    <ul>
+      <li><strong>Straggler problem</strong>: A job can only start when <em>all</em> tasks in the preceding job complete. One slow task (straggler) delays the entire workflow. Unix pipes start all processes simultaneously.</li>
+      <li><strong>Redundant mappers</strong>: Mappers in the next stage often just read back the file a reducer just wrote and re-partition it. The mapper code could have been part of the previous reducer &mdash; eliminating an entire read-write-read cycle.</li>
+      <li><strong>Unnecessary replication</strong>: Intermediate state written to HDFS is replicated across several nodes &mdash; overkill for temporary data that only one downstream job needs.</li>
+    </ul>
+  </div>
+
+  <h3>Dataflow Engines: Spark, Tez, Flink</h3>
+  <p>These engines fix MapReduce's problems by handling an <strong>entire workflow as one job</strong>, not independent sub-jobs. Functions are called <span class="key-term">operators</span> and can be assembled in flexible ways (not just alternating map/reduce).</p>
+
+  <div class="diagram">
+    <div class="diagram-title">MapReduce vs. Dataflow Engines</div>
+    <table>
+      <tr><th>Aspect</th><th>MapReduce</th><th>Dataflow Engines (Spark/Flink/Tez)</th></tr>
+      <tr><td><strong>Job Granularity</strong></td><td>Each MR job is independent</td><td>Entire workflow is one job</td></tr>
+      <tr><td><strong>Sorting</strong></td><td>Always sorts between map and reduce</td><td>Sorts <strong>only when needed</strong></td></tr>
+      <tr><td><strong>Function Roles</strong></td><td>Strict map &rarr; reduce alternation</td><td>Flexible operators, chained freely</td></tr>
+      <tr><td><strong>Intermediate State</strong></td><td>Materialized to HDFS (replicated)</td><td>In memory or local disk (not replicated)</td></tr>
+      <tr><td><strong>Pipelining</strong></td><td>Next job waits for all tasks to finish</td><td>Operators start as soon as input ready</td></tr>
+      <tr><td><strong>JVM Reuse</strong></td><td>New JVM per task</td><td>Reuses JVM processes</td></tr>
+      <tr><td><strong>Scheduler Awareness</strong></td><td>Limited</td><td>Sees all data dependencies &rarr; locality optimization</td></tr>
+      <tr><td><strong>Fault Tolerance</strong></td><td>Replay from HDFS (durable intermediate state)</td><td>Recompute from prior stage or original input (RDD lineage / checkpointing)</td></tr>
+    </table>
+  </div>
+
+  <div class="card card-green">
+    <h4>Advantages of Dataflow Engines</h4>
+    <ul>
+      <li>Sorting only where required, not between every map/reduce</li>
+      <li>No unnecessary mapper stages &mdash; mapper logic folded into preceding operator</li>
+      <li>Scheduler sees all data dependencies &rarr; can <strong>colocate producer and consumer</strong> on the same machine (shared memory buffer instead of network)</li>
+      <li>Intermediate state kept in memory or local disk, not replicated to HDFS</li>
+      <li>Pipelined execution &mdash; no waiting for entire preceding stage</li>
+      <li>JVM process reuse &mdash; less startup overhead</li>
+      <li>Same Pig/Hive/Cascading code can switch from MR to Tez/Spark with a <strong>config change</strong></li>
+    </ul>
+  </div>
+
+  <h3>Fault Tolerance in Dataflow Engines</h3>
+  <div class="grid2">
+    <div class="card card-accent">
+      <h4>Spark: RDD Lineage</h4>
+      <p style="font-size:0.85rem; margin:0;">Tracks the <span class="key-term">resilient distributed dataset (RDD)</span> ancestry: which input partitions were used, which operators applied. If a node fails, recompute lost partitions from lineage. Requires <strong>deterministic</strong> operators to avoid cascading recomputations.</p>
+    </div>
+    <div class="card card-purple">
+      <h4>Flink: Checkpointing</h4>
+      <p style="font-size:0.85rem; margin:0;">Periodically checkpoints operator state. On failure, resume from last checkpoint. Built around <strong>pipelined execution</strong> &mdash; incrementally passes output of one operator to the next without waiting for full input (like Unix pipes).</p>
+    </div>
+  </div>
+
+  <div class="card card-orange">
+    <h4>When to Materialize vs. Recompute</h4>
+    <p style="margin:0;">Recomputing is not always cheaper. If intermediate data is <strong>much smaller</strong> than source data, or computation is very <strong>CPU-intensive</strong>, it's probably cheaper to materialize to files than to recompute on failure. Deterministic operators reduce the blast radius of recomputation.</p>
+  </div>
+
+  <!-- GRAPHS AND ITERATIVE PROCESSING -->
+  <h2>Graphs and Iterative Processing</h2>
+  <p>Graph analysis in batch processing (e.g., PageRank, transitive closure) requires <strong>iterating until convergence</strong> &mdash; something plain MapReduce cannot express (single pass only). Naive approach: external scheduler loops over MR jobs, but MapReduce reads the <em>entire</em> graph every iteration even if only a small part changed.</p>
+
+  <h3>The Pregel / BSP Model</h3>
+  <p>The <span class="key-term">Bulk Synchronous Parallel (BSP)</span> model, popularized by Google's Pregel paper, is an optimization for graph processing. Implemented in Apache Giraph, Spark GraphX, and Flink Gelly.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Pregel Computation Model</div>
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <div class="card card-purple" style="margin:0;">
+        <h4>Core Idea: "Thinking Like a Vertex"</h4>
+        <p style="font-size:0.85rem; margin:0;">Each vertex can "send a message" to another vertex (typically along graph edges). In each <strong>iteration (superstep)</strong>, a function is called for each vertex, passing all messages sent to it. Unlike MapReduce, vertices <strong>remember state</strong> between iterations. If no messages arrive, no work is done for that vertex.</p>
+      </div>
+      <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center;">
+        <div class="flow-box green" style="padding:16px;">
+          <strong>Superstep 0</strong><br>
+          <span style="font-size:0.8rem; color:var(--text-muted);">Initialize vertices<br>Send initial messages</span>
+        </div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-box orange" style="padding:16px;">
+          <strong>Superstep 1</strong><br>
+          <span style="font-size:0.8rem; color:var(--text-muted);">Process messages<br>Update vertex state<br>Send new messages</span>
+        </div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-box orange" style="padding:16px;">
+          <strong>Superstep 2</strong><br>
+          <span style="font-size:0.8rem; color:var(--text-muted);">Process messages<br>Update vertex state<br>Send new messages</span>
+        </div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-box red" style="padding:16px;">
+          <strong>Converged</strong><br>
+          <span style="font-size:0.8rem; color:var(--text-muted);">No more messages<br>or threshold met</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card card-accent">
+      <h4>Pregel vs. Actor Model</h4>
+      <p style="font-size:0.85rem; margin:0;">Similar: each vertex is like an actor communicating via messages. <strong>Different</strong>: Pregel has <strong>fixed-round timing</strong> (all messages from iteration N delivered in iteration N+1). Vertex state and messages are <strong>fault-tolerant and durable</strong>. Actors have no such timing guarantee.</p>
+    </div>
+    <div class="card card-red">
+      <h4>The Partitioning Problem</h4>
+      <p style="font-size:0.85rem; margin:0;">Graph is partitioned across machines by vertex ID (often arbitrary). Related vertices may be on different machines &rarr; <strong>lots of cross-machine communication</strong>. Message overhead can exceed the graph size itself. If graph fits on one machine, a single-machine algorithm often <strong>outperforms</strong> the distributed version.</p>
+    </div>
+  </div>
+
+  <div class="card card-cyan">
+    <h4>Fault Tolerance in Pregel</h4>
+    <p style="margin:0;">Periodically <strong>checkpoints all vertex state</strong> to durable storage at end of an iteration. On failure: roll back entire graph to last checkpoint and restart. If the algorithm is deterministic and messages are logged, selective partition recovery is possible.</p>
+  </div>
+
+  <!-- HIGH-LEVEL APIs -->
+  <h2>High-Level APIs and Languages</h2>
+  <p>As batch processing infrastructure matured, attention shifted to improving the programming model. Higher-level languages (<strong>Hive, Pig, Cascading, Crunch, Spark SQL</strong>) use relational-style building blocks: joins, grouping, filtering, aggregation.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Evolution of Batch Processing APIs</div>
+    <div class="flow">
+      <div class="flow-box red">Raw MapReduce<br><span style="font-size:0.75rem;">Java classes, manual joins</span></div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box orange">Pig, Hive, Cascading<br><span style="font-size:0.75rem;">High-level on MR</span></div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box green">Spark/Flink APIs<br><span style="font-size:0.75rem;">Dataflow + high-level</span></div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box primary">Declarative (SQL-like)<br><span style="font-size:0.75rem;">Cost-based optimizers</span></div>
+    </div>
+  </div>
+
+  <div class="card card-green">
+    <h4>The Move Toward Declarative Query Languages</h4>
+    <ul>
+      <li>Specifying joins as <strong>relational operators</strong> lets the framework <strong>automatically choose</strong> the best join algorithm (broadcast vs. partitioned vs. sort-merge)</li>
+      <li>Hive, Spark, and Flink have <strong>cost-based query optimizers</strong> that can even reorder joins to minimize intermediate state</li>
+      <li>Declarative simple operations (filter, select fields) enable <strong>column-oriented storage</strong> optimizations &mdash; read only required columns</li>
+      <li><strong>Vectorized execution</strong>: tight inner loops friendly to CPU caches (Hive, Spark DataFrames, Impala)</li>
+      <li>Spark generates JVM bytecode; Impala uses LLVM for native code generation</li>
+    </ul>
+  </div>
+
+  <div class="card card-purple">
+    <h4>Best of Both Worlds</h4>
+    <p>By incorporating declarative aspects while retaining the ability to run <strong>arbitrary code</strong>, batch processing frameworks achieve MPP-like performance with Hadoop-like flexibility. They can read data in arbitrary formats, use any library (ML, NLP, image analysis), yet also benefit from query optimization when expressing joins and filters declaratively.</p>
+    <p style="margin:0;">Specialization for different domains: <strong>Mahout</strong> (ML on MR/Spark/Flink), <strong>MADlib</strong> (ML inside MPP databases), spatial algorithms (<strong>k-nearest neighbors</strong>), genome analysis. Batch systems and MPP databases are <strong>converging</strong>.</p>
+  </div>
+
+  <!-- SUMMARY COMPARISON -->
+  <h2>Chapter Summary: Key Concepts</h2>
+
+  <div class="diagram">
+    <div class="diagram-title">Two Main Problems Solved by Batch Processing Frameworks</div>
+    <div class="grid2">
+      <div class="card card-accent" style="margin:0;">
+        <h4>Partitioning</h4>
+        <p style="font-size:0.85rem;">In MapReduce, mappers partitioned by input file blocks, output repartitioned/sorted/merged into reducer partitions. Purpose: bring all records with the same key to the same place. Dataflow engines avoid sorting unless required.</p>
+      </div>
+      <div class="card card-red" style="margin:0;">
+        <h4>Fault Tolerance</h4>
+        <p style="font-size:0.85rem;">MapReduce: writes to disk eagerly, easy to retry individual tasks, slower when no faults. Dataflow engines: keep more in memory, recompute on failure (RDD lineage / checkpoints). Deterministic operators reduce recomputation scope.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Join Algorithms Summary</div>
+    <table>
+      <tr><th>Algorithm</th><th>How It Works</th><th>Assumptions</th></tr>
+      <tr><td><strong>Sort-Merge Join</strong></td><td>Both inputs go through mappers extracting join key. Partition, sort, merge &rarr; all same-key records at same reducer.</td><td>None &mdash; most general</td></tr>
+      <tr><td><strong>Broadcast Hash Join</strong></td><td>Small input loaded into hash table in each mapper. Large input scanned, querying hash table.</td><td>One input fits in memory</td></tr>
+      <tr><td><strong>Partitioned Hash Join</strong></td><td>Both inputs partitioned same way. Hash table built per partition.</td><td>Same key, hash function, partition count</td></tr>
+      <tr><td><strong>Map-Side Merge Join</strong></td><td>Both inputs partitioned and sorted. Mapper does incremental merge.</td><td>Same partitioning AND sorting</td></tr>
+    </table>
+  </div>
+
+  <div class="quote">"The distinguishing feature of a batch processing job is that it reads some input data and produces some output data, without modifying the input &mdash; in other words, the output is derived from the input. Crucially, the input data is bounded."</div>
+
+  <!-- FIRST PRINCIPLES QUESTIONS -->
+  <h2 style="color: var(--pink);">First-Principles Questions</h2>
+  <p>Test your understanding. Click to reveal the answer.</p>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">1</span>What are the three types of systems and how do they differ in their primary performance metric?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body"><strong>Services (online)</strong>: primary metric is <strong>response time</strong> &mdash; handle requests as quickly as possible, availability is critical. <strong>Batch processing (offline)</strong>: primary metric is <strong>throughput</strong> &mdash; time to crunch through a dataset of known, fixed size; no user is waiting. <strong>Stream processing (near-real-time)</strong>: like batch but on unbounded input with lower latency; processes events shortly after they happen rather than on a fixed dataset.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">2</span>Why does the Unix sort-based approach scale better than an in-memory hash table for log analysis?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">An in-memory hash table requires the entire working set (all distinct keys + counters) to fit in RAM. If the number of distinct keys exceeds available memory, it fails. The sort-based approach uses <strong>mergesort</strong>: sort chunks in memory, write sorted segments to disk, then merge them. It has <strong>sequential access patterns</strong> that perform well on disk. GNU sort automatically handles larger-than-memory datasets by spilling to disk and parallelizes across CPU cores. The sort approach scales to datasets far larger than available RAM.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">3</span>How does the Unix philosophy's principle of "separation of logic and wiring" apply to MapReduce?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">In Unix, programs use stdin/stdout without knowing where input comes from or output goes &mdash; the shell user wires them together. MapReduce does the same: jobs are configured with input and output <strong>directories</strong>, and the job code doesn't know or care who produces its input or consumes its output. This separation enables reuse (one team writes the job, another decides where and when to run it) and loose coupling (jobs can be composed into workflows without changing their code). MapReduce also handles all <strong>network communication</strong> and fault tolerance transparently, so application code never touches the physical data movement layer.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">4</span>In a sort-merge join, why is "secondary sort" important and what problem does it solve?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">In a sort-merge join (e.g., joining user activity events with user profiles), the reducer receives all records for a given user ID. With <strong>secondary sort</strong>, MapReduce arranges the records so the <strong>user profile record comes first</strong>, followed by activity events in timestamp order. This means the reducer can read the profile, store the date of birth in a local variable, then iterate over events &mdash; requiring only <strong>one user record in memory</strong> at a time. Without secondary sort, the reducer might see events before the profile and would need to buffer records, using more memory and complicating the logic.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">5</span>Why is writing directly to a production database from a MapReduce job a bad idea?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Three reasons: (1) Making a network request for every single record is <strong>orders of magnitude slower</strong> than batch throughput. (2) All mappers/reducers writing concurrently can <strong>overwhelm the database</strong>, degrading query performance for other users. (3) It <strong>breaks MapReduce's all-or-nothing guarantee</strong>: partial results from a failed job become externally visible, you lose the ability to safely retry or discard failed tasks, and you must worry about speculative execution producing duplicates. The better approach is to build a new database file within the job and bulk-load it atomically.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">6</span>What is the "hot key" problem in MapReduce joins, and how do Pig and Hive solve it differently?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">A hot key (linchpin object) is a key with disproportionately many records (e.g., a celebrity with millions of followers). Since all records with the same key go to the same reducer, one reducer becomes a bottleneck, and the entire job waits for it. <strong>Pig's skewed join</strong>: runs a sampling job to detect hot keys, then sends hot-key records to <strong>random reducers</strong> (not one deterministic reducer), replicating the other join input to all those reducers. <strong>Hive's approach</strong>: hot keys are specified <strong>explicitly in table metadata</strong>, stored in separate files, and joined using a <strong>map-side join</strong> instead of reduce-side, avoiding the shuffle entirely for those keys.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">7</span>Under what conditions can you use a broadcast hash join vs. a partitioned hash join vs. a map-side merge join?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body"><strong>Broadcast hash join</strong>: one input is small enough to fit entirely in memory in each mapper. The small input is loaded into a hash table, the large input is scanned. <strong>Partitioned hash join</strong>: both inputs are partitioned the same way (same key, same hash function, same number of partitions), so each mapper only loads one partition of the small input &mdash; much less data per mapper, works even if the total small input doesn't fit in memory. <strong>Map-side merge join</strong>: both inputs are partitioned AND sorted by the same key. The mapper performs an incremental merge of both files in ascending key order, requiring no hash table at all &mdash; works regardless of input size.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">8</span>Why did Google design MapReduce to tolerate frequent task termination, and how does this differ from open-source Hadoop environments?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Google runs MapReduce at <strong>low priority</strong> in mixed-use datacenters. Higher-priority production services can <strong>preempt</strong> (kill) batch tasks to reclaim resources. A task running for an hour has ~5% chance of being terminated. For 100 tasks of 10 minutes each, there's a >50% chance at least one gets killed. So MapReduce writes eagerly to disk and supports task-level recovery &mdash; not because hardware is unreliable, but because <strong>preemption enables better resource utilization</strong>. In open-source environments (YARN, Mesos, Kubernetes), preemption is less common, making MapReduce's design choices less justified. This is one reason dataflow engines (Spark, Flink) that keep more data in memory perform better in these environments.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">9</span>What are the three key problems with materializing intermediate state in MapReduce, and how do dataflow engines solve them?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">(1) <strong>Straggler problem</strong>: next job waits for ALL tasks in preceding job to finish. Dataflow engines pipeline execution &mdash; operators start as soon as their input is ready. (2) <strong>Redundant mappers</strong>: next-stage mappers just re-read and re-partition what a reducer just wrote. Dataflow engines fold mapper logic into the preceding operator, eliminating the read-write-read cycle. (3) <strong>Unnecessary replication</strong>: intermediate state on HDFS is replicated across nodes. Dataflow engines keep intermediate state in memory or local disk without replication. Additionally, dataflow engines sort only when needed (not between every stage), reuse JVM processes, and the scheduler can colocate operators that exchange data on the same machine.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">10</span>How does the Pregel (BSP) model differ from MapReduce for graph processing, and why is it more efficient?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">MapReduce performs a <strong>single pass</strong> over data, so graph algorithms requiring iteration need an external scheduler to loop over MR jobs. Each iteration reads the <strong>entire graph</strong> even if only a small part changed. Pregel is fundamentally different: vertices <strong>remember state</strong> between iterations (supersteps) and communicate by sending messages along edges. In each superstep, only vertices that received messages do work. Messages from superstep N are delivered in superstep N+1 (fixed-round timing). This is more efficient because: unchanged parts of the graph do no work, vertex state persists in memory rather than being re-read from HDFS, and the programming model ("think like a vertex") naturally fits graph algorithms like PageRank.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">11</span>Why is determinism important for fault tolerance in dataflow engines, and what can accidentally introduce nondeterminism?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Dataflow engines recover from faults by <strong>recomputing</strong> lost data from still-available data (not by reading materialized intermediate state from HDFS). If a recomputed operator produces <strong>different output</strong> than the original lost data, downstream operators face contradictions between old and new data, requiring <strong>cascading restarts</strong>. Sources of accidental nondeterminism include: hash table iteration order (many languages don't guarantee order), probabilistic/statistical algorithms using random numbers, system clock usage, and external data source reads. To ensure reliable recovery, use <strong>fixed random seeds</strong> and avoid external state dependencies.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">12</span>How are batch processing frameworks and MPP databases converging, and what does each contribute?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">They're converging from opposite directions. <strong>Batch processing frameworks</strong> (Hadoop/Spark/Flink) are adopting declarative, SQL-like APIs with <strong>cost-based query optimizers</strong> that automatically choose join algorithms, use <strong>column-oriented storage</strong>, and perform <strong>vectorized execution</strong> (Spark generates JVM bytecode, Impala generates native code via LLVM). <strong>MPP databases</strong> are becoming more programmable, supporting user-defined functions and broader data formats. Batch frameworks contribute <strong>flexibility</strong>: arbitrary code, arbitrary data formats, diverse processing models on the same cluster. MPP databases contribute <strong>query optimization</strong> and declarative semantics. The end result is systems that can run efficient SQL queries AND arbitrary ML/NLP/image processing code on the same data.</div>
+  </div>
+
+</div>
+</body>
+</html>

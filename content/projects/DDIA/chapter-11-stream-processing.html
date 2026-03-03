@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Chapter 11 — Stream Processing</title>
+<style>
+  :root {
+    --bg: #0a0e17; --surface: #111827; --surface2: #1a2234; --border: #1e293b;
+    --text: #e2e8f0; --text-muted: #94a3b8; --accent: #3b82f6; --accent2: #8b5cf6;
+    --accent3: #10b981; --red: #ef4444; --orange: #f59e0b; --pink: #ec4899; --cyan: #06b6d4;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+  .container { max-width: 900px; margin: 0 auto; padding: 40px 24px 100px; }
+  h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent2), var(--pink)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 48px; border-bottom: 1px solid var(--border); padding-bottom: 24px; }
+  h2 { font-size: 1.5rem; font-weight: 700; margin: 48px 0 16px; color: var(--accent); }
+  h3 { font-size: 1.15rem; font-weight: 600; margin: 32px 0 12px; color: var(--text); }
+  p { margin-bottom: 16px; color: var(--text-muted); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 20px 0; }
+  .card-accent { border-left: 4px solid var(--accent); }
+  .card-green { border-left: 4px solid var(--accent3); }
+  .card-orange { border-left: 4px solid var(--orange); }
+  .card-purple { border-left: 4px solid var(--accent2); }
+  .card-red { border-left: 4px solid var(--red); }
+  .card-cyan { border-left: 4px solid var(--cyan); }
+  .card h4 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+  .card ul { padding-left: 20px; color: var(--text-muted); }
+  .card li { margin-bottom: 6px; }
+  .key-term { color: var(--accent); font-weight: 600; }
+  .diagram { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 32px; margin: 24px 0; overflow-x: auto; }
+  .diagram-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent2); margin-bottom: 20px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+  .quote { background: var(--surface2); border-left: 3px solid var(--accent2); padding: 16px 20px; margin: 20px 0; border-radius: 0 8px 8px 0; font-style: italic; color: var(--text-muted); }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  th { color: var(--accent); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
+  td { color: var(--text-muted); }
+  .question-block { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin: 16px 0; overflow: hidden; }
+  .question-header { padding: 16px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 0.95rem; }
+  .question-header:hover { background: var(--surface2); }
+  .question-body { padding: 0 20px 16px; display: none; color: var(--text-muted); border-top: 1px solid var(--border); padding-top: 16px; }
+  .question-block.open .question-body { display: block; }
+  .q-num { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: var(--accent2); color: white; border-radius: 50%; font-size: 0.8rem; font-weight: 700; margin-right: 12px; flex-shrink: 0; }
+  .chevron { transition: transform .2s; color: var(--text-muted); }
+  .question-block.open .chevron { transform: rotate(180deg); }
+  .section-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--accent2); font-weight: 700; margin-bottom: 8px; }
+  code { background: var(--surface2); padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; color: var(--accent3); }
+  .flow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; }
+  .flow-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; text-align: center; font-size: 0.85rem; min-width: 100px; }
+  .flow-box.primary { border-color: var(--accent); color: var(--accent); }
+  .flow-box.green { border-color: var(--accent3); color: var(--accent3); }
+  .flow-box.purple { border-color: var(--accent2); color: var(--accent2); }
+  .flow-box.orange { border-color: var(--orange); color: var(--orange); }
+  .flow-box.red { border-color: var(--red); color: var(--red); }
+  .flow-box.cyan { border-color: var(--cyan); color: var(--cyan); }
+  .flow-arrow { color: var(--text-muted); font-size: 1.2rem; }
+  .size-bar { height: 28px; border-radius: 6px; display: flex; align-items: center; padding: 0 12px; font-size: 0.8rem; font-weight: 600; margin: 6px 0; color: white; }
+</style>
+</head>
+<body>
+<div class="container">
+  <p class="section-label">DDIA — Part III: Derived Data</p>
+  <h1>Chapter 11: Stream Processing</h1>
+  <p class="subtitle">Batch processing operates on a bounded dataset with a known finite size. Stream processing deals with data that is incrementally made available over time -- unbounded, never-ending. This chapter explores how to transmit, store, and process event streams, and how the boundary between databases and message systems is blurring.</p>
+
+  <!-- ===================== TRANSMITTING EVENT STREAMS ===================== -->
+  <h2>Transmitting Event Streams</h2>
+  <p>In stream processing, a record is called an <span class="key-term">event</span> -- a small, self-contained, immutable object containing the details of something that happened at some point in time. An event is generated once by a <span class="key-term">producer</span> (publisher/sender) and potentially processed by multiple <span class="key-term">consumers</span> (subscribers/recipients). Related events are grouped into a <span class="key-term">topic</span> or stream.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Event Stream: Producer to Consumer</div>
+    <div class="flow">
+      <div class="flow-box primary"><strong>Producer</strong><br><span style="font-size:0.75rem;">generates event</span></div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box orange"><strong>Topic / Stream</strong><br><span style="font-size:0.75rem;">groups related events</span></div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box green"><strong>Consumer A</strong><br><span style="font-size:0.75rem;">reads &amp; processes</span></div>
+    </div>
+    <div class="flow" style="margin-top:8px;">
+      <div style="min-width:100px;"></div>
+      <div style="min-width:30px;"></div>
+      <div style="min-width:100px;"></div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box purple"><strong>Consumer B</strong><br><span style="font-size:0.75rem;">reads &amp; processes</span></div>
+    </div>
+  </div>
+
+  <p>Polling a database for new events is expensive: the more often you poll, the higher the overhead of empty requests. Instead, consumers should be <strong>notified</strong> when new events appear. This is the job of <span class="key-term">messaging systems</span>.</p>
+
+  <!-- ===================== MESSAGING SYSTEMS ===================== -->
+  <h2>Messaging Systems</h2>
+  <p>A messaging system allows producers to send messages (events) that are then pushed to consumers. Two critical design questions differentiate messaging systems:</p>
+
+  <div class="grid2">
+    <div class="card card-orange">
+      <h4>1. What if producers outpace consumers?</h4>
+      <ul>
+        <li><strong>Drop messages</strong> -- acceptable for metrics where data is approximate anyway</li>
+        <li><strong>Buffer in a queue</strong> -- but what happens when queue grows? Memory? Disk?</li>
+        <li><strong>Backpressure</strong> (flow control) -- block the producer. Unix pipes and TCP use this.</li>
+      </ul>
+    </div>
+    <div class="card card-red">
+      <h4>2. What if nodes crash?</h4>
+      <ul>
+        <li>Durability requires writing to disk and/or replication</li>
+        <li>If you can afford to lose messages, you get higher throughput and lower latency</li>
+        <li>For counters/billing, <strong>every lost message = incorrect data</strong></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- DIRECT MESSAGING -->
+  <h3>Direct Messaging from Producers to Consumers</h3>
+  <p>Some systems skip the intermediary entirely:</p>
+
+  <div class="grid2">
+    <div class="card card-cyan">
+      <h4>UDP Multicast</h4>
+      <p style="font-size:0.85rem;">Used in financial industry for stock market feeds. Low latency. Application-level protocols recover lost packets by having the producer remember and retransmit on demand.</p>
+    </div>
+    <div class="card card-accent">
+      <h4>Brokerless Libraries (ZeroMQ, nanomsg)</h4>
+      <p style="font-size:0.85rem;">Implement pub/sub messaging over TCP or IP multicast. No central broker -- producers and consumers connect directly.</p>
+    </div>
+    <div class="card card-orange">
+      <h4>StatsD / Brubeck</h4>
+      <p style="font-size:0.85rem;">Use unreliable UDP for collecting metrics from all machines. Counter metrics are only correct if <em>all</em> messages are received -- making metrics approximate at best.</p>
+    </div>
+    <div class="card card-green">
+      <h4>Webhooks</h4>
+      <p style="font-size:0.85rem;">Consumer exposes a callback URL. Producer makes an HTTP/RPC request to push events. Used widely in APIs (Stripe, GitHub, etc.).</p>
+    </div>
+  </div>
+
+  <div class="card card-red">
+    <h4>Limitation of Direct Messaging</h4>
+    <p>These systems generally require the application to handle message loss. They assume producers and consumers are <strong>constantly online</strong>. If a consumer is offline, it misses messages. If a producer crashes, it loses its retry buffer.</p>
+  </div>
+
+  <!-- MESSAGE BROKERS -->
+  <h3>Message Brokers</h3>
+  <p>A <span class="key-term">message broker</span> (message queue) is a server that acts as an intermediary. Producers write messages to the broker; consumers read from it. By centralizing data in the broker, systems can tolerate clients that come and go.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Message Broker Architecture</div>
+    <div class="flow">
+      <div class="flow-box primary"><strong>Producer 1</strong></div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box orange" style="min-width:160px; padding:16px;"><strong>Message Broker</strong><br><span style="font-size:0.75rem;">RabbitMQ, ActiveMQ,<br>HornetQ, IBM MQ</span></div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box green"><strong>Consumer 1</strong></div>
+    </div>
+    <div class="flow" style="margin-top:4px;">
+      <div class="flow-box primary"><strong>Producer 2</strong></div>
+      <div class="flow-arrow">&rarr;</div>
+      <div style="min-width:160px;"></div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box green"><strong>Consumer 2</strong></div>
+    </div>
+    <p style="text-align:center; font-size:0.8rem; margin-top:12px; color:var(--text-muted);">Consumers are asynchronous -- producer only waits for broker acknowledgment, not for consumer processing.</p>
+  </div>
+
+  <!-- BROKER vs DATABASE -->
+  <h3>Message Brokers vs. Databases</h3>
+  <table>
+    <tr><th>Aspect</th><th>Message Broker</th><th>Database</th></tr>
+    <tr><td><strong>Data retention</strong></td><td>Deletes message after successful delivery</td><td>Keeps data until explicitly deleted</td></tr>
+    <tr><td><strong>Working set</strong></td><td>Assumes small queues; degrades if queues grow large</td><td>Designed for arbitrarily large datasets</td></tr>
+    <tr><td><strong>Data access</strong></td><td>Subscribe to topics matching a pattern</td><td>Secondary indexes, arbitrary queries</td></tr>
+    <tr><td><strong>Notification</strong></td><td>Notifies clients when new data arrives</td><td>Point-in-time query; no push notification (usually)</td></tr>
+    <tr><td><strong>Effect of reading</strong></td><td>Destructive (ACK deletes message)</td><td>Non-destructive (read doesn't change data)</td></tr>
+  </table>
+
+  <!-- MULTIPLE CONSUMERS -->
+  <h3>Multiple Consumers: Load Balancing vs. Fan-out</h3>
+
+  <div class="diagram">
+    <div class="diagram-title">Two Patterns for Multiple Consumers</div>
+    <div style="display:flex; gap:40px; flex-wrap:wrap;">
+      <!-- Load Balancing -->
+      <div style="flex:1; min-width:250px;">
+        <p style="text-align:center; font-weight:700; color:var(--accent); margin-bottom:12px;">(a) Load Balancing</p>
+        <div style="text-align:center;">
+          <div class="flow-box orange" style="display:inline-block; margin-bottom:12px;"><strong>Topic</strong></div>
+        </div>
+        <div style="display:flex; justify-content:center; gap:8px; margin-bottom:8px;">
+          <span class="flow-arrow">&darr;</span>
+          <span style="width:40px;"></span>
+          <span class="flow-arrow" style="visibility:hidden;">&darr;</span>
+        </div>
+        <div style="display:flex; justify-content:center; gap:12px;">
+          <div class="flow-box green" style="min-width:70px;">C1<br><span style="font-size:0.7rem;">msg 1, 3</span></div>
+          <div class="flow-box green" style="min-width:70px;">C2<br><span style="font-size:0.7rem;">msg 2, 4</span></div>
+        </div>
+        <p style="font-size:0.8rem; text-align:center; margin-top:8px;">Each message goes to <strong>one</strong> consumer</p>
+      </div>
+      <!-- Fan-out -->
+      <div style="flex:1; min-width:250px;">
+        <p style="text-align:center; font-weight:700; color:var(--accent2); margin-bottom:12px;">(b) Fan-out</p>
+        <div style="text-align:center;">
+          <div class="flow-box orange" style="display:inline-block; margin-bottom:12px;"><strong>Topic</strong></div>
+        </div>
+        <div style="display:flex; justify-content:center; gap:8px; margin-bottom:8px;">
+          <span class="flow-arrow">&darr;</span>
+          <span style="width:40px;"></span>
+          <span class="flow-arrow">&darr;</span>
+        </div>
+        <div style="display:flex; justify-content:center; gap:12px;">
+          <div class="flow-box purple" style="min-width:70px;">C1<br><span style="font-size:0.7rem;">all msgs</span></div>
+          <div class="flow-box purple" style="min-width:70px;">C2<br><span style="font-size:0.7rem;">all msgs</span></div>
+        </div>
+        <p style="font-size:0.8rem; text-align:center; margin-top:8px;">Each message goes to <strong>all</strong> consumers</p>
+      </div>
+    </div>
+    <p style="font-size:0.8rem; margin-top:16px; color:var(--text-muted);">These can be combined: two consumer <em>groups</em> each receive all messages (fan-out), but within each group only one node gets each message (load balancing).</p>
+  </div>
+
+  <!-- ACKNOWLEDGMENTS -->
+  <h3>Acknowledgments and Redelivery</h3>
+  <div class="card card-orange">
+    <h4>The Reordering Problem</h4>
+    <p>Brokers use <span class="key-term">acknowledgments</span>: a consumer must explicitly confirm it processed a message before the broker deletes it. If a consumer crashes, the message is redelivered to another consumer.</p>
+    <p>But this causes <strong>reordering</strong>: if Consumer 2 crashes while processing message m3, while Consumer 1 is processing m4, then m3 is redelivered to Consumer 1 -- which processes them in order m4, m3, m5. Messages m3 and m4 are delivered out of order.</p>
+    <p style="margin:0;"><strong>Fix:</strong> Use a separate queue per consumer (no load balancing), or accept reordering if messages are independent.</p>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Redelivery Causes Reordering</div>
+    <div class="flow">
+      <div class="flow-box primary"><strong>Producer</strong><br><span style="font-size:0.7rem;">m1, m2, m3, m4, m5</span></div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box orange"><strong>Broker</strong></div>
+      <div class="flow-arrow">&rarr;</div>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="flow-box green">C1: m1, m2, m4, <span style="color:var(--red);">m3</span>, m5</div>
+        <div class="flow-box red">C2: <span style="text-decoration:line-through;">m3</span> (crashed!)</div>
+      </div>
+    </div>
+    <p style="text-align:center; font-size:0.8rem; margin-top:12px; color:var(--text-muted);">m3 is redelivered to C1 after m4, breaking the original order.</p>
+  </div>
+
+  <!-- ===================== PARTITIONED LOGS ===================== -->
+  <h2>Partitioned Logs</h2>
+  <p>Traditional message brokers delete messages after delivery -- they are <strong>transient</strong>. You cannot replay them. But databases keep data permanently. Can we combine the durable storage of databases with the low-latency notification of messaging? Yes: <span class="key-term">log-based message brokers</span>.</p>
+
+  <h3>Log-Based Message Brokers (Kafka)</h3>
+  <div class="card card-accent">
+    <h4>Core Idea</h4>
+    <p>A <span class="key-term">log</span> is an append-only sequence of records on disk. A producer appends messages to the end; a consumer reads the log sequentially. The log is <strong>partitioned</strong> for scalability: different partitions on different machines. Each message within a partition gets a monotonically increasing <span class="key-term">offset</span>.</p>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Log-Based Message Broker (Kafka-Style)</div>
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <span style="font-size:0.8rem; font-weight:600; color:var(--accent); min-width:100px;">Partition 0:</span>
+        <div style="display:flex; gap:4px;">
+          <div style="background:var(--accent); color:white; padding:6px 12px; border-radius:4px; font-size:0.8rem;">0</div>
+          <div style="background:var(--accent); color:white; padding:6px 12px; border-radius:4px; font-size:0.8rem;">1</div>
+          <div style="background:var(--accent); color:white; padding:6px 12px; border-radius:4px; font-size:0.8rem;">2</div>
+          <div style="background:var(--accent); color:white; padding:6px 12px; border-radius:4px; font-size:0.8rem;">3</div>
+          <div style="background:var(--accent); color:white; padding:6px 12px; border-radius:4px; font-size:0.8rem;">4</div>
+          <div style="background:var(--accent); opacity:0.5; color:white; padding:6px 12px; border-radius:4px; font-size:0.8rem;">5</div>
+        </div>
+        <span class="flow-arrow">&larr;</span>
+        <span style="font-size:0.75rem; color:var(--text-muted);">Producer appends here</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <span style="font-size:0.8rem; font-weight:600; color:var(--accent2); min-width:100px;">Partition 1:</span>
+        <div style="display:flex; gap:4px;">
+          <div style="background:var(--accent2); color:white; padding:6px 12px; border-radius:4px; font-size:0.8rem;">0</div>
+          <div style="background:var(--accent2); color:white; padding:6px 12px; border-radius:4px; font-size:0.8rem;">1</div>
+          <div style="background:var(--accent2); color:white; padding:6px 12px; border-radius:4px; font-size:0.8rem;">2</div>
+          <div style="background:var(--accent2); opacity:0.5; color:white; padding:6px 12px; border-radius:4px; font-size:0.8rem;">3</div>
+        </div>
+        <span class="flow-arrow">&larr;</span>
+        <span style="font-size:0.75rem; color:var(--text-muted);">Producer appends here</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <span style="font-size:0.8rem; font-weight:600; color:var(--accent3); min-width:100px;">Partition 2:</span>
+        <div style="display:flex; gap:4px;">
+          <div style="background:var(--accent3); color:white; padding:6px 12px; border-radius:4px; font-size:0.8rem;">0</div>
+          <div style="background:var(--accent3); color:white; padding:6px 12px; border-radius:4px; font-size:0.8rem;">1</div>
+          <div style="background:var(--accent3); color:white; padding:6px 12px; border-radius:4px; font-size:0.8rem;">2</div>
+          <div style="background:var(--accent3); color:white; padding:6px 12px; border-radius:4px; font-size:0.8rem;">3</div>
+          <div style="background:var(--accent3); color:white; padding:6px 12px; border-radius:4px; font-size:0.8rem;">4</div>
+          <div style="background:var(--accent3); color:white; padding:6px 12px; border-radius:4px; font-size:0.8rem;">5</div>
+          <div style="background:var(--accent3); opacity:0.5; color:white; padding:6px 12px; border-radius:4px; font-size:0.8rem;">6</div>
+        </div>
+        <span class="flow-arrow">&larr;</span>
+        <span style="font-size:0.75rem; color:var(--text-muted);">Producer appends here</span>
+      </div>
+    </div>
+    <p style="font-size:0.8rem; margin-top:16px; color:var(--text-muted);">A topic is a group of partitions. Messages are totally ordered within a partition but have no ordering guarantee across partitions. Apache Kafka, Amazon Kinesis, and Twitter's DistributedLog use this approach.</p>
+  </div>
+
+  <!-- LOGS vs TRADITIONAL -->
+  <h3>Log-Based vs. Traditional Messaging</h3>
+  <table>
+    <tr><th>Aspect</th><th>Log-Based (Kafka)</th><th>Traditional (RabbitMQ/JMS/AMQP)</th></tr>
+    <tr><td><strong>Fan-out</strong></td><td>Trivial -- multiple consumers read the log independently</td><td>Requires topic subscriptions / exchange bindings</td></tr>
+    <tr><td><strong>Load balancing</strong></td><td>Coarse-grained: assign entire partitions to consumers</td><td>Fine-grained: assign individual messages</td></tr>
+    <tr><td><strong>Max parallelism</strong></td><td>Limited to number of partitions</td><td>Unlimited consumers</td></tr>
+    <tr><td><strong>Ordering</strong></td><td>Guaranteed within a partition</td><td>Lost when combined with load balancing</td></tr>
+    <tr><td><strong>Slow messages</strong></td><td>Head-of-line blocking within partition</td><td>Slow message doesn't block others</td></tr>
+    <tr><td><strong>Replay</strong></td><td>Yes -- messages retained on disk</td><td>No -- ACK deletes message</td></tr>
+    <tr><td><strong>Best for</strong></td><td>High throughput, ordering matters, fast per-message processing</td><td>Expensive per-message processing, ordering less important</td></tr>
+  </table>
+
+  <!-- CONSUMER OFFSETS -->
+  <h3>Consumer Offsets</h3>
+  <div class="card card-green">
+    <h4>Simple Bookkeeping</h4>
+    <p>Since messages are consumed sequentially, tracking progress is simple: <strong>all messages with offset &lt; current offset have been processed</strong>. The broker only needs to periodically record each consumer's offset -- no per-message acknowledgment tracking.</p>
+    <p>This is very similar to the <span class="key-term">log sequence number</span> in database replication. The broker is like a leader database; the consumer is like a follower.</p>
+    <p style="margin:0;">If a consumer fails, another node takes over its partitions and resumes from the last recorded offset. Messages processed but not yet checkpointed may be processed twice.</p>
+  </div>
+
+  <!-- DISK SPACE & LOG COMPACTION -->
+  <h3>Disk Space Usage &amp; Log Compaction</h3>
+  <div class="card card-purple">
+    <h4>Circular Buffer on Disk</h4>
+    <p>The log is divided into segments; old segments are deleted or archived. This is effectively a <span class="key-term">bounded-size buffer</span> (ring buffer) on disk. A 6 TB drive at 150 MB/s sequential write can buffer <strong>~11 hours</strong> of messages at maximum throughput. In practice, logs retain days or weeks.</p>
+    <p>Unlike in-memory brokers, throughput remains constant regardless of retention -- all messages are written to disk anyway.</p>
+  </div>
+
+  <div class="card card-accent">
+    <h4>Log Compaction</h4>
+    <p><span class="key-term">Log compaction</span> keeps only the most recent value for each key. The storage engine periodically scans for duplicate keys and discards older entries. A tombstone (null value) marks a deleted key.</p>
+    <p>With compaction, you can rebuild a derived data system (e.g., search index) by starting a new consumer from offset 0 and scanning the entire compacted log -- no separate snapshot needed. The compacted log is guaranteed to contain the latest value for every key.</p>
+    <p style="margin:0;">Supported by Apache Kafka. Allows the message broker to serve as <strong>durable storage</strong>, not just transient messaging.</p>
+  </div>
+
+  <!-- WHEN TO USE -->
+  <div class="grid2">
+    <div class="card card-green">
+      <h4>Use Log-Based When...</h4>
+      <ul>
+        <li>Message ordering is important</li>
+        <li>High throughput, fast per-message processing</li>
+        <li>You need replay / reprocessing capability</li>
+        <li>Building derived data systems (CDC, event sourcing)</li>
+        <li>Experimental consumers on production data</li>
+      </ul>
+    </div>
+    <div class="card card-orange">
+      <h4>Use Traditional Brokers When...</h4>
+      <ul>
+        <li>Messages are expensive to process individually</li>
+        <li>You need fine-grained message-level parallelism</li>
+        <li>Message ordering is not critical</li>
+        <li>Task queue / RPC-style async processing</li>
+        <li>Number of consumers needs to exceed partitions</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ===================== DATABASES AND STREAMS ===================== -->
+  <h2>Databases and Streams</h2>
+  <p>A write to a database is an event. A replication log is a stream of database write events. The connection between databases and streams is fundamental -- we can apply ideas from streams to databases, and vice versa.</p>
+
+  <!-- KEEPING SYSTEMS IN SYNC -->
+  <h3>Keeping Systems in Sync</h3>
+  <p>Most applications need multiple storage systems: OLTP database, cache, search index, data warehouse. They all need to stay in sync. One approach is <span class="key-term">dual writes</span>: the application explicitly writes to each system. But this has serious problems.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">The Dual Writes Problem -- Race Condition</div>
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <div class="flow-box primary" style="min-width:80px;">Client 1</div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-box green" style="min-width:100px;">DB: X=A</div>
+        <div style="width:20px;"></div>
+        <div class="flow-box primary" style="min-width:80px;">Client 1</div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-box purple" style="min-width:100px;">Index: X=A</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <div class="flow-box orange" style="min-width:80px;">Client 2</div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-box green" style="min-width:100px;">DB: X=B</div>
+        <div style="width:20px;"></div>
+        <div class="flow-box orange" style="min-width:80px;">Client 2</div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-box purple" style="min-width:100px;">Index: X=B</div>
+      </div>
+    </div>
+    <p style="text-align:center; font-size:0.85rem; margin-top:16px; color:var(--red);"><strong>Result:</strong> DB has X=B (Client 2 wrote last), but Index has X=A (Client 1 wrote last due to unlucky interleaving). Permanently inconsistent!</p>
+  </div>
+
+  <div class="card card-red">
+    <h4>Problems with Dual Writes</h4>
+    <ul>
+      <li><strong>Race condition:</strong> No single leader determines write order. DB and index may see writes in different orders, leading to permanent inconsistency.</li>
+      <li><strong>Partial failure:</strong> One write may succeed while the other fails. Ensuring both succeed or both fail is the atomic commit problem (expensive to solve).</li>
+      <li><strong>No concurrency detection:</strong> Without version vectors, one value silently overwrites another.</li>
+    </ul>
+    <p style="margin:0;">Solution: make one system the leader (the database), and make all others <strong>followers</strong> of its change stream.</p>
+  </div>
+
+  <!-- CHANGE DATA CAPTURE -->
+  <h3>Change Data Capture (CDC)</h3>
+  <p><span class="key-term">Change Data Capture</span> is the process of observing all data changes written to a database and extracting them as a stream that can be replicated to other systems. It makes one database the leader and turns all derived systems into followers.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Change Data Capture Flow</div>
+    <div class="flow">
+      <div class="flow-box primary" style="min-width:120px;"><strong>System of Record</strong><br><span style="font-size:0.7rem;">(source database)</span></div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box orange" style="min-width:120px;"><strong>Change Stream</strong><br><span style="font-size:0.7rem;">parsed from replication log</span></div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box purple" style="min-width:120px;"><strong>Log-Based Broker</strong><br><span style="font-size:0.7rem;">(e.g., Kafka)</span></div>
+    </div>
+    <div class="flow" style="margin-top:16px;">
+      <div style="min-width:120px;"></div>
+      <div style="min-width:30px;"></div>
+      <div style="min-width:120px;"></div>
+      <div style="min-width:30px;"></div>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div style="display:flex; gap:8px;">
+          <div class="flow-arrow">&rarr;</div>
+          <div class="flow-box green" style="min-width:110px;">Search Index</div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <div class="flow-arrow">&rarr;</div>
+          <div class="flow-box green" style="min-width:110px;">Cache</div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <div class="flow-arrow">&rarr;</div>
+          <div class="flow-box green" style="min-width:110px;">Data Warehouse</div>
+        </div>
+      </div>
+    </div>
+    <p style="text-align:center; font-size:0.8rem; margin-top:12px; color:var(--text-muted);">Derived data systems are just consumers of the change stream. Order is preserved, avoiding dual-write race conditions.</p>
+  </div>
+
+  <div class="card card-accent">
+    <h4>Implementing CDC</h4>
+    <ul>
+      <li><strong>Database triggers:</strong> Register triggers that observe changes and write to a changelog table. Fragile, significant performance overhead.</li>
+      <li><strong>Parsing the replication log:</strong> More robust. LinkedIn's Databus, Facebook's Wormhole, Debezium (MySQL binlog), Bottled Water (PostgreSQL WAL), GoldenGate (Oracle).</li>
+      <li><strong>CDC is usually asynchronous:</strong> The source DB doesn't wait for consumers. Adding a slow consumer doesn't affect the source. But replication lag issues apply.</li>
+    </ul>
+  </div>
+
+  <div class="grid2">
+    <div class="card card-purple">
+      <h4>Initial Snapshot</h4>
+      <p style="font-size:0.85rem;">Keeping the entire change history forever is impractical. To bootstrap a new derived system, you need a <strong>consistent snapshot</strong> corresponding to a known offset in the change log, then apply changes from that point forward.</p>
+    </div>
+    <div class="card card-green">
+      <h4>API Support for Change Streams</h4>
+      <p style="font-size:0.85rem;">Databases increasingly support change streams as first-class features: RethinkDB (query subscriptions), Firebase/CouchDB (change feeds), MongoDB oplog, Kafka Connect (integrates CDC for many DBs with Kafka).</p>
+    </div>
+  </div>
+
+  <!-- EVENT SOURCING -->
+  <h3>Event Sourcing</h3>
+  <p><span class="key-term">Event sourcing</span> stores all changes to application state as a log of immutable events, designed at the <strong>application level</strong> to reflect user intentions, not low-level state mutations.</p>
+
+  <table>
+    <tr><th>Aspect</th><th>Change Data Capture (CDC)</th><th>Event Sourcing</th></tr>
+    <tr><td><strong>Level of abstraction</strong></td><td>Low-level: row inserts, updates, deletes</td><td>High-level: domain events ("student cancelled enrollment")</td></tr>
+    <tr><td><strong>Application awareness</strong></td><td>App doesn't need to know CDC exists</td><td>App is explicitly built on immutable event log</td></tr>
+    <tr><td><strong>Mutability</strong></td><td>App uses database mutably; log extracted separately</td><td>Event store is append-only; updates/deletes are discouraged</td></tr>
+    <tr><td><strong>Log compaction</strong></td><td>Works: latest value per key is sufficient</td><td>Doesn't work: later events don't override prior events; full history needed</td></tr>
+    <tr><td><strong>State reconstruction</strong></td><td>Latest value for each primary key</td><td>Must replay full event history (or use snapshots)</td></tr>
+  </table>
+
+  <div class="card card-green">
+    <h4>Commands vs. Events</h4>
+    <p>A user request arrives as a <span class="key-term">command</span> -- it may still fail validation. Once accepted, it becomes an <span class="key-term">event</span>: durable, immutable, a <strong>fact</strong>. Even if a customer later cancels a reservation, the fact that they formerly held it remains true. Consumers cannot reject events; all validation must happen before the command becomes an event.</p>
+  </div>
+
+  <!-- STATE, STREAMS, AND IMMUTABILITY -->
+  <h2>State, Streams, and Immutability</h2>
+
+  <div class="quote">"Transaction logs record all the changes made to the database. High-speed appends are the only way to change the log. From this perspective, the contents of the database hold a caching of the latest record values in the logs. The truth is the log. The database is a cache of a subset of the log." -- Pat Helland</div>
+
+  <div class="diagram">
+    <div class="diagram-title">The Duality of State and Streams</div>
+    <div class="flow">
+      <div class="flow-box purple" style="min-width:160px;"><strong>Event Stream</strong><br><span style="font-size:0.75rem;">append-only log of<br>immutable events</span></div>
+      <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
+        <div style="font-size:0.75rem; color:var(--accent3);">integrate &rarr;</div>
+        <div style="font-size:0.75rem; color:var(--orange);">&larr; differentiate</div>
+      </div>
+      <div class="flow-box green" style="min-width:160px;"><strong>Application State</strong><br><span style="font-size:0.75rem;">mutable, current view<br>(the "database")</span></div>
+    </div>
+    <p style="text-align:center; font-size:0.8rem; margin-top:12px; color:var(--text-muted);">State = integral of event stream over time. Change stream = derivative of state over time. Two sides of the same coin.</p>
+  </div>
+
+  <!-- ADVANTAGES OF IMMUTABLE EVENTS -->
+  <div class="card card-accent">
+    <h4>Advantages of Immutable Events</h4>
+    <ul>
+      <li><strong>Auditability:</strong> Like accounting ledgers, mistakes are corrected with compensating entries, not by erasing. The full history is preserved.</li>
+      <li><strong>Bug recovery:</strong> If buggy code writes bad data, an immutable log makes it easy to diagnose and recover (vs. destructive overwrites).</li>
+      <li><strong>Richer information:</strong> A user adding then removing a cart item -- the database loses the "considered but rejected" signal, but the event log keeps it. Valuable for analytics.</li>
+      <li><strong>Multiple views:</strong> Separate the write format from the read format. Derive different read-optimized representations from the same event log (CQRS -- Command Query Responsibility Segregation).</li>
+      <li><strong>Simplified concurrency:</strong> Appending events is a single write, easy to make atomic. Single-threaded log consumers need no concurrency control.</li>
+    </ul>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Deriving Multiple Views from the Same Event Log</div>
+    <div class="flow">
+      <div class="flow-box purple" style="min-width:130px;"><strong>Event Log</strong><br><span style="font-size:0.7rem;">(system of record)</span></div>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div class="flow-arrow">&rarr;</div>
+          <div class="flow-box green" style="min-width:130px;">Search Index</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div class="flow-arrow">&rarr;</div>
+          <div class="flow-box primary" style="min-width:130px;">Analytics DB (Druid)</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div class="flow-arrow">&rarr;</div>
+          <div class="flow-box orange" style="min-width:130px;">Cache / KV Store</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div class="flow-arrow">&rarr;</div>
+          <div class="flow-box cyan" style="min-width:130px;">New Feature View</div>
+        </div>
+      </div>
+    </div>
+    <p style="text-align:center; font-size:0.8rem; margin-top:12px; color:var(--text-muted);">To introduce a new feature, build a new read-optimized view from the event log. Run it alongside existing systems. Shut down old views when no longer needed.</p>
+  </div>
+
+  <!-- LIMITATIONS OF IMMUTABILITY -->
+  <div class="card card-red">
+    <h4>Limitations of Immutability</h4>
+    <ul>
+      <li><strong>High-churn datasets:</strong> Workloads with frequent updates/deletes on a small dataset cause the immutable history to grow prohibitively large. Compaction and garbage collection performance becomes crucial.</li>
+      <li><strong>Privacy &amp; regulation:</strong> GDPR and similar laws may require truly deleting user data -- not just appending a "deleted" event, but rewriting history (Datomic's "excision", Fossil's "shunning").</li>
+      <li><strong>True deletion is hard:</strong> Copies live in storage engines, filesystems, SSDs (write to new locations), and backups. Deletion is more "making it harder to retrieve" than making it impossible.</li>
+    </ul>
+  </div>
+
+  <!-- ===================== PROCESSING STREAMS ===================== -->
+  <h2>Processing Streams</h2>
+  <p>Once you have a stream, what can you do with it? Three options: (1) write to a database/cache/index for querying, (2) push to users (email, dashboard, notifications), or (3) <strong>process input streams to produce output streams</strong>. A piece of code that does this is called an <span class="key-term">operator</span> or <span class="key-term">job</span>.</p>
+  <p>The critical difference from batch: <strong>a stream never ends</strong>. Sorting is impossible. Sort-merge joins cannot be used. Fault tolerance can't "restart from the beginning" after years of running.</p>
+
+  <!-- USES OF STREAM PROCESSING -->
+  <h3>Uses of Stream Processing</h3>
+  <div class="grid2">
+    <div class="card card-accent">
+      <h4>Complex Event Processing (CEP)</h4>
+      <p style="font-size:0.85rem;">Search for patterns across event streams using declarative rules (like regex for events). Queries are stored long-term; events flow past them. The relationship between queries and data is <strong>reversed</strong> compared to normal databases. Implementations: Esper, IBM InfoSphere Streams.</p>
+    </div>
+    <div class="card card-green">
+      <h4>Stream Analytics</h4>
+      <p style="font-size:0.85rem;">Aggregations and statistical metrics over time windows: rates, rolling averages, percentiles. Uses probabilistic algorithms (HyperLogLog, Bloom filters) for memory efficiency. Frameworks: Storm, Spark Streaming, Flink, Samza, Kafka Streams.</p>
+    </div>
+    <div class="card card-purple">
+      <h4>Materialized View Maintenance</h4>
+      <p style="font-size:0.85rem;">Deriving alternative views of data and keeping them up-to-date as underlying data changes. Unlike analytics, may require <strong>all events ever</strong> (not just a time window). Samza and Kafka Streams support this via log compaction.</p>
+    </div>
+    <div class="card card-orange">
+      <h4>Search on Streams</h4>
+      <p style="font-size:0.85rem;">Store queries, let documents flow past them (inverse of normal search). Media monitoring, real estate alerts. Elasticsearch's percolator feature. Can index queries to optimize matching.</p>
+    </div>
+  </div>
+
+  <div class="card card-cyan">
+    <h4>Message Passing and RPC vs. Stream Processing</h4>
+    <ul>
+      <li>Actor frameworks: manage concurrency, ephemeral one-to-one communication, arbitrary patterns (including cycles)</li>
+      <li>Stream processors: data management, durable multi-subscriber logs, acyclic pipelines</li>
+      <li>Crossover: Apache Storm's "distributed RPC" farms out queries to stream processing nodes</li>
+    </ul>
+  </div>
+
+  <!-- ===================== REASONING ABOUT TIME ===================== -->
+  <h2>Reasoning About Time</h2>
+  <p>Stream processors often use time windows ("average over the last 5 minutes"). But whose time? When? The notion is surprisingly tricky.</p>
+
+  <div class="grid2">
+    <div class="card card-accent">
+      <h4>Event Time</h4>
+      <p style="font-size:0.85rem;">The timestamp when the event actually occurred. Used in batch processing. Makes processing <strong>deterministic</strong>: same input = same result. But events may arrive out of order or very late.</p>
+    </div>
+    <div class="card card-orange">
+      <h4>Processing Time</h4>
+      <p style="font-size:0.85rem;">The wall-clock time on the processing machine. Simple but <strong>breaks down with lag</strong>. If processor restarts and processes a backlog, it creates a false spike in metrics. Star Wars analogy: episodes released out of narrative order.</p>
+    </div>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Event Time vs. Processing Time -- The Backlog Spike</div>
+    <div style="display:flex; gap:24px; flex-wrap:wrap;">
+      <div style="flex:1; min-width:200px;">
+        <p style="font-size:0.8rem; font-weight:600; color:var(--accent3); margin-bottom:8px;">Actual event rate (event time):</p>
+        <div style="display:flex; align-items:flex-end; gap:4px; height:80px;">
+          <div style="background:var(--accent3); width:24px; height:40px; border-radius:4px 4px 0 0;"></div>
+          <div style="background:var(--accent3); width:24px; height:42px; border-radius:4px 4px 0 0;"></div>
+          <div style="background:var(--accent3); width:24px; height:38px; border-radius:4px 4px 0 0;"></div>
+          <div style="background:var(--accent3); width:24px; height:41px; border-radius:4px 4px 0 0;"></div>
+          <div style="background:var(--accent3); width:24px; height:39px; border-radius:4px 4px 0 0;"></div>
+          <div style="background:var(--accent3); width:24px; height:43px; border-radius:4px 4px 0 0;"></div>
+          <div style="background:var(--accent3); width:24px; height:40px; border-radius:4px 4px 0 0;"></div>
+        </div>
+        <p style="font-size:0.7rem; color:var(--text-muted); margin-top:4px;">Steady ~40 events/sec</p>
+      </div>
+      <div style="flex:1; min-width:200px;">
+        <p style="font-size:0.8rem; font-weight:600; color:var(--red); margin-bottom:8px;">Measured by processing time:</p>
+        <div style="display:flex; align-items:flex-end; gap:4px; height:80px;">
+          <div style="background:var(--accent3); width:24px; height:40px; border-radius:4px 4px 0 0;"></div>
+          <div style="background:var(--accent3); width:24px; height:42px; border-radius:4px 4px 0 0;"></div>
+          <div style="background:var(--text-muted); width:24px; height:5px; border-radius:4px 4px 0 0;" title="downtime"></div>
+          <div style="background:var(--red); width:24px; height:78px; border-radius:4px 4px 0 0;"></div>
+          <div style="background:var(--accent3); width:24px; height:39px; border-radius:4px 4px 0 0;"></div>
+          <div style="background:var(--accent3); width:24px; height:43px; border-radius:4px 4px 0 0;"></div>
+          <div style="background:var(--accent3); width:24px; height:40px; border-radius:4px 4px 0 0;"></div>
+        </div>
+        <p style="font-size:0.7rem; color:var(--text-muted); margin-top:4px;">False spike from backlog after restart</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-purple">
+    <h4>Whose Clock Are You Using?</h4>
+    <p>Mobile apps may buffer events offline for hours/days. Device clocks can't be trusted. Solution: log <strong>three timestamps</strong>:</p>
+    <ul>
+      <li>Time event occurred (device clock)</li>
+      <li>Time event was sent to server (device clock)</li>
+      <li>Time event was received by server (server clock)</li>
+    </ul>
+    <p style="margin:0;">Offset = (server receive time) - (device send time). Apply this offset to estimate the true event time.</p>
+  </div>
+
+  <!-- TYPES OF WINDOWS -->
+  <h3>Types of Windows</h3>
+
+  <div class="diagram">
+    <div class="diagram-title">Four Types of Time Windows</div>
+    <div style="display:flex; flex-direction:column; gap:20px;">
+      <!-- Tumbling -->
+      <div>
+        <p style="font-weight:700; color:var(--accent); font-size:0.9rem; margin-bottom:8px;">Tumbling Window (fixed, non-overlapping)</p>
+        <div style="display:flex; gap:4px;">
+          <div style="background:var(--accent); opacity:0.3; height:32px; flex:1; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:0.75rem; color:var(--accent);">Window 1</div>
+          <div style="background:var(--accent); opacity:0.3; height:32px; flex:1; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:0.75rem; color:var(--accent);">Window 2</div>
+          <div style="background:var(--accent); opacity:0.3; height:32px; flex:1; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:0.75rem; color:var(--accent);">Window 3</div>
+        </div>
+        <p style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Every event belongs to exactly one window. E.g., 1-minute windows: round timestamp down to nearest minute.</p>
+      </div>
+      <!-- Hopping -->
+      <div>
+        <p style="font-weight:700; color:var(--accent2); font-size:0.9rem; margin-bottom:8px;">Hopping Window (fixed, overlapping)</p>
+        <div style="position:relative; height:60px;">
+          <div style="position:absolute; left:0; right:40%; top:0; background:var(--accent2); opacity:0.2; height:24px; border-radius:4px; display:flex; align-items:center; padding-left:8px; font-size:0.7rem; color:var(--accent2);">Window 1</div>
+          <div style="position:absolute; left:20%; right:20%; top:18px; background:var(--accent2); opacity:0.2; height:24px; border-radius:4px; display:flex; align-items:center; padding-left:8px; font-size:0.7rem; color:var(--accent2);">Window 2</div>
+          <div style="position:absolute; left:40%; right:0; top:36px; background:var(--accent2); opacity:0.2; height:24px; border-radius:4px; display:flex; align-items:center; padding-left:8px; font-size:0.7rem; color:var(--accent2);">Window 3</div>
+        </div>
+        <p style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">E.g., 5-min window with 1-min hop. Events may belong to multiple windows. Provides smoothing.</p>
+      </div>
+      <!-- Sliding -->
+      <div>
+        <p style="font-weight:700; color:var(--accent3); font-size:0.9rem; margin-bottom:8px;">Sliding Window (event-relative)</p>
+        <div style="display:flex; align-items:center; gap:4px;">
+          <div style="background:var(--surface); border:1px solid var(--accent3); height:32px; flex:2; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:0.7rem; color:var(--accent3);">Events within 5 min of each other</div>
+          <div style="background:var(--surface); border:1px dashed var(--border); height:32px; flex:1; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:0.7rem; color:var(--text-muted);">gap &gt; 5 min</div>
+          <div style="background:var(--surface); border:1px solid var(--accent3); height:32px; flex:1; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:0.7rem; color:var(--accent3);">Next cluster</div>
+        </div>
+        <p style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Contains all events within some interval of each other. No fixed boundaries. Implemented with a sorted buffer.</p>
+      </div>
+      <!-- Session -->
+      <div>
+        <p style="font-weight:700; color:var(--orange); font-size:0.9rem; margin-bottom:8px;">Session Window (activity-based)</p>
+        <div style="display:flex; align-items:center; gap:4px;">
+          <div style="display:flex; gap:2px;">
+            <div style="background:var(--orange); width:8px; height:24px; border-radius:2px;"></div>
+            <div style="background:var(--orange); width:8px; height:24px; border-radius:2px;"></div>
+            <div style="background:var(--orange); width:8px; height:24px; border-radius:2px;"></div>
+            <div style="background:var(--orange); width:8px; height:24px; border-radius:2px;"></div>
+          </div>
+          <div style="width:40px; border-bottom:1px dashed var(--border);"></div>
+          <div style="font-size:0.7rem; color:var(--text-muted);">30 min inactive</div>
+          <div style="width:40px; border-bottom:1px dashed var(--border);"></div>
+          <div style="display:flex; gap:2px;">
+            <div style="background:var(--orange); width:8px; height:24px; border-radius:2px;"></div>
+            <div style="background:var(--orange); width:8px; height:24px; border-radius:2px;"></div>
+          </div>
+        </div>
+        <p style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">No fixed duration. Groups events for the same user that occur closely together. Window ends after inactivity timeout. Common for website analytics (sessionization).</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-orange">
+    <h4>Handling Straggler Events</h4>
+    <p>When windowing by event time, you can never be sure all events for a window have arrived. Two options for late-arriving stragglers:</p>
+    <ul>
+      <li><strong>Ignore them:</strong> Track the number of dropped events as a metric. Alert if significant.</li>
+      <li><strong>Publish a correction:</strong> Update the window's result to include the straggler. May need to retract the previous output.</li>
+    </ul>
+  </div>
+
+  <!-- ===================== STREAM JOINS ===================== -->
+  <h2>Stream Joins</h2>
+  <p>Joins are as important in stream processing as in batch. But streams are unbounded and events arrive at unpredictable times, making joins more challenging. Three types:</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Three Types of Stream Joins</div>
+    <div style="display:flex; flex-direction:column; gap:24px;">
+      <!-- Stream-Stream -->
+      <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+        <div class="flow-box primary" style="min-width:160px;"><strong>Stream-Stream Join</strong><br><span style="font-size:0.7rem;">(window join)</span></div>
+        <div style="flex:1; min-width:240px;">
+          <p style="font-size:0.85rem; margin:0;">Both inputs are activity event streams. Join related events within a time window (e.g., search query + click within 1 hour, matched by session ID). Processor maintains state: indexed events in the window.</p>
+          <p style="font-size:0.8rem; margin:4px 0 0; color:var(--accent);">Example: click-through rate = join search events with click events.</p>
+        </div>
+      </div>
+      <!-- Stream-Table -->
+      <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+        <div class="flow-box green" style="min-width:160px;"><strong>Stream-Table Join</strong><br><span style="font-size:0.7rem;">(stream enrichment)</span></div>
+        <div style="flex:1; min-width:240px;">
+          <p style="font-size:0.85rem; margin:0;">Enrich activity events with database info (e.g., add user profile to activity event by user ID). Processor keeps a local copy of the table, updated via CDC. Like a hash join with a "beginning of time" window for the table.</p>
+          <p style="font-size:0.8rem; margin:4px 0 0; color:var(--accent3);">Remote DB lookups are too slow; use local copy updated via change stream.</p>
+        </div>
+      </div>
+      <!-- Table-Table -->
+      <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+        <div class="flow-box purple" style="min-width:160px;"><strong>Table-Table Join</strong><br><span style="font-size:0.7rem;">(materialized view)</span></div>
+        <div style="flex:1; min-width:240px;">
+          <p style="font-size:0.85rem; margin:0;">Both inputs are database changelogs. Maintains a materialized view of a join between two tables. Twitter timeline: join tweets stream with follows stream to maintain per-user inbox caches.</p>
+          <p style="font-size:0.8rem; margin:4px 0 0; color:var(--accent2);">Mathematically: (u&middot;v)' = u'v + uv' -- any change in tweets joins with current followers, and vice versa.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-orange">
+    <h4>Time-Dependence of Joins</h4>
+    <p>All three join types require maintaining state from one input and querying it from the other. <strong>When state changes over time, which version do you join with?</strong></p>
+    <ul>
+      <li>Tax rates change. When joining sales to tax rates, use the rate at the time of sale.</li>
+      <li>If ordering across streams is undetermined, the join becomes <strong>nondeterministic</strong> -- rerunning on the same input may give different results.</li>
+      <li>In data warehousing, this is the <span class="key-term">slowly changing dimension</span> (SCD) problem. Addressed by giving each version a unique ID. Trade-off: prevents log compaction since all versions must be retained.</li>
+    </ul>
+  </div>
+
+  <!-- ===================== FAULT TOLERANCE ===================== -->
+  <h2>Fault Tolerance</h2>
+  <p>Batch processing achieves <span class="key-term">exactly-once semantics</span> (or more precisely, "effectively-once"): failed tasks are restarted, partial output is discarded. In stream processing, the stream never ends, so you can't "wait until done" to make output visible. How do we handle faults?</p>
+
+  <div class="grid2">
+    <div class="card card-accent">
+      <h4>Microbatching (Spark Streaming)</h4>
+      <p style="font-size:0.85rem;">Break the stream into small blocks (~1 second), treat each as a mini batch job. Provides exactly-once within the framework. Implicitly creates a tumbling window equal to batch size. Trade-off: smaller batches = more overhead; larger batches = more latency.</p>
+    </div>
+    <div class="card card-purple">
+      <h4>Checkpointing (Apache Flink)</h4>
+      <p style="font-size:0.85rem;">Periodically snapshot operator state to durable storage (e.g., HDFS). On crash, restart from the last checkpoint. Triggered by barriers in the message stream. Doesn't force a particular window size. More flexible than microbatching.</p>
+    </div>
+    <div class="card card-green">
+      <h4>Atomic Commit / Transactions</h4>
+      <p style="font-size:0.85rem;">Ensure all outputs and side effects of processing an event happen atomically: messages to downstream, DB writes, state changes, offset advancement. Used by Google Cloud Dataflow, VoltDB. Not XA -- kept internal to the framework. Overhead amortized by batching messages per transaction.</p>
+    </div>
+    <div class="card card-orange">
+      <h4>Idempotence</h4>
+      <p style="font-size:0.85rem;">Make operations safe to perform multiple times. Store the Kafka offset alongside the written value so you can detect duplicates. Requires: deterministic processing, same message order on replay, no concurrent writes to same value. Effective exactly-once with small overhead.</p>
+    </div>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Fault Tolerance Approaches Compared</div>
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="flow-box primary" style="min-width:130px;"><strong>Microbatching</strong></div>
+        <div style="flex:1; min-width:200px; font-size:0.8rem; color:var(--text-muted);">Simple model. Fixed window granularity. ~1 second latency floor. Spark Streaming.</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="flow-box purple" style="min-width:130px;"><strong>Checkpointing</strong></div>
+        <div style="flex:1; min-width:200px; font-size:0.8rem; color:var(--text-muted);">Flexible windows. Lower latency possible. More complex recovery. Apache Flink.</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="flow-box green" style="min-width:130px;"><strong>Transactions</strong></div>
+        <div style="flex:1; min-width:200px; font-size:0.8rem; color:var(--text-muted);">Strongest guarantees. Higher overhead. Kept internal to framework (not XA). Cloud Dataflow, VoltDB.</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="flow-box orange" style="min-width:130px;"><strong>Idempotence</strong></div>
+        <div style="flex:1; min-width:200px; font-size:0.8rem; color:var(--text-muted);">Low overhead. Requires determinism and message ordering. Works with log-based brokers. Storm Trident.</div>
+      </div>
+    </div>
+    <p style="font-size:0.8rem; margin-top:16px; color:var(--red);"><strong>Caveat:</strong> All these approaches only guarantee exactly-once <em>within the framework</em>. Side effects that leave the framework (emails, external DB writes) may happen twice on restart.</p>
+  </div>
+
+  <div class="card card-cyan">
+    <h4>Rebuilding State After a Failure</h4>
+    <ul>
+      <li><strong>Remote datastore:</strong> Keep state in a replicated database. Simple but slow (network round-trip per message).</li>
+      <li><strong>Local state + replication:</strong> Flink snapshots operator state to HDFS. Samza/Kafka Streams replicate state changes to a dedicated Kafka topic with log compaction.</li>
+      <li><strong>Rebuild from input:</strong> If state is over a short window, simply replay input events. If it's a local DB replica via CDC, rebuild from the log-compacted change stream.</li>
+      <li><strong>Redundant processing:</strong> VoltDB processes each input on multiple nodes in parallel.</li>
+    </ul>
+  </div>
+
+  <!-- ===================== FIRST PRINCIPLES QUESTIONS ===================== -->
+  <h2 style="color: var(--pink);">First-Principles Questions</h2>
+  <p>Test your understanding. Click to reveal the answer.</p>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">1</span>Why is polling a database for new events a bad approach, and what is the alternative?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Polling becomes expensive as you increase frequency: most requests return no new events, so you waste resources on empty checks. The more often you poll, the higher the overhead-to-useful-work ratio. The alternative is a <strong>push-based notification system</strong> (messaging system) where consumers are notified when new events appear, eliminating wasteful polling.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">2</span>Why does combining load balancing with acknowledgment-based redelivery break message ordering?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">When a consumer crashes mid-processing, the unacknowledged message is redelivered to a <em>different</em> consumer. But that other consumer may have already moved ahead and processed later messages. So the redelivered message arrives after messages that were originally sent after it. Example: Consumer 2 crashes on m3 while Consumer 1 processes m4. m3 is redelivered to Consumer 1, which processes m4, then m3, then m5 -- out of the original order. The fix is either separate queues per consumer, or accepting that reordering can happen.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">3</span>What is the fundamental insight that makes log-based message brokers (like Kafka) different from traditional brokers (like RabbitMQ)?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Traditional brokers treat messages as <strong>transient</strong> -- they delete messages after delivery. Log-based brokers treat messages as <strong>durable data</strong> -- they append messages to a persistent, partitioned log on disk. Reading does not delete the message. This combines the durable storage approach of databases with the low-latency notification of messaging. Consumers simply track their offset, enabling replay, multiple independent consumers, and experimentation without affecting production.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">4</span>Why are dual writes fundamentally flawed for keeping multiple systems in sync?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Two problems: (1) <strong>Race condition</strong>: With no single leader determining write order, two concurrent clients may write to the database and search index in different orders, causing permanent inconsistency (DB says X=B, index says X=A). (2) <strong>Partial failure</strong>: One write may succeed while the other fails, and ensuring atomic commit across heterogeneous systems is expensive. The solution is to designate one system as leader and use its change stream (CDC) to update all other systems, guaranteeing a single source of truth and consistent ordering.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">5</span>How does Change Data Capture (CDC) solve the problems that dual writes cannot?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">CDC makes one database the <strong>single leader</strong> and extracts its change stream (by parsing the replication log or write-ahead log). All derived systems (search indexes, caches, warehouses) become followers that consume this stream in order. Since there is a single source of truth with a total order of writes, race conditions are eliminated. A log-based message broker (like Kafka) preserves this order during transport. If a derived system needs to be rebuilt, you can replay the change stream from the beginning (or from a snapshot).</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">6</span>What is the key difference between event sourcing and change data capture?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">The level of abstraction. <strong>CDC</strong> operates at the database level: it extracts low-level row changes (inserts, updates, deletes) from the replication log. The application writes to the database normally and doesn't need to know CDC exists. <strong>Event sourcing</strong> operates at the application level: events represent meaningful user actions ("student cancelled enrollment") and are explicitly designed as immutable, append-only records. This has implications for log compaction -- CDC can compact (latest value per key suffices), but event sourcing generally cannot (later events don't override prior ones; full history is needed to reconstruct state).</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">7</span>What does "the database is a cache of the log" mean, and why is this a powerful mental model?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Pat Helland's insight: the append-only log of all changes is the <strong>truth</strong> (the system of record). The current database state is just a materialized view -- a cached subset showing the latest value of each record. This mental model is powerful because it means you can derive <em>any number</em> of different read-optimized views from the same log (CQRS), evolve your application by adding new views without modifying existing systems, and recover from bugs by replaying the log. State = integral of the event stream over time; the change stream = derivative of state.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">8</span>Why is confusing event time with processing time dangerous in stream processing?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">If you use the processing machine's clock to assign events to time windows, any processing delay corrupts your measurements. Example: if the stream processor restarts and processes a backlog, all the buffered events land in the same processing-time window, creating a <strong>false spike</strong> in metrics. The actual event rate may have been perfectly steady. Event time (the timestamp of when things actually happened) produces correct, deterministic results. But it comes with its own challenges: events arrive out of order, and you can never be sure all events for a window have arrived (the "straggler" problem).</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">9</span>What are the four types of time windows, and when would you use each?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body"><strong>Tumbling:</strong> Fixed-size, non-overlapping (e.g., 1-min buckets). Simplest. Every event belongs to exactly one window. Good for basic counting. <strong>Hopping:</strong> Fixed-size, overlapping (e.g., 5-min window with 1-min hop). Provides smoothing. Events belong to multiple windows. <strong>Sliding:</strong> Contains all events within some interval of each other. No fixed boundaries. Good when you care about relative proximity of events (e.g., "all events within 5 min of each other"). <strong>Session:</strong> No fixed duration. Groups events for the same user that occur close together; ends after inactivity timeout. Used for website analytics and user behavior tracking.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">10</span>Explain the three types of stream joins and how they relate to each other.</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">All three require maintaining state from one input and querying it on the other. <strong>Stream-stream join:</strong> Both inputs are event streams. Join events that occur within a time window (e.g., search + click within 1 hour). State = indexed events in the window. <strong>Stream-table join:</strong> One input is events, the other is a database changelog. Enrich events with current DB data. State = local copy of table (updated via CDC). Like stream-stream but with a "beginning of time" window for the table. <strong>Table-table join:</strong> Both inputs are changelogs. Maintains a materialized view of a join between two tables (e.g., Twitter timeline = join of tweets and follows). Any change on one side joins with the latest state of the other.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">11</span>Why can't microbatching and checkpointing alone guarantee exactly-once processing end-to-end?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Microbatching and checkpointing provide exactly-once semantics <strong>within the stream processing framework</strong>. But as soon as output leaves the framework -- writing to an external database, sending an email, making an HTTP call -- the framework cannot discard or roll back that side effect. If a failure occurs after the external write but before the checkpoint, restarting will process the batch again and perform the side effect a <strong>second time</strong>. To handle this, you need either atomic commit (transactions that span the framework and external system) or <strong>idempotence</strong> (making the external operation safe to repeat).</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">12</span>How does idempotence enable exactly-once semantics, and what assumptions does it require?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">An idempotent operation has the same effect whether performed once or multiple times (e.g., "set key to value X" is idempotent; "increment counter" is not). Even non-idempotent operations can be made idempotent by storing metadata: include the Kafka offset of the message that triggered a write alongside the value. On retry, check if the offset matches; if so, the update was already applied -- skip it. This requires three assumptions: (1) replay delivers the <strong>same messages in the same order</strong> (log-based brokers guarantee this), (2) processing is <strong>deterministic</strong>, and (3) <strong>no other node concurrently writes</strong> to the same value. With these guarantees, idempotence achieves effectively-once semantics with minimal overhead.</div>
+  </div>
+
+</div>
+</body>
+</html>

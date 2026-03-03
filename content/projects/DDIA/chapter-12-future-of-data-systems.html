@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Chapter 12 — The Future of Data Systems</title>
+<style>
+  :root {
+    --bg: #0a0e17; --surface: #111827; --surface2: #1a2234; --border: #1e293b;
+    --text: #e2e8f0; --text-muted: #94a3b8; --accent: #3b82f6; --accent2: #8b5cf6;
+    --accent3: #10b981; --red: #ef4444; --orange: #f59e0b; --pink: #ec4899; --cyan: #06b6d4;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+  .container { max-width: 900px; margin: 0 auto; padding: 40px 24px 100px; }
+  h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent2), var(--pink)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 48px; border-bottom: 1px solid var(--border); padding-bottom: 24px; }
+  h2 { font-size: 1.5rem; font-weight: 700; margin: 48px 0 16px; color: var(--accent); }
+  h3 { font-size: 1.15rem; font-weight: 600; margin: 32px 0 12px; color: var(--text); }
+  p { margin-bottom: 16px; color: var(--text-muted); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 20px 0; }
+  .card-accent { border-left: 4px solid var(--accent); }
+  .card-green { border-left: 4px solid var(--accent3); }
+  .card-orange { border-left: 4px solid var(--orange); }
+  .card-purple { border-left: 4px solid var(--accent2); }
+  .card-red { border-left: 4px solid var(--red); }
+  .card-cyan { border-left: 4px solid var(--cyan); }
+  .card h4 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+  .card ul { padding-left: 20px; color: var(--text-muted); }
+  .card li { margin-bottom: 6px; }
+  .key-term { color: var(--accent); font-weight: 600; }
+  .diagram { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 32px; margin: 24px 0; overflow-x: auto; }
+  .diagram-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent2); margin-bottom: 20px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+  .quote { background: var(--surface2); border-left: 3px solid var(--accent2); padding: 16px 20px; margin: 20px 0; border-radius: 0 8px 8px 0; font-style: italic; color: var(--text-muted); }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  th { color: var(--accent); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
+  td { color: var(--text-muted); }
+  .question-block { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin: 16px 0; overflow: hidden; }
+  .question-header { padding: 16px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 0.95rem; }
+  .question-header:hover { background: var(--surface2); }
+  .question-body { padding: 0 20px 16px; display: none; color: var(--text-muted); border-top: 1px solid var(--border); padding-top: 16px; }
+  .question-block.open .question-body { display: block; }
+  .q-num { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: var(--accent2); color: white; border-radius: 50%; font-size: 0.8rem; font-weight: 700; margin-right: 12px; flex-shrink: 0; }
+  .chevron { transition: transform .2s; color: var(--text-muted); }
+  .question-block.open .chevron { transform: rotate(180deg); }
+  .section-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--accent2); font-weight: 700; margin-bottom: 8px; }
+  code { background: var(--surface2); padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; color: var(--accent3); }
+  .flow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; }
+  .flow-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; text-align: center; font-size: 0.85rem; min-width: 100px; }
+  .flow-box.primary { border-color: var(--accent); color: var(--accent); }
+  .flow-box.green { border-color: var(--accent3); color: var(--accent3); }
+  .flow-box.purple { border-color: var(--accent2); color: var(--accent2); }
+  .flow-box.orange { border-color: var(--orange); color: var(--orange); }
+  .flow-box.red { border-color: var(--red); color: var(--red); }
+  .flow-box.cyan { border-color: var(--cyan); color: var(--cyan); }
+  .flow-arrow { color: var(--text-muted); font-size: 1.2rem; }
+  .size-bar { height: 28px; border-radius: 6px; display: flex; align-items: center; padding: 0 12px; font-size: 0.8rem; font-weight: 600; margin: 6px 0; color: white; }
+</style>
+</head>
+<body>
+<div class="container">
+  <p class="section-label">DDIA -- Part III: Derived Data</p>
+  <h1>Chapter 12: The Future of Data Systems</h1>
+  <p class="subtitle">"If a thing be ordained to another as to its end, its last end cannot consist in the preservation of its being." -- Thomas Aquinas. This final chapter weaves together all the threads of the book -- integrating data systems, achieving correctness without distributed transactions, and confronting the ethical responsibilities of building data-intensive applications.</p>
+
+  <!-- ============================================================ -->
+  <!-- DATA INTEGRATION -->
+  <!-- ============================================================ -->
+  <h2>Data Integration</h2>
+  <p>In complex applications, data is used in many different ways. There is unlikely to be one piece of software suitable for all the different access patterns, so you inevitably end up combining several specialized tools. The challenge is keeping them all consistent.</p>
+
+  <h3>Combining Specialized Tools by Deriving Data</h3>
+  <p>It is common to integrate an <span class="key-term">OLTP database</span> with a <span class="key-term">full-text search index</span>, analytics systems, caches, denormalized views, machine learning pipelines, and notification systems. As the number of representations increases, the integration problem becomes harder.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">The Data Integration Challenge</div>
+    <div style="display:flex; flex-direction:column; gap:16px; align-items:center;">
+      <div class="flow-box primary" style="min-width:200px;"><strong>System of Record</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">Source of truth (OLTP DB)</span></div>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:center;">
+        <span class="flow-arrow">&darr;</span>
+        <span style="font-size:0.75rem; color:var(--accent2);">CDC / Event Log</span>
+        <span class="flow-arrow">&darr;</span>
+      </div>
+      <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center;">
+        <div class="flow-box green"><strong>Search Index</strong><br><span style="font-size:0.75rem;">Elasticsearch</span></div>
+        <div class="flow-box purple"><strong>Cache</strong><br><span style="font-size:0.75rem;">Redis / Memcached</span></div>
+        <div class="flow-box orange"><strong>Analytics</strong><br><span style="font-size:0.75rem;">Data Warehouse</span></div>
+        <div class="flow-box cyan"><strong>ML Models</strong><br><span style="font-size:0.75rem;">Recommendations</span></div>
+        <div class="flow-box red"><strong>Notifications</strong><br><span style="font-size:0.75rem;">Email / Push</span></div>
+      </div>
+      <p style="font-size:0.8rem; color:var(--text-muted); text-align:center; margin:8px 0 0;">All derived views are kept in sync via a single ordered event log</p>
+    </div>
+  </div>
+
+  <h3>Reasoning About Dataflows</h3>
+  <p>When copies of the same data must be maintained in several storage systems, you need to be clear about <strong>inputs and outputs</strong>: where is data written first, and which representations are derived from which sources?</p>
+
+  <div class="card card-accent">
+    <h4>The Single-Leader Principle</h4>
+    <p>If you funnel all user input through a <strong>single system</strong> that decides on an ordering for all writes, it becomes much easier to derive other representations by processing writes in the same order. This is an application of <span class="key-term">state machine replication</span>.</p>
+    <ul>
+      <li>Use <strong>Change Data Capture (CDC)</strong> as the only way to update derived systems</li>
+      <li>The database is the only way of supplying new input -- derived views are entirely consistent with it</li>
+      <li>Avoid <strong>dual writes</strong> (writing directly to both DB and search index) -- leads to race conditions and permanent inconsistency</li>
+      <li>Updating derived data based on an event log can be made <strong>deterministic and idempotent</strong></li>
+    </ul>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Dual Writes Problem vs. CDC Approach</div>
+    <div class="grid2">
+      <div style="text-align:center;">
+        <p style="color:var(--red); font-weight:700; font-size:0.9rem; margin-bottom:12px;">Dual Writes (Dangerous)</p>
+        <div class="flow">
+          <div class="flow-box red" style="min-width:80px;">Client A</div>
+          <span class="flow-arrow">&rarr;</span>
+          <div class="flow-box" style="min-width:80px;">DB: X=1</div>
+        </div>
+        <div class="flow" style="margin-top:8px;">
+          <div class="flow-box red" style="min-width:80px;">Client A</div>
+          <span class="flow-arrow">&rarr;</span>
+          <div class="flow-box" style="min-width:80px;">Index: X=1</div>
+        </div>
+        <div class="flow" style="margin-top:8px;">
+          <div class="flow-box orange" style="min-width:80px;">Client B</div>
+          <span class="flow-arrow">&rarr;</span>
+          <div class="flow-box" style="min-width:80px;">DB: X=2</div>
+        </div>
+        <div class="flow" style="margin-top:8px;">
+          <div class="flow-box orange" style="min-width:80px;">Client B</div>
+          <span class="flow-arrow">&rarr;</span>
+          <div class="flow-box" style="min-width:80px;">Index: X=2</div>
+        </div>
+        <p style="font-size:0.8rem; color:var(--red); margin-top:8px;">Race condition: DB and index may disagree permanently!</p>
+      </div>
+      <div style="text-align:center;">
+        <p style="color:var(--accent3); font-weight:700; font-size:0.9rem; margin-bottom:12px;">CDC (Safe)</p>
+        <div class="flow">
+          <div class="flow-box green" style="min-width:80px;">Clients</div>
+          <span class="flow-arrow">&rarr;</span>
+          <div class="flow-box primary" style="min-width:80px;">DB</div>
+          <span class="flow-arrow">&rarr;</span>
+          <div class="flow-box purple" style="min-width:80px;">Event Log</div>
+        </div>
+        <div style="margin-top:12px;">
+          <span class="flow-arrow">&darr;</span>
+        </div>
+        <div class="flow" style="margin-top:8px;">
+          <div class="flow-box green" style="min-width:80px;">Search Index</div>
+          <div class="flow-box green" style="min-width:80px;">Cache</div>
+          <div class="flow-box green" style="min-width:80px;">Analytics</div>
+        </div>
+        <p style="font-size:0.8rem; color:var(--accent3); margin-top:8px;">All derived views process events in the same order -- always consistent</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- DERIVED DATA VS DISTRIBUTED TRANSACTIONS -->
+  <h3>Derived Data vs. Distributed Transactions</h3>
+  <p>Both approaches aim to keep different data systems consistent, but they use fundamentally different mechanisms:</p>
+
+  <table>
+    <tr><th>Aspect</th><th>Distributed Transactions (2PC)</th><th>Log-Based Derived Data</th></tr>
+    <tr><td><strong>Ordering</strong></td><td>Locks for mutual exclusion (2PL)</td><td>Append-only log for ordering</td></tr>
+    <tr><td><strong>Exactly-once</strong></td><td>Atomic commit</td><td>Deterministic retry + idempotence</td></tr>
+    <tr><td><strong>Timing</strong></td><td>Linearizable (read your own writes)</td><td>Asynchronous (eventual consistency)</td></tr>
+    <tr><td><strong>Fault tolerance</strong></td><td>Poor -- any participant failure aborts all</td><td>Good -- faults are contained locally</td></tr>
+    <tr><td><strong>Performance</strong></td><td>High latency (blocking locks)</td><td>High throughput (append-only)</td></tr>
+    <tr><td><strong>Adoption</strong></td><td>XA -- limited, hard to integrate</td><td>Widely adoptable across systems</td></tr>
+  </table>
+
+  <div class="quote">"I believe that log-based derived data is the most promising approach for integrating different data systems. However, guarantees such as reading your own writes are useful, and I don't think it is productive to tell everyone 'eventual consistency is inevitable -- suck it up and learn to deal with it.'"</div>
+
+  <!-- LIMITS OF TOTAL ORDERING -->
+  <h3>The Limits of Total Ordering</h3>
+  <p>Constructing a totally ordered event log is feasible for small systems (single-leader replication), but limitations emerge at scale:</p>
+
+  <div class="card card-orange">
+    <h4>When Total Ordering Breaks Down</h4>
+    <ul>
+      <li><strong>Throughput exceeds single node:</strong> Must partition the log. Order between partitions is ambiguous.</li>
+      <li><strong>Multi-datacenter deployment:</strong> Separate leaders per datacenter. Cross-datacenter synchronous ordering is too slow.</li>
+      <li><strong>Microservices:</strong> Each service has independent state. No defined order for events from different services.</li>
+      <li><strong>Offline-capable clients:</strong> Client-side state updated immediately without server confirmation. Clients and servers see different event orders.</li>
+    </ul>
+    <p style="margin:0; font-size:0.85rem;">Total order broadcast is equivalent to <strong>consensus</strong>, and scaling consensus beyond one node's throughput remains an <strong>open research problem</strong>.</p>
+  </div>
+
+  <h3>Ordering Events to Capture Causality</h3>
+  <p>When there is no causal link between events, lack of total order is fine. The hard cases are <span class="key-term">subtle causal dependencies</span>.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Causality Problem: The Social Network Example</div>
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="flow-box primary" style="min-width:160px;"><strong>Step 1:</strong> Alice unfriends Bob</div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-box" style="min-width:160px;">Friendship service processes</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="flow-box primary" style="min-width:160px;"><strong>Step 2:</strong> Alice posts about Bob</div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-box" style="min-width:160px;">Message service processes</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="flow-box red" style="min-width:160px;"><strong>Bug:</strong> Notification service joins messages + friends</div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-box red" style="min-width:160px;">Sees message before unfriend &rarr; notifies Bob!</div>
+      </div>
+      <p style="font-size:0.8rem; color:var(--text-muted); margin:4px 0 0;">The causal dependency (unfriend happened <em>before</em> message) is lost because events are stored in different services.</p>
+    </div>
+  </div>
+
+  <div class="card card-purple">
+    <h4>Approaches to Capture Causality</h4>
+    <ul>
+      <li><strong>Logical timestamps:</strong> Provide total ordering without coordination, but recipients must handle out-of-order events</li>
+      <li><strong>Causal event references:</strong> Log the system state the user saw before their decision, and give it a unique ID. Later events reference that ID to record causal dependency.</li>
+      <li><strong>Conflict resolution algorithms:</strong> Help with maintaining state, but don't help if actions have external side effects (like sending notifications)</li>
+    </ul>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- BATCH AND STREAM PROCESSING -->
+  <!-- ============================================================ -->
+  <h2>Batch and Stream Processing</h2>
+  <p>The goal of data integration is to make sure data ends up in the right form in all the right places. Batch and stream processors are the tools for achieving this -- consuming inputs, transforming, joining, filtering, aggregating, and writing to the appropriate outputs.</p>
+
+  <h3>Maintaining Derived State</h3>
+  <div class="card card-green">
+    <h4>Functional Flavor of Data Pipelines</h4>
+    <ul>
+      <li>Batch processing encourages <strong>deterministic, pure functions</strong> -- output depends only on input, no side effects beyond explicit outputs, inputs are immutable, outputs are append-only</li>
+      <li>Stream processing extends this with <strong>managed, fault-tolerant state</strong></li>
+      <li>Think in terms of <strong>data pipelines</strong> that derive one thing from another, pushing state changes through functional application code</li>
+      <li>Asynchrony makes systems robust: a fault in one part is <strong>contained locally</strong>, unlike distributed transactions which <strong>amplify failures</strong></li>
+      <li>Secondary indexes that cross partition boundaries are most reliable when maintained <strong>asynchronously</strong></li>
+    </ul>
+  </div>
+
+  <h3>Reprocessing Data for Application Evolution</h3>
+  <p>Without reprocessing, schema evolution is limited to simple changes (adding optional fields). <em>With</em> reprocessing, you can restructure a dataset into a completely different model.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Gradual Migration via Derived Views</div>
+    <div style="display:flex; flex-direction:column; gap:16px; align-items:center;">
+      <div class="flow-box primary" style="min-width:250px;"><strong>Underlying Data</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">Immutable event log / system of record</span></div>
+      <div style="display:flex; gap:24px; align-items:flex-start; flex-wrap:wrap; justify-content:center;">
+        <div style="text-align:center;">
+          <span class="flow-arrow">&darr;</span>
+          <div class="flow-box green" style="margin-top:8px;"><strong>Old Schema View</strong><br><span style="font-size:0.75rem;">90% of users</span></div>
+        </div>
+        <div style="text-align:center;">
+          <span class="flow-arrow">&darr;</span>
+          <div class="flow-box purple" style="margin-top:8px;"><strong>New Schema View</strong><br><span style="font-size:0.75rem;">10% of users (canary)</span></div>
+        </div>
+      </div>
+      <p style="font-size:0.8rem; color:var(--text-muted); text-align:center; margin:0;">Gradually shift traffic. Every stage is reversible. Like railway gauge migration with a third rail.</p>
+    </div>
+  </div>
+
+  <h3>The Lambda Architecture (and Its Problems)</h3>
+  <div class="diagram">
+    <div class="diagram-title">Lambda Architecture</div>
+    <div style="display:flex; flex-direction:column; gap:12px; align-items:center;">
+      <div class="flow-box primary" style="min-width:250px;"><strong>Immutable Event Stream</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">Append-only master dataset</span></div>
+      <div style="display:flex; gap:24px; flex-wrap:wrap; justify-content:center;">
+        <div style="text-align:center;">
+          <span class="flow-arrow">&darr;</span>
+          <div class="flow-box orange" style="margin-top:8px;"><strong>Batch Layer</strong><br><span style="font-size:0.75rem;">Hadoop / MapReduce</span><br><span style="font-size:0.7rem; color:var(--text-muted);">Slow, accurate</span></div>
+        </div>
+        <div style="text-align:center;">
+          <span class="flow-arrow">&darr;</span>
+          <div class="flow-box cyan" style="margin-top:8px;"><strong>Speed Layer</strong><br><span style="font-size:0.75rem;">Storm / stream processor</span><br><span style="font-size:0.7rem; color:var(--text-muted);">Fast, approximate</span></div>
+        </div>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <span class="flow-arrow">&searr;</span>
+        <span style="font-size:0.75rem; color:var(--text-muted);">merge</span>
+        <span class="flow-arrow">&swarr;</span>
+      </div>
+      <div class="flow-box green" style="min-width:200px;"><strong>Serving Layer</strong><br><span style="font-size:0.75rem;">Responds to queries</span></div>
+    </div>
+  </div>
+
+  <div class="card card-red">
+    <h4>Problems with Lambda Architecture</h4>
+    <ul>
+      <li><strong>Dual maintenance:</strong> Same logic must run in both batch and stream frameworks -- significant operational complexity</li>
+      <li><strong>Output merging:</strong> Batch and stream produce separate outputs that must be merged. Easy for tumbling windows, hard for joins and sessionization</li>
+      <li><strong>Incremental batch:</strong> Reprocessing entire history is expensive. Incremental batching adds complexity that defeats the purpose of keeping the batch layer simple</li>
+    </ul>
+  </div>
+
+  <h3>Unifying Batch and Stream Processing</h3>
+  <div class="card card-green">
+    <h4>Requirements for Unification</h4>
+    <ul>
+      <li><strong>Replay historical events</strong> through the same engine that handles live streams (e.g., log-based message brokers can replay messages)</li>
+      <li><strong>Exactly-once semantics:</strong> Ensure output is the same as if no faults occurred, even if they did (discard partial output of failed tasks)</li>
+      <li><strong>Windowing by event time,</strong> not processing time -- processing time is meaningless when reprocessing historical events</li>
+    </ul>
+    <p style="margin:0; font-size:0.85rem;">Spark uses <strong>microbatching</strong> (stream on top of batch engine). Flink uses <strong>batch on top of stream engine</strong>. Apache Beam provides a unified API runnable on both Flink and Google Cloud Dataflow.</p>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- UNBUNDLING DATABASES -->
+  <!-- ============================================================ -->
+  <h2>Unbundling Databases</h2>
+  <p>At the most abstract level, databases, Hadoop, and operating systems all perform the same function: store data, process it, and query it. Unix and relational databases approached information management with <strong>very different philosophies</strong> -- and the tension has lasted for decades.</p>
+
+  <div class="grid2">
+    <div class="card card-accent">
+      <h4>Unix Philosophy</h4>
+      <p style="font-size:0.85rem;">Thin wrapper around hardware. Pipes and byte sequences. Small tools that do one thing well. Low-level, composable.</p>
+    </div>
+    <div class="card card-purple">
+      <h4>Relational DB Philosophy</h4>
+      <p style="font-size:0.85rem;">High-level abstraction. SQL and transactions. Hides complexity of indexes, concurrency, crash recovery. Powerful but monolithic.</p>
+    </div>
+  </div>
+
+  <h3>Composing Data Storage Technologies</h3>
+  <p>A database internally provides secondary indexes, materialized views, replication logs, and full-text search. In the emerging architecture, these facilities are provided by <strong>different pieces of software</strong>, running on different machines, administered by different teams.</p>
+
+  <h3>Creating an Index: The Replication Log Analogy</h3>
+  <div class="card card-cyan">
+    <h4>CREATE INDEX = Reprocessing</h4>
+    <p>When you run <code>CREATE INDEX</code>, the database:</p>
+    <ul>
+      <li>Scans a <strong>consistent snapshot</strong> of the table</li>
+      <li>Picks out field values, sorts them, writes out the index</li>
+      <li>Processes the <strong>backlog of writes</strong> since the snapshot</li>
+      <li>Continues keeping the index up to date on every write</li>
+    </ul>
+    <p style="margin:0; font-size:0.85rem;">This is remarkably similar to <strong>setting up a new follower replica</strong> and to <strong>bootstrapping CDC</strong>. The database is essentially reprocessing the existing dataset and deriving a new view.</p>
+  </div>
+
+  <h3>The Meta-Database of Everything</h3>
+  <div class="diagram">
+    <div class="diagram-title">The Organization as One Big Database</div>
+    <div style="display:flex; flex-direction:column; gap:16px; align-items:center;">
+      <div class="flow-box primary" style="min-width:300px; padding:16px 24px;">
+        <strong>Batch/Stream/ETL Processes</strong><br>
+        <span style="font-size:0.75rem; color:var(--text-muted);">= Triggers, stored procedures, materialized view maintenance</span>
+      </div>
+      <span class="flow-arrow">&darr;</span>
+      <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center;">
+        <div class="flow-box green" style="font-size:0.8rem;"><strong>B-tree Index</strong><br>= OLTP DB</div>
+        <div class="flow-box purple" style="font-size:0.8rem;"><strong>Full-text Index</strong><br>= Elasticsearch</div>
+        <div class="flow-box orange" style="font-size:0.8rem;"><strong>Columnar Store</strong><br>= Data Warehouse</div>
+        <div class="flow-box cyan" style="font-size:0.8rem;"><strong>Materialized View</strong><br>= Cache/Redis</div>
+        <div class="flow-box red" style="font-size:0.8rem;"><strong>ML Model</strong><br>= Prediction Service</div>
+      </div>
+      <p style="font-size:0.8rem; color:var(--text-muted); text-align:center; margin:4px 0 0;">The dataflow across an entire organization looks like one huge database, where each derived system is a different "index type."</p>
+    </div>
+  </div>
+
+  <h3>Federation vs. Unbundling</h3>
+  <table>
+    <tr><th>Aspect</th><th>Federated Databases (Unifying Reads)</th><th>Unbundled Databases (Unifying Writes)</th></tr>
+    <tr><td><strong>Goal</strong></td><td>Unified query interface across storage engines</td><td>Reliable sync of writes across storage systems</td></tr>
+    <tr><td><strong>Mechanism</strong></td><td>Polystore / foreign data wrappers</td><td>CDC, event logs, idempotent consumers</td></tr>
+    <tr><td><strong>Philosophy</strong></td><td>Relational tradition: high-level query language, complex implementation</td><td>Unix tradition: small tools, uniform low-level API (pipes), shell composition</td></tr>
+    <tr><td><strong>Example</strong></td><td>PostgreSQL foreign data wrapper</td><td><code>mysql | elasticsearch</code> (ideal)</td></tr>
+    <tr><td><strong>Hard part</strong></td><td>Mapping data models to each other</td><td>Keeping writes in sync (the harder problem)</td></tr>
+  </table>
+
+  <h3>Making Unbundling Work: Operators and Dataflow</h3>
+  <div class="card card-green">
+    <h4>Advantages of Log-Based Integration</h4>
+    <ul>
+      <li><strong>System-level:</strong> Asynchronous event streams make the system robust to outages. The log buffers messages. Producer and other consumers run unaffected. Faulty consumer catches up when fixed.</li>
+      <li><strong>Human-level:</strong> Different software components can be developed, improved, and maintained independently by different teams. Event logs provide an interface that is powerful enough for strong consistency but general enough for any kind of data.</li>
+    </ul>
+  </div>
+
+  <div class="card card-orange">
+    <h4>What's Missing?</h4>
+    <p>We don't yet have the <strong>unbundled-database equivalent of the Unix shell</strong> -- a high-level language for composing storage and processing systems declaratively. Imagine being able to write <code>mysql | elasticsearch</code> and have it continuously sync all changes, like an unbundled <code>CREATE INDEX</code>.</p>
+  </div>
+
+  <!-- DESIGNING APPLICATIONS AROUND DATAFLOW -->
+  <h3>Designing Applications Around Dataflow</h3>
+  <p>The <span class="key-term">"database inside-out"</span> approach: compose specialized storage and processing systems with application code. Like spreadsheets -- when a cell changes, all formulas depending on it automatically recalculate. Data systems should do the same.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Write Path vs. Read Path</div>
+    <div class="grid2">
+      <div style="text-align:center;">
+        <div class="flow-box primary" style="margin-bottom:12px;"><strong>Write Path</strong></div>
+        <p style="font-size:0.8rem; color:var(--text-muted);">Precomputed eagerly. Data flows through batch/stream processors to update derived datasets (indexes, caches, models). Like <strong>eager evaluation</strong>.</p>
+      </div>
+      <div style="text-align:center;">
+        <div class="flow-box green" style="margin-bottom:12px;"><strong>Read Path</strong></div>
+        <p style="font-size:0.8rem; color:var(--text-muted);">Happens on demand when a user queries. Reads from derived datasets and constructs a response. Like <strong>lazy evaluation</strong>.</p>
+      </div>
+    </div>
+    <div style="text-align:center; margin-top:16px;">
+      <div class="flow-box purple"><strong>Derived Dataset</strong><br><span style="font-size:0.75rem;">Where write path and read path meet -- the trade-off between write-time and read-time work</span></div>
+    </div>
+  </div>
+
+  <div class="card card-purple">
+    <h4>Stream Processors vs. Microservices</h4>
+    <p>Both compose independent operators, but the communication mechanism differs. Example: currency conversion for purchases.</p>
+    <div class="grid2" style="margin-top:12px;">
+      <div>
+        <p style="font-size:0.85rem; color:var(--orange);"><strong>Microservices:</strong></p>
+        <p style="font-size:0.85rem;">Query exchange-rate service synchronously at purchase time. Network request = latency + failure risk.</p>
+      </div>
+      <div>
+        <p style="font-size:0.85rem; color:var(--accent3);"><strong>Dataflow:</strong></p>
+        <p style="font-size:0.85rem;">Subscribe to exchange rate updates, store locally. At purchase time, query local DB only. Stream join. Faster and more robust.</p>
+      </div>
+    </div>
+    <p style="font-size:0.85rem; margin:0;"><em>"The fastest and most reliable network request is no network request at all!"</em></p>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- DESIGNING FOR CORRECTNESS -->
+  <!-- ============================================================ -->
+  <h2>Designing for Correctness</h2>
+  <p>Stateless services are easy to fix: restart and everything returns to normal. Stateful systems <strong>remember things forever</strong>, so if something goes wrong, the effects potentially last forever. We want to build applications whose semantics are well-defined even in the face of faults.</p>
+
+  <h3>The End-to-End Argument for Databases</h3>
+  <p>Just because your database provides serializable transactions does not mean your application is free from data loss or corruption. Application bugs can write incorrect data, and serializable transactions won't save you from that.</p>
+
+  <div class="card card-accent">
+    <h4>Exactly-Once Execution of an Operation</h4>
+    <p>If processing fails, you can either <strong>drop the message</strong> (data loss) or <strong>retry</strong> (risk of duplicate execution). Processing twice is a form of data corruption -- billing a customer twice, incrementing a counter twice.</p>
+    <p style="margin:0;"><span class="key-term">Exactly-once</span> means arranging computation such that the final effect is the same as if no faults occurred, even if the operation was retried.</p>
+  </div>
+
+  <h3>Duplicate Suppression</h3>
+  <p>TCP suppresses duplicates within a single connection using sequence numbers. But this only works within that connection. When a TCP connection drops after <code>COMMIT</code> but before the client hears back, the client doesn't know if the transaction committed or not.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Layers of Duplicate Suppression</div>
+    <div style="display:flex; flex-direction:column; gap:12px; align-items:center;">
+      <div class="flow-box cyan" style="min-width:280px;"><strong>End-User Device</strong><br><span style="font-size:0.75rem;">User clicks "Submit" -- weak connection</span></div>
+      <div style="font-size:0.8rem; color:var(--red);">&darr; HTTP POST (may timeout -- user retries) &darr;</div>
+      <div class="flow-box orange" style="min-width:280px;"><strong>Application Server</strong><br><span style="font-size:0.75rem;">Receives what looks like two separate requests</span></div>
+      <div style="font-size:0.8rem; color:var(--red);">&darr; TCP connection (may drop after COMMIT) &darr;</div>
+      <div class="flow-box primary" style="min-width:280px;"><strong>Database</strong><br><span style="font-size:0.75rem;">TCP dedup doesn't help across reconnections</span></div>
+      <p style="font-size:0.8rem; color:var(--text-muted); text-align:center; margin:4px 0 0;">Duplicate suppression at each layer is <strong>not sufficient</strong>. Need end-to-end solution.</p>
+    </div>
+  </div>
+
+  <h3>Operation Identifiers</h3>
+  <div class="card card-green">
+    <h4>End-to-End Idempotence via Unique IDs</h4>
+    <p>Generate a <strong>unique operation ID</strong> (UUID) at the client and include it in the request (e.g., as a hidden form field). Pass it all the way to the database:</p>
+    <ul>
+      <li>Insert the operation ID into a <code>requests</code> table with a <strong>UNIQUE constraint</strong></li>
+      <li>If the insert fails (duplicate ID), the transaction aborts -- preventing double execution</li>
+      <li>Relational DBs maintain uniqueness correctly even at weak isolation levels</li>
+      <li>The <code>requests</code> table also acts as an event log (hinting toward event sourcing)</li>
+    </ul>
+    <p style="margin:0; font-size:0.85rem;">The balance updates don't even need to be in the same transaction -- they can be derived from the request event by a downstream consumer, as long as each event is processed exactly once.</p>
+  </div>
+
+  <div class="quote">"The function in question can completely and correctly be implemented only with the knowledge and help of the application standing at the endpoints of the communication system." -- Saltzer, Reed, and Clark, 1984 (The End-to-End Argument)</div>
+
+  <h3>Uniqueness Constraints and the Log</h3>
+  <p>Enforcing a uniqueness constraint requires <span class="key-term">consensus</span> -- all nodes must agree on which of potentially conflicting operations goes first. The most common approach: route all events for a particular value through a <strong>single partition</strong> of the log, using the value as the partition key.</p>
+
+  <div class="card card-orange">
+    <h4>The Scaling Trade-off</h4>
+    <ul>
+      <li>If uniqueness needs to be enforced per-partition, it's straightforward -- a stream processor consumes events sequentially</li>
+      <li>If uniqueness needs to be enforced across partitions (e.g., unique usernames globally), you need cross-partition coordination -- expensive and limits throughput</li>
+      <li>Many real-world uniqueness constraints can be scoped to a single partition (e.g., per-user request dedup)</li>
+    </ul>
+  </div>
+
+  <!-- TIMELINESS AND INTEGRITY -->
+  <h3>Timeliness and Integrity</h3>
+  <p>Two properties often confused under the umbrella of "consistency" that are actually quite different:</p>
+
+  <div class="grid2">
+    <div class="card card-accent">
+      <h4>Timeliness</h4>
+      <ul>
+        <li>Users see an up-to-date state of the system</li>
+        <li>Reading your own writes</li>
+        <li>Violation = seeing stale data</li>
+        <li>Typically <strong>annoying but not catastrophic</strong></li>
+        <li>"Eventual consistency" is a timeliness guarantee (or lack thereof)</li>
+      </ul>
+    </div>
+    <div class="card card-red">
+      <h4>Integrity</h4>
+      <ul>
+        <li>No data corruption, no contradictions, no lost data</li>
+        <li>Every credit has a matching debit</li>
+        <li>Violation = <strong>permanent, catastrophic damage</strong></li>
+        <li>Must not lose data, even in the face of faults</li>
+        <li>"Perpetual consistency" -- must hold at all times</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card card-green">
+    <h4>The ACID-in-Dataflow Translation</h4>
+    <p>Violations of timeliness are "eventual consistency." Violations of integrity are "perpetual inconsistency." You can often relax timeliness while maintaining strict integrity:</p>
+    <ul>
+      <li>Integrity can be maintained via <strong>event-based dataflow</strong> without atomic commit, linearizability, or synchronous coordination</li>
+      <li>Many applications accept <strong>loose constraints</strong> on timeliness: "we sold more items than we have in stock? Apologize and compensate."</li>
+      <li><strong>Coordination-avoiding data systems</strong> achieve better performance and fault tolerance while preserving integrity</li>
+      <li>The "cost of apology" is a <em>business decision</em>: fewer inconsistencies (more coordination) vs. fewer outages (less coordination)</li>
+    </ul>
+  </div>
+
+  <!-- TRUST BUT VERIFY -->
+  <h3>Trust, but Verify</h3>
+  <p>Our system models assume some things might fail while others won't -- processes crash but disks don't silently corrupt data. In reality, it is a question of <strong>probabilities</strong>.</p>
+
+  <div class="card card-purple">
+    <h4>Why Blind Trust Is Dangerous</h4>
+    <ul>
+      <li>Data can become <strong>corrupted on disk</strong> (bit rot) even while sitting untouched</li>
+      <li>Network corruption can sometimes <strong>evade TCP checksums</strong></li>
+      <li><strong>Rowhammer:</strong> Certain memory access patterns can flip bits in memory with no hardware fault</li>
+      <li>MySQL has had bugs failing to maintain uniqueness constraints. PostgreSQL's serializable isolation has exhibited write skew anomalies.</li>
+      <li>Application code has even more bugs than database code</li>
+    </ul>
+  </div>
+
+  <div class="card card-cyan">
+    <h4>A Culture of Verification</h4>
+    <ul>
+      <li><strong>Auditing:</strong> Checking the integrity of data. Not just for finance -- every system should verify its own integrity.</li>
+      <li><strong>HDFS and S3:</strong> Run background processes that continually read back files, compare to replicas, move files between disks to mitigate silent corruption</li>
+      <li><strong>Restore from backups:</strong> Test regularly -- you may discover your backup is broken only when you need it most</li>
+      <li><strong>Event sourcing + deterministic derivation:</strong> You can rerun batch/stream processors on the event log to verify you get the same result</li>
+      <li><strong>Cryptographic auditing:</strong> Merkle trees (used in certificate transparency and blockchains) can efficiently prove data integrity</li>
+      <li>End-to-end integrity checks give <strong>confidence to move faster</strong> -- like automated testing for data systems</li>
+    </ul>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- DOING THE RIGHT THING -->
+  <!-- ============================================================ -->
+  <h2>Doing the Right Thing: Ethics of Data Systems</h2>
+  <p>Every system is built for a purpose; every action has both intended and <strong>unintended consequences</strong>. We, the engineers building these systems, have a responsibility to carefully consider those consequences.</p>
+
+  <div class="quote">"We talk about data as an abstract thing, but remember that many datasets are about people: their behavior, their interests, their identity. We must treat such data with humanity and respect. Users are humans too, and human dignity is paramount."</div>
+
+  <h3>Predictive Analytics and Privacy</h3>
+  <div class="card card-red">
+    <h4>The "Algorithmic Prison"</h4>
+    <ul>
+      <li>Someone labeled "risky" by an algorithm may be systematically excluded from jobs, air travel, insurance, property rental, and financial services</li>
+      <li>Criminal justice presumes <strong>innocence until proven guilty</strong>, but automated systems can exclude without proof of guilt and with little chance of appeal</li>
+      <li>Algorithms learn from <strong>biased data</strong> and amplify that bias: "machine learning is like money laundering for bias"</li>
+      <li>Features correlated with protected traits (postal code &rarr; race) become proxies for discrimination</li>
+      <li>Predictive analytics extrapolate from the past -- if the past is discriminatory, they <strong>codify that discrimination</strong></li>
+    </ul>
+    <p style="margin:0; font-size:0.85rem;"><em>"Data and models should be our tools, not our masters."</em></p>
+  </div>
+
+  <h3>Feedback Loops and Accountability</h3>
+  <div class="diagram">
+    <div class="diagram-title">Self-Reinforcing Feedback Loop</div>
+    <div style="display:flex; flex-direction:column; gap:8px; align-items:center;">
+      <div class="flow-box orange" style="min-width:260px;"><strong>Financial misfortune</strong><br><span style="font-size:0.75rem;">Outside of person's control</span></div>
+      <span class="flow-arrow">&darr;</span>
+      <div class="flow-box red" style="min-width:260px;"><strong>Missed payments</strong> &rarr; credit score drops</div>
+      <span class="flow-arrow">&darr;</span>
+      <div class="flow-box red" style="min-width:260px;"><strong>Less likely to find work</strong><br><span style="font-size:0.75rem;">Employers check credit scores</span></div>
+      <span class="flow-arrow">&darr;</span>
+      <div class="flow-box red" style="min-width:260px;"><strong>Joblessness &rarr; poverty</strong> &rarr; score drops further</div>
+      <span class="flow-arrow">&darr;</span>
+      <div style="font-size:0.85rem; color:var(--red); font-weight:600;">Downward spiral -- poisonous assumptions hidden behind mathematical rigor</div>
+    </div>
+  </div>
+
+  <div class="card card-purple">
+    <h4>Surveillance Reframed</h4>
+    <p>Try replacing the word "data" with "surveillance" in common phrases:</p>
+    <p style="font-size:0.85rem; font-style:italic; color:var(--text-muted);">"In our surveillance-driven organization we collect real-time surveillance streams and store them in our surveillance warehouse. Our surveillance scientists use advanced analytics and surveillance processing to derive new insights."</p>
+    <p style="margin:0; font-size:0.85rem;">We have built the <strong>greatest mass surveillance infrastructure</strong> the world has ever seen. Even totalitarian regimes could only dream of putting a microphone in every room. We do it voluntarily via smartphones, smart TVs, and IoT devices.</p>
+  </div>
+
+  <div class="grid3">
+    <div class="card card-accent">
+      <h4>Responsibility</h4>
+      <p style="font-size:0.85rem;">When algorithms make mistakes, who is accountable? When a self-driving car causes an accident? When credit scoring discriminates systematically?</p>
+    </div>
+    <div class="card card-orange">
+      <h4>Systems Thinking</h4>
+      <p style="font-size:0.85rem;">Consider the <strong>entire system</strong> -- not just computerized parts but people interacting with it. Does it amplify existing inequalities or combat injustice?</p>
+    </div>
+    <div class="card card-green">
+      <h4>Data as Service vs. Surveillance</h4>
+      <p style="font-size:0.85rem;">When users explicitly enter data for processing: <strong>service</strong>. When activity is tracked as a side effect: the relationship becomes <strong>surveillance</strong>, especially if funded by advertising.</p>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- SUMMARY DIAGRAM -->
+  <!-- ============================================================ -->
+  <h2>Chapter Summary: The Big Picture</h2>
+  <div class="diagram">
+    <div class="diagram-title">Three Pillars of Future Data Systems</div>
+    <div class="grid3">
+      <div style="text-align:center;">
+        <div class="flow-box primary" style="margin-bottom:12px; padding:16px;"><strong>Data Integration</strong></div>
+        <p style="font-size:0.8rem; color:var(--text-muted);">Derive all views from a single ordered event log. CDC over dual writes. Unify batch and stream processing. Unbundle the database.</p>
+      </div>
+      <div style="text-align:center;">
+        <div class="flow-box green" style="margin-bottom:12px; padding:16px;"><strong>Correctness</strong></div>
+        <p style="font-size:0.8rem; color:var(--text-muted);">End-to-end argument. Operation identifiers for idempotence. Separate timeliness from integrity. Trust but verify. Audit everything.</p>
+      </div>
+      <div style="text-align:center;">
+        <div class="flow-box red" style="margin-bottom:12px; padding:16px;"><strong>Ethics</strong></div>
+        <p style="font-size:0.8rem; color:var(--text-muted);">Predictive analytics can become algorithmic prisons. Beware feedback loops. Data collection is surveillance. Engineers bear ethical responsibility.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- FIRST PRINCIPLES QUESTIONS -->
+  <!-- ============================================================ -->
+  <h2 style="color: var(--pink);">First-Principles Questions</h2>
+  <p>Test your understanding. Click to reveal the answer.</p>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">1</span>Why is dual writing (directly writing to both a database and a search index) dangerous?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">When two clients send conflicting writes, the database and search index may process them in <strong>different orders</strong>, since neither is "in charge" of determining write order. This leads to <strong>permanent inconsistency</strong> between the two systems. The solution is to funnel all writes through a single system of record and use Change Data Capture (CDC) to propagate changes to derived systems in a consistent order.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">2</span>Why does the author argue that log-based derived data is superior to distributed transactions for data integration?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Distributed transactions (XA/2PC) have <strong>poor fault tolerance</strong>: if any participant fails, the entire transaction aborts, amplifying failures across the system. They also have poor performance due to blocking locks. Log-based derived data uses <strong>asynchronous event streams</strong> that buffer messages, contain faults locally, and allow each component to fail and recover independently. The log provides ordering guarantees while idempotent consumers provide exactly-once semantics. The trade-off is weaker timeliness (eventual consistency) but much better availability and fault tolerance.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">3</span>What are the fundamental limits of total ordering, and why can't we just use consensus for everything?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Total order broadcast is equivalent to <strong>consensus</strong>, and most consensus algorithms only work when a single node can process the entire stream. Four situations break this: (1) throughput exceeding a single machine requires partitioning the log, making cross-partition order ambiguous; (2) multi-datacenter deployments need separate leaders per DC due to network latency; (3) microservices have independent state with no defined cross-service ordering; (4) offline-capable clients see events in different orders than servers. Designing consensus that scales beyond one node remains an <strong>open research problem</strong>.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">4</span>What are the problems with the lambda architecture, and how does the unified approach solve them?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Lambda architecture runs batch (accurate, slow) and stream (approximate, fast) in parallel and merges outputs. Three problems: (1) <strong>same logic maintained twice</strong> in different frameworks -- significant operational complexity; (2) merging batch and stream outputs is hard beyond simple aggregations (joins, sessionization); (3) reprocessing entire history is expensive, and incremental batching adds complexity that defeats the batch layer's simplicity. The unified approach (e.g., Apache Flink, Beam) allows <strong>the same engine</strong> to replay historical events and process live streams, with exactly-once semantics and event-time windowing.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">5</span>What is the "meta-database of everything" concept, and how does it reframe batch/stream processing?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">The dataflow across an entire organization looks like <strong>one huge database</strong>. Batch, stream, and ETL processes act like the database subsystem that keeps indexes or materialized views up to date -- they are elaborate implementations of triggers and stored procedures. Each derived data system (search index, cache, analytics warehouse, ML model) is like a <strong>different index type</strong>. Instead of these being features of a single integrated product, they are provided by different software running on different machines. <code>CREATE INDEX</code> in a single database is the same pattern as setting up CDC to populate an external search index.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">6</span>How does the end-to-end argument apply to database correctness, and why is TCP duplicate suppression insufficient?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">TCP suppresses duplicates only within a single connection. If a client sends <code>COMMIT</code> but the connection drops before hearing back, it doesn't know if the transaction committed. Retrying opens a new TCP connection -- from the database's perspective, it's a new transaction, so TCP dedup doesn't help. Even worse, the user's browser may retry the HTTP POST entirely. The end-to-end argument states that <strong>duplicate suppression can only be correctly implemented with the help of the endpoints</strong>. Solution: generate a unique operation ID at the client, pass it all the way to the database, and use a uniqueness constraint to prevent double execution.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">7</span>What is the critical distinction between timeliness and integrity, and why does it matter for system design?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body"><strong>Timeliness</strong> = users see up-to-date state. Violation is annoying but usually not catastrophic (stale data). <strong>Integrity</strong> = no data corruption, no contradictions, no lost data. Violation is permanent and catastrophic. This distinction matters because you can often <strong>relax timeliness while maintaining strict integrity</strong>. Integrity can be maintained via event-based dataflow without atomic commit, linearizability, or synchronous coordination. Many applications accept temporary timeliness violations ("we oversold? apologize and compensate") as long as integrity is preserved, enabling <strong>coordination-avoiding systems</strong> with better performance and fault tolerance.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">8</span>How do coordination-avoiding data systems achieve both good performance and strong integrity?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Two key observations: (1) dataflow systems can maintain integrity on derived data without atomic commit or synchronous coordination, using <strong>deterministic derivation and idempotent operations</strong>; (2) many applications only need <strong>loose constraints</strong> that can be temporarily violated and fixed later (the "cost of apology" is a business decision). Together, these mean systems can operate <strong>multi-datacenter with async replication</strong>, with each datacenter independent -- weak timeliness (not linearizable) but strong integrity. Serializable transactions are still useful but scoped to small, local operations rather than heterogeneous distributed transactions.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">9</span>Why should we adopt a "trust, but verify" approach rather than blind trust in database guarantees?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Hardware isn't perfect: disks suffer bit rot, network corruption can evade TCP checksums, and rowhammer can flip memory bits without hardware faults. Software isn't perfect either: MySQL has failed to maintain uniqueness constraints, PostgreSQL's serializable isolation has exhibited write skew. Application code has even more bugs. The ACID culture led us to <strong>blindly trust technology</strong> and neglect auditability. With the shift to NoSQL and weaker guarantees, blind trust became more dangerous. Systems should <strong>continuously audit themselves</strong>: HDFS reads back files and compares replicas; you should test backups regularly; event sourcing enables rerunning derivations to verify results; Merkle trees enable cryptographic integrity proofs.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">10</span>What is the "write path vs. read path" framework, and how does it unify caches, indexes, and materialized views?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">The <strong>write path</strong> is everything done eagerly when data arrives (precomputation), analogous to eager evaluation. The <strong>read path</strong> is everything done lazily when a user queries, analogous to lazy evaluation. Caches, indexes, and materialized views all serve the same purpose: they <strong>shift the boundary</strong> between write-path and read-path work. An index moves work from read time (full scan) to write time (index maintenance). A cache of common queries moves even more work to write time. No index at all means zero write-path work but expensive reads (grep). The optimal boundary depends on your workload. This is exactly the Twitter fan-out example from Chapter 1 -- full circle after 500 pages.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">11</span>How do predictive analytics create "algorithmic prisons" and self-reinforcing feedback loops?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">When someone is labeled "risky" by an algorithm, they may be systematically excluded from jobs, insurance, loans, and housing -- an <strong>"algorithmic prison"</strong> with no proof of guilt and little appeal. This creates feedback loops: financial misfortune lowers credit score, which reduces employability, which worsens finances, which further lowers the score -- a <strong>downward spiral hidden behind mathematical rigor</strong>. Algorithms learn from biased historical data and amplify that bias. Features correlated with protected traits (zip code as proxy for race) become vehicles for discrimination. The system extrapolates the past rather than imagining a better future.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">12</span>What does the author mean by comparing data collection to surveillance, and why does this framing matter?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">When a service stores data the user explicitly entered for processing, it's performing a <strong>service</strong>. When user activity is tracked as a side effect (especially in ad-funded businesses where advertisers are the real customers), the relationship becomes <strong>surveillance</strong>. The reframing matters because we have voluntarily built mass surveillance infrastructure that totalitarian regimes could only dream of -- microphones in every room via smartphones, smart TVs, and IoT devices. The "nothing to hide" argument ignores that not everyone is aligned with existing power structures. Combined with predictive analytics, tracking data determines insurance, employment, and freedom. Engineers bear ethical responsibility because "a technology is not good or bad in itself -- what matters is how it is used and how it affects people."</div>
+  </div>
+
+</div>
+</body>
+</html>
