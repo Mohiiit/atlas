@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Ch 2 Part 3 — Graph-Like Data Models</title>
+<style>
+:root {
+  --bg:#0a0e17; --surface:#111827; --surface2:#1a2234; --border:#1e293b;
+  --text:#e2e8f0; --muted:#94a3b8; --accent:#3b82f6; --purple:#8b5cf6;
+  --green:#10b981; --red:#ef4444; --orange:#f59e0b; --pink:#ec4899; --cyan:#06b6d4;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.7;padding:2rem 1rem}
+.wrap{max-width:860px;margin:0 auto}
+h1{font-size:2rem;color:var(--accent);margin-bottom:.25rem}
+h2{font-size:1.4rem;color:var(--purple);margin:2.5rem 0 .75rem;padding-left:.75rem;border-left:3px solid var(--purple)}
+h3{font-size:1.1rem;color:var(--cyan);margin:1.5rem 0 .5rem}
+p{margin:.6rem 0;color:var(--text)}
+ul,ol{margin:.5rem 0 .5rem 1.5rem;color:var(--text)}
+li{margin:.25rem 0}
+code{background:var(--surface2);color:var(--cyan);padding:.1rem .4rem;border-radius:4px;font-size:.88rem}
+pre{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0;color:var(--green)}
+
+.nav{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:2rem}
+.nav a{padding:.4rem 1rem;border-radius:6px;text-decoration:none;font-size:.9rem;background:var(--surface2);color:var(--muted);border:1px solid var(--border);transition:.2s}
+.nav a.cur{background:var(--accent);color:#fff;border-color:var(--accent)}
+.nav a:hover:not(.cur){color:var(--text)}
+
+.subtitle{color:var(--muted);font-size:1rem;margin-bottom:2rem}
+
+.diagram{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.5rem;margin:1.2rem 0;overflow-x:auto}
+.box{display:inline-block;padding:.4rem .9rem;border-radius:6px;font-size:.85rem;font-weight:600;text-align:center}
+.box.blue{background:#1e3a5f;border:1px solid var(--accent);color:var(--accent)}
+.box.purple{background:#2d1b69;border:1px solid var(--purple);color:var(--purple)}
+.box.green{background:#064e3b;border:1px solid var(--green);color:var(--green)}
+.box.orange{background:#451a03;border:1px solid var(--orange);color:var(--orange)}
+.box.cyan{background:#0c4a6e;border:1px solid var(--cyan);color:var(--cyan)}
+.box.pink{background:#4a1942;border:1px solid var(--pink);color:var(--pink)}
+.box.muted{background:var(--surface2);border:1px solid var(--border);color:var(--muted)}
+
+.row{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin:.5rem 0}
+.vflow{display:flex;flex-direction:column;align-items:center;gap:.5rem}
+.arrow{color:var(--muted);font-size:1.2rem}
+.rarrow{color:var(--muted);font-size:1.1rem}
+.label{font-size:.78rem;color:var(--orange);font-style:italic}
+
+.node-circle{display:inline-flex;align-items:center;justify-content:center;width:80px;height:80px;border-radius:50%;font-size:.8rem;font-weight:700;text-align:center;line-height:1.2}
+.node-circle.person{background:#1e3a5f;border:2px solid var(--accent);color:var(--accent)}
+.node-circle.loc{background:#064e3b;border:2px solid var(--green);color:var(--green)}
+
+.edge-label{font-size:.75rem;color:var(--orange);padding:.15rem .4rem;background:#451a03;border-radius:4px;border:1px solid var(--orange)}
+
+.callout{border-left:3px solid var(--orange);background:var(--surface2);padding:.8rem 1rem;border-radius:0 6px 6px 0;margin:1rem 0;font-size:.92rem}
+.callout.blue{border-left-color:var(--accent);background:#0c1a2e}
+.callout.green{border-left-color:var(--green);background:#052015}
+.callout.purple{border-left-color:var(--purple);background:#1a0d40}
+
+.table-wrap{overflow-x:auto;margin:1rem 0}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th{background:var(--surface2);color:var(--accent);padding:.6rem .8rem;text-align:left;border:1px solid var(--border)}
+td{padding:.5rem .8rem;border:1px solid var(--border);color:var(--text);vertical-align:top}
+tr:nth-child(even) td{background:var(--surface)}
+
+.pill{display:inline-block;padding:.2rem .6rem;border-radius:999px;font-size:.78rem;font-weight:600}
+.pill.green{background:#064e3b;color:var(--green)}
+.pill.red{background:#450a0a;color:var(--red)}
+.pill.blue{background:#1e3a5f;color:var(--accent)}
+.pill.orange{background:#451a03;color:var(--orange)}
+.pill.purple{background:#2d1b69;color:var(--purple)}
+
+.qa{border:1px solid var(--border);border-radius:8px;margin:.6rem 0;overflow:hidden}
+.qa-header{display:flex;align-items:center;gap:.75rem;padding:.8rem 1rem;cursor:pointer;background:var(--surface);user-select:none;transition:.2s}
+.qa-header:hover{background:var(--surface2)}
+.qa-num{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0;background:var(--purple);color:#fff}
+.qa-q{flex:1;font-weight:600;font-size:.92rem}
+.chev{color:var(--muted);transition:.3s}
+.qa.open .chev{transform:rotate(90deg)}
+.qa-body{display:none;padding:.8rem 1rem;border-top:1px solid var(--border);background:var(--surface2);font-size:.9rem;line-height:1.7}
+.qa.open .qa-body{display:block}
+
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin:1.5rem 0}
+.summary-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1rem}
+.summary-card h4{color:var(--accent);margin-bottom:.5rem;font-size:.95rem}
+.summary-card ul{margin-left:1rem;font-size:.85rem;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="nav">
+  <a href="chapter-2-part1.html">Part 1: Relational & Document</a>
+  <a href="chapter-2-part2.html">Part 2: Queries & Comparison</a>
+  <a href="chapter-2-part3.html" class="cur">Part 3: Graph Models & Q&A</a>
+</div>
+
+<h1>Chapter 2 — Data Models &amp; Query Languages</h1>
+<div class="subtitle">Part 3: Graph-Like Data Models, Query Languages, and Chapter Summary</div>
+
+<!-- ============================================================ -->
+<h2>When Neither Relational Nor Document Fits</h2>
+
+<p>Relational databases handle simple many-to-many relationships. Document databases shine when data arrives in nested, self-contained units. But what happens when <strong>everything is a many-to-many relationship</strong>, and the connections between items are as important as the items themselves?</p>
+
+<p>Classic examples where graph databases win:</p>
+<ul>
+  <li><strong>Social graphs</strong> — people and their friendships/follows</li>
+  <li><strong>Web graphs</strong> — pages and hyperlinks (PageRank)</li>
+  <li><strong>Road/rail networks</strong> — cities and routes</li>
+  <li><strong>Recommendation engines</strong> — users, products, and purchase history</li>
+  <li><strong>Knowledge graphs</strong> — facts and their relationships (DBpedia, Wikidata)</li>
+</ul>
+
+<div class="callout">
+  A graph doesn't need to be homogeneous. Facebook's graph contains people, locations, events, check-ins, and comments — all wired together.
+</div>
+
+<!-- ============================================================ -->
+<h2>Property Graph Model</h2>
+
+<p>The most popular graph model. Two components: <strong>vertices</strong> (nodes) and <strong>edges</strong> (relationships).</p>
+
+<div class="diagram">
+  <div style="font-size:.85rem;color:var(--muted);margin-bottom:1rem">Every vertex has: ID, outgoing edges, incoming edges, map of properties</div>
+  <div style="font-size:.85rem;color:var(--muted);margin-bottom:1.2rem">Every edge has: ID, tail vertex, head vertex, label, map of properties</div>
+
+  <div class="row" style="justify-content:center;gap:2rem;flex-wrap:wrap">
+    <div class="vflow">
+      <div class="node-circle person">Lucy<br/>(Person)</div>
+      <div style="font-size:.75rem;color:var(--muted);margin-top:.25rem">born: 1980<br/>lives: Idaho</div>
+    </div>
+
+    <div class="vflow" style="justify-content:center">
+      <div class="edge-label">BORN_IN →</div>
+      <div class="arrow">→</div>
+      <div class="edge-label">← LIVES_IN</div>
+    </div>
+
+    <div class="vflow">
+      <div class="node-circle loc">Idaho<br/>(USA)</div>
+      <div style="font-size:.75rem;color:var(--muted);margin-top:.25rem">within: USA</div>
+    </div>
+
+    <div class="vflow">
+      <div class="arrow" style="font-size:1.8rem">→</div>
+    </div>
+
+    <div class="vflow">
+      <div class="node-circle loc">USA<br/>(NAmerica)</div>
+    </div>
+
+    <div class="vflow">
+      <div class="arrow" style="font-size:1.8rem">→</div>
+    </div>
+
+    <div class="vflow">
+      <div class="node-circle loc" style="background:#0c4a6e;border-color:var(--cyan);color:var(--cyan)">North<br/>America</div>
+    </div>
+  </div>
+
+  <div class="row" style="justify-content:center;margin-top:1.5rem;gap:2rem;flex-wrap:wrap">
+    <div class="vflow">
+      <div class="node-circle person" style="background:#2d1b69;border-color:var(--purple);color:var(--purple)">Alain<br/>(Person)</div>
+      <div style="font-size:.75rem;color:var(--muted);margin-top:.25rem">born: Beaune</div>
+    </div>
+    <div class="vflow">
+      <div class="edge-label">BORN_IN →</div>
+      <div class="edge-label">← WITHIN</div>
+    </div>
+    <div class="vflow">
+      <div class="node-circle loc" style="background:#064e3b;border-color:var(--green);color:var(--green)">Beaune<br/>(France)</div>
+    </div>
+    <div class="vflow">
+      <div class="arrow">→</div>
+    </div>
+    <div class="vflow">
+      <div class="node-circle loc" style="background:#064e3b;border-color:var(--green);color:var(--green)">France<br/>(Europe)</div>
+    </div>
+  </div>
+
+  <div class="row" style="justify-content:center;margin-top:1rem">
+    <div class="edge-label">MARRIED_TO</div>
+    <div class="arrow">↕</div>
+    <div style="font-size:.8rem;color:var(--muted)">Lucy and Alain are connected across graphs</div>
+  </div>
+</div>
+
+<h3>Key Properties of the Property Graph Model</h3>
+<ul>
+  <li>Any vertex can have an edge to any other vertex — <strong>no schema restrictions</strong></li>
+  <li>Given a vertex, you can efficiently traverse both incoming and outgoing edges</li>
+  <li>Different labels on edges allow <strong>multiple relationship types</strong> in one graph</li>
+  <li>Properties on both vertices and edges store arbitrary key-value metadata</li>
+</ul>
+
+<div class="callout blue">
+  This flexibility enables a single graph to represent: people, locations, cities, countries, continents — all linked with typed, labeled relationships.
+</div>
+
+<!-- ============================================================ -->
+<h2>The Cypher Query Language</h2>
+
+<p>Cypher is Neo4j's declarative query language for property graphs. Its syntax is designed to be <em>readable as ASCII art</em>.</p>
+
+<h3>Creating Data</h3>
+<pre><code>CREATE
+  (NAmerica:Location {name:'North America', type:'continent'}),
+  (USA:Location {name:'United States', type:'country'}),
+  (Idaho:Location {name:'Idaho', type:'state'}),
+  (Lucy:Person {name:'Lucy'}),
+  (Idaho) -[:WITHIN]-> (USA) -[:WITHIN]-> (NAmerica),
+  (Lucy) -[:BORN_IN]-> (Idaho),
+  (Lucy) -[:LIVES_IN]-> (Idaho)</code></pre>
+
+<div class="callout">
+  The pattern <code>(Lucy) -[:BORN_IN]-&gt; (Idaho)</code> reads naturally: Lucy was born in Idaho. Arrow direction = relationship direction.
+</div>
+
+<h3>Querying: People Who Emigrated from the US to Europe</h3>
+<pre><code>MATCH
+  (person) -[:BORN_IN]->  () -[:WITHIN*0..]-> (us:Location {name:'United States'}),
+  (person) -[:LIVES_IN]-> () -[:WITHIN*0..]-> (eu:Location {name:'Europe'})
+RETURN person.name</code></pre>
+
+<div class="diagram">
+  <div style="font-size:.85rem;color:var(--muted);margin-bottom:.75rem">What this query does, step by step:</div>
+  <div class="vflow">
+    <div class="box blue">Find any vertex (person)</div>
+    <div class="arrow">↓</div>
+    <div class="box cyan">that has a BORN_IN edge to some vertex</div>
+    <div class="arrow">↓</div>
+    <div class="box green">that has WITHIN chain leading to "United States"</div>
+    <div class="arrow">↓</div>
+    <div class="box cyan">AND has a LIVES_IN edge to some vertex</div>
+    <div class="arrow">↓</div>
+    <div class="box purple">that has WITHIN chain leading to "Europe"</div>
+    <div class="arrow">↓</div>
+    <div class="box orange">Return person.name</div>
+  </div>
+  <div class="callout green" style="margin-top:1rem">
+    <code>-[:WITHIN*0..]->*</code> means zero-or-more hops: Idaho → USA → North America. The query engine handles arbitrary depth — you never write the loop.
+  </div>
+</div>
+
+<p>This same query in SQL would require recursive CTEs or repeated self-joins — verbose and awkward for variable-depth traversal.</p>
+
+<!-- ============================================================ -->
+<h2>Graph Queries in SQL</h2>
+
+<p>You can model a property graph in a relational database using two tables: <code>vertices</code> and <code>edges</code>. The problem? Variable-depth traversal requires recursive queries.</p>
+
+<pre><code>WITH RECURSIVE
+  -- Find all locations within USA (any depth)
+  in_usa(vertex_id) AS (
+    SELECT vertex_id FROM vertices WHERE properties->>'name' = 'United States'
+    UNION
+    SELECT edges.tail_vertex FROM edges
+      JOIN in_usa ON edges.head_vertex = in_usa.vertex_id
+      WHERE edges.label = 'within'
+  ),
+  -- Find all people born in those locations
+  born_in_usa(vertex_id) AS (
+    SELECT edges.tail_vertex FROM edges
+      JOIN in_usa ON edges.head_vertex = in_usa.vertex_id
+      WHERE edges.label = 'born_in'
+  )
+  -- ... repeat for Europe ...
+SELECT vertices.properties->>'name'
+FROM vertices JOIN born_in_usa ON vertices.vertex_id = born_in_usa.vertex_id
+             JOIN lives_in_europe ON vertices.vertex_id = lives_in_europe.vertex_id;</code></pre>
+
+<div class="callout">
+  Same query: 4 lines of Cypher vs 30+ lines of SQL. The relational model was not designed for graph traversal — it can do it, but it's painful.
+</div>
+
+<!-- ============================================================ -->
+<h2>Triple-Stores and SPARQL</h2>
+
+<p>Triple-stores are conceptually similar to property graphs but use a different vocabulary. Everything is stored as <strong>(subject, predicate, object)</strong> triples.</p>
+
+<div class="diagram">
+  <div class="row" style="justify-content:center;gap:1.5rem;flex-wrap:wrap">
+    <div class="vflow">
+      <div class="box blue">Subject</div>
+      <div style="font-size:.78rem;color:var(--muted);margin-top:.25rem">a vertex in the graph</div>
+    </div>
+    <div class="vflow">
+      <div class="box orange">Predicate</div>
+      <div style="font-size:.78rem;color:var(--muted);margin-top:.25rem">edge label or property key</div>
+    </div>
+    <div class="vflow">
+      <div class="box green">Object</div>
+      <div style="font-size:.78rem;color:var(--muted);margin-top:.25rem">another vertex OR a primitive value</div>
+    </div>
+  </div>
+
+  <div style="margin-top:1.2rem;font-size:.87rem">
+    <div style="color:var(--muted);margin-bottom:.5rem">Examples:</div>
+    <div class="row" style="gap:1rem;margin:.3rem 0">
+      <div class="box blue" style="min-width:80px">Lucy</div>
+      <div class="box orange">age</div>
+      <div class="box green">33</div>
+      <div class="label">← property triple (object is primitive)</div>
+    </div>
+    <div class="row" style="gap:1rem;margin:.3rem 0">
+      <div class="box blue" style="min-width:80px">Lucy</div>
+      <div class="box orange">BORN_IN</div>
+      <div class="box blue">Idaho</div>
+      <div class="label">← relationship triple (object is vertex)</div>
+    </div>
+    <div class="row" style="gap:1rem;margin:.3rem 0">
+      <div class="box blue" style="min-width:80px">Idaho</div>
+      <div class="box orange">WITHIN</div>
+      <div class="box blue">USA</div>
+      <div class="label">← relationship triple</div>
+    </div>
+  </div>
+</div>
+
+<h3>Turtle/N3 Notation</h3>
+<pre><code>@prefix : &lt;urn:example:&gt;.
+_:lucy  a :Person;  :name "Lucy";  :bornIn _:idaho.
+_:idaho a :Location; :name "Idaho"; :type "state"; :within _:usa.
+_:usa   a :Location; :name "United States"; :type "country"; :within _:namerica.
+_:namerica a :Location; :name "North America"; :type "continent".</code></pre>
+
+<h3>SPARQL Query Language</h3>
+<p>SPARQL (SPARQL Protocol and RDF Query Language) is to triple-stores what Cypher is to property graphs. It follows the same pattern-matching philosophy.</p>
+
+<pre><code>PREFIX : &lt;urn:example:&gt;
+SELECT ?personName WHERE {
+  ?person :name ?personName.
+  ?person :bornIn / :within* / :name "United States".
+  ?person :livesIn / :within* / :name "Europe".
+}</code></pre>
+
+<div class="callout purple">
+  SPARQL is notably concise. The path expression <code>:bornIn / :within* /</code> traverses the chain automatically. This influenced Cypher's design.
+</div>
+
+<!-- ============================================================ -->
+<h2>The Semantic Web (a Digression)</h2>
+
+<p>Triple-stores grew from the <strong>Semantic Web</strong> vision: make all websites publish data in a standard machine-readable format (RDF) so computers could reason across the entire web of data.</p>
+
+<div class="diagram">
+  <div class="row" style="justify-content:center;gap:1rem;flex-wrap:wrap">
+    <div class="box muted">SPARQL</div>
+    <div class="rarrow">→</div>
+    <div class="box muted">OWL (Ontologies)</div>
+    <div class="rarrow">→</div>
+    <div class="box muted">RDF</div>
+    <div class="rarrow">→</div>
+    <div class="box muted">XML</div>
+    <div class="rarrow">→</div>
+    <div class="box muted">URI/IRI</div>
+  </div>
+  <div style="text-align:center;margin-top:.75rem;color:var(--muted);font-size:.82rem">The Semantic Web stack — technically interesting, but largely failed to achieve web-scale adoption</div>
+</div>
+
+<p>The Semantic Web vision never took off on the public internet — too much complexity, too little incentive. But triple-stores and RDF remained useful for <strong>internal enterprise knowledge graphs</strong> and <strong>linked open data</strong> projects.</p>
+
+<!-- ============================================================ -->
+<h2>Datalog: The Grandfather of Query Languages</h2>
+
+<p>Datalog predates both SQL and Cypher. It's a logic programming query language derived from Prolog, used in systems like Datomic.</p>
+
+<h3>Datalog Syntax</h3>
+<p>Facts are written as predicates: <code>predicate(subject, object).</code></p>
+
+<pre><code>within(namerica, 'North America', continent).
+within(usa, 'United States', country).
+within(idaho, 'Idaho', state).
+born_in(lucy, idaho).
+lives_in(lucy, idaho).
+within(france, 'France', country).
+born_in(alain, beaune).
+lives_in(alain, paris).</code></pre>
+
+<h3>Defining Rules (the power of Datalog)</h3>
+<pre><code>/* Rule: x is within_recursive of z if x is within y AND y is within z */
+within_recursive(Location, Name, Type) :-
+  within(Location, Name, Type).
+within_recursive(Location, Name, Type) :-
+  within(Location, Via, _),
+  within_recursive(Via, Name, Type).
+
+/* Rule: person migrated from Source to Dest */
+migrated(Name, Source, Dest) :-
+  person(PID, Name),
+  born_in(PID, BornLoc),
+  within_recursive(BornLoc, Source, country),
+  lives_in(PID, LivingLoc),
+  within_recursive(LivingLoc, Dest, country).
+
+/* Query */
+?- migrated(Who, 'United States', 'Europe').</code></pre>
+
+<div class="callout blue">
+  Datalog defines <em>rules</em> that build up from base facts. Rules can reference themselves (recursive rules). The query engine figures out how to execute them. This approach is foundational — SQL's WITH RECURSIVE is essentially Datalog.
+</div>
+
+<div class="table-wrap">
+<table>
+  <thead>
+    <tr>
+      <th>Feature</th>
+      <th>Cypher</th>
+      <th>SPARQL</th>
+      <th>Datalog</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Model</td>
+      <td>Property Graph (Neo4j)</td>
+      <td>Triple-store (RDF)</td>
+      <td>Facts &amp; Rules (Datomic)</td>
+    </tr>
+    <tr>
+      <td>Style</td>
+      <td>Pattern matching (ASCII art)</td>
+      <td>Pattern matching</td>
+      <td>Logic programming</td>
+    </tr>
+    <tr>
+      <td>Recursion</td>
+      <td><code>*0..</code> path quantifiers</td>
+      <td><code>/property*/</code> paths</td>
+      <td>Recursive rules</td>
+    </tr>
+    <tr>
+      <td>Reusability</td>
+      <td>Low (each query self-contained)</td>
+      <td>Low</td>
+      <td>High (rules are reusable)</td>
+    </tr>
+    <tr>
+      <td>Age</td>
+      <td>Modern (2011)</td>
+      <td>2008</td>
+      <td>1970s–80s</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<!-- ============================================================ -->
+<h2>Comparing All Data Models</h2>
+
+<div class="table-wrap">
+<table>
+  <thead>
+    <tr>
+      <th>Model</th>
+      <th>Best For</th>
+      <th>Handles Many-to-Many?</th>
+      <th>Schema</th>
+      <th>Query Language</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><span class="pill blue">Relational</span></td>
+      <td>Business data, OLTP, reporting</td>
+      <td>Yes (joins), but verbose for deep</td>
+      <td>Schema-on-write (rigid)</td>
+      <td>SQL</td>
+    </tr>
+    <tr>
+      <td><span class="pill green">Document</span></td>
+      <td>Self-contained JSON records, CMS</td>
+      <td>Weak (denormalize or application joins)</td>
+      <td>Schema-on-read (flexible)</td>
+      <td>Mongo-style, aggregation pipeline</td>
+    </tr>
+    <tr>
+      <td><span class="pill purple">Graph</span></td>
+      <td>Highly connected data, social/network</td>
+      <td>Excellent — first-class citizen</td>
+      <td>Schema-free (flexible labels)</td>
+      <td>Cypher, SPARQL, Gremlin</td>
+    </tr>
+    <tr>
+      <td><span class="pill orange">Triple-store</span></td>
+      <td>Knowledge graphs, semantic data</td>
+      <td>Yes (subject → object triples)</td>
+      <td>Schema-free (ontologies optional)</td>
+      <td>SPARQL</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout green">
+  There is no universal winner. The right model depends on your access patterns. The trend is polyglot persistence — using multiple databases, each for what it's best at.
+</div>
+
+<!-- ============================================================ -->
+<h2>Chapter 2 Summary</h2>
+
+<p>This chapter showed how the data model you choose shapes everything downstream: how you write queries, how your schema evolves, and how well different access patterns perform.</p>
+
+<div class="summary-grid">
+  <div class="summary-card">
+    <h4>Relational Model</h4>
+    <ul>
+      <li>Tables, rows, foreign keys</li>
+      <li>Normalization eliminates duplication</li>
+      <li>Joins connect related data</li>
+      <li>SQL: declarative, optimizer-driven</li>
+      <li>Best: business/OLTP data</li>
+    </ul>
+  </div>
+  <div class="summary-card">
+    <h4>Document Model</h4>
+    <ul>
+      <li>JSON/BSON nested records</li>
+      <li>Locality: load full document</li>
+      <li>Schema-on-read flexibility</li>
+      <li>Weak many-to-many support</li>
+      <li>Best: self-contained records</li>
+    </ul>
+  </div>
+  <div class="summary-card">
+    <h4>Graph Model</h4>
+    <ul>
+      <li>Vertices + edges + properties</li>
+      <li>Traversal-first design</li>
+      <li>Variable-depth paths trivial</li>
+      <li>Cypher/SPARQL/Datalog</li>
+      <li>Best: highly connected data</li>
+    </ul>
+  </div>
+  <div class="summary-card">
+    <h4>Historical Context</h4>
+    <ul>
+      <li>IMS (1968): hierarchical model</li>
+      <li>CODASYL: network model</li>
+      <li>Codd's relational: 1970</li>
+      <li>NoSQL wave: 2000s scalability</li>
+      <li>Polyglot persistence: 2010s+</li>
+    </ul>
+  </div>
+</div>
+
+<div class="diagram">
+  <div style="font-size:.9rem;color:var(--muted);margin-bottom:1rem;text-align:center">The Evolution of Data Models</div>
+  <div class="row" style="justify-content:center;gap:.5rem;flex-wrap:wrap">
+    <div class="box muted">Hierarchical<br/>(IMS 1968)</div>
+    <div class="rarrow">→</div>
+    <div class="box muted">Network<br/>(CODASYL)</div>
+    <div class="rarrow">→</div>
+    <div class="box blue">Relational<br/>(Codd 1970)</div>
+    <div class="rarrow">→</div>
+    <div class="box green">Document<br/>(2000s)</div>
+    <div class="rarrow">+</div>
+    <div class="box purple">Graph<br/>(Neo4j 2007)</div>
+  </div>
+  <div style="text-align:center;margin-top:.75rem">
+    <span class="pill orange">Polyglot Persistence: use the right model for each use case</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2>Review Q&amp;A</h2>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header">
+    <div class="qa-num">1</div>
+    <div class="qa-q">What is the core problem the property graph model solves that relational databases struggle with?</div>
+    <div class="chev">›</div>
+  </div>
+  <div class="qa-body">
+    Variable-depth traversal of highly connected data. In relational databases, finding "all locations within the United States (at any depth of nesting)" requires recursive CTEs — verbose and unnatural. In a property graph with Cypher, you write <code>-[:WITHIN*0..]-></code> and the engine handles any depth. The graph model makes connections first-class citizens rather than an afterthought.
+  </div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header">
+    <div class="qa-num">2</div>
+    <div class="qa-q">In the property graph model, what information does each vertex and each edge contain?</div>
+    <div class="chev">›</div>
+  </div>
+  <div class="qa-body">
+    <strong>Vertex:</strong> unique ID, set of outgoing edges, set of incoming edges, map of key-value properties. <strong>Edge:</strong> unique ID, tail vertex (where the edge starts), head vertex (where the edge ends), a label describing the relationship type, map of key-value properties. The label is crucial — it distinguishes BORN_IN from LIVES_IN from MARRIED_TO while all being edges in the same graph.
+  </div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header">
+    <div class="qa-num">3</div>
+    <div class="qa-q">How does Cypher's syntax visually represent graph relationships?</div>
+    <div class="chev">›</div>
+  </div>
+  <div class="qa-body">
+    It uses ASCII art: <code>(vertex) -[:LABEL]-&gt; (vertex)</code>. Parentheses enclose vertices, square brackets with a colon enclose edge labels, and arrows show direction. For example, <code>(lucy) -[:BORN_IN]-&gt; (idaho)</code> reads as "Lucy was born in Idaho." The <code>*0..</code> quantifier means zero-or-more hops: <code>-[:WITHIN*0..]-&gt;</code> traverses any chain of WITHIN edges.
+  </div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header">
+    <div class="qa-num">4</div>
+    <div class="qa-q">What is a triple-store and how does it represent data differently from property graphs?</div>
+    <div class="chev">›</div>
+  </div>
+  <div class="qa-body">
+    A triple-store stores all data as <strong>(subject, predicate, object)</strong> triples. The subject is always a vertex. The predicate is either an edge label (if object is another vertex) or a property key (if object is a primitive like a string). For example: <code>(lucy, age, 33)</code> stores a property, while <code>(lucy, BORN_IN, idaho)</code> stores a relationship. Triple-stores use the RDF data model; SPARQL is the standard query language.
+  </div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header">
+    <div class="qa-num">5</div>
+    <div class="qa-q">Why did the Semantic Web vision largely fail to materialize?</div>
+    <div class="chev">›</div>
+  </div>
+  <div class="qa-body">
+    The Semantic Web aimed for every website to publish structured RDF data, allowing machines to reason across the entire web. It failed primarily due to: (1) high complexity for publishers — IRIs, namespaces, OWL ontologies; (2) lack of incentive — web publishers gain nothing from making their data machine-readable for others; (3) decentralized coordination failures — no central authority to enforce standards. Triple-stores succeeded inside enterprises (internal knowledge graphs, data integration), just not on the public web.
+  </div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header">
+    <div class="qa-num">6</div>
+    <div class="qa-q">How does Datalog differ from Cypher and SPARQL in its approach to querying?</div>
+    <div class="chev">›</div>
+  </div>
+  <div class="qa-body">
+    Cypher and SPARQL are <em>pattern-based</em>: you write the shape of what you want and the engine matches it. Datalog is <em>rule-based</em>: you define reusable rules (like functions) that build up from base facts. Rules can be recursive and can call each other. This makes Datalog more powerful for complex multi-step reasoning but harder to read for simple queries. Datomic (Clojure) uses Datalog; it predates SQL and influenced later declarative languages.
+  </div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header">
+    <div class="qa-num">7</div>
+    <div class="qa-q">What is "polyglot persistence" and why is it the emerging standard?</div>
+    <div class="chev">›</div>
+  </div>
+  <div class="qa-body">
+    Polyglot persistence means using multiple different database types within a single application, each chosen for what it does best. A social app might use: PostgreSQL for user accounts and billing (relational), MongoDB for user-generated posts (document), Neo4j for the friend graph (graph), Redis for session caching (key-value), Elasticsearch for full-text search. No single database excels at all workloads. This approach maximizes fit between data model and access patterns at the cost of operational complexity.
+  </div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header">
+    <div class="qa-num">8</div>
+    <div class="qa-q">What advantage does a graph database have over a relational database for modeling Facebook's data?</div>
+    <div class="chev">›</div>
+  </div>
+  <div class="qa-body">
+    Facebook's graph includes: people, locations, events, check-ins, pages, comments, likes, photos — all interconnected. In a relational model, each entity type is a separate table; queries joining many tables become complex. In a property graph, all vertices and edges coexist in one structure regardless of type. The <em>labeled</em> edges let you distinguish "likes," "follows," "tagged_in," and "friends_with" relationships without separate join tables. Traversal queries (e.g., "mutual friends of friends within 2 hops") are natural in Cypher.
+  </div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header">
+    <div class="qa-num">9</div>
+    <div class="qa-q">Why is it important that edges in a property graph can have properties?</div>
+    <div class="chev">›</div>
+  </div>
+  <div class="qa-body">
+    Edge properties store metadata about the relationship itself, not just its existence. Examples: a WORKED_AT edge might have <code>start_date</code> and <code>end_date</code> properties; a REVIEWED edge might have a <code>rating</code> and <code>review_text</code>; a TRANSACTION edge might have <code>amount</code> and <code>timestamp</code>. Without edge properties, you'd need to introduce intermediate "reification" nodes, making simple queries unnecessarily complex.
+  </div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header">
+    <div class="qa-num">10</div>
+    <div class="qa-q">If the relational model was designed to solve the problems of CODASYL, what problems did CODASYL have?</div>
+    <div class="chev">›</div>
+  </div>
+  <div class="qa-body">
+    CODASYL (the network model) used a hierarchical tree of records connected by pointers. Problems: (1) <strong>Access path dependency</strong> — queries had to traverse specific pointer paths; changing the access path broke all existing queries; (2) <strong>No independence</strong> — application code was tightly coupled to the database's physical layout; (3) <strong>Complex updates</strong> — inserting a record required maintaining multiple pointer lists. Codd's relational model introduced independence: store data in normalized tables, let a query optimizer figure out the access path.
+  </div>
+</div>
+
+<div style="margin-top:3rem;padding:1.5rem;background:var(--surface);border-radius:10px;border:1px solid var(--border)">
+  <div style="font-size:.85rem;color:var(--muted)">← Previous</div>
+  <div style="margin:.5rem 0"><a href="chapter-2-part2.html" style="color:var(--accent);text-decoration:none">Part 2: Query Languages &amp; Comparison</a></div>
+  <div style="margin-top:1rem;font-size:.85rem;color:var(--muted)">Next Chapter →</div>
+  <div style="margin:.5rem 0"><a href="chapter-3-part1.html" style="color:var(--accent);text-decoration:none">Chapter 3: Storage &amp; Retrieval</a></div>
+</div>
+
+</div><!-- /.wrap -->
+</body>
+</html>

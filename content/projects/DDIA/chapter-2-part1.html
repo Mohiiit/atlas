@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Ch.2 Part 1 — Relational &amp; Document Models</title>
+<style>
+  :root {
+    --bg:#0a0e17; --surface:#111827; --surface2:#1a2234; --border:#1e293b;
+    --text:#e2e8f0; --muted:#94a3b8; --accent:#3b82f6; --purple:#8b5cf6;
+    --green:#10b981; --red:#ef4444; --orange:#f59e0b; --pink:#ec4899; --cyan:#06b6d4;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;}
+  .wrap{max-width:900px;margin:0 auto;padding:40px 24px 100px;}
+  h1{font-size:2rem;font-weight:800;background:linear-gradient(135deg,var(--cyan),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px;}
+  .sub{color:var(--muted);font-size:1rem;margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:20px;}
+  .nav{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:40px;}
+  .nav a{color:var(--muted);font-size:0.8rem;text-decoration:none;padding:4px 12px;border:1px solid var(--border);border-radius:20px;}
+  .nav a.cur{color:var(--cyan);border-color:var(--cyan);}
+  .nav a:hover{color:var(--text);}
+  h2{font-size:1.4rem;font-weight:700;color:var(--cyan);margin:44px 0 14px;}
+  h3{font-size:1.1rem;font-weight:600;color:var(--text);margin:28px 0 10px;}
+  p{margin-bottom:14px;color:var(--muted);}
+  strong{color:var(--text);}
+  .label{font-size:0.72rem;text-transform:uppercase;letter-spacing:2px;color:var(--cyan);font-weight:700;margin-bottom:6px;}
+  code{background:var(--surface2);padding:2px 7px;border-radius:4px;font-size:0.83rem;color:var(--green);}
+  .key{color:var(--cyan);font-weight:600;}
+  .quote{background:var(--surface2);border-left:3px solid var(--cyan);padding:14px 18px;border-radius:0 8px 8px 0;font-style:italic;color:var(--muted);margin:18px 0;}
+  pre{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:14px;font-size:0.8rem;color:var(--muted);line-height:1.6;overflow-x:auto;margin:10px 0;}
+  pre code{background:none;padding:0;}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin:18px 0;}
+  .card-blue{border-left:4px solid var(--accent);}
+  .card-purple{border-left:4px solid var(--purple);}
+  .card-green{border-left:4px solid var(--green);}
+  .card-red{border-left:4px solid var(--red);}
+  .card-orange{border-left:4px solid var(--orange);}
+  .card-cyan{border-left:4px solid var(--cyan);}
+  .card h4{font-size:0.95rem;font-weight:700;margin-bottom:8px;color:var(--text);}
+  .card ul{padding-left:18px;color:var(--muted);}
+  .card li{margin-bottom:5px;}
+
+  .diagram{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:28px 24px;margin:22px 0;}
+  .diagram-title{font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--cyan);margin-bottom:18px;}
+
+  .g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+  @media(max-width:640px){.g2,.g3{grid-template-columns:1fr;}}
+
+  .pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:0.73rem;font-weight:600;margin:2px;}
+  .p-green{background:rgba(16,185,129,.15);color:var(--green);}
+  .p-red{background:rgba(239,68,68,.15);color:var(--red);}
+  .p-blue{background:rgba(59,130,246,.15);color:var(--accent);}
+  .p-orange{background:rgba(245,158,11,.15);color:var(--orange);}
+  .p-purple{background:rgba(139,92,246,.15);color:var(--purple);}
+  .p-cyan{background:rgba(6,182,212,.15);color:var(--cyan);}
+
+  .box{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 16px;text-align:center;font-size:0.83rem;}
+  .box-blue{border:2px solid var(--accent);color:var(--accent);}
+  .box-green{border:2px solid var(--green);color:var(--green);}
+  .box-orange{border:2px solid var(--orange);color:var(--orange);}
+  .box-red{border:2px solid var(--red);color:var(--red);}
+  .box-purple{border:2px solid var(--purple);color:var(--purple);}
+  .box-cyan{border:2px solid var(--cyan);color:var(--cyan);}
+  .row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .vflow{display:flex;flex-direction:column;align-items:center;gap:8px;}
+  .arrow-d{color:var(--muted);font-size:1.1rem;}
+  .arrow-r{color:var(--muted);font-size:1.3rem;}
+
+  table{width:100%;border-collapse:collapse;margin:14px 0;}
+  th,td{text-align:left;padding:9px 13px;border-bottom:1px solid var(--border);font-size:0.85rem;}
+  th{color:var(--cyan);font-weight:600;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.8px;}
+  td{color:var(--muted);}
+
+  .db-row{display:flex;gap:0;border:1px solid var(--border);border-radius:6px;overflow:hidden;font-size:0.8rem;font-family:monospace;}
+  .db-cell{padding:6px 10px;border-right:1px solid var(--border);flex:1;color:var(--muted);}
+  .db-cell:last-child{border-right:none;}
+  .db-header .db-cell{background:var(--surface);color:var(--cyan);font-weight:700;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="label">DDIA · Chapter 2</div>
+  <h1>Data Models and Query Languages</h1>
+  <p class="sub">Part 1 of 3 — The relational model, the rise of NoSQL, the document model, and the impedance mismatch between objects and tables.</p>
+
+  <div class="nav">
+    <a href="chapter-2-part1.html" class="cur">Part 1: Relational &amp; Document</a>
+    <a href="chapter-2-part2.html">Part 2: Comparison &amp; Query Languages</a>
+    <a href="chapter-2-part3.html">Part 3: Graph Models &amp; Q&amp;A</a>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 1. DATA MODELS AS LAYERS                   -->
+  <!-- ══════════════════════════════════════════ -->
+  <h2>1. Data Models Are Layers of Abstraction</h2>
+
+  <p>Data models are probably the most important part of software development — they affect not just how the software is written, but how we <em>think about the problem</em>. Every application is built on top of a data model, which is itself built on another data model. Each layer hides the complexity of the layer below it via a clean interface.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 1 — Data Models as Nested Abstraction Layers</div>
+    <div class="vflow" style="gap:6px;">
+      <div class="box box-cyan" style="min-width:340px;padding:14px;">
+        <strong>Application Developer</strong><br>
+        <span style="font-size:0.75rem;color:var(--muted);">Models the real world as objects, classes, data structures.<br>"I have a User with a list of Posts and a profile photo."</span>
+      </div>
+      <div class="arrow-d">▼ represents as</div>
+      <div class="box box-blue" style="min-width:340px;padding:14px;">
+        <strong>Data Model (JSON, XML, Tables, Graph…)</strong><br>
+        <span style="font-size:0.75rem;color:var(--muted);">Expresses data in terms of rows/columns, documents, nodes/edges.<br>Hides the app's in-memory object structure.</span>
+      </div>
+      <div class="arrow-d">▼ stored as</div>
+      <div class="box box-green" style="min-width:340px;padding:14px;">
+        <strong>Database Engine (B-tree, LSM-tree, heap files…)</strong><br>
+        <span style="font-size:0.75rem;color:var(--muted);">Bytes on disk, index structures, WAL for durability.<br>Hides the data model details.</span>
+      </div>
+      <div class="arrow-d">▼ stored as</div>
+      <div class="box box-orange" style="min-width:340px;padding:14px;">
+        <strong>Hardware (RAM, SSD, HDD)</strong><br>
+        <span style="font-size:0.75rem;color:var(--muted);">Electrical charges, magnetic domains, light pulses.<br>Hides the storage medium details.</span>
+      </div>
+    </div>
+    <p style="font-size:0.8rem;color:var(--muted);margin-top:12px;">Each layer provides a clean abstraction to the one above. The choice of data model shapes the entire application design — it determines what queries are easy, what is awkward, and what is impossible.</p>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 2. RELATIONAL MODEL                        -->
+  <!-- ══════════════════════════════════════════ -->
+  <h2>2. The Relational Model</h2>
+
+  <p>Edgar Codd proposed the relational model in 1970. Data is organized into <span class="key">relations</span> (tables), each is an unordered collection of <span class="key">tuples</span> (rows). The key insight: the <strong>query optimizer</strong> decides how to execute the query — the application developer only describes <em>what</em> data they want, not <em>how</em> to retrieve it. This separation allowed databases to improve performance without changing application code.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 2 — Relational Model: LinkedIn Profile Normalized</div>
+    <p style="font-size:0.83rem;color:var(--muted);margin-bottom:14px;">User "Bill" has multiple jobs and multiple education entries. Normalized into separate tables with foreign keys.</p>
+
+    <p style="font-size:0.8rem;font-weight:700;color:var(--cyan);margin-bottom:6px;">users</p>
+    <div style="display:flex;flex-direction:column;gap:1px;margin-bottom:14px;">
+      <div class="db-row db-header"><div class="db-cell">user_id</div><div class="db-cell">first_name</div><div class="db-cell">last_name</div><div class="db-cell">summary</div></div>
+      <div class="db-row"><div class="db-cell" style="color:var(--orange);">251</div><div class="db-cell">Bill</div><div class="db-cell">Gates</div><div class="db-cell">Co-founder, Microsoft</div></div>
+    </div>
+
+    <p style="font-size:0.8rem;font-weight:700;color:var(--cyan);margin-bottom:6px;">positions</p>
+    <div style="display:flex;flex-direction:column;gap:1px;margin-bottom:14px;">
+      <div class="db-row db-header"><div class="db-cell">position_id</div><div class="db-cell">user_id</div><div class="db-cell">job_title</div><div class="db-cell">organization</div></div>
+      <div class="db-row"><div class="db-cell">1</div><div class="db-cell" style="color:var(--orange);">251</div><div class="db-cell">Co-chairman</div><div class="db-cell">Bill &amp; Melinda Gates Foundation</div></div>
+      <div class="db-row"><div class="db-cell">2</div><div class="db-cell" style="color:var(--orange);">251</div><div class="db-cell">Co-founder</div><div class="db-cell">Microsoft</div></div>
+    </div>
+
+    <p style="font-size:0.8rem;font-weight:700;color:var(--cyan);margin-bottom:6px;">education</p>
+    <div style="display:flex;flex-direction:column;gap:1px;">
+      <div class="db-row db-header"><div class="db-cell">education_id</div><div class="db-cell">user_id</div><div class="db-cell">school</div><div class="db-cell">degree</div></div>
+      <div class="db-row"><div class="db-cell">1</div><div class="db-cell" style="color:var(--orange);">251</div><div class="db-cell">Harvard</div><div class="db-cell">Dropped out (1975)</div></div>
+    </div>
+    <p style="font-size:0.78rem;color:var(--muted);margin-top:10px;">Foreign key <code>user_id = 251</code> links all rows to the same user. To reconstruct Bill's full profile, JOIN the three tables. Normalization eliminates duplication.</p>
+  </div>
+
+  <h3>The Rise of NoSQL</h3>
+
+  <p>By the 2010s, relational databases had dominated for ~40 years. Then came the "NoSQL" movement — not really a single technology, but a loose collection of motivations for trying something different:</p>
+
+  <div class="card card-orange">
+    <h4>Why NoSQL Emerged (Four Driving Forces)</h4>
+    <ul>
+      <li><strong>Scale</strong>: need for very high write throughput or very large datasets that relational databases struggled with. Companies like Amazon, Google, Facebook built proprietary systems (Dynamo, Bigtable, Cassandra)</li>
+      <li><strong>Open source preference</strong>: commercial relational DBs (Oracle) were expensive; engineers wanted FOSS alternatives</li>
+      <li><strong>Specialized queries</strong>: some use cases (graph traversal, geospatial, full-text) are awkward in the relational model</li>
+      <li><strong>Restrictive schema</strong>: the rigid schema of relational databases felt too constraining for rapidly evolving data models</li>
+    </ul>
+    <p style="margin:8px 0 0;font-size:0.85rem;">The name "NoSQL" was a Twitter hashtag for a meetup in 2009. It was never a coherent movement. The term is now commonly reinterpreted as "Not Only SQL" to acknowledge that polyglot persistence (using multiple databases for different purposes) is the reality.</p>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 3. IMPEDANCE MISMATCH                      -->
+  <!-- ══════════════════════════════════════════ -->
+  <h3>The Object-Relational Impedance Mismatch</h3>
+
+  <p>Most application development today uses object-oriented programming. If data is stored in relational tables, an <span class="key">impedance mismatch</span> exists between the object model and the relational model. The application needs to translate between the two — a translation layer that generates boilerplate code that feels awkward to write and maintain.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 3 — Impedance Mismatch: Object vs Table</div>
+    <div class="g2" style="gap:20px;">
+      <div>
+        <p style="font-weight:700;color:var(--purple);margin-bottom:10px;">Object Model (in code)</p>
+        <pre><code>class User {
+  id: number
+  name: string
+  contactInfo: ContactInfo   // nested object
+  positions: Position[]      // one-to-many
+  education: Education[]     // one-to-many
+  skills: string[]           // multi-valued
+}
+
+class Position {
+  title: string
+  company: Company           // reference
+  startYear: number
+  endYear: number | null
+}</code></pre>
+        <p style="font-size:0.78rem;color:var(--muted);margin-top:8px;">Natural to write and reason about. Objects nest. Lists are direct members.</p>
+      </div>
+      <div>
+        <p style="font-weight:700;color:var(--cyan);margin-bottom:10px;">Relational Model (in DB)</p>
+        <div style="font-size:0.8rem;color:var(--muted);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:12px;font-family:monospace;">
+          <div style="color:var(--cyan);">TABLE users</div>
+          <div>&nbsp;&nbsp;id, name, city, country</div>
+          <div style="margin-top:8px;color:var(--cyan);">TABLE contact_info</div>
+          <div>&nbsp;&nbsp;user_id (FK), type, value</div>
+          <div style="margin-top:8px;color:var(--cyan);">TABLE positions</div>
+          <div>&nbsp;&nbsp;user_id (FK), title,</div>
+          <div>&nbsp;&nbsp;company_id (FK), start, end</div>
+          <div style="margin-top:8px;color:var(--cyan);">TABLE skills</div>
+          <div>&nbsp;&nbsp;user_id (FK), skill_name</div>
+        </div>
+        <p style="font-size:0.78rem;color:var(--muted);margin-top:8px;">Spread across 4+ tables. Need JOINs to reassemble. ORM generates boilerplate.</p>
+      </div>
+    </div>
+
+    <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px;">
+      <p style="font-size:0.85rem;font-weight:600;margin-bottom:6px;">The ORM Gap</p>
+      <div class="row" style="align-items:flex-start;gap:8px;">
+        <span class="pill p-red">Write ORM mapping code for every object</span>
+        <span class="pill p-red">JOINs for simple object retrieval</span>
+        <span class="pill p-orange">N+1 query problem</span>
+        <span class="pill p-orange">Complex migrations when schema changes</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 4. DOCUMENT MODEL                          -->
+  <!-- ══════════════════════════════════════════ -->
+  <h2>3. The Document Model</h2>
+
+  <p>JSON representation of a LinkedIn-style profile is more natural than the multi-table relational schema — the one-to-many relationships between User and their positions, education history, and contact information are represented as a single <span class="key">document</span> with nested structure. This reduces the impedance mismatch and the need for joins.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 4 — The Same Profile as a JSON Document</div>
+    <pre><code>{
+  "user_id": 251,
+  "first_name": "Bill",
+  "last_name": "Gates",
+  "summary": "Co-chair of the Bill &amp; Melinda Gates Foundation",
+  "region_id": "us:91",
+  "industry_id": 131,
+  "positions": [
+    { "job_title": "Co-chairman", "organization": "Bill &amp; Melinda Gates Foundation" },
+    { "job_title": "Co-founder, Chairman",  "organization": "Microsoft" }
+  ],
+  "education": [
+    { "school_name": "Harvard University", "start": 1973, "end": 1975 }
+  ],
+  "contact_info": {
+    "blog": "https://www.gatesnotes.com",
+    "twitter": "@BillGates"
+  }
+}</code></pre>
+    <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;">
+      <span class="pill p-green">All data in one place — no JOIN needed for profile page</span>
+      <span class="pill p-green">Schema flexible — add/remove fields without migration</span>
+      <span class="pill p-orange">Hard to do: "find all users who worked at Microsoft"</span>
+    </div>
+  </div>
+
+  <h3>The Key Trade-off: IDs vs Human-Readable Strings</h3>
+  <p>Notice <code>region_id: "us:91"</code> and <code>industry_id: 131</code> rather than storing the string "Greater Seattle Area" and "Computer Software" directly. Why? Because <strong>using IDs and normalizing removes duplication</strong>. If the region name needs to change (or be translated), it changes in one place — the lookup table — not across every user document.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 5 — Normalization via IDs vs Denormalization via Strings</div>
+    <div class="g2" style="gap:20px;">
+      <div>
+        <p style="font-weight:700;color:var(--green);margin-bottom:10px;">Normalized (ID reference)</p>
+        <div style="background:var(--surface);border:2px solid var(--green);border-radius:8px;padding:12px;font-size:0.82rem;font-family:monospace;">
+          User: <span style="color:var(--orange);">{ region_id: "us:91" }</span><br><br>
+          Lookup table:<br>
+          <span style="color:var(--green);">us:91 → "Greater Seattle Area"</span>
+        </div>
+        <div style="margin-top:8px;">
+          <span class="pill p-green">One place to update</span><br>
+          <span class="pill p-green">No duplication</span><br>
+          <span class="pill p-green">Easy to add translations</span><br>
+          <span class="pill p-orange">Requires a JOIN or lookup</span>
+        </div>
+      </div>
+      <div>
+        <p style="font-weight:700;color:var(--red);margin-bottom:10px;">Denormalized (string inline)</p>
+        <div style="background:var(--surface);border:2px solid var(--red);border-radius:8px;padding:12px;font-size:0.82rem;font-family:monospace;">
+          User 1: <span style="color:var(--orange);">{ region: "Greater Seattle Area" }</span><br>
+          User 2: <span style="color:var(--orange);">{ region: "Greater Seattle Area" }</span><br>
+          User 3: <span style="color:var(--orange);">{ region: "Greater Seattle Area" }</span><br>
+          ...(× millions of users)
+        </div>
+        <div style="margin-top:8px;">
+          <span class="pill p-green">No lookup needed</span><br>
+          <span class="pill p-red">Name change → update millions of rows</span><br>
+          <span class="pill p-red">Inconsistency if update is partial</span>
+        </div>
+      </div>
+    </div>
+    <p style="font-size:0.8rem;color:var(--muted);margin-top:12px;">The document model handles one-to-many (user → positions) well. But it doesn't naturally handle <strong>many-to-one</strong> (many users in the same region → one region name) or <strong>many-to-many</strong> relationships. These require either denormalization (with update anomalies) or joins (which most document databases don't support well).</p>
+  </div>
+
+  <h3>Data Gets More Interconnected Over Time</h3>
+  <p>Even if you start with data that fits naturally into a document, over time features tend to add interconnections. A LinkedIn profile starts as isolated document. Then: users can recommend each other (many-to-many). Schools and organizations become entities shared across profiles. User mentions in a feed create connections across documents. What started as a document becomes a graph.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 6 — How One-to-Many Evolves into Many-to-Many</div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div style="border:1px solid var(--green);border-radius:8px;padding:14px;">
+        <p style="font-weight:600;color:var(--green);margin-bottom:8px;">Phase 1: Pure one-to-many (perfect for document DB)</p>
+        <div class="row">
+          <div class="box box-blue" style="min-width:100px;">User 251</div>
+          <span style="color:var(--muted);">→</span>
+          <div style="display:flex;gap:6px;">
+            <div class="box" style="border-color:var(--muted);font-size:0.75rem;min-width:80px;">Position 1</div>
+            <div class="box" style="border-color:var(--muted);font-size:0.75rem;min-width:80px;">Position 2</div>
+            <div class="box" style="border-color:var(--muted);font-size:0.75rem;min-width:80px;">Education 1</div>
+          </div>
+        </div>
+        <p style="font-size:0.78rem;color:var(--muted);margin-top:6px;margin-bottom:0;">All owned by one user. No sharing. Fits in one document.</p>
+      </div>
+      <div style="border:1px solid var(--orange);border-radius:8px;padding:14px;">
+        <p style="font-weight:600;color:var(--orange);margin-bottom:8px;">Phase 2: Many-to-one emerges (region, industry lookup)</p>
+        <div class="row">
+          <div class="box box-blue" style="min-width:80px;">User 251</div>
+          <span style="color:var(--muted);">→</span>
+          <div class="box box-orange" style="min-width:120px;"><strong>Region: us:91</strong><br><span style="font-size:0.72rem;">"Greater Seattle"</span></div>
+          <span style="color:var(--muted);">←</span>
+          <div class="box box-blue" style="min-width:80px;">User 252</div>
+        </div>
+        <p style="font-size:0.78rem;color:var(--muted);margin-top:6px;margin-bottom:0;">Multiple users share one region entity. Can't store it inline without duplication.</p>
+      </div>
+      <div style="border:1px solid var(--red);border-radius:8px;padding:14px;">
+        <p style="font-weight:600;color:var(--red);margin-bottom:8px;">Phase 3: Many-to-many (recommendations, mentions)</p>
+        <div class="row">
+          <div class="box box-blue" style="min-width:80px;">User A</div>
+          <span style="color:var(--muted);">⇄</span>
+          <div class="box box-blue" style="min-width:80px;">User B</div>
+          <span style="color:var(--muted);">⇄</span>
+          <div class="box box-blue" style="min-width:80px;">User C</div>
+        </div>
+        <p style="font-size:0.78rem;color:var(--muted);margin-top:6px;margin-bottom:0;">A recommends B, B endorses C, C mentions A. Arbitrary cross-references. Document model struggles.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 5. HISTORY: IMS, CODASYL, RELATIONAL        -->
+  <!-- ══════════════════════════════════════════ -->
+  <h2>4. History: How Relational Won Over Hierarchical and Network Models</h2>
+
+  <p>The problem of representing many-to-many relationships in a database is not new. IBM's IMS (1968) used a hierarchical model — a tree structure. It worked well for one-to-many but struggled with many-to-many (data duplication or denormalization). Two solutions were proposed:</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 7 — Three Solutions to Many-to-Many: Historical Battle</div>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div style="border:1px solid var(--border);border-radius:8px;padding:14px;">
+        <p style="font-weight:600;color:var(--orange);margin-bottom:8px;">CODASYL Model (Network Model) — 1969</p>
+        <p style="font-size:0.83rem;">Records linked by pointers. Many-to-many supported via <em>access paths</em> — sequences of pointers to navigate from one record to another. Querying required writing code that traversed the pointer graph step by step. If the access paths changed, all queries had to be rewritten. Powerful but extremely rigid and hard to maintain.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
+          <span class="pill p-orange">Supports many-to-many</span>
+          <span class="pill p-red">Application must track access paths</span>
+          <span class="pill p-red">Schema changes break all queries</span>
+        </div>
+      </div>
+      <div style="border:2px solid var(--green);border-radius:8px;padding:14px;">
+        <p style="font-weight:600;color:var(--green);margin-bottom:8px;">Relational Model — 1970 (Codd)</p>
+        <p style="font-size:0.83rem;">Relations (tables) of tuples (rows). No nested structure, no pointers. Any row in any table can be referenced by value (foreign key). The query optimizer chooses the access path automatically — the developer writes <em>what</em>, not <em>how</em>. Adding a new index doesn't require changing queries. The key innovation: <strong>data independence</strong> — application code is independent of storage layout.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
+          <span class="pill p-green">Declarative queries</span>
+          <span class="pill p-green">Optimizer chooses access path</span>
+          <span class="pill p-green">Schema changes don't break queries</span>
+        </div>
+      </div>
+    </div>
+    <p style="font-size:0.8rem;color:var(--muted);margin-top:12px;">Relational databases won because the query optimizer was a one-time investment — build it once, all queries benefit. In the network model, the "optimizer" was the human developer writing traversal code for every query. <strong>The relational model separated the what from the how</strong>, which is still its greatest strength.</p>
+  </div>
+
+  <div style="margin-top:60px;padding-top:24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;">
+    <a href="chapter-2-part2.html" style="color:var(--cyan);font-size:0.9rem;text-decoration:none;">Part 2: Comparison &amp; Query Languages →</a>
+  </div>
+</div>
+</body>
+</html>

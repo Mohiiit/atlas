@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Ch.2 Part 2 — Comparison &amp; Query Languages</title>
+<style>
+  :root {
+    --bg:#0a0e17; --surface:#111827; --surface2:#1a2234; --border:#1e293b;
+    --text:#e2e8f0; --muted:#94a3b8; --accent:#3b82f6; --purple:#8b5cf6;
+    --green:#10b981; --red:#ef4444; --orange:#f59e0b; --pink:#ec4899; --cyan:#06b6d4;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;}
+  .wrap{max-width:900px;margin:0 auto;padding:40px 24px 100px;}
+  h1{font-size:2rem;font-weight:800;background:linear-gradient(135deg,var(--cyan),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px;}
+  .sub{color:var(--muted);font-size:1rem;margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:20px;}
+  .nav{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:40px;}
+  .nav a{color:var(--muted);font-size:0.8rem;text-decoration:none;padding:4px 12px;border:1px solid var(--border);border-radius:20px;}
+  .nav a.cur{color:var(--cyan);border-color:var(--cyan);}
+  .nav a:hover{color:var(--text);}
+  h2{font-size:1.4rem;font-weight:700;color:var(--cyan);margin:44px 0 14px;}
+  h3{font-size:1.1rem;font-weight:600;color:var(--text);margin:28px 0 10px;}
+  p{margin-bottom:14px;color:var(--muted);}
+  strong{color:var(--text);}
+  .label{font-size:0.72rem;text-transform:uppercase;letter-spacing:2px;color:var(--cyan);font-weight:700;margin-bottom:6px;}
+  code{background:var(--surface2);padding:2px 7px;border-radius:4px;font-size:0.83rem;color:var(--green);}
+  .key{color:var(--cyan);font-weight:600;}
+  .quote{background:var(--surface2);border-left:3px solid var(--cyan);padding:14px 18px;border-radius:0 8px 8px 0;font-style:italic;color:var(--muted);margin:18px 0;}
+  pre{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:14px;font-size:0.8rem;color:var(--muted);line-height:1.6;overflow-x:auto;margin:10px 0;}
+  pre code{background:none;padding:0;}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin:18px 0;}
+  .card-blue{border-left:4px solid var(--accent);}
+  .card-purple{border-left:4px solid var(--purple);}
+  .card-green{border-left:4px solid var(--green);}
+  .card-red{border-left:4px solid var(--red);}
+  .card-orange{border-left:4px solid var(--orange);}
+  .card-cyan{border-left:4px solid var(--cyan);}
+  .card h4{font-size:0.95rem;font-weight:700;margin-bottom:8px;color:var(--text);}
+  .card ul{padding-left:18px;color:var(--muted);}
+  .card li{margin-bottom:5px;}
+
+  .diagram{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:28px 24px;margin:22px 0;}
+  .diagram-title{font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--cyan);margin-bottom:18px;}
+
+  .g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+  @media(max-width:640px){.g2,.g3{grid-template-columns:1fr;}}
+
+  .pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:0.73rem;font-weight:600;margin:2px;}
+  .p-green{background:rgba(16,185,129,.15);color:var(--green);}
+  .p-red{background:rgba(239,68,68,.15);color:var(--red);}
+  .p-blue{background:rgba(59,130,246,.15);color:var(--accent);}
+  .p-orange{background:rgba(245,158,11,.15);color:var(--orange);}
+  .p-purple{background:rgba(139,92,246,.15);color:var(--purple);}
+  .p-cyan{background:rgba(6,182,212,.15);color:var(--cyan);}
+
+  .box{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 16px;text-align:center;font-size:0.83rem;}
+  .box-blue{border:2px solid var(--accent);color:var(--accent);}
+  .box-green{border:2px solid var(--green);color:var(--green);}
+  .box-orange{border:2px solid var(--orange);color:var(--orange);}
+  .box-red{border:2px solid var(--red);color:var(--red);}
+  .box-purple{border:2px solid var(--purple);color:var(--purple);}
+  .box-cyan{border:2px solid var(--cyan);color:var(--cyan);}
+  .row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .vflow{display:flex;flex-direction:column;align-items:center;gap:8px;}
+  .arrow-d{color:var(--muted);font-size:1.1rem;}
+  .arrow-r{color:var(--muted);font-size:1.3rem;}
+
+  table{width:100%;border-collapse:collapse;margin:14px 0;}
+  th,td{text-align:left;padding:9px 13px;border-bottom:1px solid var(--border);font-size:0.85rem;}
+  th{color:var(--cyan);font-weight:600;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.8px;}
+  td{color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="label">DDIA · Chapter 2</div>
+  <h1>Data Models and Query Languages</h1>
+  <p class="sub">Part 2 of 3 — Relational vs document comparison, schema-on-read vs schema-on-write, and the power of declarative query languages vs MapReduce.</p>
+
+  <div class="nav">
+    <a href="chapter-2-part1.html">Part 1: Relational &amp; Document</a>
+    <a href="chapter-2-part2.html" class="cur">Part 2: Comparison &amp; Query Languages</a>
+    <a href="chapter-2-part3.html">Part 3: Graph Models &amp; Q&amp;A</a>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 1. RELATIONAL VS DOCUMENT COMPARISON       -->
+  <!-- ══════════════════════════════════════════ -->
+  <h2>1. Relational vs Document: Full Comparison</h2>
+
+  <p>Neither model is universally superior. The right choice depends on your data's structure and your access patterns. The main dimensions: locality, schema flexibility, join support, and relationship complexity.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 1 — When to Use Document vs Relational</div>
+    <div class="g2" style="gap:20px;">
+      <div style="border:2px solid var(--green);border-radius:10px;padding:16px;">
+        <p style="font-weight:700;color:var(--green);margin-bottom:10px;">Document DB is better when…</p>
+        <ul style="font-size:0.85rem;color:var(--muted);padding-left:16px;">
+          <li style="margin-bottom:6px;">Your data has a <strong>document-like structure</strong>: tree of one-to-many relationships, usually loaded all at once</li>
+          <li style="margin-bottom:6px;">The data structure varies record to record (different document schemas)</li>
+          <li style="margin-bottom:6px;">You don't need joins — data isn't highly interconnected</li>
+          <li style="margin-bottom:6px;">You read entire documents frequently (locality)</li>
+          <li style="margin-bottom:6px;">Schema evolution is frequent and needs to be agile</li>
+        </ul>
+        <div style="margin-top:10px;"><span class="pill p-green">User profiles</span> <span class="pill p-green">Product catalogs</span> <span class="pill p-green">CMS articles</span></div>
+      </div>
+      <div style="border:2px solid var(--accent);border-radius:10px;padding:16px;">
+        <p style="font-weight:700;color:var(--accent);margin-bottom:10px;">Relational DB is better when…</p>
+        <ul style="font-size:0.85rem;color:var(--muted);padding-left:16px;">
+          <li style="margin-bottom:6px;">Data is highly <strong>interconnected</strong> — many-to-many relationships are common</li>
+          <li style="margin-bottom:6px;">You need to join data from multiple entities frequently</li>
+          <li style="margin-bottom:6px;">You need strong consistency guarantees (ACID transactions)</li>
+          <li style="margin-bottom:6px;">You have a well-defined, stable schema</li>
+          <li style="margin-bottom:6px;">You need to query the data in many different, ad-hoc ways</li>
+        </ul>
+        <div style="margin-top:10px;"><span class="pill p-blue">E-commerce orders</span> <span class="pill p-blue">Financial ledgers</span> <span class="pill p-blue">Social graphs</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 2 — Full Feature Comparison Table</div>
+    <div style="overflow-x:auto;">
+    <table>
+      <tr><th>Dimension</th><th>Relational (SQL)</th><th>Document (MongoDB, CouchDB)</th></tr>
+      <tr><td><strong>Data structure</strong></td><td>Tables, rows, columns. Normalized.</td><td>JSON-like documents. Hierarchical.</td></tr>
+      <tr><td><strong>Joins</strong></td><td style="color:var(--green);">First-class, efficient, powerful</td><td style="color:var(--red);">Weak or none (application-side joins)</td></tr>
+      <tr><td><strong>One-to-many</strong></td><td>Foreign key, JOIN</td><td style="color:var(--green);">Nested arrays — no join needed</td></tr>
+      <tr><td><strong>Many-to-many</strong></td><td style="color:var(--green);">JOIN table (intersection table)</td><td style="color:var(--red);">Requires denormalization or app-side join</td></tr>
+      <tr><td><strong>Schema</strong></td><td>Schema-on-write (enforced at write)</td><td style="color:var(--green);">Schema-on-read (flexible at write)</td></tr>
+      <tr><td><strong>Locality</strong></td><td style="color:var(--red);">Data spread across tables — need JOINs</td><td style="color:var(--green);">Entire document in one place</td></tr>
+      <tr><td><strong>Schema evolution</strong></td><td>ALTER TABLE (can be slow on large tables)</td><td style="color:var(--green);">Just write new fields — old docs keep old fields</td></tr>
+      <tr><td><strong>Ad-hoc queries</strong></td><td style="color:var(--green);">Excellent (SQL is very expressive)</td><td>Limited (query by field, but no complex JOINs)</td></tr>
+      <tr><td><strong>Transactions</strong></td><td style="color:var(--green);">Full ACID on multiple rows/tables</td><td>Document-level atomicity (multi-doc txns added later)</td></tr>
+      <tr><td><strong>Convergence</strong></td><td>PostgreSQL supports JSON columns</td><td>MongoDB added multi-doc transactions, joins</td></tr>
+    </table>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 2. SCHEMA-ON-READ VS SCHEMA-ON-WRITE       -->
+  <!-- ══════════════════════════════════════════ -->
+  <h3>Schema-on-Read vs Schema-on-Write</h3>
+
+  <p>Document databases are sometimes called <em>schemaless</em>, but that's misleading — there is still a schema, it's just not enforced by the database. Better terms:</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 3 — Schema-on-Write vs Schema-on-Read</div>
+    <div class="g2" style="gap:20px;">
+      <div>
+        <p style="font-weight:700;color:var(--accent);margin-bottom:10px;">Schema-on-Write (Relational)</p>
+        <div class="vflow" style="gap:6px;">
+          <div class="box box-orange" style="width:100%;max-width:240px;font-size:0.8rem;">Application writes data</div>
+          <div class="arrow-d">▼</div>
+          <div style="width:100%;max-width:240px;background:var(--surface);border:2px solid var(--red);border-radius:8px;padding:10px;text-align:center;font-size:0.8rem;">
+            <strong style="color:var(--red);">DB enforces schema</strong><br>
+            <span style="font-size:0.72rem;color:var(--muted);">Wrong type? Rejects write.<br>Missing column? Error.</span>
+          </div>
+          <div class="arrow-d">▼</div>
+          <div class="box box-blue" style="width:100%;max-width:240px;font-size:0.8rem;">Data stored, guaranteed valid</div>
+        </div>
+        <p style="font-size:0.78rem;color:var(--muted);margin-top:8px;">Analogous to static typing: type checking at compile time (write time).</p>
+      </div>
+      <div>
+        <p style="font-weight:700;color:var(--green);margin-bottom:10px;">Schema-on-Read (Document)</p>
+        <div class="vflow" style="gap:6px;">
+          <div class="box box-orange" style="width:100%;max-width:240px;font-size:0.8rem;">Application writes data</div>
+          <div class="arrow-d">▼</div>
+          <div style="width:100%;max-width:240px;background:var(--surface);border:2px solid var(--green);border-radius:8px;padding:10px;text-align:center;font-size:0.8rem;">
+            <strong style="color:var(--green);">DB accepts anything</strong><br>
+            <span style="font-size:0.72rem;color:var(--muted);">No enforcement. Data stored as-is.</span>
+          </div>
+          <div class="arrow-d">▼</div>
+          <div class="box box-green" style="width:100%;max-width:240px;font-size:0.8rem;">Application interprets schema at read time</div>
+        </div>
+        <p style="font-size:0.78rem;color:var(--muted);margin-top:8px;">Analogous to dynamic typing: type checking at runtime (read time).</p>
+      </div>
+    </div>
+
+    <div class="card card-orange" style="margin:16px 0 0;">
+      <h4>When Schema-on-Read Shines</h4>
+      <ul style="font-size:0.85rem;">
+        <li>There are many different types of objects, impractical to put each in its own table</li>
+        <li>The structure of the data is determined by external systems that you don't control</li>
+        <li>You're performing a migration: with schema-on-read, just start writing new documents with new fields; old code reads old docs, new code reads new docs. With relational, you'd need an <code>ALTER TABLE ADD COLUMN</code></li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Data Locality for Queries</h3>
+  <p>A document is usually stored as a single continuous string (JSON or BSON). If your application often needs to access the entire document, there is a <strong>storage locality advantage</strong> — the database only needs one disk seek. In a relational database, the same profile data is spread across tables, requiring multiple index lookups and disk seeks to assemble.</p>
+
+  <p>The locality advantage only applies if you need large parts of the document at once. If you only need a small part (one field), loading the entire document is wasteful. Updates to a document usually require rewriting the whole document — so keep documents small and avoid writes that cause documents to grow.</p>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 3. QUERY LANGUAGES                         -->
+  <!-- ══════════════════════════════════════════ -->
+  <h2>2. Query Languages for Data</h2>
+
+  <p>When the relational model was introduced, SQL was a radical idea: a <span class="key">declarative</span> query language. Before SQL, databases had imperative query APIs — you told the database <em>how</em> to retrieve the data step by step. SQL lets you say <em>what</em> you want, leaving the how to the optimizer.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 4 — Declarative vs Imperative: Finding Animals</div>
+    <div class="g2" style="gap:20px;">
+      <div>
+        <p style="font-weight:700;color:var(--red);margin-bottom:8px;">Imperative (old databases, most code)</p>
+        <pre><code>// JavaScript: how to find sharks
+const sharks = [];
+for (const animal of db.animals) {
+  if (animal.family === "Sharks") {
+    sharks.push(animal);
+  }
+}
+// Must specify loop order, filtering logic
+// Optimizer can't help — you're doing it yourself</code></pre>
+        <p style="font-size:0.78rem;color:var(--muted);">You specify the exact execution steps. Hard to parallelize or optimize.</p>
+      </div>
+      <div>
+        <p style="font-weight:700;color:var(--green);margin-bottom:8px;">Declarative (SQL)</p>
+        <pre><code>-- SQL: what you want
+SELECT * FROM animals
+WHERE family = 'Sharks';
+
+-- That's it. The DB decides:
+-- which index to use,
+-- whether to parallelize,
+-- whether to use a hash join,
+-- how to order the scan.</code></pre>
+        <p style="font-size:0.78rem;color:var(--muted);">You specify the result, not the path. The optimizer picks the best execution plan.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-green">
+    <h4>Why Declarative Wins in the Long Run</h4>
+    <ul>
+      <li><strong>Conciseness</strong>: SQL is far shorter than imperative traversal code for the same query</li>
+      <li><strong>Optimizer freedom</strong>: the database can improve performance without you changing your queries. Add an index → all queries that could benefit get faster automatically</li>
+      <li><strong>Parallelism</strong>: declarative queries are easier to parallelize across CPU cores or machines, since you haven't specified a sequential execution order</li>
+      <li><strong>CSS analogy</strong>: CSS is declarative (say what you want things to look like). Imagine styling web pages with imperative JavaScript — change every element one by one. CSS lets you say "all <code>li</code> in <code>.nav</code> should be blue" and the browser handles it</li>
+    </ul>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 5 — CSS as a Declarative Query Language (Analogy)</div>
+    <div class="g2" style="gap:20px;">
+      <div>
+        <p style="font-weight:700;color:var(--red);margin-bottom:8px;">Imperative DOM styling</p>
+        <pre><code>// Find every li in .selected, style it
+const items = document.querySelectorAll(
+  '.selected > li'
+);
+for (const item of items) {
+  item.style.background = 'blue';
+}
+// Fragile: need to re-run on DOM changes</code></pre>
+      </div>
+      <div>
+        <p style="font-weight:700;color:var(--green);margin-bottom:8px;">Declarative CSS</p>
+        <pre><code>li.selected > p {
+  background-color: blue;
+}
+/* Browser applies this rule to all
+   matching elements, now and future,
+   even after DOM updates */</code></pre>
+      </div>
+    </div>
+    <p style="font-size:0.8rem;color:var(--muted);margin-top:10px;">The CSS rule specifies the condition and outcome. The browser's CSS engine handles when and how to apply it. Just like SQL specifies the condition and outcome; the query optimizer handles execution.</p>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 4. MAPREDUCE                               -->
+  <!-- ══════════════════════════════════════════ -->
+  <h2>3. MapReduce Querying</h2>
+
+  <p>MapReduce is a programming model for processing large datasets across many machines, popularized by Google's 2004 paper. MongoDB's MapReduce is a limited form for querying a single database. It sits between declarative and fully imperative: you write two JavaScript functions (<code>map</code> and <code>reduce</code>), which are called by the database framework.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 6 — MapReduce Pattern: Count Sharks per Month</div>
+    <p style="font-size:0.83rem;color:var(--muted);margin-bottom:14px;">Task: count how many sharks were observed per month.</p>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div>
+        <p style="font-size:0.8rem;font-weight:700;color:var(--orange);margin-bottom:6px;">Step 1: Map function — runs once per document, emits key-value pairs</p>
+        <pre><code>function map() {
+  if (this.family === "Sharks") {
+    emit(
+      this.observationMonth,  // key: "2014-12"
+      this.numAnimals         // value: 3
+    );
+  }
+}</code></pre>
+      </div>
+      <div style="text-align:center;color:var(--muted);">▼ framework groups all emitted values by key ▼</div>
+      <div>
+        <p style="font-size:0.8rem;font-weight:700;color:var(--green);margin-bottom:6px;">Step 2: Reduce function — runs once per key, aggregates values</p>
+        <pre><code>function reduce(key, values) {
+  return Array.sum(values);
+  // key="2014-12", values=[3, 5, 2]  → 10
+  // key="2015-01", values=[7, 1]     → 8
+}</code></pre>
+      </div>
+    </div>
+    <div style="margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+      <div style="border:1px solid var(--orange);border-radius:8px;padding:10px;text-align:center;font-size:0.8rem;">
+        <strong style="color:var(--orange);">Map output</strong><br>
+        <span style="color:var(--muted);">"2014-12" → 3<br>"2014-12" → 5<br>"2015-01" → 7</span>
+      </div>
+      <div style="border:1px solid var(--purple);border-radius:8px;padding:10px;text-align:center;font-size:0.8rem;">
+        <strong style="color:var(--purple);">Group by key</strong><br>
+        <span style="color:var(--muted);">"2014-12" → [3,5,2]<br>"2015-01" → [7,1]</span>
+      </div>
+      <div style="border:1px solid var(--green);border-radius:8px;padding:10px;text-align:center;font-size:0.8rem;">
+        <strong style="color:var(--green);">Reduce output</strong><br>
+        <span style="color:var(--muted);">"2014-12" → 10<br>"2015-01" → 8</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 7 — Same Query in SQL vs MongoDB MapReduce vs Aggregation Pipeline</div>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div>
+        <p style="font-size:0.8rem;font-weight:700;color:var(--accent);margin-bottom:6px;">SQL (most readable)</p>
+        <pre><code>SELECT date_trunc('month', observation_date) AS observation_month,
+       sum(num_animals) AS total_animals
+FROM observations
+WHERE family = 'Sharks'
+GROUP BY observation_month;</code></pre>
+      </div>
+      <div>
+        <p style="font-size:0.8rem;font-weight:700;color:var(--orange);margin-bottom:6px;">MongoDB Aggregation Pipeline (declarative, added later)</p>
+        <pre><code>db.observations.aggregate([
+  { $match: { family: "Sharks" } },
+  { $group: {
+      _id: { $month: "$observationDate" },
+      totalAnimals: { $sum: "$numAnimals" }
+  }}
+]);</code></pre>
+      </div>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+      <span class="pill p-blue">SQL: most expressive, easiest to read</span>
+      <span class="pill p-green">Aggregation Pipeline: declarative, composable</span>
+      <span class="pill p-orange">MapReduce: flexible but verbose and imperative</span>
+    </div>
+    <p style="font-size:0.8rem;color:var(--muted);margin-top:10px;">MongoDB added the Aggregation Pipeline specifically because MapReduce is too verbose. This mirrors the broader lesson: declarative is almost always better for queries than imperative traversal code.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h4>MapReduce Limitations</h4>
+    <ul>
+      <li>The <code>map</code> and <code>reduce</code> functions must be <strong>pure</strong> — no side effects, no database queries, no external state. The framework calls them many times in parallel and must be able to re-execute them</li>
+      <li>Verbose: a 1-line SQL query becomes 10+ lines of JavaScript</li>
+      <li>Difficult to optimize: the database can't inspect the JavaScript to find a better execution plan</li>
+      <li>MongoDB's aggregation pipeline is now preferred — it's declarative and the optimizer can reason about it</li>
+    </ul>
+  </div>
+
+  <div style="margin-top:60px;padding-top:24px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+    <a href="chapter-2-part1.html" style="color:var(--muted);font-size:0.9rem;text-decoration:none;">← Part 1: Relational &amp; Document</a>
+    <a href="chapter-2-part3.html" style="color:var(--cyan);font-size:0.9rem;text-decoration:none;">Part 3: Graph Models &amp; Q&amp;A →</a>
+  </div>
+</div>
+</body>
+</html>
