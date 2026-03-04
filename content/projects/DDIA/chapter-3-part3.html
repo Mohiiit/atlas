@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Ch 3 Part 3 — OLAP &amp; Column Storage</title>
+<style>
+:root {
+  --bg:#0a0e17; --surface:#111827; --surface2:#1a2234; --border:#1e293b;
+  --text:#e2e8f0; --muted:#94a3b8; --accent:#3b82f6; --purple:#8b5cf6;
+  --green:#10b981; --red:#ef4444; --orange:#f59e0b; --pink:#ec4899; --cyan:#06b6d4;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.7;padding:2rem 1rem}
+.wrap{max-width:860px;margin:0 auto}
+h1{font-size:2rem;color:var(--accent);margin-bottom:.25rem}
+h2{font-size:1.4rem;color:var(--purple);margin:2.5rem 0 .75rem;padding-left:.75rem;border-left:3px solid var(--purple)}
+h3{font-size:1.1rem;color:var(--cyan);margin:1.5rem 0 .5rem}
+p{margin:.6rem 0;color:var(--text)}
+ul,ol{margin:.5rem 0 .5rem 1.5rem;color:var(--text)}
+li{margin:.25rem 0}
+code{background:var(--surface2);color:var(--cyan);padding:.1rem .4rem;border-radius:4px;font-size:.88rem}
+pre{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0;color:var(--green)}
+
+.nav{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:2rem}
+.nav a{padding:.4rem 1rem;border-radius:6px;text-decoration:none;font-size:.9rem;background:var(--surface2);color:var(--muted);border:1px solid var(--border);transition:.2s}
+.nav a.cur{background:var(--accent);color:#fff;border-color:var(--accent)}
+.nav a:hover:not(.cur){color:var(--text)}
+
+.subtitle{color:var(--muted);font-size:1rem;margin-bottom:2rem}
+
+.diagram{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.5rem;margin:1.2rem 0;overflow-x:auto}
+.box{display:inline-block;padding:.4rem .9rem;border-radius:6px;font-size:.85rem;font-weight:600;text-align:center}
+.box.blue{background:#1e3a5f;border:1px solid var(--accent);color:var(--accent)}
+.box.purple{background:#2d1b69;border:1px solid var(--purple);color:var(--purple)}
+.box.green{background:#064e3b;border:1px solid var(--green);color:var(--green)}
+.box.orange{background:#451a03;border:1px solid var(--orange);color:var(--orange)}
+.box.cyan{background:#0c4a6e;border:1px solid var(--cyan);color:var(--cyan)}
+.box.pink{background:#4a1942;border:1px solid var(--pink);color:var(--pink)}
+.box.red{background:#450a0a;border:1px solid var(--red);color:var(--red)}
+.box.muted{background:var(--surface2);border:1px solid var(--border);color:var(--muted)}
+
+.row{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin:.5rem 0}
+.vflow{display:flex;flex-direction:column;align-items:center;gap:.5rem}
+.arrow{color:var(--muted);font-size:1.2rem}
+.rarrow{color:var(--muted);font-size:1.1rem}
+.label{font-size:.78rem;color:var(--orange);font-style:italic}
+
+.callout{border-left:3px solid var(--orange);background:var(--surface2);padding:.8rem 1rem;border-radius:0 6px 6px 0;margin:1rem 0;font-size:.92rem}
+.callout.blue{border-left-color:var(--accent);background:#0c1a2e}
+.callout.green{border-left-color:var(--green);background:#052015}
+.callout.purple{border-left-color:var(--purple);background:#1a0d40}
+
+.pill{display:inline-block;padding:.2rem .6rem;border-radius:999px;font-size:.78rem;font-weight:600}
+.pill.green{background:#064e3b;color:var(--green)}
+.pill.red{background:#450a0a;color:var(--red)}
+.pill.blue{background:#1e3a5f;color:var(--accent)}
+.pill.orange{background:#451a03;color:var(--orange)}
+.pill.purple{background:#2d1b69;color:var(--purple)}
+.pill.cyan{background:#0c4a6e;color:var(--cyan)}
+
+.table-wrap{overflow-x:auto;margin:1rem 0}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th{background:var(--surface2);color:var(--accent);padding:.6rem .8rem;text-align:left;border:1px solid var(--border)}
+td{padding:.5rem .8rem;border:1px solid var(--border);color:var(--text);vertical-align:top}
+tr:nth-child(even) td{background:var(--surface)}
+
+/* Column storage visual */
+.col-table{display:grid;gap:2px;margin:.75rem 0}
+.col-row{display:flex;gap:2px}
+.col-cell{padding:.35rem .6rem;font-size:.8rem;text-align:center;border-radius:3px;min-width:80px}
+.col-header{background:var(--surface2);color:var(--muted);font-weight:700}
+.col-data{background:#1a2234;color:var(--text)}
+.col-highlight{background:#0c2a1e;color:var(--green)}
+
+/* Row vs column visual */
+.row-oriented{background:#0c1a2e;border:1px solid var(--accent);padding:.5rem;border-radius:6px;margin:.3rem 0}
+.col-oriented{background:#0c2a1e;border:1px solid var(--green);padding:.5rem;border-radius:6px;margin:.3rem 0}
+
+.qa{border:1px solid var(--border);border-radius:8px;margin:.6rem 0;overflow:hidden}
+.qa-header{display:flex;align-items:center;gap:.75rem;padding:.8rem 1rem;cursor:pointer;background:var(--surface);user-select:none;transition:.2s}
+.qa-header:hover{background:var(--surface2)}
+.qa-num{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0;background:var(--purple);color:#fff}
+.qa-q{flex:1;font-weight:600;font-size:.92rem}
+.chev{color:var(--muted);transition:.3s}
+.qa.open .chev{transform:rotate(90deg)}
+.qa-body{display:none;padding:.8rem 1rem;border-top:1px solid var(--border);background:var(--surface2);font-size:.9rem;line-height:1.7}
+.qa.open .qa-body{display:block}
+
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin:1.5rem 0}
+.summary-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1rem}
+.summary-card h4{color:var(--accent);margin-bottom:.5rem;font-size:.95rem}
+.summary-card ul{margin-left:1rem;font-size:.85rem;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="nav">
+  <a href="chapter-3-part1.html">Part 1: Log-Structured Storage</a>
+  <a href="chapter-3-part2.html">Part 2: B-Trees &amp; Index Structures</a>
+  <a href="chapter-3-part3.html" class="cur">Part 3: OLAP &amp; Column Storage</a>
+</div>
+
+<h1>Chapter 3 — Storage &amp; Retrieval</h1>
+<div class="subtitle">Part 3: Transaction Processing vs Analytics, Data Warehousing, Column-Oriented Storage</div>
+
+<!-- ============================================================ -->
+<h2>Transaction Processing (OLTP) vs. Analytics (OLAP)</h2>
+
+<p>The storage engines we've seen (B-trees, LSM-trees) are optimized for <strong>OLTP</strong> — Online Transaction Processing. These are the day-to-day user-facing operations: insert a sale, look up a user, update a stock count.</p>
+
+<p>But businesses also need to analyze data — aggregate queries across millions or billions of rows: "What was total revenue per product category this quarter?" This is <strong>OLAP</strong> — Online Analytical Processing.</p>
+
+<div class="table-wrap">
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>OLTP</th>
+      <th>OLAP</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Main read pattern</strong></td>
+      <td>Small number of records per query, fetched by key</td>
+      <td>Aggregate over large number of records</td>
+    </tr>
+    <tr>
+      <td><strong>Main write pattern</strong></td>
+      <td>Random-access, low-latency writes from user input</td>
+      <td>Bulk import (ETL) or event stream</td>
+    </tr>
+    <tr>
+      <td><strong>Primarily used by</strong></td>
+      <td>End users / customers via web application</td>
+      <td>Internal analysts for business intelligence</td>
+    </tr>
+    <tr>
+      <td><strong>Data represents</strong></td>
+      <td>Current state of data (latest value matters)</td>
+      <td>History of events that happened over time</td>
+    </tr>
+    <tr>
+      <td><strong>Dataset size</strong></td>
+      <td>GB to TB</td>
+      <td>TB to PB</td>
+    </tr>
+    <tr>
+      <td><strong>Typical queries</strong></td>
+      <td>Point lookups, small range scans</td>
+      <td>Full table scans, many-column aggregations</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout">
+  In the 1980s–90s, companies used the same database for both. But analysts running slow queries on the production OLTP database caused problems. This led to separating them: OLTP databases for operations, <strong>data warehouses</strong> for analytics.
+</div>
+
+<!-- ============================================================ -->
+<h2>Data Warehousing &amp; ETL</h2>
+
+<p>A <strong>data warehouse</strong> is a separate database that analysts can query without affecting OLTP operations. It's loaded periodically from OLTP systems via <strong>ETL</strong> (Extract–Transform–Load).</p>
+
+<div class="diagram">
+  <div class="row" style="justify-content:center;gap:1.5rem;flex-wrap:wrap;align-items:flex-start">
+    <!-- OLTP systems -->
+    <div class="vflow">
+      <div style="color:var(--cyan);font-size:.85rem;font-weight:700;margin-bottom:.5rem">OLTP Systems</div>
+      <div class="box cyan" style="margin:.2rem 0">Orders DB (PostgreSQL)</div>
+      <div class="box cyan" style="margin:.2rem 0">Customers DB (MySQL)</div>
+      <div class="box cyan" style="margin:.2rem 0">Inventory DB (Oracle)</div>
+      <div class="box cyan" style="margin:.2rem 0">HR DB (SQL Server)</div>
+    </div>
+
+    <!-- ETL arrow -->
+    <div class="vflow" style="justify-content:center;padding-top:2rem">
+      <div style="font-size:.8rem;color:var(--orange);text-align:center;margin-bottom:.3rem">ETL<br/>Extract → Transform → Load</div>
+      <div class="arrow" style="font-size:2.5rem">→</div>
+      <div style="font-size:.75rem;color:var(--muted);text-align:center;margin-top:.3rem">periodic<br/>batch jobs</div>
+    </div>
+
+    <!-- Data warehouse -->
+    <div class="vflow">
+      <div style="color:var(--purple);font-size:.85rem;font-weight:700;margin-bottom:.5rem">Data Warehouse</div>
+      <div class="box purple" style="padding:1rem 2rem;margin:.2rem 0">
+        Redshift / BigQuery<br/>Snowflake / Hive<br/>Teradata / Vertica
+      </div>
+      <div style="font-size:.78rem;color:var(--muted);text-align:center;margin-top:.3rem">Optimized for<br/>analytical queries</div>
+    </div>
+
+    <!-- Analysts -->
+    <div class="vflow" style="justify-content:center;padding-top:2rem">
+      <div class="arrow" style="font-size:2.5rem">→</div>
+    </div>
+
+    <div class="vflow">
+      <div style="color:var(--green);font-size:.85rem;font-weight:700;margin-bottom:.5rem">Analytics</div>
+      <div class="box green" style="margin:.2rem 0">SQL Dashboards</div>
+      <div class="box green" style="margin:.2rem 0">Tableau / Superset</div>
+      <div class="box green" style="margin:.2rem 0">Data Science / ML</div>
+    </div>
+  </div>
+</div>
+
+<p>The ETL transform step cleans, denormalizes, and reshapes the data into a format optimized for analysis. This is intentional: the warehouse uses different data models (star schema) than OLTP systems (normalized tables).</p>
+
+<h3>Star Schema (Dimensional Modeling)</h3>
+
+<p>The most common data warehouse schema. One central <strong>fact table</strong> surrounded by many <strong>dimension tables</strong>.</p>
+
+<div class="diagram">
+  <div style="font-size:.85rem;color:var(--muted);margin-bottom:1rem">Star schema for retail analytics</div>
+  <div class="vflow">
+    <!-- Central fact table -->
+    <div class="vflow">
+      <div class="box orange" style="padding:1rem 2rem">
+        fact_sales<br/>
+        <span style="font-size:.78rem;color:var(--text)">
+          date_key FK → dim_date<br/>
+          product_key FK → dim_product<br/>
+          store_key FK → dim_store<br/>
+          customer_key FK → dim_customer<br/>
+          quantity, net_price, discount, ...
+        </span>
+      </div>
+    </div>
+
+    <!-- Dimension table connections -->
+    <div class="row" style="justify-content:center;gap:2rem;margin-top:1rem;flex-wrap:wrap">
+      <div class="vflow">
+        <div class="arrow">↑</div>
+        <div class="box blue" style="font-size:.78rem;text-align:left;padding:.6rem">
+          dim_date<br/>
+          <span style="color:var(--muted)">date, day_of_week,<br/>month, year, holiday?</span>
+        </div>
+      </div>
+      <div class="vflow">
+        <div class="arrow">↑</div>
+        <div class="box blue" style="font-size:.78rem;text-align:left;padding:.6rem">
+          dim_product<br/>
+          <span style="color:var(--muted)">name, brand, category,<br/>price, supplier</span>
+        </div>
+      </div>
+      <div class="vflow">
+        <div class="arrow">↑</div>
+        <div class="box blue" style="font-size:.78rem;text-align:left;padding:.6rem">
+          dim_store<br/>
+          <span style="color:var(--muted)">city, state, country,<br/>floor_space, manager</span>
+        </div>
+      </div>
+      <div class="vflow">
+        <div class="arrow">↑</div>
+        <div class="box blue" style="font-size:.78rem;text-align:left;padding:.6rem">
+          dim_customer<br/>
+          <span style="color:var(--muted)">name, city, age,<br/>loyalty_status</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p>The fact table can have <strong>billions of rows</strong> — every sales transaction ever. Dimension tables are much smaller. A typical analytics query joins the fact table to several dimension tables and aggregates across millions of rows.</p>
+
+<div class="callout blue">
+  <strong>Snowflake schema</strong>: Like star schema, but dimension tables are further normalized into sub-dimensions (e.g., dim_product → dim_brand → dim_manufacturer). More normalized but harder to query.
+</div>
+
+<!-- ============================================================ -->
+<h2>Column-Oriented Storage</h2>
+
+<p>Consider this OLAP query:</p>
+
+<pre><code>SELECT
+  dim_date.year,
+  dim_product.category,
+  SUM(fact_sales.net_price) AS total_revenue
+FROM fact_sales
+  JOIN dim_date ON fact_sales.date_key = dim_date.date_key
+  JOIN dim_product ON fact_sales.product_key = dim_product.product_key
+WHERE dim_date.year = 2023
+  AND dim_product.category = 'Electronics'
+GROUP BY dim_date.year, dim_product.category;</code></pre>
+
+<p>The fact table has 100 columns. This query reads only <strong>3 columns</strong>: date_key, product_key, net_price. In a row-oriented store, every row is loaded — all 100 columns — even though 97 are irrelevant.</p>
+
+<div class="diagram">
+  <div style="font-size:.85rem;color:var(--muted);margin-bottom:1rem">Row storage vs column storage for the same data</div>
+
+  <div style="margin-bottom:1rem">
+    <div style="color:var(--accent);font-size:.82rem;font-weight:700;margin-bottom:.4rem">Row-Oriented Storage (traditional)</div>
+    <div class="row-oriented">
+      <div style="font-size:.78rem;font-family:monospace">
+        Row 1: [date:20230101, product:42, store:7, qty:3, <span style="color:var(--green)">price:299.99</span>, discount:0, ...]<br/>
+        Row 2: [date:20230101, product:17, store:2, qty:1, <span style="color:var(--green)">price:49.99</span>, discount:5, ...]<br/>
+        Row 3: [date:20230102, product:42, store:3, qty:2, <span style="color:var(--green)">price:599.98</span>, discount:10, ...]<br/>
+        ... billions of rows ...
+      </div>
+    </div>
+    <div style="font-size:.78rem;color:var(--red);margin-top:.3rem">Must read entire row to get price — reads ~100× more data than needed</div>
+  </div>
+
+  <div>
+    <div style="color:var(--green);font-size:.82rem;font-weight:700;margin-bottom:.4rem">Column-Oriented Storage</div>
+    <div class="col-oriented">
+      <div style="font-size:.78rem;font-family:monospace">
+        date_key column:    [20230101, 20230101, 20230102, ...] → stored together<br/>
+        product_key column: [42, 17, 42, ...]                   → stored together<br/>
+        store_key column:   [7, 2, 3, ...]                      → stored together<br/>
+        <span style="color:var(--green)">net_price column:   [299.99, 49.99, 599.98, ...]     → stored together</span><br/>
+        ...97 other columns stored separately...
+      </div>
+    </div>
+    <div style="font-size:.78rem;color:var(--green);margin-top:.3rem">Read only the 3 needed columns — 97% less I/O for this query</div>
+  </div>
+</div>
+
+<p>Each column is stored as a separate file. The i-th entry in each column file corresponds to the same row — there's no row ID needed.</p>
+
+<h3>Column Compression</h3>
+
+<p>Column storage enables aggressive compression, because <strong>values in a column are often highly repetitive</strong>. A product_key column might contain only 100,000 distinct product IDs across a billion rows.</p>
+
+<div class="diagram">
+  <div style="font-size:.85rem;color:var(--muted);margin-bottom:1rem">Bitmap encoding — a powerful technique for low-cardinality columns</div>
+
+  <div style="margin-bottom:1rem">
+    <div style="color:var(--cyan);font-size:.82rem;margin-bottom:.5rem">product_key column values (10 rows shown):</div>
+    <div style="background:var(--surface2);padding:.5rem;border-radius:4px;font-size:.8rem;font-family:monospace">
+      [29, 29, 30, 30, 31, 29, 31, 30, 29, 30]
+    </div>
+  </div>
+
+  <div style="margin-bottom:.75rem">
+    <div style="color:var(--orange);font-size:.82rem;margin-bottom:.5rem">Encoded as bitmaps (one per distinct value):</div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:4px;font-size:.8rem;font-family:monospace;line-height:1.8">
+      <span style="color:var(--accent)">product 29:</span> 1 1 0 0 0 1 0 0 1 0  (positions where value = 29)<br/>
+      <span style="color:var(--green)">product 30:</span> 0 0 1 1 0 0 0 1 0 1  (positions where value = 30)<br/>
+      <span style="color:var(--purple)">product 31:</span> 0 0 0 0 1 0 1 0 0 0  (positions where value = 31)
+    </div>
+  </div>
+
+  <div>
+    <div style="color:var(--green);font-size:.82rem;margin-bottom:.3rem">Query: WHERE product = 29 AND store = 7</div>
+    <div style="font-size:.78rem;color:var(--muted)">
+      Load bitmap for product=29 AND bitmap for store=7 → bitwise AND → result positions. No row scanning!
+    </div>
+  </div>
+</div>
+
+<div class="callout green">
+  With run-length encoding on top of bitmaps (e.g., "0 repeated 97 times, then 1, then 0 repeated 247 times..."), a column that was 8 bytes × 1 billion rows = 8GB can compress to tens of MB.
+</div>
+
+<h3>Vectorized Processing (SIMD)</h3>
+
+<p>Compressed column data fits in CPU cache. Modern CPUs can process 256–512 bits at once using SIMD (Single Instruction Multiple Data) instructions. Instead of processing one value at a time, the query engine processes a whole batch in one CPU instruction.</p>
+
+<div class="diagram">
+  <div class="row" style="gap:2rem;justify-content:center;flex-wrap:wrap">
+    <div class="vflow" style="text-align:center">
+      <div class="box red">Traditional loop</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.4rem">
+        for each row:<br/>
+        check condition<br/>
+        add to sum<br/>
+        ~1 row per iteration
+      </div>
+    </div>
+    <div class="vflow" style="text-align:center">
+      <div class="box green">Vectorized (SIMD)</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.4rem">
+        process 8–16 rows<br/>
+        simultaneously<br/>
+        using AVX-512<br/>
+        ~10–50× faster
+      </div>
+    </div>
+  </div>
+  <div style="text-align:center;margin-top:.75rem;font-size:.82rem;color:var(--muted)">
+    DuckDB, Velox, and modern Redshift/BigQuery use vectorized execution for analytical queries
+  </div>
+</div>
+
+<h3>Sort Order in Column Storage</h3>
+
+<p>The rows in a column store can be sorted by one column, just like an index. This is called <strong>sort key</strong>. If rows are sorted by date, then a query filtering on a date range only needs to scan that range — much faster.</p>
+
+<div class="callout blue">
+  In Vertica, you can have multiple <em>sort orders</em> — different replicas of the same data sorted differently. Query execution chooses the replica that best matches the query's filter.
+</div>
+
+<h3>Materialized Views and Data Cubes</h3>
+
+<p>Pre-compute and cache common aggregations with <strong>materialized views</strong>.</p>
+
+<pre><code>-- A materialized view: pre-computed aggregation
+CREATE MATERIALIZED VIEW sales_summary AS
+SELECT
+  date_key,
+  product_key,
+  SUM(net_price) as total,
+  COUNT(*) as num_sales
+FROM fact_sales
+GROUP BY date_key, product_key;</code></pre>
+
+<div class="diagram">
+  <div style="font-size:.85rem;color:var(--muted);margin-bottom:1rem">OLAP Cube (Data Cube) — precomputed aggregations for every dimension combination</div>
+  <div class="row" style="justify-content:center;gap:1.5rem;flex-wrap:wrap">
+    <div class="vflow" style="text-align:center">
+      <div class="box cyan">Raw fact table</div>
+      <div style="font-size:.78rem;color:var(--muted);margin-top:.3rem">billions of rows<br/>query time: minutes</div>
+    </div>
+    <div class="rarrow">→</div>
+    <div class="vflow" style="text-align:center">
+      <div class="box orange">Pre-aggregate</div>
+      <div style="font-size:.78rem;color:var(--muted);margin-top:.3rem">all combinations of<br/>(date, product, store,...)</div>
+    </div>
+    <div class="rarrow">→</div>
+    <div class="vflow" style="text-align:center">
+      <div class="box green">OLAP cube</div>
+      <div style="font-size:.78rem;color:var(--muted);margin-top:.3rem">query time: milliseconds<br/>but stale until refresh</div>
+    </div>
+  </div>
+  <div class="callout" style="margin-top:1rem">
+    Data cubes trade flexibility for speed. You can only query pre-defined dimension combinations. Raw column stores offer more flexibility (arbitrary SQL) with columnar compression.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2>Chapter 3 Summary</h2>
+
+<div class="summary-grid">
+  <div class="summary-card">
+    <h4>Log-Structured (LSM)</h4>
+    <ul>
+      <li>Append-only segments</li>
+      <li>Sorted String Tables</li>
+      <li>Memtable + WAL</li>
+      <li>Background compaction</li>
+      <li>Best: write-heavy</li>
+    </ul>
+  </div>
+  <div class="summary-card">
+    <h4>Page-Oriented (B-Tree)</h4>
+    <ul>
+      <li>Fixed-size pages</li>
+      <li>Update in place</li>
+      <li>WAL for durability</li>
+      <li>O(log n) lookup</li>
+      <li>Best: mixed read/write</li>
+    </ul>
+  </div>
+  <div class="summary-card">
+    <h4>OLTP vs OLAP</h4>
+    <ul>
+      <li>OLTP: user-facing, point queries</li>
+      <li>OLAP: analytics, aggregations</li>
+      <li>Separated by data warehouse</li>
+      <li>ETL populates warehouse</li>
+      <li>Star schema for OLAP</li>
+    </ul>
+  </div>
+  <div class="summary-card">
+    <h4>Column Storage</h4>
+    <ul>
+      <li>Store each column separately</li>
+      <li>Bitmap compression</li>
+      <li>Vectorized (SIMD) execution</li>
+      <li>Sort key for range queries</li>
+      <li>Best: analytical queries</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2>Review Q&amp;A</h2>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header">
+    <div class="qa-num">1</div>
+    <div class="qa-q">Why is appending to a log faster than updating records in place?</div>
+    <div class="chev">›</div>
+  </div>
+  <div class="qa-body">
+    Sequential writes are much faster than random writes, especially on spinning disks where the disk head must physically seek to the right position. Even on SSDs, sequential writes are faster due to how flash memory is managed (page granularity, write amplification). Also, append-only logs are simpler for crash recovery — if the system crashes mid-append, you just truncate the partially-written record. Mid-update crashes can leave data in an inconsistent state.
+  </div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header">
+    <div class="qa-num">2</div>
+    <div class="qa-q">What problem does the memtable solve in an LSM-tree, and what's its crash risk?</div>
+    <div class="chev">›</div>
+  </div>
+  <div class="qa-body">
+    <strong>Problem it solves</strong>: SSTables require data to be sorted by key, but writes arrive in arbitrary order. The memtable is an in-memory sorted data structure (usually a red-black tree or AVL tree) that maintains sorted order as writes come in. When it reaches a threshold size (~4MB), it's flushed to disk as a sorted SSTable. <strong>Crash risk</strong>: If the database crashes before the memtable is flushed, all those writes are lost (RAM is volatile). <strong>Solution</strong>: Maintain a separate write-ahead log (WAL) on disk — every write goes there first. On crash recovery, replay the WAL to reconstruct the memtable.
+  </div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header">
+    <div class="qa-num">3</div>
+    <div class="qa-q">How does the sparse index in SSTables work for point lookups?</div>
+    <div class="chev">›</div>
+  </div>
+  <div class="qa-body">
+    Since SSTable files have their keys sorted, we don't need to index every key. Instead, we keep one index entry per block (e.g., one entry every 4KB). To find key "fox": look up the sparse index to find that "fox" would fall between "dog" (offset 256) and "moon" (offset 512). Read the 256 bytes from offset 256 to 512 and scan for "fox". Since the file is sorted, we know "fox" must be there or it doesn't exist. This requires only a partial file scan rather than a full scan, while using much less RAM than a dense (every key) index.
+  </div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header">
+    <div class="qa-num">4</div>
+    <div class="qa-q">Why does a B-tree need a Write-Ahead Log? What can go wrong without it?</div>
+    <div class="chev">›</div>
+  </div>
+  <div class="qa-body">
+    B-trees update pages in place. A single key insertion can trigger a page split, which requires: (1) writing the new half-page to disk, (2) updating the parent page with the new separator key and pointer. If the crash happens after step 1 but before step 2, the parent still points to the old full page, but the new page is written. Now the B-tree is inconsistent — some data might be in the new page but inaccessible. The WAL records the intended operations before executing them. On crash recovery, the WAL is replayed to ensure all operations are either fully complete or fully undone.
+  </div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header">
+    <div class="qa-num">5</div>
+    <div class="qa-q">Why do LSM-trees have higher write throughput than B-trees in practice?</div>
+    <div class="chev">›</div>
+  </div>
+  <div class="qa-body">
+    LSM-trees convert all writes into sequential appends: writes go to the WAL (sequential) and the in-memory memtable. When the memtable flushes, it writes a contiguous SSTable file (sequential). B-trees write to both the WAL (sequential) AND update pages in place (random I/O, because different pages are scattered across disk). Random I/Os require disk head movement on spinning disks and are slower. Even on SSDs, LSM-tree's batched sequential writes are more efficient. Additionally, LSM-tree compaction is a background process that doesn't block writes, while B-tree page splits happen synchronously during writes.
+  </div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header">
+    <div class="qa-num">6</div>
+    <div class="qa-q">What is the clustered index in InnoDB, and why does it affect secondary index lookups?</div>
+    <div class="chev">›</div>
+  </div>
+  <div class="qa-body">
+    In InnoDB (MySQL's storage engine), the primary key index is always a <strong>clustered index</strong> — the B-tree leaf pages contain the full row data. Rows are physically stored in primary key order. Secondary indexes (on other columns) don't store full row data; instead, their leaf pages store the <strong>primary key value</strong> of the corresponding row. So a secondary index lookup requires <em>two</em> B-tree traversals: one on the secondary index (to find the primary key), then another on the primary index (to get the actual row). This is called a "double lookup." PostgreSQL, by contrast, stores heap file pointers in secondary indexes, which can skip the second B-tree traversal if the data hasn't moved.
+  </div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header">
+    <div class="qa-num">7</div>
+    <div class="qa-q">Why does column-oriented storage drastically reduce I/O for analytical queries?</div>
+    <div class="chev">›</div>
+  </div>
+  <div class="qa-body">
+    An analytical query typically touches a small fraction of columns but a large fraction of rows. A fact table might have 100 columns, but a typical query only needs 3–5 of them. In row-oriented storage, each row is stored together on disk, so reading any one column forces loading all 100 columns. In column-oriented storage, each column is in a separate file — reading column A doesn't load B, C, D, etc. If your query reads 3 out of 100 columns across 1 billion rows, column storage reads ~3% of the data that row storage would need, reducing I/O by ~97%.
+  </div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header">
+    <div class="qa-num">8</div>
+    <div class="qa-q">How do bitmap indexes enable fast filtering without scanning rows?</div>
+    <div class="chev">›</div>
+  </div>
+  <div class="qa-body">
+    For a low-cardinality column (e.g., product_category with 50 distinct values), create one bitmap per distinct value. Each bitmap has one bit per row: 1 if that row has that value, 0 otherwise. To answer "WHERE category = 'Electronics' AND year = 2023", load the 'Electronics' bitmap and the '2023' bitmap, then compute bitwise AND. The result is a bitmap showing exactly which rows satisfy both conditions. This is extremely fast because bitwise AND is a single CPU instruction that processes 64+ bits at once. No row-level comparisons needed.
+  </div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header">
+    <div class="qa-num">9</div>
+    <div class="qa-q">What is the difference between a star schema and a snowflake schema?</div>
+    <div class="chev">›</div>
+  </div>
+  <div class="qa-body">
+    In a <strong>star schema</strong>, the central fact table is surrounded by flat dimension tables. A dim_product table contains product_id, name, brand, category, supplier — all in one table. In a <strong>snowflake schema</strong>, dimension tables are further normalized. dim_product still has product_id, name, but brand_id is a foreign key to a dim_brand table, which has a manufacturer_id FK to dim_manufacturer. This is more normalized (less data duplication) but requires more joins for queries. Data warehouses usually prefer star schemas because the extra joins of snowflake schemas add overhead to analytical queries, and data duplication is less of a concern given how cheap storage is.
+  </div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header">
+    <div class="qa-num">10</div>
+    <div class="qa-q">Why are in-memory databases faster even though the OS page cache already caches disk data?</div>
+    <div class="chev">›</div>
+  </div>
+  <div class="qa-body">
+    You're right that if data is in the OS page cache, reads don't go to physical disk. The speed advantage of in-memory databases comes from a different source: encoding overhead. Disk-based databases must store data in a format that can be read back from disk — this typically means fixed-size records, pointer structures, and serialization logic. In-memory databases can use richer data structures directly: hash tables, sorted sets, priority queues, tries — without any serialization/deserialization. They also avoid the overhead of managing buffer pools, translating virtual disk addresses to memory addresses, and maintaining page locks. Additionally, in-memory databases can support data models (e.g., Redis sorted sets) that would be prohibitively complex to implement on disk.
+  </div>
+</div>
+
+<div style="margin-top:3rem;padding:1.5rem;background:var(--surface);border-radius:10px;border:1px solid var(--border)">
+  <div class="row" style="gap:2rem;flex-wrap:wrap">
+    <div>
+      <div style="font-size:.85rem;color:var(--muted)">← Previous</div>
+      <div style="margin:.3rem 0"><a href="chapter-3-part2.html" style="color:var(--accent);text-decoration:none">Part 2: B-Trees &amp; Index Structures</a></div>
+    </div>
+    <div>
+      <div style="font-size:.85rem;color:var(--muted)">Next Chapter →</div>
+      <div style="margin:.3rem 0"><a href="chapter-4-part1.html" style="color:var(--accent);text-decoration:none">Chapter 4: Encoding &amp; Evolution</a></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /.wrap -->
+</body>
+</html>

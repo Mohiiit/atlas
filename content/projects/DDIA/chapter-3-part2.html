@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Ch 3 Part 2 — B-Trees &amp; Index Structures</title>
+<style>
+:root {
+  --bg:#0a0e17; --surface:#111827; --surface2:#1a2234; --border:#1e293b;
+  --text:#e2e8f0; --muted:#94a3b8; --accent:#3b82f6; --purple:#8b5cf6;
+  --green:#10b981; --red:#ef4444; --orange:#f59e0b; --pink:#ec4899; --cyan:#06b6d4;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.7;padding:2rem 1rem}
+.wrap{max-width:860px;margin:0 auto}
+h1{font-size:2rem;color:var(--accent);margin-bottom:.25rem}
+h2{font-size:1.4rem;color:var(--purple);margin:2.5rem 0 .75rem;padding-left:.75rem;border-left:3px solid var(--purple)}
+h3{font-size:1.1rem;color:var(--cyan);margin:1.5rem 0 .5rem}
+p{margin:.6rem 0;color:var(--text)}
+ul,ol{margin:.5rem 0 .5rem 1.5rem;color:var(--text)}
+li{margin:.25rem 0}
+code{background:var(--surface2);color:var(--cyan);padding:.1rem .4rem;border-radius:4px;font-size:.88rem}
+pre{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0;color:var(--green)}
+
+.nav{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:2rem}
+.nav a{padding:.4rem 1rem;border-radius:6px;text-decoration:none;font-size:.9rem;background:var(--surface2);color:var(--muted);border:1px solid var(--border);transition:.2s}
+.nav a.cur{background:var(--accent);color:#fff;border-color:var(--accent)}
+.nav a:hover:not(.cur){color:var(--text)}
+
+.subtitle{color:var(--muted);font-size:1rem;margin-bottom:2rem}
+
+.diagram{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.5rem;margin:1.2rem 0;overflow-x:auto}
+.box{display:inline-block;padding:.4rem .9rem;border-radius:6px;font-size:.85rem;font-weight:600;text-align:center}
+.box.blue{background:#1e3a5f;border:1px solid var(--accent);color:var(--accent)}
+.box.purple{background:#2d1b69;border:1px solid var(--purple);color:var(--purple)}
+.box.green{background:#064e3b;border:1px solid var(--green);color:var(--green)}
+.box.orange{background:#451a03;border:1px solid var(--orange);color:var(--orange)}
+.box.cyan{background:#0c4a6e;border:1px solid var(--cyan);color:var(--cyan)}
+.box.pink{background:#4a1942;border:1px solid var(--pink);color:var(--pink)}
+.box.red{background:#450a0a;border:1px solid var(--red);color:var(--red)}
+.box.muted{background:var(--surface2);border:1px solid var(--border);color:var(--muted)}
+
+.row{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin:.5rem 0}
+.vflow{display:flex;flex-direction:column;align-items:center;gap:.5rem}
+.arrow{color:var(--muted);font-size:1.2rem}
+.rarrow{color:var(--muted);font-size:1.1rem}
+.label{font-size:.78rem;color:var(--orange);font-style:italic}
+
+.callout{border-left:3px solid var(--orange);background:var(--surface2);padding:.8rem 1rem;border-radius:0 6px 6px 0;margin:1rem 0;font-size:.92rem}
+.callout.blue{border-left-color:var(--accent);background:#0c1a2e}
+.callout.green{border-left-color:var(--green);background:#052015}
+.callout.purple{border-left-color:var(--purple);background:#1a0d40}
+.callout.red{border-left-color:var(--red);background:#200}
+
+.pill{display:inline-block;padding:.2rem .6rem;border-radius:999px;font-size:.78rem;font-weight:600}
+.pill.green{background:#064e3b;color:var(--green)}
+.pill.red{background:#450a0a;color:var(--red)}
+.pill.blue{background:#1e3a5f;color:var(--accent)}
+.pill.orange{background:#451a03;color:var(--orange)}
+.pill.purple{background:#2d1b69;color:var(--purple)}
+
+.btree-node{background:var(--surface2);border:1px solid var(--border);border-radius:6px;display:inline-flex;gap:0;overflow:hidden;font-size:.82rem}
+.btree-cell{padding:.4rem .6rem;border-right:1px solid var(--border);text-align:center;min-width:36px}
+.btree-cell:last-child{border-right:none}
+.btree-cell.key{color:var(--orange);font-weight:700}
+.btree-cell.ptr{color:var(--accent);font-size:.75rem}
+
+.table-wrap{overflow-x:auto;margin:1rem 0}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th{background:var(--surface2);color:var(--accent);padding:.6rem .8rem;text-align:left;border:1px solid var(--border)}
+td{padding:.5rem .8rem;border:1px solid var(--border);color:var(--text);vertical-align:top}
+tr:nth-child(even) td{background:var(--surface)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="nav">
+  <a href="chapter-3-part1.html">Part 1: Log-Structured Storage</a>
+  <a href="chapter-3-part2.html" class="cur">Part 2: B-Trees &amp; Index Structures</a>
+  <a href="chapter-3-part3.html">Part 3: OLAP &amp; Column Storage</a>
+</div>
+
+<h1>Chapter 3 — Storage &amp; Retrieval</h1>
+<div class="subtitle">Part 2: B-Trees, Comparison with LSM-Trees, and Other Index Structures</div>
+
+<!-- ============================================================ -->
+<h2>B-Trees</h2>
+
+<p>B-trees are the dominant index structure in relational databases (PostgreSQL, MySQL, Oracle, SQL Server). They've been standard since the 1970s. Unlike LSM-trees which break data into variable-size segments and write sequentially, B-trees break data into fixed-size <strong>pages</strong> (typically 4KB) and read or write one page at a time.</p>
+
+<p>Pages are organized in a tree structure. Each internal (non-leaf) page holds keys and pointers to child pages. Leaf pages hold the actual values (or pointers to values).</p>
+
+<div class="diagram">
+  <div style="font-size:.85rem;color:var(--muted);margin-bottom:1rem">A B-tree for keys 1–300, branching factor 3 (simplified)</div>
+
+  <!-- Root -->
+  <div class="vflow">
+    <div style="font-size:.75rem;color:var(--muted)">Root page</div>
+    <div class="btree-node">
+      <div class="btree-cell ptr">ref</div>
+      <div class="btree-cell key">100</div>
+      <div class="btree-cell ptr">ref</div>
+      <div class="btree-cell key">200</div>
+      <div class="btree-cell ptr">ref</div>
+    </div>
+
+    <!-- Lines to level 2 -->
+    <div class="row" style="gap:4rem;margin:.25rem 0">
+      <div class="arrow">↙</div>
+      <div class="arrow">↓</div>
+      <div class="arrow">↘</div>
+    </div>
+
+    <!-- Level 2 -->
+    <div class="row" style="gap:1rem;align-items:flex-start">
+      <div class="vflow">
+        <div style="font-size:.72rem;color:var(--muted)">page (1–100)</div>
+        <div class="btree-node">
+          <div class="btree-cell ptr">ref</div>
+          <div class="btree-cell key">33</div>
+          <div class="btree-cell ptr">ref</div>
+          <div class="btree-cell key">67</div>
+          <div class="btree-cell ptr">ref</div>
+        </div>
+        <!-- Level 3 leaves -->
+        <div class="row" style="gap:.5rem;margin-top:.25rem">
+          <div class="vflow">
+            <div style="font-size:.7rem;color:var(--muted)">leaf</div>
+            <div class="btree-node" style="flex-direction:column">
+              <div class="btree-cell key" style="border-right:none;border-bottom:1px solid var(--border)">1</div>
+              <div class="btree-cell key" style="border-right:none;border-bottom:1px solid var(--border)">2</div>
+              <div class="btree-cell key" style="border-right:none">...</div>
+            </div>
+          </div>
+          <div class="vflow">
+            <div style="font-size:.7rem;color:var(--muted)">leaf</div>
+            <div class="btree-node" style="flex-direction:column">
+              <div class="btree-cell key" style="border-right:none;border-bottom:1px solid var(--border)">34</div>
+              <div class="btree-cell key" style="border-right:none;border-bottom:1px solid var(--border)">35</div>
+              <div class="btree-cell key" style="border-right:none">...</div>
+            </div>
+          </div>
+          <div class="vflow">
+            <div style="font-size:.7rem;color:var(--muted)">leaf</div>
+            <div class="btree-node" style="flex-direction:column">
+              <div class="btree-cell key" style="border-right:none;border-bottom:1px solid var(--border)">68</div>
+              <div class="btree-cell key" style="border-right:none;border-bottom:1px solid var(--border)">69</div>
+              <div class="btree-cell key" style="border-right:none">...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="vflow">
+        <div style="font-size:.72rem;color:var(--muted)">page (101–200)</div>
+        <div class="btree-node">
+          <div class="btree-cell ptr">ref</div>
+          <div class="btree-cell key">133</div>
+          <div class="btree-cell ptr">ref</div>
+          <div class="btree-cell key">167</div>
+          <div class="btree-cell ptr">ref</div>
+        </div>
+      </div>
+
+      <div class="vflow">
+        <div style="font-size:.72rem;color:var(--muted)">page (201–300)</div>
+        <div class="btree-node">
+          <div class="btree-cell ptr">ref</div>
+          <div class="btree-cell key">233</div>
+          <div class="btree-cell ptr">ref</div>
+          <div class="btree-cell key">267</div>
+          <div class="btree-cell ptr">ref</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3>The Branching Factor</h3>
+
+<p>The number of child references per internal page is called the <strong>branching factor</strong>. In real databases it's typically several hundred (because pages are 4KB–16KB and each entry is just a key + pointer). The depth of the tree is therefore:</p>
+
+<div class="diagram">
+  <div class="row" style="justify-content:center;gap:1.5rem;flex-wrap:wrap">
+    <div class="vflow" style="text-align:center">
+      <div class="box blue">4-level tree</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.4rem">branching factor 500</div>
+      <div style="font-size:.85rem;color:var(--green);font-weight:700">500³ = 125 million keys</div>
+    </div>
+    <div class="vflow" style="text-align:center">
+      <div class="box purple">5-level tree</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.4rem">branching factor 500</div>
+      <div style="font-size:.85rem;color:var(--purple);font-weight:700">500⁴ = 62.5 billion keys</div>
+    </div>
+  </div>
+  <div style="text-align:center;margin-top:.75rem;font-size:.82rem;color:var(--muted)">
+    Most databases fit into 3–4 levels → read requires only 3–4 page lookups (I/Os)
+  </div>
+</div>
+
+<h3>Updating a Value in a B-Tree</h3>
+
+<p>Find the leaf page containing the key, update the value, and write the page back to disk (in place). The page reference from the parent remains valid.</p>
+
+<h3>Adding a New Key</h3>
+
+<p>Find the leaf page where the new key belongs. If there's space, write it in and done. If the page is full:</p>
+
+<div class="diagram">
+  <div class="vflow">
+    <div class="row" style="gap:.5rem">
+      <div class="box red">Full leaf page</div>
+      <div class="rarrow">→</div>
+      <div class="box orange">Split into two half-full pages</div>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="box cyan">Parent page updated with new separator key + pointer to new page</div>
+    <div class="arrow">↓</div>
+    <div style="font-size:.82rem;color:var(--muted)">If parent is also full → split parent → propagate up → may split root → tree grows taller</div>
+  </div>
+</div>
+
+<h3>Making B-Trees Reliable: The Write-Ahead Log (WAL)</h3>
+
+<p>B-tree writes are <em>in-place updates</em>. A single insertion can modify multiple pages. If a crash happens mid-operation, the tree can be left in an inconsistent state.</p>
+
+<div class="callout red">
+  Danger: If you split a leaf page and the database crashes before writing the updated parent, the parent still points to the full old page. Data corruption.
+</div>
+
+<p>Solution: <strong>Write-Ahead Log (WAL)</strong> — append every intended modification to a log on disk before applying it to the tree. On crash recovery, replay the WAL to restore consistency.</p>
+
+<div class="diagram">
+  <div class="row" style="justify-content:center;gap:1rem;flex-wrap:wrap'>
+    <div class="vflow">
+      <div class="box blue">Write WAL entry</div>
+      <div style="font-size:.75rem;color:var(--muted)">(append to log file)</div>
+    </div>
+    <div class="rarrow">→</div>
+    <div class="vflow">
+      <div class="box green">Modify B-tree pages</div>
+      <div style="font-size:.75rem;color:var(--muted)">(in-place on disk)</div>
+    </div>
+    <div class="rarrow">→</div>
+    <div class="vflow">
+      <div class="box cyan">If crash: replay WAL</div>
+      <div style="font-size:.75rem;color:var(--muted)">(reapply changes)</div>
+    </div>
+  </div>
+</div>
+
+<h3>Optimizations for B-Trees</h3>
+<ul>
+  <li><strong>Copy-on-write</strong>: Instead of WAL, write a new page and atomically update the parent pointer (used by LMDB). Safer for concurrency.</li>
+  <li><strong>Abbreviate keys</strong>: Internal pages only need enough key bytes to route correctly. Saves space, increases branching factor.</li>
+  <li><strong>Sequential leaf access</strong>: Some B-trees keep leaf pages in sorted order on disk, or add sibling pointers, so range scans don't jump around.</li>
+  <li><strong>Fractal tree / B+ tree</strong>: Common variant where only leaf pages store values; internal pages are pure routing structure.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2>B-Trees vs. LSM-Trees</h2>
+
+<p>This is one of the most practically important tradeoffs in database storage design.</p>
+
+<div class="table-wrap">
+<table>
+  <thead>
+    <tr>
+      <th>Aspect</th>
+      <th>B-Trees</th>
+      <th>LSM-Trees</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Write performance</strong></td>
+      <td>Each write may cause multiple page writes (split + WAL). Random I/O.</td>
+      <td><span class="pill green">Better</span> — sequential writes to memtable + WAL. Compaction I/O is amortized.</td>
+    </tr>
+    <tr>
+      <td><strong>Read performance</strong></td>
+      <td><span class="pill green">Better</span> for point lookups — guaranteed log(n) traversal, one location per key.</td>
+      <td>May need to check multiple SSTable levels. Bloom filters help but add complexity.</td>
+    </tr>
+    <tr>
+      <td><strong>Write amplification</strong></td>
+      <td>Each page written twice (WAL + in-place). Moderate.</td>
+      <td>Each byte written many times during compaction. Higher write amplification.</td>
+    </tr>
+    <tr>
+      <td><strong>Space amplification</strong></td>
+      <td>~50% utilization — pages are never fully packed after splits.</td>
+      <td>Old values persist until compaction. Worse space, but compaction eventually reclaims it.</td>
+    </tr>
+    <tr>
+      <td><strong>Range queries</strong></td>
+      <td>Good — leaves often sequential on disk.</td>
+      <td>Good — keys sorted within SSTables.</td>
+    </tr>
+    <tr>
+      <td><strong>Compaction interference</strong></td>
+      <td>None — no background compaction.</td>
+      <td>Compaction competes with reads/writes for I/O bandwidth. Can cause latency spikes.</td>
+    </tr>
+    <tr>
+      <td><strong>Transactions</strong></td>
+      <td><span class="pill green">Easier</span> — each key exists in exactly one place → simpler locking.</td>
+      <td>Keys may exist in multiple SSTables → complex locking.</td>
+    </tr>
+    <tr>
+      <td><strong>Used by</strong></td>
+      <td>PostgreSQL, MySQL, Oracle, SQL Server</td>
+      <td>LevelDB, RocksDB, Cassandra, HBase, ScyllaDB</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout blue">
+  LSM-trees typically sustain <strong>higher write throughput</strong> because they convert random writes into sequential I/O. B-trees offer <strong>more predictable read latency</strong> and simpler transaction semantics. Real-world choice depends on your workload.
+</div>
+
+<!-- ============================================================ -->
+<h2>Other Indexing Structures</h2>
+
+<h3>Secondary Indexes</h3>
+
+<p>A primary index maps primary keys to rows. A <strong>secondary index</strong> maps some other field (or combination of fields) to row locations. Both B-trees and LSM-trees can serve as secondary indexes.</p>
+
+<div class="diagram">
+  <div class="row" style="gap:2rem;flex-wrap:wrap;align-items:flex-start">
+    <div class="vflow">
+      <div class="box blue">Primary Index</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.5rem;text-align:center">user_id → row</div>
+      <div style="background:var(--surface2);padding:.5rem;border-radius:4px;font-size:.8rem;margin-top:.3rem">
+        <div>1 → {Alice, London}</div>
+        <div>2 → {Bob, Paris}</div>
+        <div>3 → {Carol, London}</div>
+      </div>
+    </div>
+    <div class="vflow">
+      <div class="box purple">Secondary Index on city</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.5rem;text-align:center">city → [row_ids]</div>
+      <div style="background:var(--surface2);padding:.5rem;border-radius:4px;font-size:.8rem;margin-top:.3rem">
+        <div>London → [1, 3]</div>
+        <div>Paris → [2]</div>
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:.75rem;font-size:.82rem;color:var(--muted)">
+    Query "all users in London" → secondary index → fetch rows 1 and 3 from primary storage
+  </div>
+</div>
+
+<h3>Storing Values: Heap File vs. Clustered Index</h3>
+
+<p>When a secondary index points to a row, it can store:</p>
+
+<div class="table-wrap">
+<table>
+  <thead>
+    <tr>
+      <th>Approach</th>
+      <th>Index stores</th>
+      <th>Trade-off</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Heap file</strong></td>
+      <td>Pointer to actual row location (heap file)</td>
+      <td>Updates that don't move the row are cheap (just update in place). But if the row grows and must move, all indexes must be updated.</td>
+    </tr>
+    <tr>
+      <td><strong>Clustered index</strong></td>
+      <td>The full row data (directly within the index)</td>
+      <td>Read is faster — one lookup gets the data. But storage is duplicated for each index. InnoDB's primary key is always a clustered index.</td>
+    </tr>
+    <tr>
+      <td><strong>Covering index</strong></td>
+      <td>Some columns stored in index, not all</td>
+      <td>"Index-only scan" — queries that only need those columns never touch the heap. Good for common query patterns.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h3>Multi-Column Indexes</h3>
+
+<p>A <strong>concatenated index</strong> on (last_name, first_name) sorts first by last name, then by first name within each last name. Useful for queries that filter on last_name alone, or on (last_name, first_name) together. Useless for queries that filter on first_name alone.</p>
+
+<div class="diagram">
+  <div style="font-size:.85rem;color:var(--muted);margin-bottom:.75rem">Geospatial example: finding restaurants near a point</div>
+  <div class="row" style="gap:1rem;flex-wrap:wrap">
+    <div class="vflow">
+      <div class="box red" style="padding:.6rem 1rem">Single-axis index</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.4rem;max-width:160px;text-align:center">
+        Index on latitude only → scan all restaurants at right latitude, then filter longitude. Inefficient.
+      </div>
+    </div>
+    <div class="vflow">
+      <div class="box green" style="padding:.6rem 1rem">R-tree / Space-filling curve</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.4rem;max-width:160px;text-align:center">
+        Both dimensions indexed simultaneously. PostGIS uses R-trees. Query is a single spatial lookup.
+      </div>
+    </div>
+  </div>
+  <div class="callout" style="margin-top:1rem">
+    The Hilbert space-filling curve maps 2D coordinates to a 1D value that preserves spatial locality — allowing standard B-tree indexes for geographic queries.
+  </div>
+</div>
+
+<h3>Full-Text Search and Fuzzy Indexes</h3>
+
+<p>Standard indexes require an exact match. Full-text search allows querying for similar or approximate keys:</p>
+<ul>
+  <li><strong>Edit distance</strong>: Find all keys within k character edits of the query</li>
+  <li><strong>Inverted index</strong>: Map each word to the set of documents containing it</li>
+  <li><strong>Trie / SSTable variant</strong>: Lucene (used by Elasticsearch) uses an SSTable-like structure where the in-memory index is a finite-state automaton over keys, allowing efficient fuzzy matching</li>
+</ul>
+
+<div class="callout purple">
+  Lucene's segment structure is very similar to SSTables with leveled compaction. Elasticsearch is essentially an LSM-tree optimized for text search. Full-text indexes are typically maintained separately from the main data store.
+</div>
+
+<h3>In-Memory Databases</h3>
+
+<p>The whole point of SSTable/B-tree complexity is managing disk I/O. What if the entire dataset fits in RAM?</p>
+
+<div class="diagram">
+  <div class="row" style="gap:2rem;flex-wrap:wrap;justify-content:center">
+    <div class="vflow" style="text-align:center">
+      <div class="box cyan">Redis / Memcached</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.4rem;max-width:180px">
+        Pure in-memory. Durability via snapshots or AOF log. Restart reloads from disk. Accept data loss or async replication.
+      </div>
+    </div>
+    <div class="vflow" style="text-align:center">
+      <div class="box green">VoltDB / MemSQL / H-Store</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.4rem;max-width:180px">
+        In-memory relational DBs with durability via write-ahead log and replication. Full ACID.
+      </div>
+    </div>
+    <div class="vflow" style="text-align:center">
+      <div class="box blue">Oracle TimesTen / RAMCloud</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.4rem;max-width:180px">
+        Research systems exploring in-memory databases with disk-based durability.
+      </div>
+    </div>
+  </div>
+</div>
+
+<p>In-memory databases are faster not because they avoid disk reads — the OS page cache already caches frequently-read data. The speed comes from avoiding the overhead of encoding data into a disk-friendly format. They can use richer data structures (sorted sets, priority queues) that can't be efficiently stored on disk.</p>
+
+<div class="callout">
+  <strong>Anti-caching</strong>: When an in-memory database grows beyond available RAM, it can evict least-recently-used records to disk and reload them on access — similar to virtual memory but at the database level, which is more efficient.
+</div>
+
+<!-- ============================================================ -->
+<h2>Bloom Filters</h2>
+
+<p>LSM-trees suffer from one key read problem: to look up a key that doesn't exist, you must check every SSTable level (and find nothing). A <strong>Bloom filter</strong> is a compact probabilistic data structure that can answer "is this key definitely NOT in this SSTable?" very efficiently.</p>
+
+<div class="diagram">
+  <div class="row" style="gap:1rem;justify-content:center;flex-wrap:wrap">
+    <div class="vflow">
+      <div class="box cyan">Query: is "elephant" in this SSTable?</div>
+    </div>
+    <div class="rarrow">→</div>
+    <div class="vflow">
+      <div class="box blue">Check Bloom filter (in RAM)</div>
+    </div>
+    <div class="rarrow">→</div>
+    <div style="display:flex;flex-direction:column;gap:.4rem">
+      <div class="row" style="gap:.5rem">
+        <div class="box red">"Definitely NO"</div>
+        <div class="label">→ skip this SSTable entirely</div>
+      </div>
+      <div class="row" style="gap:.5rem">
+        <div class="box green">"Probably YES"</div>
+        <div class="label">→ do the actual disk read</div>
+      </div>
+    </div>
+  </div>
+  <div style="font-size:.82rem;color:var(--muted);margin-top:.75rem;text-align:center">
+    False negative rate: 0% (it never says "no" when the key IS there). False positive rate: tunable (maybe 1% at 10 bits per key). Trade memory for fewer disk reads.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2>Summary: Choosing a Storage Engine</h2>
+
+<div class="table-wrap">
+<table>
+  <thead>
+    <tr>
+      <th>If your workload is...</th>
+      <th>Consider...</th>
+      <th>Why</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Write-heavy, time-series, event logs</td>
+      <td>LSM-tree (RocksDB, Cassandra)</td>
+      <td>Sequential writes, high throughput</td>
+    </tr>
+    <tr>
+      <td>Mixed reads/writes, OLTP</td>
+      <td>B-tree (PostgreSQL, InnoDB)</td>
+      <td>Predictable latency, simple transactions</td>
+    </tr>
+    <tr>
+      <td>Key-value with limited keys</td>
+      <td>Hash index (Bitcask/Riak)</td>
+      <td>O(1) reads when all keys fit in RAM</td>
+    </tr>
+    <tr>
+      <td>Full-text search</td>
+      <td>Lucene / Elasticsearch</td>
+      <td>Inverted index, fuzzy matching</td>
+    </tr>
+    <tr>
+      <td>Caching, session state</td>
+      <td>Redis / Memcached</td>
+      <td>In-memory, sub-millisecond, rich data types</td>
+    </tr>
+    <tr>
+      <td>Small dataset, read-heavy</td>
+      <td>In-memory database</td>
+      <td>No disk encoding overhead</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div style="margin-top:3rem;padding:1.5rem;background:var(--surface);border-radius:10px;border:1px solid var(--border)">
+  <div class="row" style="gap:2rem;flex-wrap:wrap">
+    <div>
+      <div style="font-size:.85rem;color:var(--muted)">← Previous</div>
+      <div style="margin:.3rem 0"><a href="chapter-3-part1.html" style="color:var(--accent);text-decoration:none">Part 1: Log-Structured Storage</a></div>
+    </div>
+    <div>
+      <div style="font-size:.85rem;color:var(--muted)">Next →</div>
+      <div style="margin:.3rem 0"><a href="chapter-3-part3.html" style="color:var(--accent);text-decoration:none">Part 3: OLAP, Data Warehousing &amp; Column Storage</a></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /.wrap -->
+</body>
+</html>

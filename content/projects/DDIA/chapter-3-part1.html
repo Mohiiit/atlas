@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Ch 3 Part 1 — Log-Structured Storage</title>
+<style>
+:root {
+  --bg:#0a0e17; --surface:#111827; --surface2:#1a2234; --border:#1e293b;
+  --text:#e2e8f0; --muted:#94a3b8; --accent:#3b82f6; --purple:#8b5cf6;
+  --green:#10b981; --red:#ef4444; --orange:#f59e0b; --pink:#ec4899; --cyan:#06b6d4;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.7;padding:2rem 1rem}
+.wrap{max-width:860px;margin:0 auto}
+h1{font-size:2rem;color:var(--accent);margin-bottom:.25rem}
+h2{font-size:1.4rem;color:var(--purple);margin:2.5rem 0 .75rem;padding-left:.75rem;border-left:3px solid var(--purple)}
+h3{font-size:1.1rem;color:var(--cyan);margin:1.5rem 0 .5rem}
+p{margin:.6rem 0;color:var(--text)}
+ul,ol{margin:.5rem 0 .5rem 1.5rem;color:var(--text)}
+li{margin:.25rem 0}
+code{background:var(--surface2);color:var(--cyan);padding:.1rem .4rem;border-radius:4px;font-size:.88rem}
+pre{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0;color:var(--green)}
+
+.nav{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:2rem}
+.nav a{padding:.4rem 1rem;border-radius:6px;text-decoration:none;font-size:.9rem;background:var(--surface2);color:var(--muted);border:1px solid var(--border);transition:.2s}
+.nav a.cur{background:var(--accent);color:#fff;border-color:var(--accent)}
+.nav a:hover:not(.cur){color:var(--text)}
+
+.subtitle{color:var(--muted);font-size:1rem;margin-bottom:2rem}
+
+.diagram{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.5rem;margin:1.2rem 0;overflow-x:auto}
+.box{display:inline-block;padding:.4rem .9rem;border-radius:6px;font-size:.85rem;font-weight:600;text-align:center}
+.box.blue{background:#1e3a5f;border:1px solid var(--accent);color:var(--accent)}
+.box.purple{background:#2d1b69;border:1px solid var(--purple);color:var(--purple)}
+.box.green{background:#064e3b;border:1px solid var(--green);color:var(--green)}
+.box.orange{background:#451a03;border:1px solid var(--orange);color:var(--orange)}
+.box.cyan{background:#0c4a6e;border:1px solid var(--cyan);color:var(--cyan)}
+.box.pink{background:#4a1942;border:1px solid var(--pink);color:var(--pink)}
+.box.red{background:#450a0a;border:1px solid var(--red);color:var(--red)}
+.box.muted{background:var(--surface2);border:1px solid var(--border);color:var(--muted)}
+
+.row{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin:.5rem 0}
+.vflow{display:flex;flex-direction:column;align-items:center;gap:.5rem}
+.arrow{color:var(--muted);font-size:1.2rem}
+.rarrow{color:var(--muted);font-size:1.1rem}
+.label{font-size:.78rem;color:var(--orange);font-style:italic}
+
+.callout{border-left:3px solid var(--orange);background:var(--surface2);padding:.8rem 1rem;border-radius:0 6px 6px 0;margin:1rem 0;font-size:.92rem}
+.callout.blue{border-left-color:var(--accent);background:#0c1a2e}
+.callout.green{border-left-color:var(--green);background:#052015}
+.callout.purple{border-left-color:var(--purple);background:#1a0d40}
+.callout.red{border-left-color:var(--red);background:#200}
+
+.pill{display:inline-block;padding:.2rem .6rem;border-radius:999px;font-size:.78rem;font-weight:600}
+.pill.green{background:#064e3b;color:var(--green)}
+.pill.red{background:#450a0a;color:var(--red)}
+.pill.blue{background:#1e3a5f;color:var(--accent)}
+.pill.orange{background:#451a03;color:var(--orange)}
+.pill.purple{background:#2d1b69;color:var(--purple)}
+
+.segment{display:flex;min-height:40px;border-radius:6px;overflow:hidden;margin:.3rem 0;font-size:.8rem}
+.seg-entry{display:flex;align-items:center;justify-content:center;padding:.3rem .6rem;border-right:1px solid var(--bg);font-weight:600;white-space:nowrap}
+
+.table-wrap{overflow-x:auto;margin:1rem 0}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th{background:var(--surface2);color:var(--accent);padding:.6rem .8rem;text-align:left;border:1px solid var(--border)}
+td{padding:.5rem .8rem;border:1px solid var(--border);color:var(--text);vertical-align:top}
+tr:nth-child(even) td{background:var(--surface)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="nav">
+  <a href="chapter-3-part1.html" class="cur">Part 1: Log-Structured Storage</a>
+  <a href="chapter-3-part2.html">Part 2: B-Trees &amp; Index Structures</a>
+  <a href="chapter-3-part3.html">Part 3: OLAP &amp; Column Storage</a>
+</div>
+
+<h1>Chapter 3 — Storage &amp; Retrieval</h1>
+<div class="subtitle">Part 1: How Databases Store Data — Logs, Hash Indexes, SSTables, and LSM-Trees</div>
+
+<p>A database must solve two problems: <strong>store data when you write it</strong>, and <strong>find data when you read it</strong>. These goals are surprisingly in tension — optimizing for one often hurts the other.</p>
+
+<p>As an application developer you usually don't choose a storage engine from scratch. But understanding how storage engines work helps you choose the right database and tune it for your access patterns.</p>
+
+<!-- ============================================================ -->
+<h2>The World's Simplest Database</h2>
+
+<p>Start from first principles. The simplest possible database is two bash functions:</p>
+
+<pre><code>#!/bin/bash
+db_set () {
+  echo "$1,$2" >> database   # append key,value to a file
+}
+db_get () {
+  grep "^$1," database | tail -n 1 | sed -e "s/^$1,//"
+}
+
+db_set 42 '{"name":"San Francisco","attractions":["Pier 39"]}'
+db_get 42   # → {"name":"San Francisco","attractions":["Pier 39"]}</code></pre>
+
+<p>This append-only log has surprisingly good performance for writes. Sequential disk writes are fast — much faster than random writes. But reads are O(n): <code>grep</code> scans the entire file every time.</p>
+
+<div class="diagram">
+  <div style="font-size:.85rem;color:var(--muted);margin-bottom:.75rem">The append-only log — fast writes, slow reads</div>
+  <div class="vflow">
+    <div class="segment" style="width:100%">
+      <div class="seg-entry" style="background:#0c4a6e;flex:2">42, {SF data}</div>
+      <div class="seg-entry" style="background:#064e3b;flex:2">123, {NY data}</div>
+      <div class="seg-entry" style="background:#451a03;flex:2">42, {SF updated}</div>
+      <div class="seg-entry" style="background:#2d1b69;flex:2">456, {LA data}</div>
+      <div class="seg-entry" style="background:#1e3a5f;flex:1">...</div>
+    </div>
+  </div>
+  <div class="row" style="margin-top:.75rem;gap:2rem;justify-content:center">
+    <div>
+      <span class="pill green">Write: O(1)</span>
+      <span style="font-size:.8rem;color:var(--muted);margin-left:.5rem">Just append to end</span>
+    </div>
+    <div>
+      <span class="pill red">Read: O(n)</span>
+      <span style="font-size:.8rem;color:var(--muted);margin-left:.5rem">Scan entire file, take last match</span>
+    </div>
+  </div>
+</div>
+
+<p>Note that <code>db_set</code> doesn't update in place — it <em>appends</em> a new entry. The most recent entry for a key wins. This is how <strong>log-structured</strong> databases work.</p>
+
+<div class="callout">
+  Why not update in place? Sequential writes are 10–100× faster than random writes on spinning disks, and even on SSDs. Immutable append-only logs are also easier to reason about for crash recovery.
+</div>
+
+<h3>Two Families of Storage Engines</h3>
+
+<div class="diagram">
+  <div class="row" style="justify-content:center;gap:3rem;flex-wrap:wrap">
+    <div class="vflow">
+      <div class="box blue" style="padding:.75rem 1.5rem">Log-Structured</div>
+      <div style="font-size:.82rem;color:var(--muted);margin-top:.5rem;text-align:center;max-width:200px">
+        Append-only files<br/>
+        Merge old segments<br/>
+        Never update in place<br/>
+        <span style="color:var(--green)">Examples: Bitcask, LevelDB, Cassandra</span>
+      </div>
+    </div>
+    <div class="vflow">
+      <div class="box purple" style="padding:.75rem 1.5rem">Page-Oriented</div>
+      <div style="font-size:.82rem;color:var(--muted);margin-top:.5rem;text-align:center;max-width:200px">
+        Fixed-size pages<br/>
+        Update pages in place<br/>
+        Tree structure (B-trees)<br/>
+        <span style="color:var(--purple)">Examples: PostgreSQL, MySQL InnoDB</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2>Hash Indexes (Bitcask)</h2>
+
+<p>The simplest way to speed up reads on a log: keep an in-memory <strong>hash map</strong> that maps every key to the byte offset of its most recent value in the log file.</p>
+
+<div class="diagram">
+  <div style="font-size:.85rem;color:var(--muted);margin-bottom:.75rem">Bitcask architecture</div>
+  <div class="row" style="gap:2rem;flex-wrap:wrap;align-items:flex-start">
+    <div class="vflow" style="flex:1;min-width:180px">
+      <div style="color:var(--cyan);font-size:.85rem;margin-bottom:.5rem;font-weight:700">In-Memory Hash Map</div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:.75rem;font-size:.8rem;min-width:160px">
+        <div class="row" style="justify-content:space-between;margin:.2rem 0">
+          <span style="color:var(--accent)">key: 42</span>
+          <span style="color:var(--orange)">→ offset 64</span>
+        </div>
+        <div class="row" style="justify-content:space-between;margin:.2rem 0">
+          <span style="color:var(--accent)">key: 123</span>
+          <span style="color:var(--orange)">→ offset 128</span>
+        </div>
+        <div class="row" style="justify-content:space-between;margin:.2rem 0">
+          <span style="color:var(--accent)">key: 456</span>
+          <span style="color:var(--orange)">→ offset 256</span>
+        </div>
+      </div>
+    </div>
+    <div class="arrow" style="font-size:2rem;align-self:center">→</div>
+    <div class="vflow" style="flex:2;min-width:240px">
+      <div style="color:var(--green);font-size:.85rem;margin-bottom:.5rem;font-weight:700">Disk: Append-Only Log</div>
+      <div class="segment" style="width:100%">
+        <div class="seg-entry" style="background:#0c4a6e;flex:2">offset 0<br/>key:42</div>
+        <div class="seg-entry" style="background:#064e3b;flex:2">offset 64<br/>key:123</div>
+        <div class="seg-entry" style="background:#451a03;flex:2">offset 128<br/>key:42 (new)</div>
+        <div class="seg-entry" style="background:#2d1b69;flex:2">offset 256<br/>key:456</div>
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:.75rem;font-size:.82rem;color:var(--muted)">
+    Read key 42 → look up hash map → offset 128 → seek to that position in file → return value. One disk seek!
+  </div>
+</div>
+
+<p>This is exactly how <strong>Bitcask</strong> (Riak's storage engine) works. All keys must fit in RAM (the hash map), but values can be larger than RAM since they stay on disk.</p>
+
+<h3>Compaction and Segment Merging</h3>
+
+<p>The log file grows forever — we need to reclaim space. Solution: <strong>segment files</strong> + <strong>compaction</strong>.</p>
+
+<div class="diagram">
+  <div style="font-size:.85rem;color:var(--muted);margin-bottom:.75rem">Step 1: Split log into fixed-size segments</div>
+  <div class="row" style="gap:.5rem;flex-wrap:wrap">
+    <div class="vflow">
+      <div style="font-size:.75rem;color:var(--muted)">Segment 1 (closed)</div>
+      <div class="segment">
+        <div class="seg-entry" style="background:#0c4a6e">k1=a</div>
+        <div class="seg-entry" style="background:#064e3b">k2=b</div>
+        <div class="seg-entry" style="background:#0c4a6e">k1=c</div>
+        <div class="seg-entry" style="background:#451a03">k3=d</div>
+      </div>
+    </div>
+    <div class="vflow">
+      <div style="font-size:.75rem;color:var(--muted)">Segment 2 (closed)</div>
+      <div class="segment">
+        <div class="seg-entry" style="background:#064e3b">k2=e</div>
+        <div class="seg-entry" style="background:#2d1b69">k4=f</div>
+        <div class="seg-entry" style="background:#064e3b">k2=g</div>
+      </div>
+    </div>
+    <div class="vflow">
+      <div style="font-size:.75rem;color:var(--muted)">Active (current writes)</div>
+      <div class="segment">
+        <div class="seg-entry" style="background:#451a03">k3=h</div>
+        <div class="seg-entry" style="background:#0c4a6e">k1=i</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:1rem;font-size:.85rem;color:var(--muted)">Step 2: Compact — keep only latest value per key</div>
+  <div class="row" style="gap:.5rem;flex-wrap:wrap;margin-top:.5rem">
+    <div class="vflow">
+      <div style="font-size:.75rem;color:var(--muted)">Merged + compacted</div>
+      <div class="segment">
+        <div class="seg-entry" style="background:#0c4a6e">k1=i</div>
+        <div class="seg-entry" style="background:#064e3b">k2=g</div>
+        <div class="seg-entry" style="background:#451a03">k3=h</div>
+        <div class="seg-entry" style="background:#2d1b69">k4=f</div>
+      </div>
+    </div>
+    <div class="label" style="align-self:center">← much smaller, one entry per key</div>
+  </div>
+</div>
+
+<p>Compaction happens in a background thread. The old segments are deleted once the new merged segment is written. Reads continue against the old segments until the merge is complete.</p>
+
+<h3>Practical Details That Make It Work</h3>
+<ul>
+  <li><strong>File format</strong>: Binary (length-prefixed records) rather than CSV — faster and handles arbitrary values</li>
+  <li><strong>Deletion</strong>: A special <em>tombstone</em> record; during compaction, tombstones suppress old values</li>
+  <li><strong>Crash recovery</strong>: Each segment file has a snapshot of its hash map on disk; rebuild from snapshot on startup</li>
+  <li><strong>Checksums</strong>: Detect partially-written records from crashes</li>
+  <li><strong>Concurrency</strong>: One writer thread; many reader threads (immutable segments)</li>
+</ul>
+
+<h3>Limitations of Hash Indexes</h3>
+<ul>
+  <li><strong>Range queries are slow</strong>: Hash maps don't support "find all keys between k100 and k200" — you'd need to scan every key individually</li>
+  <li><strong>Keys must fit in RAM</strong>: On-disk hash maps require many random I/Os and are too slow</li>
+</ul>
+
+<div class="callout">
+  Bitcask works brilliantly when you have a moderate number of keys but high write throughput — e.g., a key per video URL with a constantly-updated view count. Riak uses it for exactly this pattern.
+</div>
+
+<!-- ============================================================ -->
+<h2>SSTables and LSM-Trees</h2>
+
+<p>One change unlocks range queries and reduces memory requirements: require that within each segment file, key-value pairs are <strong>sorted by key</strong>. This is a <em>Sorted String Table</em> (SSTable).</p>
+
+<div class="diagram">
+  <div style="font-size:.85rem;color:var(--muted);margin-bottom:.75rem">SSTable vs unsorted log: keys are sorted within each segment</div>
+  <div class="row" style="gap:.5rem;flex-wrap:wrap">
+    <div class="vflow">
+      <div style="font-size:.75rem;color:var(--muted)">Segment 1 (sorted)</div>
+      <div class="segment">
+        <div class="seg-entry" style="background:#0c4a6e">dog</div>
+        <div class="seg-entry" style="background:#064e3b">fox</div>
+        <div class="seg-entry" style="background:#451a03">tree</div>
+        <div class="seg-entry" style="background:#2d1b69">zebra</div>
+      </div>
+    </div>
+    <div class="vflow">
+      <div style="font-size:.75rem;color:var(--muted)">Segment 2 (sorted)</div>
+      <div class="segment">
+        <div class="seg-entry" style="background:#0c4a6e">ant</div>
+        <div class="seg-entry" style="background:#064e3b">cat</div>
+        <div class="seg-entry" style="background:#451a03">dog</div>
+        <div class="seg-entry" style="background:#2d1b69">moon</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3>Advantages of Sorted Segments</h3>
+
+<div class="diagram">
+  <div style="margin-bottom:.75rem;font-size:.85rem;color:var(--muted)">1. Efficient merging — like merge sort</div>
+  <div class="row" style="gap:1rem;align-items:flex-start;flex-wrap:wrap">
+    <div class="vflow">
+      <div style="font-size:.75rem;color:var(--muted)">Input A</div>
+      <div style="background:var(--surface2);padding:.5rem;border-radius:4px;font-size:.8rem;line-height:1.8">
+        dog<br/>fox<br/>tree<br/>zebra
+      </div>
+    </div>
+    <div class="vflow">
+      <div style="font-size:.75rem;color:var(--muted)">Input B</div>
+      <div style="background:var(--surface2);padding:.5rem;border-radius:4px;font-size:.8rem;line-height:1.8">
+        ant<br/>cat<br/>dog<br/>moon
+      </div>
+    </div>
+    <div class="arrow" style="font-size:2rem;align-self:center">→</div>
+    <div class="vflow">
+      <div style="font-size:.75rem;color:var(--muted)">Merged output</div>
+      <div style="background:#052015;border:1px solid var(--green);padding:.5rem;border-radius:4px;font-size:.8rem;line-height:1.8;color:var(--green)">
+        ant<br/>cat<br/>dog (keep newer)<br/>fox<br/>moon<br/>tree<br/>zebra
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:.75rem;font-size:.82rem;color:var(--muted)">
+    Read pointers through both sorted segments simultaneously — efficient even if larger than RAM
+  </div>
+</div>
+
+<div class="diagram">
+  <div style="margin-bottom:.75rem;font-size:.85rem;color:var(--muted)">2. Sparse index — don't need all keys in memory</div>
+  <div style="display:grid;grid-template-columns:1fr 2fr;gap:1rem;align-items:center">
+    <div>
+      <div style="color:var(--cyan);font-size:.82rem;margin-bottom:.4rem">Sparse In-Memory Index</div>
+      <div style="background:var(--surface2);padding:.5rem;border-radius:4px;font-size:.8rem">
+        <div class="row" style="justify-content:space-between"><span style="color:var(--accent)">ant</span><span style="color:var(--orange)">→ offset 0</span></div>
+        <div class="row" style="justify-content:space-between"><span style="color:var(--accent)">dog</span><span style="color:var(--orange)">→ offset 256</span></div>
+        <div class="row" style="justify-content:space-between"><span style="color:var(--accent)">moon</span><span style="color:var(--orange)">→ offset 512</span></div>
+      </div>
+    </div>
+    <div style="font-size:.82rem;color:var(--muted)">
+      To find "fox": look up in sparse index — it's between "dog" (256) and "moon" (512). Scan from offset 256 to 512. Since file is sorted, we know fox must be there or it doesn't exist.
+    </div>
+  </div>
+</div>
+
+<div class="diagram">
+  <div style="margin-bottom:.75rem;font-size:.85rem;color:var(--muted)">3. Range queries — scan contiguous range</div>
+  <div class="row" style="gap:1rem">
+    <div class="box cyan">Seek to "ant"</div>
+    <div class="rarrow">→</div>
+    <div class="box green">Scan forward until "fox"</div>
+    <div class="rarrow">→</div>
+    <div class="box orange">Return all keys in range</div>
+  </div>
+  <div style="font-size:.8rem;color:var(--muted);margin-top:.5rem">
+    In unsorted hash index: would need to check every key individually. Here: one sequential scan.
+  </div>
+</div>
+
+<h3>Constructing SSTables: The Memtable</h3>
+
+<p>How do you keep segments sorted when writes can arrive in any order? The trick is an in-memory sorted data structure called a <strong>memtable</strong> (usually a red-black tree or AVL tree).</p>
+
+<div class="diagram">
+  <div style="font-size:.85rem;color:var(--muted);margin-bottom:1rem">Write path with memtable</div>
+  <div class="vflow">
+    <div class="box blue">Incoming write (arbitrary key order)</div>
+    <div class="arrow">↓</div>
+    <div class="box cyan">Memtable (in-memory sorted tree)</div>
+    <div style="font-size:.78rem;color:var(--muted)">insertions maintain sorted order</div>
+    <div class="arrow">↓</div>
+    <div style="font-size:.82rem;color:var(--orange)">when memtable exceeds threshold (~4MB)</div>
+    <div class="arrow">↓</div>
+    <div class="box green">Flush to SSTable on disk (already sorted)</div>
+    <div class="arrow">↓</div>
+    <div class="box blue">New memtable starts for future writes</div>
+  </div>
+</div>
+
+<div class="diagram">
+  <div style="font-size:.85rem;color:var(--muted);margin-bottom:1rem">Read path</div>
+  <div class="row" style="justify-content:center;gap:.5rem;flex-wrap:wrap">
+    <div class="box cyan">1. Check memtable</div>
+    <div class="rarrow">→</div>
+    <div class="box green">2. Most recent SSTable</div>
+    <div class="rarrow">→</div>
+    <div class="box green">3. Next older SSTable</div>
+    <div class="rarrow">→</div>
+    <div class="box muted">... older ...</div>
+  </div>
+  <div style="font-size:.8rem;color:var(--muted);margin-top:.5rem;text-align:center">
+    Bloom filters can skip SSTables that definitely don't contain the key (see Part 2)
+  </div>
+</div>
+
+<div class="callout red">
+  <strong>Crash safety problem</strong>: The memtable is in RAM. If the database crashes before flushing, those writes are lost. Solution: maintain a separate write-ahead log (WAL) on disk — append every write there first. Discard the WAL after a successful flush.
+</div>
+
+<h3>From Memtable + SSTables → LSM-Tree</h3>
+
+<p>This algorithm — <strong>Log-Structured Merge-Tree (LSM-Tree)</strong> — was originally described by O'Neil et al. (1996). LevelDB, RocksDB, Cassandra, and HBase all use variants of it.</p>
+
+<h3>Compaction Strategies</h3>
+
+<p>As more SSTables accumulate on disk, merging and compaction runs in the background. Two major strategies:</p>
+
+<div class="table-wrap">
+<table>
+  <thead>
+    <tr>
+      <th>Strategy</th>
+      <th>How It Works</th>
+      <th>Good For</th>
+      <th>Downside</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><span style="color:var(--accent);font-weight:700">Size-tiered</span></td>
+      <td>New smaller SSTables → merge into larger ones as sizes match. HBase, Cassandra.</td>
+      <td>Write-heavy workloads</td>
+      <td>Temporarily 2× space during compaction</td>
+    </tr>
+    <tr>
+      <td><span style="color:var(--purple);font-weight:700">Leveled</span></td>
+      <td>SSTables split into fixed size, organized into levels (L1, L2...). LevelDB, RocksDB.</td>
+      <td>Read-heavy, less space amplification</td>
+      <td>More I/O during compaction</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="diagram">
+  <div style="font-size:.85rem;color:var(--muted);margin-bottom:.75rem">Leveled compaction — each level ~10× larger than the previous</div>
+  <div class="vflow">
+    <div class="row" style="gap:.3rem">
+      <div class="box cyan" style="padding:.3rem .6rem;font-size:.78rem">L0</div>
+      <div style="font-size:.75rem;color:var(--muted)">← recently flushed SSTables (may overlap)</div>
+    </div>
+    <div class="row" style="gap:.3rem">
+      <div class="box blue" style="padding:.3rem .6rem;font-size:.78rem">L1 (~10MB)</div>
+      <div style="font-size:.75rem;color:var(--muted)">← no overlapping key ranges per file</div>
+    </div>
+    <div class="row" style="gap:.3rem">
+      <div class="box blue" style="padding:.3rem .6rem;font-size:.78rem">L2 (~100MB)</div>
+    </div>
+    <div class="row" style="gap:.3rem">
+      <div class="box blue" style="padding:.3rem .6rem;font-size:.78rem">L3 (~1GB)</div>
+    </div>
+    <div class="row" style="gap:.3rem">
+      <div class="box muted" style="padding:.3rem .6rem;font-size:.78rem">L4+ (~10GB+)</div>
+    </div>
+  </div>
+</div>
+
+<h3>Performance Characteristics of LSM-Trees</h3>
+
+<div class="diagram">
+  <div class="row" style="gap:2rem;justify-content:center;flex-wrap:wrap">
+    <div class="vflow" style="text-align:center">
+      <div class="pill green">Writes</div>
+      <div style="font-size:.82rem;color:var(--muted);margin-top:.4rem;max-width:160px">
+        Excellent. Sequential appends to memtable/WAL. No random I/O.
+      </div>
+    </div>
+    <div class="vflow" style="text-align:center">
+      <div class="pill orange">Reads</div>
+      <div style="font-size:.82rem;color:var(--muted);margin-top:.4rem;max-width:160px">
+        Good for recent keys. Slow for old keys (must check many SSTables). Bloom filters help.
+      </div>
+    </div>
+    <div class="vflow" style="text-align:center">
+      <div class="pill blue">Range queries</div>
+      <div style="font-size:.82rem;color:var(--muted);margin-top:.4rem;max-width:160px">
+        Excellent. Keys are sorted; sequential scan is fast.
+      </div>
+    </div>
+    <div class="vflow" style="text-align:center">
+      <div class="pill purple">Space</div>
+      <div style="font-size:.82rem;color:var(--muted);margin-top:.4rem;max-width:160px">
+        Moderate. Old values persist until compaction. Compaction uses extra space temporarily.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="callout blue">
+  <strong>Write amplification</strong>: LSM-trees write data multiple times as it moves through levels. One byte written by the application may trigger many bytes of disk I/O during compaction. This matters especially for SSDs which have limited write cycles.
+</div>
+
+<div style="margin-top:3rem;padding:1.5rem;background:var(--surface);border-radius:10px;border:1px solid var(--border)">
+  <div style="font-size:.85rem;color:var(--muted)">Next →</div>
+  <div style="margin:.5rem 0"><a href="chapter-3-part2.html" style="color:var(--accent);text-decoration:none">Part 2: B-Trees, Comparison with LSM-Trees, and Other Index Structures</a></div>
+</div>
+
+</div><!-- /.wrap -->
+</body>
+</html>
