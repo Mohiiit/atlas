@@ -3,984 +3,252 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DDIA Chapter 9 Part 1 — Linearizability and Ordering</title>
+<title>DDIA Ch 9 Part 1 — Linearizability</title>
 <style>
-  :root {
-    --bg: #0a0e17;
-    --surface: #111827;
-    --surface2: #1a2234;
-    --border: #1e293b;
-    --text: #e2e8f0;
-    --text-muted: #94a3b8;
-    --accent: #3b82f6;
-    --accent2: #8b5cf6;
-    --accent3: #10b981;
-    --red: #ef4444;
-    --orange: #f59e0b;
-    --pink: #ec4899;
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
-  .container { max-width: 900px; margin: 0 auto; padding: 40px 24px 100px; }
-  h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 48px; border-bottom: 1px solid var(--border); padding-bottom: 24px; }
-  h2 { font-size: 1.5rem; font-weight: 700; margin: 48px 0 16px; color: var(--accent); }
-  h3 { font-size: 1.15rem; font-weight: 600; margin: 32px 0 12px; color: var(--text); }
-  p { margin-bottom: 16px; color: var(--text-muted); }
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 20px 0; }
-  .card-accent { border-left: 4px solid var(--accent); }
-  .card-green { border-left: 4px solid var(--accent3); }
-  .card-orange { border-left: 4px solid var(--orange); }
-  .card-purple { border-left: 4px solid var(--accent2); }
-  .card-red { border-left: 4px solid var(--red); }
-  .card h4 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
-  .card ul { padding-left: 20px; color: var(--text-muted); }
-  .card li { margin-bottom: 6px; }
-  .key-term { color: var(--accent); font-weight: 600; }
-  .diagram { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 32px; margin: 24px 0; overflow-x: auto; }
-  .diagram-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent2); margin-bottom: 20px; }
-  .flow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; }
-  .flow-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; text-align: center; font-size: 0.9rem; min-width: 120px; }
-  .flow-box.primary { border-color: var(--accent); color: var(--accent); }
-  .flow-box.green { border-color: var(--accent3); color: var(--accent3); }
-  .flow-box.purple { border-color: var(--accent2); color: var(--accent2); }
-  .flow-box.orange { border-color: var(--orange); color: var(--orange); }
-  .flow-box.red { border-color: var(--red); color: var(--red); }
-  .flow-box.pink { border-color: var(--pink); color: var(--pink); }
-  .flow-arrow { color: var(--text-muted); font-size: 1.2rem; }
-  .flow-vert { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-  @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } .grid3 { grid-template-columns: 1fr; } }
-  .quote { background: var(--surface2); border-left: 3px solid var(--accent2); padding: 16px 20px; margin: 20px 0; border-radius: 0 8px 8px 0; font-style: italic; color: var(--text-muted); }
-  .tag { display: inline-block; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 2px 12px; font-size: 0.8rem; color: var(--text-muted); margin: 2px; }
-  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
-  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
-  th { color: var(--accent); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
-  td { color: var(--text-muted); }
-  .question-block { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin: 16px 0; overflow: hidden; }
-  .question-header { padding: 16px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 0.95rem; }
-  .question-header:hover { background: var(--surface2); }
-  .question-body { padding: 0 20px 16px; display: none; color: var(--text-muted); border-top: 1px solid var(--border); padding-top: 16px; }
-  .question-block.open .question-body { display: block; }
-  .q-num { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: var(--accent); color: white; border-radius: 50%; font-size: 0.8rem; font-weight: 700; margin-right: 12px; flex-shrink: 0; }
-  .chevron { transition: transform .2s; color: var(--text-muted); }
-  .question-block.open .chevron { transform: rotate(180deg); }
-  .section-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--accent2); font-weight: 700; margin-bottom: 8px; }
-  .arch-box { border: 2px solid var(--border); border-radius: 10px; padding: 16px; margin: 8px; text-align: center; }
-  .arch-box.blue { border-color: var(--accent); background: rgba(59,130,246,0.08); }
-  .arch-box.green { border-color: var(--accent3); background: rgba(16,185,129,0.08); }
-  .arch-box.purple { border-color: var(--accent2); background: rgba(139,92,246,0.08); }
-  .arch-box.orange { border-color: var(--orange); background: rgba(245,158,11,0.08); }
-  .arch-box.red { border-color: var(--red); background: rgba(239,68,68,0.08); }
-  .arch-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
-  .arch-detail { font-size: 0.8rem; color: var(--text-muted); }
-  .timeline { position: relative; padding-left: 32px; margin: 16px 0; }
-  .timeline::before { content: ''; position: absolute; left: 12px; top: 0; bottom: 0; width: 2px; background: var(--border); }
-  .timeline-item { position: relative; margin-bottom: 20px; }
-  .timeline-item::before { content: ''; position: absolute; left: -26px; top: 6px; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: 2px solid var(--surface2); }
-  .timeline-item.green::before { background: var(--accent3); }
-  .timeline-item.orange::before { background: var(--orange); }
-  .timeline-item.red::before { background: var(--red); }
-  .timeline-item.purple::before { background: var(--accent2); }
-  .timeline-title { font-weight: 600; font-size: 0.9rem; color: var(--text); }
-  .timeline-desc { font-size: 0.85rem; color: var(--text-muted); }
-
-  /* SVG diagrams */
-  .svg-diagram { width: 100%; overflow-x: auto; margin: 16px 0; }
-  .svg-diagram svg { display: block; margin: 0 auto; }
-  .svg-diagram text { font-family: 'Inter', -apple-system, sans-serif; }
-
-  /* Spectrum bar */
-  .spectrum { display: flex; align-items: stretch; border-radius: 8px; overflow: hidden; margin: 16px 0; height: 48px; }
-  .spectrum-seg { display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600; color: white; padding: 0 10px; white-space: nowrap; }
-
-  /* Number badge */
-  .number-badge { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; font-size: 0.85rem; font-weight: 700; margin-right: 8px; }
+:root {
+  --bg:#0a0e17; --surface:#111827; --surface2:#1a2234; --border:#1e293b;
+  --text:#e2e8f0; --muted:#94a3b8; --accent:#3b82f6; --purple:#8b5cf6;
+  --green:#10b981; --red:#ef4444; --orange:#f59e0b; --pink:#ec4899; --cyan:#06b6d4;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.7;padding:2rem 1rem}
+.wrap{max-width:860px;margin:0 auto}
+h1{font-size:2rem;color:var(--accent);margin-bottom:.25rem}
+h2{font-size:1.4rem;color:var(--purple);margin:2.5rem 0 .75rem;padding-left:.75rem;border-left:3px solid var(--purple)}
+h3{font-size:1.1rem;color:var(--cyan);margin:1.5rem 0 .5rem}
+p{margin:.6rem 0}ul,ol{margin:.5rem 0 .5rem 1.5rem}li{margin:.25rem 0}
+code{background:var(--surface2);color:var(--cyan);padding:.1rem .4rem;border-radius:4px;font-size:.88rem}
+.nav{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:2rem}
+.nav a{padding:.4rem 1rem;border-radius:6px;text-decoration:none;font-size:.9rem;background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
+.nav a.cur{background:var(--accent);color:#fff;border-color:var(--accent)}
+.subtitle{color:var(--muted);font-size:1rem;margin-bottom:2rem}
+.diagram{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.5rem;margin:1.2rem 0;overflow-x:auto}
+.box{display:inline-block;padding:.4rem .9rem;border-radius:6px;font-size:.85rem;font-weight:600;text-align:center}
+.box.blue{background:#1e3a5f;border:1px solid var(--accent);color:var(--accent)}
+.box.purple{background:#2d1b69;border:1px solid var(--purple);color:var(--purple)}
+.box.green{background:#064e3b;border:1px solid var(--green);color:var(--green)}
+.box.orange{background:#451a03;border:1px solid var(--orange);color:var(--orange)}
+.box.cyan{background:#0c4a6e;border:1px solid var(--cyan);color:var(--cyan)}
+.box.red{background:#450a0a;border:1px solid var(--red);color:var(--red)}
+.box.muted{background:var(--surface2);border:1px solid var(--border);color:var(--muted)}
+.row{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin:.5rem 0}
+.vflow{display:flex;flex-direction:column;align-items:center;gap:.5rem}
+.arrow{color:var(--muted);font-size:1.2rem}
+.rarrow{color:var(--muted);font-size:1.1rem}
+.callout{border-left:3px solid var(--orange);background:var(--surface2);padding:.8rem 1rem;border-radius:0 6px 6px 0;margin:1rem 0;font-size:.92rem}
+.callout.blue{border-left-color:var(--accent);background:#0c1a2e}
+.callout.green{border-left-color:var(--green);background:#052015}
+.callout.red{border-left-color:var(--red);background:#200}
+.table-wrap{overflow-x:auto;margin:1rem 0}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th{background:var(--surface2);color:var(--accent);padding:.6rem .8rem;text-align:left;border:1px solid var(--border)}
+td{padding:.5rem .8rem;border:1px solid var(--border);vertical-align:top}
+tr:nth-child(even) td{background:var(--surface)}
 </style>
 </head>
 <body>
-<div class="container">
-  <p class="section-label">DDIA -- Part II: Distributed Data</p>
-  <h1>Chapter 9, Part 1: Linearizability and Ordering</h1>
-  <p class="subtitle">Consistency and Consensus are deeply linked. This first part explores <strong>linearizability</strong> -- the strongest single-object consistency guarantee -- and <strong>ordering guarantees</strong> including causal ordering, Lamport timestamps, and total order broadcast, which together build the bridge to consensus.</p>
+<div class="wrap">
+<div class="nav">
+  <a href="chapter-9-consistency-consensus-part1.html" class="cur">Part 1: Linearizability</a>
+  <a href="chapter-9-consistency-consensus-part2.html">Part 2: Ordering &amp; Causality</a>
+  <a href="chapter-9-consistency-consensus-part3.html">Part 3: Consensus &amp; Q&amp;A</a>
+</div>
+<h1>Chapter 9 — Consistency and Consensus</h1>
+<div class="subtitle">Part 1: Linearizability — The Strongest Consistency Model</div>
 
-  <!-- ============================================================ -->
-  <!-- SECTION 1: Consistency Guarantees Spectrum                    -->
-  <!-- ============================================================ -->
-  <h2>1. The Spectrum of Consistency Guarantees</h2>
-  <p>Distributed databases offer a range of consistency models. Stronger models are easier to reason about but more expensive. Weaker models are performant and available but shift complexity to the application developer.</p>
+<p>Distributed systems offer many consistency guarantees, from the weakest (eventual consistency) to the strongest (linearizability). Chapter 9 explores what these guarantees actually mean and how to achieve the strongest ones.</p>
 
-  <div class="diagram">
-    <div class="diagram-title">Diagram 1 -- Consistency Models Spectrum (Weak to Strong)</div>
-    <div class="spectrum">
-      <div class="spectrum-seg" style="flex:2; background: var(--red);">Eventual</div>
-      <div class="spectrum-seg" style="flex:2; background: var(--orange);">Session / Read-your-writes</div>
-      <div class="spectrum-seg" style="flex:2; background: var(--accent2);">Causal</div>
-      <div class="spectrum-seg" style="flex:2; background: var(--accent);">Sequential</div>
-      <div class="spectrum-seg" style="flex:2; background: var(--accent3);">Linearizable</div>
-    </div>
-    <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-muted); margin-top:8px;">
-      <span>Weaker -- more available, faster</span>
-      <span>Stronger -- easier to reason about</span>
-    </div>
-  </div>
+<h2>Consistency Guarantees</h2>
+<p>Most replicated databases offer <em>eventual consistency</em>: if you stop writing, all replicas will eventually converge to the same value. But "eventually" gives you no timing guarantees, and in the meantime, different replicas return different data.</p>
 
-  <div class="grid2">
-    <div class="card card-red">
-      <h4>Eventual Consistency</h4>
-      <p style="margin:0;">If you stop writing, all replicas <em>eventually</em> converge. No timing guarantee. You may read stale data at any time.</p>
+<div class="diagram">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;font-size:.82rem">
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px;border-left:3px solid var(--orange)">
+      <div style="color:var(--orange);font-weight:700;margin-bottom:.3rem">Eventual consistency</div>
+      All replicas converge if you stop writing. In the meantime: stale reads, write conflicts, no ordering guarantees.<br/>
+      <span style="color:var(--muted);font-size:.78rem">Most NoSQL databases</span>
     </div>
-    <div class="card card-green">
-      <h4>Linearizability</h4>
-      <p style="margin:0;">System behaves as if there is a <strong>single copy</strong> of the data and all operations are <strong>atomic</strong>. A recency guarantee: reads always return the latest write.</p>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px;border-left:3px solid var(--green)">
+      <div style="color:var(--green);font-weight:700;margin-bottom:.3rem">Linearizability</div>
+      The system appears as if there is a single copy of data. Every read sees the most recent write. All operations appear to happen at a single point in time.<br/>
+      <span style="color:var(--muted);font-size:.78rem">ZooKeeper, etcd, Spanner</span>
     </div>
   </div>
+</div>
 
-  <div class="quote">"The idea behind linearizability is to make a system appear as if there were only one copy of the data, and all operations on it are atomic." -- Kleppmann</div>
+<h2>Linearizability</h2>
+<p>Linearizability (also called <em>atomic consistency</em> or <em>strong consistency</em>) is the strongest single-object consistency model. The core idea: make a distributed system appear as if it runs on a single machine with a single copy of data.</p>
 
-  <!-- ============================================================ -->
-  <!-- SECTION 2: What is Linearizability?                          -->
-  <!-- ============================================================ -->
-  <h2>2. What Makes a System Linearizable?</h2>
-  <p>Linearizability (also called <span class="key-term">atomic consistency</span>, <span class="key-term">strong consistency</span>, or <span class="key-term">external consistency</span>) is a <strong>recency guarantee</strong>: once a write completes, all subsequent reads must return that value (or a later one). The key insight is that there must be a single point in time during each operation when it "takes effect" atomically, and these points must form a valid sequential order.</p>
+<div class="callout blue">
+  Formal definition: A system is linearizable if every operation appears to take effect atomically at some single point in time between the operation's start and end. Once a write completes, all subsequent reads must see the new value.
+</div>
 
-  <h3>The Core Rules</h3>
-  <div class="card card-accent">
-    <h4>Three Requirements for Linearizability</h4>
-    <ul>
-      <li><strong>If op B starts after op A finishes</strong> -- B must see A's effect (or something later).</li>
-      <li><strong>Once any read returns a new value</strong> -- all subsequent reads (from any client) must also return the new value. No "flipping back."</li>
-      <li><strong>Each operation appears to take effect atomically</strong> at some instant between its invocation and completion.</li>
-    </ul>
+<h3>What Linearizability Looks Like</h3>
+<div class="diagram">
+  <div style="font-size:.82rem;color:var(--muted);margin-bottom:.75rem">Timeline — two clients, one shared variable x</div>
+  <div style="background:var(--surface2);padding:.75rem;border-radius:6px;font-size:.82rem;line-height:2">
+    <div style="color:var(--cyan)">Time →</div>
+    <div>Client A: write(x=1) ——————————[completes]</div>
+    <div>Client B: ———————————————————read(x) → must return 1</div>
+    <div style="margin-top:.5rem;color:var(--green)">Correct: B's read starts after A's write completes → B must see x=1</div>
+    <div style="margin-top:.3rem">Client C: read(x) → <span style="color:var(--orange)">might see 0 or 1</span> (overlaps with A's write)</div>
+    <div style="color:var(--muted);font-size:.8rem">C's read overlaps the write — could see either value, but once C sees 1, all subsequent reads must also return 1</div>
   </div>
+</div>
 
-  <h3>The Atomic Flip: 3 Clients Timeline</h3>
-  <div class="diagram">
-    <div class="diagram-title">Diagram 2 -- Linearizability Timeline (3 Clients, Atomic Flip)</div>
-    <div class="svg-diagram">
-      <svg viewBox="0 0 820 340" width="820" height="340">
-        <!-- Time axis -->
-        <line x1="80" y1="300" x2="780" y2="300" stroke="#94a3b8" stroke-width="1"/>
-        <text x="790" y="304" fill="#94a3b8" font-size="11">time --></text>
+<h3>Linearizability vs. Serializability</h3>
+<p>These two terms are often confused:</p>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Property</th><th>Linearizability</th><th>Serializability</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>Applies to</strong></td>
+      <td>Individual read/write operations on a single object</td>
+      <td>Transactions (multi-object, multi-step)</td>
+    </tr>
+    <tr>
+      <td><strong>What it guarantees</strong></td>
+      <td>Operations appear to happen at a single point in real time</td>
+      <td>Transactions appear to execute in some serial order</td>
+    </tr>
+    <tr>
+      <td><strong>Timing</strong></td>
+      <td>Must respect real-time ordering</td>
+      <td>Serial order needn't match real-time order</td>
+    </tr>
+    <tr>
+      <td><strong>Combined</strong></td>
+      <td colspan="2">Strict serializability = serializability + linearizability (most expensive, what Spanner provides)</td>
+    </tr>
+  </tbody>
+</table>
+</div>
 
-        <!-- Client labels -->
-        <text x="10" y="80" fill="#3b82f6" font-size="13" font-weight="700">Client A</text>
-        <text x="10" y="160" fill="#8b5cf6" font-size="13" font-weight="700">Client B</text>
-        <text x="10" y="240" fill="#10b981" font-size="13" font-weight="700">Client C</text>
+<h2>Relying on Linearizability</h2>
+<p>Which use cases actually require linearizability?</p>
 
-        <!-- Client A operations -->
-        <rect x="100" y="65" width="100" height="24" rx="4" fill="none" stroke="#3b82f6" stroke-width="2"/>
-        <text x="120" y="82" fill="#3b82f6" font-size="10">read(x)=0</text>
+<h3>1. Locking and Leader Election</h3>
+<p>A distributed lock must be linearizable: only one node can hold the lock at a time. Any linearizability violation means two nodes could both believe they hold the lock — split brain. ZooKeeper and etcd are used for this precisely because they provide linearizable reads and writes.</p>
 
-        <rect x="320" y="65" width="120" height="24" rx="4" fill="none" stroke="#3b82f6" stroke-width="2"/>
-        <text x="335" y="82" fill="#3b82f6" font-size="10">read(x)=1</text>
+<h3>2. Constraints and Uniqueness Guarantees</h3>
+<p>Enforcing a unique username, unique flight seat booking, or unique account number requires linearizability. Two users registering the same username simultaneously: if the check-then-set is not linearizable, both may succeed.</p>
 
-        <rect x="560" y="65" width="100" height="24" rx="4" fill="none" stroke="#3b82f6" stroke-width="2"/>
-        <text x="575" y="82" fill="#3b82f6" font-size="10">read(x)=1</text>
+<div class="diagram">
+  <div style="background:var(--surface2);padding:.75rem;border-radius:6px;font-size:.82rem;line-height:1.8">
+    <div>User A: check(username "alice" available?) → <span style="color:var(--green)">yes</span></div>
+    <div>User B: check(username "alice" available?) → <span style="color:var(--green)">yes</span></div>
+    <div>User A: register("alice") → OK</div>
+    <div>User B: register("alice") → OK</div>
+    <div style="margin-top:.3rem;color:var(--red)">Without linearizability: both succeed. Constraint violated.</div>
+    <div style="color:var(--green)">With linearizability: one succeeds, the other fails (sees "alice" taken).</div>
+  </div>
+</div>
 
-        <!-- Client B operations -->
-        <rect x="240" y="145" width="120" height="24" rx="4" fill="none" stroke="#8b5cf6" stroke-width="2"/>
-        <text x="255" y="162" fill="#8b5cf6" font-size="10">read(x)=0</text>
+<h3>3. Cross-Channel Timing Dependencies</h3>
+<p>If a system uses two different communication channels (e.g., file storage + message queue), linearizability violations can cause races:</p>
+<div class="diagram">
+  <div style="background:var(--surface2);padding:.75rem;border-radius:6px;font-size:.82rem;line-height:1.8">
+    1. User uploads photo → stored in file store<br/>
+    2. Server sends message to image resizer via queue: "resize photo at /path"<br/>
+    3. Resizer reads /path → <span style="color:var(--red)">gets old version</span> (replica hasn't caught up yet)<br/>
+    <span style="color:var(--orange)">File storage isn't linearizable: resizer reads stale data, produces wrong thumbnail.</span>
+  </div>
+</div>
 
-        <rect x="460" y="145" width="120" height="24" rx="4" fill="none" stroke="#8b5cf6" stroke-width="2"/>
-        <text x="475" y="162" fill="#8b5cf6" font-size="10">read(x)=1</text>
+<h2>Implementing Linearizable Systems</h2>
+<p>How can different replication strategies achieve linearizability?</p>
 
-        <!-- Client C write -->
-        <rect x="180" y="225" width="250" height="24" rx="4" fill="none" stroke="#10b981" stroke-width="2"/>
-        <text x="235" y="242" fill="#10b981" font-size="10">write(x, 0 -> 1) ok</text>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Replication style</th><th>Linearizable?</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>Single-leader (read from leader)</td>
+      <td><span style="color:var(--green)">Potentially yes</span></td>
+      <td>Leader has the latest data. But: if you can't identify the current leader, or the leader has stale data during failover, reads may be stale.</td>
+    </tr>
+    <tr>
+      <td>Single-leader (read from followers)</td>
+      <td><span style="color:var(--red)">No</span></td>
+      <td>Followers may lag. You may read stale data from an async follower.</td>
+    </tr>
+    <tr>
+      <td>Multi-leader</td>
+      <td><span style="color:var(--red)">No</span></td>
+      <td>Multiple nodes accept writes concurrently. Conflicts must be resolved. Inherently non-linearizable.</td>
+    </tr>
+    <tr>
+      <td>Leaderless (Dynamo-style)</td>
+      <td><span style="color:var(--red)">Probably not</span></td>
+      <td>Quorum reads/writes don't guarantee linearizability due to clock skew, concurrent writes, and read-repair races.</td>
+    </tr>
+    <tr>
+      <td>Consensus algorithms (Raft, Paxos)</td>
+      <td><span style="color:var(--green)">Yes</span></td>
+      <td>Designed to be linearizable. ZooKeeper, etcd are consensus-based. Reads from leader are linearizable; sync reads require round-trip.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
 
-        <!-- Atomic flip line -->
-        <line x1="350" y1="40" x2="350" y2="270" stroke="#ef4444" stroke-width="2" stroke-dasharray="6,4"/>
-        <text x="356" y="50" fill="#ef4444" font-size="10" font-weight="700">Atomic flip: x = 0 --> 1</text>
+<div class="callout">
+  Even single-leader setups can fail to be linearizable: if a node thinks it's the leader but has been replaced, it may serve stale reads. True linearizability requires confirming leadership on every read — a round-trip per read.
+</div>
 
-        <!-- Linearization points -->
-        <circle cx="150" cy="77" r="4" fill="#3b82f6"/>
-        <circle cx="380" cy="77" r="4" fill="#3b82f6"/>
-        <circle cx="610" cy="77" r="4" fill="#3b82f6"/>
-        <circle cx="300" cy="157" r="4" fill="#8b5cf6"/>
-        <circle cx="520" cy="157" r="4" fill="#8b5cf6"/>
-        <circle cx="350" cy="237" r="4" fill="#10b981"/>
+<h2>The Cost of Linearizability</h2>
+<p>Linearizability is expensive. The CAP theorem captures the core tension.</p>
 
-        <!-- Arrow: once A reads 1, B must also read 1 -->
-        <path d="M 440 77 Q 450 120 460 145" stroke="#f59e0b" stroke-width="1.5" fill="none" marker-end="url(#arrowOrange)"/>
-        <text x="455" y="118" fill="#f59e0b" font-size="9">B must see >= 1</text>
-
-        <defs>
-          <marker id="arrowOrange" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-            <polygon points="0 0, 8 3, 0 6" fill="#f59e0b"/>
-          </marker>
-        </defs>
-
-        <!-- Legend -->
-        <rect x="100" y="290" width="12" height="12" rx="2" fill="none" stroke="#94a3b8"/>
-        <text x="118" y="301" fill="#94a3b8" font-size="10">= operation duration</text>
-        <circle cx="230" cy="296" r="4" fill="#94a3b8"/>
-        <text x="240" y="301" fill="#94a3b8" font-size="10">= linearization point</text>
-        <line x1="350" y1="290" x2="370" y2="290" stroke="#ef4444" stroke-width="2" stroke-dasharray="4,3"/>
-        <text x="376" y="294" fill="#94a3b8" font-size="10">= atomic flip</text>
-      </svg>
+<h3>CAP Theorem</h3>
+<div class="diagram">
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;text-align:center;font-size:.82rem">
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--accent);font-weight:700;margin-bottom:.3rem">Consistency</div>
+      Every read sees the most recent write (linearizability). Safety property.
     </div>
-    <p style="font-size:0.85rem; margin-top:12px;">Each operation takes effect at its <strong>linearization point</strong> (dot). The value of x flips atomically from 0 to 1 at the red dashed line. Once Client A's read returns 1, Client B's subsequent read <em>must</em> also return 1 -- it cannot flip back to 0.</p>
-  </div>
-
-  <!-- ============================================================ -->
-  <!-- SECTION 3: Linearizability vs Serializability                -->
-  <!-- ============================================================ -->
-  <h2>3. Linearizability vs Serializability</h2>
-  <p>These two terms sound similar but describe fundamentally different guarantees. They can be combined into <span class="key-term">strict serializability</span> (strong-1SR).</p>
-
-  <div class="diagram">
-    <div class="diagram-title">Diagram 3 -- Comparison Table</div>
-    <table>
-      <thead>
-        <tr><th>Dimension</th><th>Linearizability</th><th>Serializability</th></tr>
-      </thead>
-      <tbody>
-        <tr><td><strong>What</strong></td><td>Recency guarantee on <em>single objects</em> (registers)</td><td>Isolation guarantee on <em>transactions</em> (multi-object)</td></tr>
-        <tr><td><strong>Scope</strong></td><td>Individual reads/writes</td><td>Entire transactions</td></tr>
-        <tr><td><strong>Ordering</strong></td><td>Real-time order must be preserved</td><td>Any equivalent serial order is fine</td></tr>
-        <tr><td><strong>Prevents</strong></td><td>Stale reads across clients</td><td>Serialization anomalies (dirty reads, write skew, ...)</td></tr>
-        <tr><td><strong>Does NOT prevent</strong></td><td>Write skew (multi-object)</td><td>Stale reads (can use old snapshot)</td></tr>
-        <tr><td><strong>Example systems</strong></td><td>ZooKeeper, etcd</td><td>2PL, actual serial execution</td></tr>
-        <tr><td><strong>Combined</strong></td><td colspan="2" style="text-align:center; color:var(--accent3);">Strict Serializability = Serializability + Linearizability (e.g., 2PL, serial execution)</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <div class="card card-orange">
-    <h4>Key Distinction</h4>
-    <p style="margin:0;"><strong>Serializable Snapshot Isolation (SSI)</strong> is serializable but <em>not</em> linearizable -- it reads from a consistent snapshot that intentionally excludes recent writes to avoid lock contention. <strong>2PL</strong> and <strong>actual serial execution</strong> are typically both serializable and linearizable.</p>
-  </div>
-
-  <!-- ============================================================ -->
-  <!-- SECTION 4: When Is Linearizability Needed?                   -->
-  <!-- ============================================================ -->
-  <h2>4. When Is Linearizability Needed?</h2>
-  <p>Linearizability is not always required, but there are three important scenarios where it is essential for correctness.</p>
-
-  <h3>Scenario 1: Locking and Leader Election</h3>
-  <div class="diagram">
-    <div class="diagram-title">Diagram 4 -- Leader Election via Linearizable Lock</div>
-    <div class="svg-diagram">
-      <svg viewBox="0 0 700 200" width="700" height="200">
-        <!-- Nodes -->
-        <rect x="40" y="30" width="100" height="50" rx="8" fill="rgba(16,185,129,0.15)" stroke="#10b981" stroke-width="2"/>
-        <text x="90" y="50" fill="#10b981" font-size="11" text-anchor="middle" font-weight="700">Node A</text>
-        <text x="90" y="68" fill="#10b981" font-size="9" text-anchor="middle">LEADER</text>
-
-        <rect x="200" y="30" width="100" height="50" rx="8" fill="rgba(59,130,246,0.08)" stroke="#1e293b" stroke-width="2"/>
-        <text x="250" y="55" fill="#94a3b8" font-size="11" text-anchor="middle">Node B</text>
-
-        <rect x="360" y="30" width="100" height="50" rx="8" fill="rgba(59,130,246,0.08)" stroke="#1e293b" stroke-width="2"/>
-        <text x="410" y="55" fill="#94a3b8" font-size="11" text-anchor="middle">Node C</text>
-
-        <!-- Lock store -->
-        <rect x="180" y="130" width="200" height="50" rx="8" fill="rgba(139,92,246,0.15)" stroke="#8b5cf6" stroke-width="2"/>
-        <text x="280" y="152" fill="#8b5cf6" font-size="11" text-anchor="middle" font-weight="700">Linearizable Lock</text>
-        <text x="280" y="168" fill="#8b5cf6" font-size="9" text-anchor="middle">(ZooKeeper / etcd)</text>
-
-        <!-- Arrows -->
-        <line x1="90" y1="80" x2="220" y2="130" stroke="#10b981" stroke-width="1.5" marker-end="url(#arrowGreen)"/>
-        <text x="120" y="112" fill="#10b981" font-size="9">acquire(lock) = OK</text>
-
-        <line x1="250" y1="80" x2="260" y2="130" stroke="#ef4444" stroke-width="1.5" marker-end="url(#arrowRed)"/>
-        <text x="264" y="112" fill="#ef4444" font-size="9">acquire = FAIL</text>
-
-        <line x1="410" y1="80" x2="350" y2="130" stroke="#ef4444" stroke-width="1.5" marker-end="url(#arrowRed)"/>
-        <text x="380" y="112" fill="#ef4444" font-size="9">acquire = FAIL</text>
-
-        <defs>
-          <marker id="arrowGreen" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-            <polygon points="0 0, 8 3, 0 6" fill="#10b981"/>
-          </marker>
-          <marker id="arrowRed" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-            <polygon points="0 0, 8 3, 0 6" fill="#ef4444"/>
-          </marker>
-        </defs>
-      </svg>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--green);font-weight:700;margin-bottom:.3rem">Availability</div>
+      Every request gets a response (not an error). Liveness property.
     </div>
-    <p style="font-size:0.85rem; margin-top:8px;">All nodes must <strong>agree</strong> on who holds the lock. If the lock is not linearizable, two nodes could both believe they are the leader (split brain), leading to data divergence and corruption.</p>
-  </div>
-
-  <h3>Scenario 2: Uniqueness Constraints</h3>
-  <div class="diagram">
-    <div class="diagram-title">Diagram 5 -- Concurrent Username Registration</div>
-    <div class="svg-diagram">
-      <svg viewBox="0 0 700 180" width="700" height="180">
-        <!-- Users -->
-        <rect x="40" y="20" width="120" height="40" rx="6" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="2"/>
-        <text x="100" y="45" fill="#3b82f6" font-size="11" text-anchor="middle">User Alice</text>
-
-        <rect x="40" y="100" width="120" height="40" rx="6" fill="rgba(139,92,246,0.15)" stroke="#8b5cf6" stroke-width="2"/>
-        <text x="100" y="125" fill="#8b5cf6" font-size="11" text-anchor="middle">User Bob</text>
-
-        <!-- Register -->
-        <rect x="280" y="50" width="180" height="60" rx="8" fill="rgba(16,185,129,0.12)" stroke="#10b981" stroke-width="2"/>
-        <text x="370" y="72" fill="#10b981" font-size="11" text-anchor="middle" font-weight="700">Linearizable Register</text>
-        <text x="370" y="92" fill="#10b981" font-size="9" text-anchor="middle">username="jdoe" : null -> ???</text>
-
-        <!-- Result -->
-        <rect x="560" y="20" width="120" height="40" rx="6" fill="rgba(16,185,129,0.15)" stroke="#10b981" stroke-width="2"/>
-        <text x="620" y="45" fill="#10b981" font-size="10" text-anchor="middle">CAS -> OK</text>
-
-        <rect x="560" y="100" width="120" height="40" rx="6" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="2"/>
-        <text x="620" y="125" fill="#ef4444" font-size="10" text-anchor="middle">CAS -> ERROR</text>
-
-        <!-- Arrows -->
-        <line x1="160" y1="40" x2="280" y2="70" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
-        <line x1="160" y1="120" x2="280" y2="90" stroke="#8b5cf6" stroke-width="1.5" marker-end="url(#arrowPurple)"/>
-        <line x1="460" y1="70" x2="560" y2="40" stroke="#10b981" stroke-width="1.5" marker-end="url(#arrowGreen2)"/>
-        <line x1="460" y1="90" x2="560" y2="120" stroke="#ef4444" stroke-width="1.5" marker-end="url(#arrowRed2)"/>
-
-        <text x="200" y="46" fill="#3b82f6" font-size="9">cas(jdoe, null, alice)</text>
-        <text x="200" y="112" fill="#8b5cf6" font-size="9">cas(jdoe, null, bob)</text>
-
-        <defs>
-          <marker id="arrowBlue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#3b82f6"/></marker>
-          <marker id="arrowPurple" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#8b5cf6"/></marker>
-          <marker id="arrowGreen2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#10b981"/></marker>
-          <marker id="arrowRed2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#ef4444"/></marker>
-        </defs>
-      </svg>
-    </div>
-    <p style="font-size:0.85rem; margin-top:8px;">An atomic <strong>compare-and-set</strong> on a linearizable register ensures exactly one user claims the username. The same principle applies to bank account balances, seat reservations, and stock levels.</p>
-  </div>
-
-  <h3>Scenario 3: Cross-Channel Timing Dependencies</h3>
-  <div class="diagram">
-    <div class="diagram-title">Diagram 6 -- Image Resizer Race Condition</div>
-    <div class="svg-diagram">
-      <svg viewBox="0 0 760 240" width="760" height="240">
-        <!-- Web Server -->
-        <rect x="40" y="80" width="120" height="50" rx="8" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="2"/>
-        <text x="100" y="110" fill="#3b82f6" font-size="11" text-anchor="middle" font-weight="700">Web Server</text>
-
-        <!-- File Storage -->
-        <rect x="280" y="20" width="160" height="50" rx="8" fill="rgba(16,185,129,0.12)" stroke="#10b981" stroke-width="2"/>
-        <text x="360" y="42" fill="#10b981" font-size="11" text-anchor="middle" font-weight="700">File Storage</text>
-        <text x="360" y="58" fill="#10b981" font-size="9" text-anchor="middle">(channel 1)</text>
-
-        <!-- Message Queue -->
-        <rect x="280" y="140" width="160" height="50" rx="8" fill="rgba(245,158,11,0.12)" stroke="#f59e0b" stroke-width="2"/>
-        <text x="360" y="162" fill="#f59e0b" font-size="11" text-anchor="middle" font-weight="700">Message Queue</text>
-        <text x="360" y="178" fill="#f59e0b" font-size="9" text-anchor="middle">(channel 2)</text>
-
-        <!-- Image Resizer -->
-        <rect x="560" y="80" width="140" height="50" rx="8" fill="rgba(139,92,246,0.12)" stroke="#8b5cf6" stroke-width="2"/>
-        <text x="630" y="110" fill="#8b5cf6" font-size="11" text-anchor="middle" font-weight="700">Image Resizer</text>
-
-        <!-- Arrows -->
-        <path d="M 160 90 L 280 45" stroke="#10b981" stroke-width="1.5" fill="none" marker-end="url(#arrowGreen3)"/>
-        <text x="190" y="55" fill="#10b981" font-size="9">1. Store image</text>
-
-        <path d="M 160 120 L 280 165" stroke="#f59e0b" stroke-width="1.5" fill="none" marker-end="url(#arrowOrange2)"/>
-        <text x="175" y="155" fill="#f59e0b" font-size="9">2. "Resize job" msg</text>
-
-        <path d="M 440 165 L 560 120" stroke="#f59e0b" stroke-width="1.5" fill="none" marker-end="url(#arrowOrange3)"/>
-        <text x="475" y="155" fill="#f59e0b" font-size="9">3. Receive msg</text>
-
-        <path d="M 560 95 L 440 45" stroke="#8b5cf6" stroke-width="1.5" fill="none" marker-end="url(#arrowPurple2)"/>
-        <text x="475" y="58" fill="#8b5cf6" font-size="9">4. Fetch image</text>
-
-        <!-- Danger zone -->
-        <rect x="490" y="60" width="90" height="22" rx="4" fill="rgba(239,68,68,0.2)" stroke="#ef4444" stroke-width="1"/>
-        <text x="535" y="75" fill="#ef4444" font-size="8" text-anchor="middle">stale read?</text>
-
-        <!-- Note -->
-        <text x="200" y="220" fill="#94a3b8" font-size="10">If msg queue is faster than storage replication, resizer may see old/empty image!</text>
-
-        <defs>
-          <marker id="arrowGreen3" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#10b981"/></marker>
-          <marker id="arrowOrange2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#f59e0b"/></marker>
-          <marker id="arrowOrange3" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#f59e0b"/></marker>
-          <marker id="arrowPurple2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#8b5cf6"/></marker>
-        </defs>
-      </svg>
-    </div>
-    <p style="font-size:0.85rem; margin-top:8px;">Two communication channels (file storage + message queue) create a race. If the storage is <strong>not linearizable</strong>, the queue message may arrive before the image is visible to the resizer, producing a permanently inconsistent thumbnail.</p>
-  </div>
-
-  <!-- ============================================================ -->
-  <!-- SECTION 5: Implementing Linearizable Systems                 -->
-  <!-- ============================================================ -->
-  <h2>5. Implementing Linearizable Systems</h2>
-  <p>Can replication strategies provide linearizability? The answer depends on the approach.</p>
-
-  <div class="diagram">
-    <div class="diagram-title">Diagram 7 -- Replication Strategies vs Linearizability</div>
-    <table>
-      <thead>
-        <tr><th>Replication Method</th><th>Linearizable?</th><th>Why / Caveats</th></tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><strong>Single-leader</strong></td>
-          <td style="color:var(--orange);">Potentially</td>
-          <td>Only if you read from the leader (or sync followers). Snapshot isolation breaks it. Delusional leaders break it. Async failover loses writes.</td>
-        </tr>
-        <tr>
-          <td><strong>Consensus algorithms</strong></td>
-          <td style="color:var(--accent3);">Yes</td>
-          <td>ZooKeeper, etcd. Built-in measures prevent split brain and stale replicas.</td>
-        </tr>
-        <tr>
-          <td><strong>Multi-leader</strong></td>
-          <td style="color:var(--red);">No</td>
-          <td>Concurrent writes on multiple nodes with async replication. Conflicting writes require resolution -- no single copy illusion.</td>
-        </tr>
-        <tr>
-          <td><strong>Leaderless (Dynamo-style)</strong></td>
-          <td style="color:var(--red);">Probably not</td>
-          <td>Even with strict quorums (w+r>n), race conditions possible. LWW with clocks is not linearizable. Sloppy quorums ruin it entirely.</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-
-  <div class="card card-purple">
-    <h4>Quorums Are Not Enough</h4>
-    <p style="margin-bottom:8px;">Even with strict quorums (w+r > n), a Dynamo-style system can violate linearizability: Client A reads the new value from a quorum, but concurrently Client B reads the old value from a different quorum. B started after A finished, so this is a linearizability violation.</p>
-    <p style="margin:0;">Making quorums linearizable requires <strong>synchronous read repair</strong> before returning results and writers reading latest state before writing. Even then, linearizable CAS requires a consensus algorithm.</p>
-  </div>
-
-  <!-- ============================================================ -->
-  <!-- SECTION 6: CAP Theorem                                       -->
-  <!-- ============================================================ -->
-  <h2>6. The CAP Theorem</h2>
-  <p>CAP is often misquoted as "pick 2 out of 3 (Consistency, Availability, Partition tolerance)." In reality, network partitions <em>will</em> happen whether you like it or not. The real question is: when a partition occurs, do you choose consistency or availability?</p>
-
-  <div class="diagram">
-    <div class="diagram-title">Diagram 8 -- Network Partition Scenario: Consistent or Available?</div>
-    <div class="svg-diagram">
-      <svg viewBox="0 0 780 320" width="780" height="320">
-        <!-- DC 1 -->
-        <rect x="30" y="40" width="280" height="200" rx="12" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="2" stroke-dasharray="0"/>
-        <text x="170" y="30" fill="#3b82f6" font-size="12" text-anchor="middle" font-weight="700">Datacenter 1</text>
-
-        <rect x="60" y="70" width="100" height="40" rx="6" fill="rgba(16,185,129,0.15)" stroke="#10b981" stroke-width="2"/>
-        <text x="110" y="95" fill="#10b981" font-size="10" text-anchor="middle" font-weight="700">Leader</text>
-
-        <rect x="60" y="140" width="100" height="35" rx="6" fill="rgba(59,130,246,0.08)" stroke="#1e293b" stroke-width="1.5"/>
-        <text x="110" y="162" fill="#94a3b8" font-size="10" text-anchor="middle">Follower</text>
-
-        <rect x="190" y="100" width="90" height="35" rx="6" fill="rgba(139,92,246,0.1)" stroke="#8b5cf6" stroke-width="1.5"/>
-        <text x="235" y="122" fill="#8b5cf6" font-size="10" text-anchor="middle">Client X</text>
-
-        <!-- DC 2 -->
-        <rect x="470" y="40" width="280" height="200" rx="12" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="2" stroke-dasharray="0"/>
-        <text x="610" y="30" fill="#ef4444" font-size="12" text-anchor="middle" font-weight="700">Datacenter 2</text>
-
-        <rect x="500" y="70" width="100" height="40" rx="6" fill="rgba(59,130,246,0.08)" stroke="#1e293b" stroke-width="1.5"/>
-        <text x="550" y="95" fill="#94a3b8" font-size="10" text-anchor="middle">Follower</text>
-
-        <rect x="500" y="140" width="100" height="35" rx="6" fill="rgba(59,130,246,0.08)" stroke="#1e293b" stroke-width="1.5"/>
-        <text x="550" y="162" fill="#94a3b8" font-size="10" text-anchor="middle">Follower</text>
-
-        <rect x="640" y="100" width="90" height="35" rx="6" fill="rgba(245,158,11,0.1)" stroke="#f59e0b" stroke-width="1.5"/>
-        <text x="685" y="122" fill="#f59e0b" font-size="10" text-anchor="middle">Client Y</text>
-
-        <!-- Network partition -->
-        <line x1="380" y1="40" x2="380" y2="250" stroke="#ef4444" stroke-width="3" stroke-dasharray="8,5"/>
-        <text x="365" y="270" fill="#ef4444" font-size="10" text-anchor="middle" font-weight="700">NETWORK</text>
-        <text x="365" y="285" fill="#ef4444" font-size="10" text-anchor="middle" font-weight="700">PARTITION</text>
-
-        <!-- X -->
-        <line x1="340" y1="100" x2="420" y2="100" stroke="#ef4444" stroke-width="3"/>
-        <line x1="355" y1="85" x2="405" y2="115" stroke="#ef4444" stroke-width="3"/>
-        <line x1="355" y1="115" x2="405" y2="85" stroke="#ef4444" stroke-width="3"/>
-
-        <!-- Choice boxes -->
-        <rect x="130" y="300" width="220" height="30" rx="6" fill="rgba(16,185,129,0.12)" stroke="#10b981" stroke-width="1.5"/>
-        <text x="240" y="320" fill="#10b981" font-size="10" text-anchor="middle" font-weight="600">Choose C: Client Y gets ERROR</text>
-
-        <rect x="430" y="300" width="220" height="30" rx="6" fill="rgba(245,158,11,0.12)" stroke="#f59e0b" stroke-width="1.5"/>
-        <text x="540" y="320" fill="#f59e0b" font-size="10" text-anchor="middle" font-weight="600">Choose A: Client Y gets STALE data</text>
-      </svg>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--orange);font-weight:700;margin-bottom:.3rem">Partition Tolerance</div>
+      System continues operating despite network partitions. Not optional — partitions happen.
     </div>
   </div>
-
-  <div class="card card-red">
-    <h4>"Consistent or Available when Partitioned"</h4>
-    <p style="margin-bottom:8px;">A better phrasing of CAP:</p>
-    <ul>
-      <li><strong>Choose Consistency (CP):</strong> Disconnected replicas refuse requests (return errors). System is <em>unavailable</em> but never returns stale data.</li>
-      <li><strong>Choose Availability (AP):</strong> Every replica processes requests independently. System stays up but may return stale/conflicting data.</li>
-    </ul>
-    <p style="margin:8px 0 0;">When the network is healthy, you get both C and A. The choice only matters <em>during a partition</em>.</p>
+  <div style="margin-top:.75rem;font-size:.82rem;color:var(--muted)">
+    During a network partition: you must choose C or A. You cannot have both.
   </div>
+</div>
 
-  <div class="card card-orange">
-    <h4>Why CAP Has Limited Practical Value</h4>
-    <ul>
-      <li>It only considers one consistency model (linearizability) and one fault type (network partitions).</li>
-      <li>It says nothing about network delays, dead nodes, or other trade-offs.</li>
-      <li>The real reason most systems drop linearizability is <strong>performance</strong>, not fault tolerance -- even multi-core CPU RAM is not linearizable (each core has its own cache).</li>
-      <li>Linearizability is <strong>inherently slow</strong>: response time is proportional to network delay uncertainty (proven by Attiya and Welch).</li>
-    </ul>
+<div class="callout red">
+  CAP is often misunderstood. A better framing: when a network partition occurs, a system must choose between (a) remaining available and serving potentially stale data, or (b) becoming unavailable until the partition heals. "CP" systems choose (b); "AP" systems choose (a). Most real systems are somewhere in between.
+</div>
+
+<h3>Network Partition and Linearizability</h3>
+<div class="diagram">
+  <div style="background:var(--surface2);padding:.75rem;border-radius:6px;font-size:.82rem;line-height:1.8">
+    Network partitioned: Node A and Node B cannot communicate.<br/>
+    Client 1 writes x=1 to Node A. Write completes.<br/>
+    Client 2 reads x from Node B.<br/>
+    <span style="color:var(--orange)">Option 1 (CP): Node B refuses the read (returns error). Linearizable, but unavailable.</span><br/>
+    <span style="color:var(--red)">Option 2 (AP): Node B returns x=0 (old value). Available, but not linearizable.</span><br/>
+    <span style="color:var(--muted);font-size:.78rem">No option satisfies both. This is the unavoidable CAP trade-off.</span>
   </div>
-
-  <!-- ============================================================ -->
-  <!-- SECTION 7: Ordering Guarantees                               -->
-  <!-- ============================================================ -->
-  <h2>7. Causal Ordering vs Total Ordering</h2>
-  <p>Ordering is deeply connected to consistency. The relationship between causal consistency and linearizability is captured by two different kinds of ordering.</p>
-
-  <div class="diagram">
-    <div class="diagram-title">Diagram 9 -- Total Order vs Partial (Causal) Order</div>
-    <div class="svg-diagram">
-      <svg viewBox="0 0 780 250" width="780" height="250">
-        <!-- Total order side -->
-        <text x="190" y="25" fill="#3b82f6" font-size="13" text-anchor="middle" font-weight="700">Total Order (Linearizability)</text>
-        <rect x="40" y="40" width="300" height="180" rx="10" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1.5"/>
-
-        <!-- Single timeline -->
-        <line x1="80" y1="130" x2="300" y2="130" stroke="#3b82f6" stroke-width="2"/>
-        <circle cx="100" cy="130" r="8" fill="#3b82f6"/>
-        <text x="100" y="155" fill="#94a3b8" font-size="9" text-anchor="middle">op1</text>
-        <circle cx="150" cy="130" r="8" fill="#3b82f6"/>
-        <text x="150" y="155" fill="#94a3b8" font-size="9" text-anchor="middle">op2</text>
-        <circle cx="200" cy="130" r="8" fill="#3b82f6"/>
-        <text x="200" y="155" fill="#94a3b8" font-size="9" text-anchor="middle">op3</text>
-        <circle cx="250" cy="130" r="8" fill="#3b82f6"/>
-        <text x="250" y="155" fill="#94a3b8" font-size="9" text-anchor="middle">op4</text>
-
-        <text x="190" y="200" fill="#94a3b8" font-size="10" text-anchor="middle">Single timeline, no concurrency.</text>
-        <text x="190" y="215" fill="#94a3b8" font-size="10" text-anchor="middle">Any two ops are comparable.</text>
-
-        <!-- Partial order side -->
-        <text x="590" y="25" fill="#8b5cf6" font-size="13" text-anchor="middle" font-weight="700">Partial Order (Causality)</text>
-        <rect x="440" y="40" width="300" height="180" rx="10" fill="rgba(139,92,246,0.06)" stroke="#8b5cf6" stroke-width="1.5"/>
-
-        <!-- DAG-like structure -->
-        <circle cx="510" cy="80" r="8" fill="#8b5cf6"/>
-        <text x="510" y="102" fill="#94a3b8" font-size="9" text-anchor="middle">op1</text>
-
-        <circle cx="570" cy="120" r="8" fill="#8b5cf6"/>
-        <text x="570" y="142" fill="#94a3b8" font-size="9" text-anchor="middle">op2</text>
-
-        <circle cx="510" cy="160" r="8" fill="#10b981"/>
-        <text x="510" y="182" fill="#94a3b8" font-size="9" text-anchor="middle">op3</text>
-
-        <circle cx="650" cy="80" r="8" fill="#10b981"/>
-        <text x="650" y="102" fill="#94a3b8" font-size="9" text-anchor="middle">op4</text>
-
-        <circle cx="680" cy="160" r="8" fill="#8b5cf6"/>
-        <text x="680" y="182" fill="#94a3b8" font-size="9" text-anchor="middle">op5</text>
-
-        <!-- Causal arrows -->
-        <line x1="518" y1="80" x2="562" y2="120" stroke="#8b5cf6" stroke-width="1.5" marker-end="url(#arrowP)"/>
-        <line x1="518" y1="88" x2="505" y2="152" stroke="#8b5cf6" stroke-width="1.5" marker-end="url(#arrowP)"/>
-        <line x1="658" y1="88" x2="672" y2="152" stroke="#10b981" stroke-width="1.5" marker-end="url(#arrowG4)"/>
-
-        <text x="600" y="200" fill="#f59e0b" font-size="9" text-anchor="middle">op2 || op4 (concurrent, incomparable)</text>
-        <text x="590" y="215" fill="#94a3b8" font-size="10" text-anchor="middle">Branches and merges, like Git.</text>
-
-        <defs>
-          <marker id="arrowP" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#8b5cf6"/></marker>
-          <marker id="arrowG4" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#10b981"/></marker>
-        </defs>
-      </svg>
-    </div>
-  </div>
-
-  <div class="grid2">
-    <div class="card card-accent">
-      <h4>Linearizability = Total Order</h4>
-      <p style="margin:0;">Single copy illusion. Every operation is on one timeline. For any two operations, one happened before the other. No concurrency exists.</p>
-    </div>
-    <div class="card card-purple">
-      <h4>Causality = Partial Order</h4>
-      <p style="margin:0;">Operations are ordered only if causally related. Concurrent (independent) operations are <em>incomparable</em> -- like Git branches that haven't merged.</p>
-    </div>
-  </div>
-
-  <div class="card card-green">
-    <h4>Linearizability Implies Causality (but not vice versa)</h4>
-    <p style="margin-bottom:8px;">Linearizability is strictly stronger than causal consistency. Any linearizable system automatically preserves causality. But causal consistency can be achieved <strong>without</strong> the performance cost of linearizability.</p>
-    <p style="margin:0;"><strong>Causal consistency is the strongest model that does not slow down due to network delays and remains available during network failures.</strong> The CAP theorem does not apply to causal consistency.</p>
-  </div>
-
-  <!-- ============================================================ -->
-  <!-- SECTION 8: Lamport Timestamps                                -->
-  <!-- ============================================================ -->
-  <h2>8. Lamport Timestamps</h2>
-  <p>How do you create a total ordering that is consistent with causality in a system with no single leader? <span class="key-term">Lamport timestamps</span> (Leslie Lamport, 1978) provide an elegant solution.</p>
-
-  <h3>How They Work</h3>
-  <div class="diagram">
-    <div class="diagram-title">Diagram 10 -- Lamport Timestamps in Action</div>
-    <div class="svg-diagram">
-      <svg viewBox="0 0 780 360" width="780" height="360">
-        <!-- Nodes -->
-        <text x="120" y="25" fill="#3b82f6" font-size="12" text-anchor="middle" font-weight="700">Node 1 (id=1)</text>
-        <text x="390" y="25" fill="#10b981" font-size="12" text-anchor="middle" font-weight="700">Node 2 (id=2)</text>
-        <text x="650" y="25" fill="#8b5cf6" font-size="12" text-anchor="middle" font-weight="700">Node 3 (id=3)</text>
-
-        <!-- Vertical timelines -->
-        <line x1="120" y1="40" x2="120" y2="330" stroke="#3b82f6" stroke-width="2" opacity="0.3"/>
-        <line x1="390" y1="40" x2="390" y2="330" stroke="#10b981" stroke-width="2" opacity="0.3"/>
-        <line x1="650" y1="40" x2="650" y2="330" stroke="#8b5cf6" stroke-width="2" opacity="0.3"/>
-
-        <!-- Node 1 events -->
-        <circle cx="120" cy="70" r="16" fill="rgba(59,130,246,0.2)" stroke="#3b82f6" stroke-width="2"/>
-        <text x="120" y="75" fill="#3b82f6" font-size="10" text-anchor="middle" font-weight="700">1</text>
-        <text x="150" y="75" fill="#94a3b8" font-size="9">(1,1)</text>
-
-        <circle cx="120" cy="200" r="16" fill="rgba(59,130,246,0.2)" stroke="#3b82f6" stroke-width="2"/>
-        <text x="120" y="205" fill="#3b82f6" font-size="10" text-anchor="middle" font-weight="700">6</text>
-        <text x="150" y="205" fill="#94a3b8" font-size="9">(6,1)</text>
-
-        <!-- Node 2 events -->
-        <circle cx="390" cy="100" r="16" fill="rgba(16,185,129,0.2)" stroke="#10b981" stroke-width="2"/>
-        <text x="390" y="105" fill="#10b981" font-size="10" text-anchor="middle" font-weight="700">1</text>
-        <text x="420" y="105" fill="#94a3b8" font-size="9">(1,2)</text>
-
-        <circle cx="390" cy="150" r="16" fill="rgba(16,185,129,0.2)" stroke="#10b981" stroke-width="2"/>
-        <text x="390" y="155" fill="#10b981" font-size="10" text-anchor="middle" font-weight="700">5</text>
-        <text x="420" y="155" fill="#94a3b8" font-size="9">(5,2)</text>
-
-        <!-- Node 3 events -->
-        <circle cx="650" cy="80" r="16" fill="rgba(139,92,246,0.2)" stroke="#8b5cf6" stroke-width="2"/>
-        <text x="650" y="85" fill="#8b5cf6" font-size="10" text-anchor="middle" font-weight="700">1</text>
-        <text x="680" y="85" fill="#94a3b8" font-size="9">(1,3)</text>
-
-        <circle cx="650" cy="260" r="16" fill="rgba(139,92,246,0.2)" stroke="#8b5cf6" stroke-width="2"/>
-        <text x="650" y="265" fill="#8b5cf6" font-size="10" text-anchor="middle" font-weight="700">7</text>
-        <text x="680" y="265" fill="#94a3b8" font-size="9">(7,3)</text>
-
-        <!-- Messages showing max propagation -->
-        <line x1="390" y1="150" x2="120" y2="195" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arrowY)"/>
-        <text x="225" y="165" fill="#f59e0b" font-size="9">carries max=5</text>
-        <text x="225" y="178" fill="#f59e0b" font-size="8">node 1 jumps 1->6</text>
-
-        <line x1="120" y1="205" x2="650" y2="255" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arrowY)"/>
-        <text x="370" y="240" fill="#f59e0b" font-size="9">carries max=6, node 3 jumps 1->7</text>
-
-        <!-- Algorithm box -->
-        <rect x="200" y="290" width="380" height="45" rx="8" fill="rgba(245,158,11,0.1)" stroke="#f59e0b" stroke-width="1.5"/>
-        <text x="390" y="310" fill="#f59e0b" font-size="10" text-anchor="middle" font-weight="600">Key rule: on receive, set counter = max(local, received) + 1</text>
-        <text x="390" y="325" fill="#94a3b8" font-size="9" text-anchor="middle">Timestamp = (counter, nodeId) -- ties broken by nodeId</text>
-
-        <defs>
-          <marker id="arrowY" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#f59e0b"/></marker>
-        </defs>
-      </svg>
-    </div>
-  </div>
-
-  <div class="card card-accent">
-    <h4>Lamport Timestamp = (counter, nodeId)</h4>
-    <ul>
-      <li>Each node maintains a counter, incremented on every operation.</li>
-      <li>Every request/response carries the node's current maximum counter.</li>
-      <li>When a node receives a counter greater than its own, it <strong>immediately jumps</strong> to that value.</li>
-      <li>Ties in counter are broken by node ID -- guaranteeing a unique total order.</li>
-      <li><strong>Consistent with causality:</strong> if A causally happened before B, then A's timestamp &lt; B's timestamp.</li>
-    </ul>
-  </div>
-
-  <h3>Why Lamport Timestamps Are Insufficient</h3>
-  <div class="diagram">
-    <div class="diagram-title">Diagram 11 -- The Username Problem: Timestamps Can't Decide in Real Time</div>
-    <div class="svg-diagram">
-      <svg viewBox="0 0 780 200" width="780" height="200">
-        <!-- Node 1 -->
-        <rect x="40" y="30" width="200" height="60" rx="8" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="2"/>
-        <text x="140" y="52" fill="#3b82f6" font-size="11" text-anchor="middle" font-weight="700">Node 1</text>
-        <text x="140" y="72" fill="#94a3b8" font-size="9" text-anchor="middle">register("jdoe") at ts=(3,1)</text>
-
-        <!-- Node 2 -->
-        <rect x="540" y="30" width="200" height="60" rx="8" fill="rgba(139,92,246,0.1)" stroke="#8b5cf6" stroke-width="2"/>
-        <text x="640" y="52" fill="#8b5cf6" font-size="11" text-anchor="middle" font-weight="700">Node 2</text>
-        <text x="640" y="72" fill="#94a3b8" font-size="9" text-anchor="middle">register("jdoe") at ts=(2,2)</text>
-
-        <!-- Question mark -->
-        <text x="390" y="65" fill="#ef4444" font-size="28" text-anchor="middle" font-weight="700">?</text>
-
-        <!-- Problem explanation -->
-        <rect x="120" y="120" width="540" height="60" rx="8" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.5"/>
-        <text x="390" y="142" fill="#ef4444" font-size="10" text-anchor="middle" font-weight="600">Node 1 doesn't know if Node 2 has a concurrent claim with a lower timestamp!</text>
-        <text x="390" y="160" fill="#94a3b8" font-size="10" text-anchor="middle">Would need to check ALL nodes -- if any is unreachable, system halts.</text>
-        <text x="390" y="175" fill="#94a3b8" font-size="9" text-anchor="middle">Total order only emerges after collecting ALL operations. Cannot decide in real time.</text>
-      </svg>
-    </div>
-  </div>
-
-  <div class="card card-red">
-    <h4>Lamport Timestamps: After-the-Fact, Not Real-Time</h4>
-    <ul>
-      <li>They provide a total order consistent with causality -- but only <strong>after collecting all operations</strong>.</li>
-      <li>A node receiving a request <em>right now</em> cannot decide if it should succeed or fail -- another node might have a concurrent operation with a lower timestamp.</li>
-      <li>To be sure, you'd need to check every other node, and if one is down, you're stuck.</li>
-      <li>This is why we need <strong>total order broadcast</strong>: to know when the order is <em>finalized</em>.</li>
-    </ul>
-  </div>
-
-  <div class="card card-orange">
-    <h4>Lamport Timestamps vs Version Vectors</h4>
-    <ul>
-      <li><strong>Version vectors</strong> can distinguish concurrent operations from causally ordered ones.</li>
-      <li><strong>Lamport timestamps</strong> always enforce a total order -- you <em>cannot</em> tell if two operations were concurrent or causal from timestamps alone.</li>
-      <li>Lamport timestamps are more <strong>compact</strong> (a single counter + nodeId vs a vector of counters).</li>
-    </ul>
-  </div>
-
-  <!-- ============================================================ -->
-  <!-- SECTION 9: Total Order Broadcast                             -->
-  <!-- ============================================================ -->
-  <h2>9. Total Order Broadcast</h2>
-  <p>Total order broadcast (also called <span class="key-term">atomic broadcast</span>) solves the problem Lamport timestamps cannot: it provides a <strong>finalized</strong> total order that nodes can act on in real time.</p>
-
-  <h3>Two Safety Properties</h3>
-  <div class="grid2">
-    <div class="card card-accent">
-      <h4>1. Reliable Delivery</h4>
-      <p style="margin:0;">No messages are lost. If a message is delivered to one node, it is delivered to <strong>all</strong> nodes.</p>
-    </div>
-    <div class="card card-purple">
-      <h4>2. Totally Ordered Delivery</h4>
-      <p style="margin:0;">Messages are delivered to every node in the <strong>same order</strong>. No node sees a different sequence.</p>
-    </div>
-  </div>
-
-  <h3>Uses of Total Order Broadcast</h3>
-  <div class="diagram">
-    <div class="diagram-title">Diagram 12 -- Total Order Broadcast Applications</div>
-    <div class="svg-diagram">
-      <svg viewBox="0 0 780 260" width="780" height="260">
-        <!-- Central log -->
-        <rect x="280" y="20" width="220" height="55" rx="10" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="2"/>
-        <text x="390" y="42" fill="#3b82f6" font-size="12" text-anchor="middle" font-weight="700">Total Order Broadcast</text>
-        <text x="390" y="60" fill="#94a3b8" font-size="9" text-anchor="middle">(append-only ordered log)</text>
-
-        <!-- Applications -->
-        <rect x="30" y="120" width="160" height="55" rx="8" fill="rgba(16,185,129,0.1)" stroke="#10b981" stroke-width="1.5"/>
-        <text x="110" y="142" fill="#10b981" font-size="10" text-anchor="middle" font-weight="700">State Machine Replication</text>
-        <text x="110" y="158" fill="#94a3b8" font-size="8" text-anchor="middle">Same writes, same order</text>
-        <text x="110" y="168" fill="#94a3b8" font-size="8" text-anchor="middle">= consistent replicas</text>
-
-        <rect x="220" y="120" width="160" height="55" rx="8" fill="rgba(139,92,246,0.1)" stroke="#8b5cf6" stroke-width="1.5"/>
-        <text x="300" y="142" fill="#8b5cf6" font-size="10" text-anchor="middle" font-weight="700">Serializable Txns</text>
-        <text x="300" y="158" fill="#94a3b8" font-size="8" text-anchor="middle">Each msg = deterministic</text>
-        <text x="300" y="168" fill="#94a3b8" font-size="8" text-anchor="middle">stored procedure</text>
-
-        <rect x="410" y="120" width="160" height="55" rx="8" fill="rgba(245,158,11,0.1)" stroke="#f59e0b" stroke-width="1.5"/>
-        <text x="490" y="142" fill="#f59e0b" font-size="10" text-anchor="middle" font-weight="700">Fencing Tokens</text>
-        <text x="490" y="158" fill="#94a3b8" font-size="8" text-anchor="middle">Log position = monotonic</text>
-        <text x="490" y="168" fill="#94a3b8" font-size="8" text-anchor="middle">sequence number (zxid)</text>
-
-        <rect x="600" y="120" width="160" height="55" rx="8" fill="rgba(236,72,153,0.1)" stroke="#ec4899" stroke-width="1.5"/>
-        <text x="680" y="142" fill="#ec4899" font-size="10" text-anchor="middle" font-weight="700">Uniqueness / CAS</text>
-        <text x="680" y="158" fill="#94a3b8" font-size="8" text-anchor="middle">First msg for a key wins;</text>
-        <text x="680" y="168" fill="#94a3b8" font-size="8" text-anchor="middle">all nodes agree on first</text>
-
-        <!-- Arrows from log to apps -->
-        <line x1="340" y1="75" x2="110" y2="120" stroke="#10b981" stroke-width="1.5" marker-end="url(#arrowG5)"/>
-        <line x1="370" y1="75" x2="300" y2="120" stroke="#8b5cf6" stroke-width="1.5" marker-end="url(#arrowP3)"/>
-        <line x1="420" y1="75" x2="490" y2="120" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrowY2)"/>
-        <line x1="450" y1="75" x2="680" y2="120" stroke="#ec4899" stroke-width="1.5" marker-end="url(#arrowPk)"/>
-
-        <!-- Equivalence box -->
-        <rect x="170" y="210" width="440" height="40" rx="8" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="5,3"/>
-        <text x="390" y="228" fill="#3b82f6" font-size="10" text-anchor="middle" font-weight="600">Linearizable CAS + Total Order Broadcast + Consensus</text>
-        <text x="390" y="243" fill="#94a3b8" font-size="9" text-anchor="middle">All three are EQUIVALENT -- solving one gives you the others</text>
-
-        <defs>
-          <marker id="arrowG5" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#10b981"/></marker>
-          <marker id="arrowP3" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#8b5cf6"/></marker>
-          <marker id="arrowY2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#f59e0b"/></marker>
-          <marker id="arrowPk" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#ec4899"/></marker>
-        </defs>
-      </svg>
-    </div>
-  </div>
-
-  <h3>Implementing Linearizable Storage from Total Order Broadcast</h3>
-  <div class="card card-green">
-    <h4>Linearizable CAS via Total Order Broadcast (Username Example)</h4>
-    <div class="timeline">
-      <div class="timeline-item">
-        <div class="timeline-title">Step 1: Append to log</div>
-        <div class="timeline-desc">Append a message: "I want to claim username 'jdoe'"</div>
-      </div>
-      <div class="timeline-item green">
-        <div class="timeline-title">Step 2: Wait for delivery</div>
-        <div class="timeline-desc">Read the log and wait until your own message is delivered back to you.</div>
-      </div>
-      <div class="timeline-item purple">
-        <div class="timeline-title">Step 3: Check for conflicts</div>
-        <div class="timeline-desc">If the first message claiming "jdoe" is yours -- success! Commit. If someone else's message came first -- abort.</div>
-      </div>
-    </div>
-    <p style="margin-top:12px; font-size:0.85rem;">Because all nodes see messages in the same order, they all agree on who "won." This gives linearizable <strong>writes</strong>. For linearizable <strong>reads</strong>, you must also sequence reads through the log (or use sync replicas).</p>
-  </div>
-
-  <h3>The Other Direction: Total Order Broadcast from Linearizable Storage</h3>
-  <div class="card card-accent">
-    <h4>Using a Linearizable Integer Register</h4>
-    <ul>
-      <li>Assume a linearizable register with an atomic <strong>increment-and-get</strong> operation.</li>
-      <li>For every message, call increment-and-get to get the next sequence number.</li>
-      <li>Attach that number to the message; recipients deliver messages in sequence-number order.</li>
-      <li>Unlike Lamport timestamps, these numbers have <strong>no gaps</strong> -- if you have msg 4 and receive msg 6, you <em>know</em> msg 5 exists and must wait for it.</li>
-    </ul>
-  </div>
-
-  <h3>The Equivalence</h3>
-  <div class="diagram">
-    <div class="diagram-title">Diagram 13 -- The Consensus Equivalence Triangle</div>
-    <div class="svg-diagram">
-      <svg viewBox="0 0 500 280" width="500" height="280">
-        <!-- Triangle -->
-        <polygon points="250,40 80,230 420,230" fill="none" stroke="#3b82f6" stroke-width="2"/>
-
-        <!-- Nodes -->
-        <rect x="175" y="20" width="150" height="40" rx="8" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="2"/>
-        <text x="250" y="45" fill="#3b82f6" font-size="11" text-anchor="middle" font-weight="700">Consensus</text>
-
-        <rect x="5" y="215" width="150" height="40" rx="8" fill="rgba(16,185,129,0.15)" stroke="#10b981" stroke-width="2"/>
-        <text x="80" y="240" fill="#10b981" font-size="11" text-anchor="middle" font-weight="700">Total Order Broadcast</text>
-
-        <rect x="345" y="215" width="150" height="40" rx="8" fill="rgba(139,92,246,0.15)" stroke="#8b5cf6" stroke-width="2"/>
-        <text x="420" y="240" fill="#8b5cf6" font-size="11" text-anchor="middle" font-weight="700">Linearizable CAS</text>
-
-        <!-- Bidirectional arrows with labels -->
-        <text x="135" y="140" fill="#f59e0b" font-size="9" text-anchor="middle" transform="rotate(-50, 135, 140)">equivalent</text>
-        <text x="365" y="140" fill="#f59e0b" font-size="9" text-anchor="middle" transform="rotate(50, 365, 140)">equivalent</text>
-        <text x="250" y="265" fill="#f59e0b" font-size="9" text-anchor="middle">equivalent</text>
-      </svg>
-    </div>
-    <p style="font-size:0.85rem; margin-top:12px;">This is a profound result: a linearizable compare-and-set register, total order broadcast, and consensus are all <strong>equivalent problems</strong>. If you can solve one, you can build the other two. This insight connects Part 1 (linearizability and ordering) to Part 2 (consensus algorithms like Raft, Paxos, Zab).</p>
-  </div>
-
-  <!-- ============================================================ -->
-  <!-- SECTION 10: Summary Concept Map                              -->
-  <!-- ============================================================ -->
-  <h2>10. Chapter Map: How It All Connects</h2>
-
-  <div class="diagram">
-    <div class="diagram-title">Diagram 14 -- Concept Dependency Map</div>
-    <div class="svg-diagram">
-      <svg viewBox="0 0 780 300" width="780" height="300">
-        <!-- Linearizability -->
-        <rect x="280" y="10" width="200" height="40" rx="8" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="2"/>
-        <text x="380" y="35" fill="#3b82f6" font-size="12" text-anchor="middle" font-weight="700">Linearizability</text>
-
-        <!-- Implies -->
-        <line x1="380" y1="50" x2="380" y2="80" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowGray)"/>
-        <text x="395" y="70" fill="#94a3b8" font-size="8">implies</text>
-
-        <!-- Causal Consistency -->
-        <rect x="290" y="80" width="180" height="35" rx="8" fill="rgba(16,185,129,0.12)" stroke="#10b981" stroke-width="1.5"/>
-        <text x="380" y="103" fill="#10b981" font-size="11" text-anchor="middle" font-weight="600">Causal Consistency</text>
-
-        <!-- Branches -->
-        <line x1="290" y1="97" x2="140" y2="150" stroke="#94a3b8" stroke-width="1" marker-end="url(#arrowGray)"/>
-        <line x1="470" y1="97" x2="600" y2="150" stroke="#94a3b8" stroke-width="1" marker-end="url(#arrowGray)"/>
-
-        <!-- Left: Sequence Number Ordering -->
-        <rect x="40" y="150" width="200" height="35" rx="8" fill="rgba(245,158,11,0.12)" stroke="#f59e0b" stroke-width="1.5"/>
-        <text x="140" y="173" fill="#f59e0b" font-size="10" text-anchor="middle" font-weight="600">Sequence Number Ordering</text>
-
-        <!-- Lamport -->
-        <line x1="140" y1="185" x2="140" y2="210" stroke="#94a3b8" stroke-width="1" marker-end="url(#arrowGray)"/>
-        <rect x="40" y="210" width="200" height="35" rx="8" fill="rgba(245,158,11,0.08)" stroke="#f59e0b" stroke-width="1"/>
-        <text x="140" y="232" fill="#f59e0b" font-size="10" text-anchor="middle">Lamport Timestamps</text>
-
-        <!-- Insufficient -->
-        <line x1="240" y1="228" x2="340" y2="255" stroke="#ef4444" stroke-width="1" stroke-dasharray="4,3"/>
-        <text x="290" y="248" fill="#ef4444" font-size="8">insufficient alone</text>
-
-        <!-- Right: Total Order -->
-        <rect x="500" y="150" width="200" height="35" rx="8" fill="rgba(139,92,246,0.12)" stroke="#8b5cf6" stroke-width="1.5"/>
-        <text x="600" y="173" fill="#8b5cf6" font-size="10" text-anchor="middle" font-weight="600">Total Order Broadcast</text>
-
-        <!-- Consensus -->
-        <line x1="600" y1="185" x2="480" y2="250" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowGray)"/>
-        <rect x="340" y="250" width="260" height="40" rx="8" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="2"/>
-        <text x="470" y="275" fill="#3b82f6" font-size="12" text-anchor="middle" font-weight="700">CONSENSUS (Part 2)</text>
-
-        <!-- CAP off to the side -->
-        <rect x="560" y="30" width="140" height="30" rx="6" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1"/>
-        <text x="630" y="50" fill="#ef4444" font-size="9" text-anchor="middle">CAP Theorem</text>
-        <line x1="480" y1="30" x2="560" y2="40" stroke="#ef4444" stroke-width="1" stroke-dasharray="4,3"/>
-        <text x="520" y="25" fill="#ef4444" font-size="7">cost of</text>
-
-        <defs>
-          <marker id="arrowGray" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#94a3b8"/></marker>
-        </defs>
-      </svg>
-    </div>
-  </div>
-
-  <!-- ============================================================ -->
-  <!-- REVIEW QUESTIONS                                             -->
-  <!-- ============================================================ -->
-  <h2>Review Questions</h2>
-
-  <div class="question-block" onclick="this.classList.toggle('open')">
-    <div class="question-header">
-      <span><span class="q-num">1</span>A system uses strict quorums (w + r > n) with Dynamo-style replication. Is it linearizable? Why or why not?</span>
-      <span class="chevron">&#9662;</span>
-    </div>
-    <div class="question-body">
-      <p><strong>No, it is probably not linearizable.</strong> Even with strict quorums, race conditions are possible due to variable network delays. Client A can read the new value from its quorum while concurrently Client B reads the old value from a different quorum -- even though B's request started after A's completed. Making it linearizable requires synchronous read repair before returning results and writers reading latest state before writing, and even then a linearizable compare-and-set requires a consensus algorithm. Systems like Cassandra and Riak do not guarantee linearizability with quorums.</p>
-    </div>
-  </div>
-
-  <div class="question-block" onclick="this.classList.toggle('open')">
-    <div class="question-header">
-      <span><span class="q-num">2</span>An engineer says "Our system provides serializability, so it must also be linearizable." Is this correct?</span>
-      <span class="chevron">&#9662;</span>
-    </div>
-    <div class="question-body">
-      <p><strong>Not necessarily.</strong> Serializability and linearizability are different guarantees. Serializability is an isolation property of transactions (multi-object), while linearizability is a recency guarantee on individual objects. Serializable Snapshot Isolation (SSI) is serializable but explicitly not linearizable -- it reads from a consistent snapshot that excludes recent writes. However, 2PL and actual serial execution are typically both serializable and linearizable (strict serializability).</p>
-    </div>
-  </div>
-
-  <div class="question-block" onclick="this.classList.toggle('open')">
-    <div class="question-header">
-      <span><span class="q-num">3</span>Why can't Lamport timestamps alone solve the unique username problem in a distributed system?</span>
-      <span class="chevron">&#9662;</span>
-    </div>
-    <div class="question-body">
-      <p>Lamport timestamps provide a total order consistent with causality, but this order only emerges <strong>after collecting all operations</strong>. When a node receives a username registration request right now, it cannot determine whether another node is concurrently processing a registration for the same username with a lower timestamp. To find out, it would have to check every node -- and if any node is unreachable, the system halts. The total order is an after-the-fact ordering, not a real-time decision mechanism. This is why we need total order broadcast, which tells you when the order is finalized.</p>
-    </div>
-  </div>
-
-  <div class="question-block" onclick="this.classList.toggle('open')">
-    <div class="question-header">
-      <span><span class="q-num">4</span>A startup deploys multi-leader replication across three datacenters. Can they offer linearizable reads to users? What trade-off are they making?</span>
-      <span class="chevron">&#9662;</span>
-    </div>
-    <div class="question-body">
-      <p><strong>No.</strong> Multi-leader replication is fundamentally not linearizable because writes are processed concurrently on multiple leaders and asynchronously replicated. There is no single copy of the data. Conflicting writes require resolution (last-write-wins, merge, etc.), which is an artifact of not having linearizability. The trade-off is: they gain <strong>availability during network partitions</strong> and lower write latency (writes are local to each datacenter), but lose the guarantee that all clients see the same, most recent data. This is the "Available when Partitioned" choice from CAP.</p>
-    </div>
-  </div>
-
-  <div class="question-block" onclick="this.classList.toggle('open')">
-    <div class="question-header">
-      <span><span class="q-num">5</span>Explain how total order broadcast can be used to implement a linearizable compare-and-set register. What additional step is needed for linearizable reads?</span>
-      <span class="chevron">&#9662;</span>
-    </div>
-    <div class="question-body">
-      <p><strong>Linearizable writes via total order broadcast:</strong> (1) Append a tentative claim message to the log. (2) Wait for your message to be delivered back. (3) Check if yours is the first message for that key -- if yes, commit; if no, abort. All nodes see the same order, so they agree on who wins.</p>
-      <p><strong>For linearizable reads:</strong> The above only gives sequential consistency (writes are linearizable, but reads from an async replica may be stale). Three options: (a) sequence reads through the log too (append a read message, wait for delivery, then read); (b) fetch the latest log position in a linearizable way, wait for all entries up to that position, then read (ZooKeeper's sync()); (c) read from a synchronously updated replica (chain replication).</p>
-    </div>
-  </div>
-
-  <div class="question-block" onclick="this.classList.toggle('open')">
-    <div class="question-header">
-      <span><span class="q-num">6</span>Why is causal consistency considered the "sweet spot" for distributed systems? How does it relate to linearizability and the CAP theorem?</span>
-      <span class="chevron">&#9662;</span>
-    </div>
-    <div class="question-body">
-      <p>Causal consistency is the <strong>strongest possible consistency model that does not slow down due to network delays and remains available during network failures</strong>. Unlike linearizability, it does not require coordinating through a single point (no single timeline), so the CAP theorem does not apply -- you can have causal consistency even during partitions.</p>
-      <p>Linearizability implies causality (any linearizable system is also causally consistent), but causal consistency is strictly weaker -- it only orders operations that are causally related and allows concurrent operations to be unordered. Many systems that seem to require linearizability actually only need causal consistency, which can be implemented more efficiently. The trade-off: causal consistency cannot enforce constraints like uniqueness (that requires knowing the finalized order), but it handles most read-after-write and ordering requirements correctly.</p>
-    </div>
-  </div>
-
+</div>
+
+<h3>Linearizability and Performance</h3>
+<p>Even without partitions, linearizability is slow. Achieving it requires:</p>
+<ul>
+  <li>Reading from the leader (or doing a round-trip to confirm leadership)</li>
+  <li>Every read potentially waiting for in-progress writes to complete</li>
+  <li>Replication latency adds to read/write latency</li>
+</ul>
+<p>This is why multi-datacenter systems (multi-leader or leaderless) often sacrifice linearizability for lower latency — the cross-DC round-trip needed for linearizable reads is too expensive.</p>
+
+<div style="margin-top:3rem;padding:1.5rem;background:var(--surface);border-radius:10px;border:1px solid var(--border)">
+  <div style="font-size:.85rem;color:var(--muted)">Next →</div>
+  <div><a href="chapter-9-consistency-consensus-part2.html" style="color:var(--accent);text-decoration:none">Part 2: Ordering, Causality &amp; Sequence Numbers</a></div>
+</div>
 </div>
 </body>
 </html>

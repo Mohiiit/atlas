@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Ch 9 Part 3 — Consensus &amp; Q&amp;A</title>
+<style>
+:root {
+  --bg:#0a0e17; --surface:#111827; --surface2:#1a2234; --border:#1e293b;
+  --text:#e2e8f0; --muted:#94a3b8; --accent:#3b82f6; --purple:#8b5cf6;
+  --green:#10b981; --red:#ef4444; --orange:#f59e0b; --pink:#ec4899; --cyan:#06b6d4;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.7;padding:2rem 1rem}
+.wrap{max-width:860px;margin:0 auto}
+h1{font-size:2rem;color:var(--accent);margin-bottom:.25rem}
+h2{font-size:1.4rem;color:var(--purple);margin:2.5rem 0 .75rem;padding-left:.75rem;border-left:3px solid var(--purple)}
+h3{font-size:1.1rem;color:var(--cyan);margin:1.5rem 0 .5rem}
+p{margin:.6rem 0}ul,ol{margin:.5rem 0 .5rem 1.5rem}li{margin:.25rem 0}
+code{background:var(--surface2);color:var(--cyan);padding:.1rem .4rem;border-radius:4px;font-size:.88rem}
+.nav{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:2rem}
+.nav a{padding:.4rem 1rem;border-radius:6px;text-decoration:none;font-size:.9rem;background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
+.nav a.cur{background:var(--accent);color:#fff;border-color:var(--accent)}
+.subtitle{color:var(--muted);font-size:1rem;margin-bottom:2rem}
+.diagram{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.5rem;margin:1.2rem 0;overflow-x:auto}
+.box{display:inline-block;padding:.4rem .9rem;border-radius:6px;font-size:.85rem;font-weight:600;text-align:center}
+.box.blue{background:#1e3a5f;border:1px solid var(--accent);color:var(--accent)}
+.box.purple{background:#2d1b69;border:1px solid var(--purple);color:var(--purple)}
+.box.green{background:#064e3b;border:1px solid var(--green);color:var(--green)}
+.box.orange{background:#451a03;border:1px solid var(--orange);color:var(--orange)}
+.box.cyan{background:#0c4a6e;border:1px solid var(--cyan);color:var(--cyan)}
+.box.red{background:#450a0a;border:1px solid var(--red);color:var(--red)}
+.box.muted{background:var(--surface2);border:1px solid var(--border);color:var(--muted)}
+.row{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin:.5rem 0}
+.vflow{display:flex;flex-direction:column;align-items:center;gap:.5rem}
+.arrow{color:var(--muted);font-size:1.2rem}
+.rarrow{color:var(--muted);font-size:1.1rem}
+.callout{border-left:3px solid var(--orange);background:var(--surface2);padding:.8rem 1rem;border-radius:0 6px 6px 0;margin:1rem 0;font-size:.92rem}
+.callout.blue{border-left-color:var(--accent);background:#0c1a2e}
+.callout.green{border-left-color:var(--green);background:#052015}
+.callout.red{border-left-color:var(--red);background:#200}
+.table-wrap{overflow-x:auto;margin:1rem 0}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th{background:var(--surface2);color:var(--accent);padding:.6rem .8rem;text-align:left;border:1px solid var(--border)}
+td{padding:.5rem .8rem;border:1px solid var(--border);vertical-align:top}
+tr:nth-child(even) td{background:var(--surface)}
+.qa{border:1px solid var(--border);border-radius:8px;margin:.6rem 0;overflow:hidden}
+.qa-header{display:flex;align-items:center;gap:.75rem;padding:.8rem 1rem;cursor:pointer;background:var(--surface);user-select:none}
+.qa-header:hover{background:var(--surface2)}
+.qa-num{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0;background:var(--purple);color:#fff}
+.qa-q{flex:1;font-weight:600;font-size:.92rem}
+.chev{color:var(--muted);transition:.3s}
+.qa.open .chev{transform:rotate(90deg)}
+.qa-body{display:none;padding:.8rem 1rem;border-top:1px solid var(--border);background:var(--surface2);font-size:.9rem;line-height:1.7}
+.qa.open .qa-body{display:block}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="nav">
+  <a href="chapter-9-consistency-consensus-part1.html">Part 1: Linearizability</a>
+  <a href="chapter-9-consistency-consensus-part2.html">Part 2: Ordering &amp; Causality</a>
+  <a href="chapter-9-consistency-consensus-part3.html" class="cur">Part 3: Consensus &amp; Q&amp;A</a>
+</div>
+<h1>Chapter 9 — Consistency and Consensus</h1>
+<div class="subtitle">Part 3: Consensus Algorithms, ZooKeeper, Membership, Q&amp;A</div>
+
+<h2>Distributed Consensus</h2>
+<p>Consensus is the problem of getting multiple nodes to agree on a single value, in the face of failures. This is the core problem underlying leader election, atomic commit, and total order broadcast.</p>
+
+<div class="callout blue">
+  <strong>Formal definition</strong>: A consensus algorithm must satisfy: (1) <strong>Uniform agreement</strong> — every correct node decides the same value; (2) <strong>Integrity</strong> — no node decides twice; (3) <strong>Validity</strong> — the decided value must have been proposed by some node; (4) <strong>Termination</strong> — every correct node eventually decides.
+</div>
+
+<p>Termination is a liveness property; the others are safety properties. The FLP impossibility result shows that in a fully asynchronous system, no deterministic algorithm can guarantee all four properties if even one node can crash. Real systems get around this via partial synchrony assumptions and randomization.</p>
+
+<h2>Raft Consensus Algorithm</h2>
+<p>Raft is the most widely-understood modern consensus algorithm (Paxos is older but notoriously difficult to understand). Both solve the same problem; Raft was designed for understandability.</p>
+
+<h3>Raft Key Concepts</h3>
+<div class="diagram">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem;font-size:.82rem">
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--accent);font-weight:700;margin-bottom:.3rem">Leader election</div>
+      Nodes start as followers. A candidate starts an election by requesting votes. A node wins if it gets a majority. Time is divided into <em>terms</em> — each term has at most one leader.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--purple);font-weight:700;margin-bottom:.3rem">Log replication</div>
+      Leader receives client requests, appends to its log, sends AppendEntries RPC to followers. Once a majority acknowledge, entry is committed. Leader notifies followers to apply it.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--green);font-weight:700;margin-bottom:.3rem">Safety</div>
+      Raft guarantees that if a log entry is committed, it will be in the log of any future leader. Elections only succeed if the candidate has the most up-to-date log.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--orange);font-weight:700;margin-bottom:.3rem">Terms</div>
+      Monotonically increasing integers. If a node sees a message with a higher term, it immediately steps down as leader. Terms detect stale leaders.
+    </div>
+  </div>
+</div>
+
+<h3>Raft Log Commit Flow</h3>
+<div class="diagram">
+  <div class="vflow">
+    <div style="background:var(--surface2);padding:.6rem 1rem;border-radius:6px;font-size:.82rem;width:100%;max-width:500px">
+      <div style="color:var(--cyan);font-weight:700">1. Client sends write to leader</div>
+      Leader appends entry to its log (uncommitted).
+    </div>
+    <div class="arrow">↓</div>
+    <div style="background:var(--surface2);padding:.6rem 1rem;border-radius:6px;font-size:.82rem;width:100%;max-width:500px">
+      <div style="color:var(--cyan);font-weight:700">2. Leader replicates to followers</div>
+      AppendEntries RPC sent to all followers. Leader waits for majority acknowledgment.
+    </div>
+    <div class="arrow">↓</div>
+    <div style="background:#052015;padding:.6rem 1rem;border-radius:6px;font-size:.82rem;width:100%;max-width:500px;border:1px solid var(--green)">
+      <div style="color:var(--green);font-weight:700">3. Majority ACK → entry committed</div>
+      Leader advances commit index, applies to state machine, responds to client.
+    </div>
+    <div class="arrow">↓</div>
+    <div style="background:var(--surface2);padding:.6rem 1rem;border-radius:6px;font-size:.82rem;width:100%;max-width:500px">
+      <div style="color:var(--cyan);font-weight:700">4. Followers apply committed entries</div>
+      Next AppendEntries message tells followers the new commit index. They apply and respond.
+    </div>
+  </div>
+</div>
+
+<h3>Raft vs. Paxos</h3>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Aspect</th><th>Raft</th><th>Paxos (Multi-Paxos)</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>Understandability</td>
+      <td>Designed to be understandable. Clear separation of concerns.</td>
+      <td>Complex. Many variants. Implementation details left unspecified.</td>
+    </tr>
+    <tr>
+      <td>Leader election</td>
+      <td>Randomized election timeouts. Simple.</td>
+      <td>Not specified. Implementations vary.</td>
+    </tr>
+    <tr>
+      <td>Log structure</td>
+      <td>Contiguous log. Simple leader-follower flow.</td>
+      <td>Gaps allowed. More complex recovery.</td>
+    </tr>
+    <tr>
+      <td>Performance</td>
+      <td>Comparable to Multi-Paxos in practice.</td>
+      <td>Can be optimized more aggressively.</td>
+    </tr>
+    <tr>
+      <td>Used by</td>
+      <td>etcd, CockroachDB, TiKV, Consul</td>
+      <td>Chubby (Google), some internal Google systems</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h2>ZooKeeper and Coordination Services</h2>
+<p>ZooKeeper is a highly available coordination service built on top of ZooKeeper Atomic Broadcast (ZAB) — a consensus algorithm similar to Raft. Applications use ZooKeeper as infrastructure for distributed coordination.</p>
+
+<h3>What ZooKeeper Provides</h3>
+<div class="diagram">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;font-size:.82rem">
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--cyan);font-weight:700;margin-bottom:.3rem">Linearizable writes</div>
+      All writes go through the leader and are applied in total order. <code>zxid</code> (transaction ID) monotonically increases.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--cyan);font-weight:700;margin-bottom:.3rem">Watches (notifications)</div>
+      Clients subscribe to a znode (ZooKeeper node). When it changes, all watchers are notified. Used for leader election triggers, config updates.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--cyan);font-weight:700;margin-bottom:.3rem">Ephemeral nodes</div>
+      Znodes that are automatically deleted when the client session disconnects. Used for presence detection: if a leader crashes, its ephemeral znode disappears → triggers new election.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--cyan);font-weight:700;margin-bottom:.3rem">Sequential znodes</div>
+      ZooKeeper assigns monotonically increasing numbers to sequential znodes. Used for fair queuing and fencing tokens.
+    </div>
+  </div>
+</div>
+
+<h3>Leader Election with ZooKeeper</h3>
+<div class="diagram">
+  <div style="background:var(--surface2);padding:.75rem;border-radius:6px;font-size:.82rem;line-height:1.8">
+    1. Each node attempts to create ephemeral znode <code>/leader</code><br/>
+    2. First node to create it becomes leader<br/>
+    3. Other nodes watch <code>/leader</code><br/>
+    4. Leader crashes → session expires → ephemeral znode deleted<br/>
+    5. Watch fires → all watchers try to create <code>/leader</code> → one succeeds → new leader elected<br/>
+    <div style="color:var(--green);margin-top:.3rem">Exactly one leader at all times. Failure detection via session expiry.</div>
+  </div>
+</div>
+
+<div class="callout blue">
+  ZooKeeper is intentionally not for storing application data. It's for small amounts of frequently-read, infrequently-written coordination data: cluster membership, leader identity, config values, distributed locks. Application data goes in your actual database.
+</div>
+
+<h2>Membership and Coordination Services</h2>
+<p>A fundamental challenge in distributed systems: maintaining a consistent view of which nodes are alive (membership).</p>
+
+<h3>The Problem with Membership</h3>
+<p>A node thinks another node is dead (timeout) and removes it from membership. But the "dead" node was just slow — it's actually alive and doesn't know it's been expelled. Now you have two nodes that disagree about membership.</p>
+
+<h3>Using Consensus for Membership</h3>
+<p>If membership changes go through a consensus protocol, all nodes agree on the exact membership list atomically. When a node is added or removed, every node learns about the change in the same order, at the same logical time.</p>
+
+<div class="callout">
+  This is why ZooKeeper, etcd, and Consul are used for service discovery in systems like Kubernetes: they maintain a consistent registry of which services are running, updated via consensus. Every node sees the same view of which services exist.
+</div>
+
+<h2>Chapter 9 Summary</h2>
+<div class="diagram">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.75rem;font-size:.82rem">
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--accent);font-weight:700;margin-bottom:.3rem">Linearizability</div>
+      Strongest consistency. One copy of data. All ops at a single logical point. Expensive: requires coordination, hurts performance under partitions.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--purple);font-weight:700;margin-bottom:.3rem">Causality</div>
+      Weaker than linearizability. Preserves cause-effect order. No coordination needed for concurrent events. Practical for multi-region.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--cyan);font-weight:700;margin-bottom:.3rem">Total order broadcast</div>
+      Deliver messages to all nodes in same order. Equivalent in power to consensus. Basis for replicated state machines.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--orange);font-weight:700;margin-bottom:.3rem">2PC</div>
+      Atomic commit across nodes. Coordinator-driven. Blocking: if coordinator fails mid-protocol, participants stuck. Not used alone — needs timeouts/recovery.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--green);font-weight:700;margin-bottom:.3rem">Raft / Paxos</div>
+      Non-blocking consensus. Leader elected by majority. Log replicated to quorum. If leader fails, new election. etcd/ZooKeeper implement this.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--pink);font-weight:700;margin-bottom:.3rem">ZooKeeper</div>
+      Coordination service. Linearizable writes, watches, ephemeral nodes, sequential znodes. Use for: leader election, locking, config, membership. Not for app data.
+    </div>
+  </div>
+</div>
+
+<h2>Review Q&amp;A</h2>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">1</div><div class="qa-q">What is linearizability and how does it differ from serializability?</div><div class="chev">›</div></div>
+  <div class="qa-body"><strong>Linearizability</strong> (also called atomic consistency) is a property of individual operations on a single object: every operation appears to take effect at a single point in time between its start and end. Once a write completes, all subsequent reads must see the new value. It respects real-time ordering. <strong>Serializability</strong> is a property of transactions (multi-object, multi-step): the result must be equivalent to executing transactions in some serial order. Serializability doesn't require that serial order to match real-time order. <strong>Strict serializability</strong> combines both: serializable transactions that also respect real-time ordering. Spanner provides this. The practical difference: linearizability is about individual ops on single objects (like a lock); serializability is about multi-step transactions spanning many objects.</div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">2</div><div class="qa-q">Why do leaderless (Dynamo-style) systems fail to provide linearizability even with quorum reads and writes?</div><div class="chev">›</div></div>
+  <div class="qa-body">Quorum reads/writes ensure that the read and write sets overlap (w + r > n), but this does NOT guarantee linearizability. Scenarios where quorums fail: (1) <strong>Sloppy quorums</strong>: writes go to nodes outside the quorum (hinted handoff), so the read quorum may miss them. (2) <strong>Concurrent writes</strong>: two concurrent writes both achieve quorum but different nodes see them in different orders. Without a single serialization point, nodes can disagree on the final value. (3) <strong>Read repair races</strong>: during read repair, the repair update may not complete before another read, leaving some nodes with stale values. (4) <strong>Clock-based LWW</strong>: using wall clocks to break ties can discard the "later" write if clocks are out of sync. True linearizability requires a single point of coordination — a leader or consensus protocol.</div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">3</div><div class="qa-q">What are Lamport timestamps and what problem do they NOT solve?</div><div class="chev">›</div></div>
+  <div class="qa-body">Lamport timestamps are logical clocks that produce a total order consistent with causality. Each node has a counter. On any event: increment. On send: include counter in message. On receive: set counter = max(local, received) + 1. If A happened-before B, then ts(A) &lt; ts(B). Ties broken by node ID. <br/><br/>What Lamport timestamps do NOT solve: <strong>detecting concurrent events</strong>. If ts(A) &lt; ts(B), you can't tell whether A caused B or they were concurrent. Lamport timestamps don't distinguish these cases. For detecting concurrency, you need version vectors (one counter per node). Also: Lamport timestamps don't help with uniqueness problems that require knowing other nodes' current state at the moment of decision — you can order events after the fact, but you can't know, when you generate a username, whether another node concurrently generated the same username.</div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">4</div><div class="qa-q">What is total order broadcast and how does it relate to consensus?</div><div class="chev">›</div></div>
+  <div class="qa-body">Total order broadcast (TOB) is a protocol that delivers messages to all nodes such that: (1) every node receives every message (reliable delivery); (2) every node receives messages in the same order (total order). TOB is equivalent in power to consensus: if you can solve consensus, you can implement TOB, and vice versa. TOB → consensus: to agree on a value, broadcast the value via TOB; the first one in the order wins. Consensus → TOB: use consensus to decide each message's position in the sequence. In practice, ZooKeeper and etcd implement TOB (via ZAB/Raft) and expose it to applications. Applications use TOB for: replicated state machines (applying writes in same order on all replicas), distributed lock services (all lock requests processed in total order), and atomic commit (all participants receive commit/abort decisions in same order).</div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">5</div><div class="qa-q">Explain the 2PC blocking problem and why it's dangerous.</div><div class="chev">›</div></div>
+  <div class="qa-body">In two-phase commit: Phase 1 (Prepare) asks all participants to vote yes/no. Phase 2 (Commit/Abort) sends the final decision. The blocking problem: after a participant votes YES in Phase 1, it must wait for the coordinator's Phase 2 decision. If the coordinator crashes after Phase 1 but before Phase 2, participants are stuck "in doubt" — they've committed to committing, but don't know whether the coordinator decided commit or abort. They cannot: (a) commit unilaterally (what if coordinator decided abort?); (b) abort unilaterally (what if coordinator decided commit?). So they hold their locks and wait. This blocks the system: any other transaction that wants the same locks is stuck. Recovery requires the coordinator to restart and replay its WAL (write-ahead log) to replay the decision — or if the WAL is lost, manual DBA intervention. This is why 2PC is called a "blocking" protocol and why distributed databases prefer non-blocking consensus (Raft/Paxos) for atomic commit.</div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">6</div><div class="qa-q">How does Raft prevent two leaders from being elected simultaneously?</div><div class="chev">›</div></div>
+  <div class="qa-body">Raft uses <strong>terms</strong> (monotonically increasing integers) and <strong>majority votes</strong>. Each term has at most one leader. To become leader, a candidate must receive votes from a majority (> N/2) of nodes. Since any two majorities must overlap by at least one node, two candidates cannot simultaneously receive majority votes for the same term — at least one node would have to vote for both, but nodes can only vote for one candidate per term. Additionally: nodes always vote for the candidate with the most up-to-date log (highest term + longest log). If a node sees a message with a higher term than its own, it immediately steps down to follower. This prevents a network-partitioned old leader from interfering — it will see the new term from the new leader and step down. So: at any point in time, there is at most one node that believes itself to be the leader with a current majority.</div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">7</div><div class="qa-q">What does ZooKeeper's ephemeral node feature enable, and how does it work?</div><div class="chev">›</div></div>
+  <div class="qa-body">Ephemeral znodes in ZooKeeper are nodes that are automatically deleted when the client session that created them disconnects (due to crash or network failure). This enables: <strong>presence detection</strong> — a node's existence in ZooKeeper signals that the corresponding process is alive. When the process dies, the znode disappears. Combined with watches (event notifications on znode changes), this enables <strong>leader election</strong>: the leader holds an ephemeral znode. If it crashes, the znode is deleted, watches fire, and followers trigger a new election. Similarly, service registries use ephemeral nodes: a service registers itself on startup; if it crashes, its registration disappears automatically. This is far more reliable than time-based TTLs (where a crashed node stays "registered" until TTL expires) and doesn't require an explicit deregistration step that might not run on crash.</div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">8</div><div class="qa-q">What is the FLP impossibility result and how do real systems work around it?</div><div class="chev">›</div></div>
+  <div class="qa-body">The FLP impossibility result (Fischer, Lynch, Paterson 1985): in a fully asynchronous distributed system, no deterministic consensus algorithm can guarantee termination (liveness) if even a single process can crash. The intuition: in a fully async system, you can't distinguish a crashed node from a very slow one. A slow node might be about to send a vote that changes the outcome — so you can't terminate. Real systems work around FLP via: (1) <strong>Partial synchrony assumption</strong>: assume the network is usually synchronous (messages arrive within some time). Timeouts are used as failure detectors. Raft and Paxos use this. (2) <strong>Randomization</strong>: algorithms like Ben-Or's use randomized coin flips to break symmetry and guarantee termination with probability 1. (3) <strong>Failure detectors</strong>: separate process that provides (possibly inaccurate) information about which processes have crashed. With an "eventually accurate" failure detector, consensus is solvable even in async networks. In practice, Raft and Paxos assume partial synchrony (network is usually fast) and use randomized election timeouts to avoid split votes.</div>
+</div>
+
+<div style="margin-top:3rem;padding:1.5rem;background:var(--surface);border-radius:10px;border:1px solid var(--border)">
+  <div class="row" style="gap:2rem;flex-wrap:wrap">
+    <div>
+      <div style="font-size:.85rem;color:var(--muted)">← Previous</div>
+      <div><a href="chapter-9-consistency-consensus-part2.html" style="color:var(--accent);text-decoration:none">Part 2: Ordering &amp; Causality</a></div>
+    </div>
+    <div>
+      <div style="font-size:.85rem;color:var(--muted)">Next Chapter →</div>
+      <div><a href="chapter-10-batch-processing-part1.html" style="color:var(--accent);text-decoration:none">Chapter 10: Batch Processing</a></div>
+    </div>
+  </div>
+</div>
+</div>
+</body>
+</html>
