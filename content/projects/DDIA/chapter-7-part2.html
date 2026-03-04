@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Ch 7 Part 2 — Snapshot Isolation &amp; Anomalies</title>
+<style>
+:root {
+  --bg:#0a0e17; --surface:#111827; --surface2:#1a2234; --border:#1e293b;
+  --text:#e2e8f0; --muted:#94a3b8; --accent:#3b82f6; --purple:#8b5cf6;
+  --green:#10b981; --red:#ef4444; --orange:#f59e0b; --pink:#ec4899; --cyan:#06b6d4;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.7;padding:2rem 1rem}
+.wrap{max-width:860px;margin:0 auto}
+h1{font-size:2rem;color:var(--accent);margin-bottom:.25rem}
+h2{font-size:1.4rem;color:var(--purple);margin:2.5rem 0 .75rem;padding-left:.75rem;border-left:3px solid var(--purple)}
+h3{font-size:1.1rem;color:var(--cyan);margin:1.5rem 0 .5rem}
+p{margin:.6rem 0;color:var(--text)}
+ul,ol{margin:.5rem 0 .5rem 1.5rem;color:var(--text)}
+li{margin:.25rem 0}
+code{background:var(--surface2);color:var(--cyan);padding:.1rem .4rem;border-radius:4px;font-size:.88rem}
+pre{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0;color:var(--green)}
+
+.nav{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:2rem}
+.nav a{padding:.4rem 1rem;border-radius:6px;text-decoration:none;font-size:.9rem;background:var(--surface2);color:var(--muted);border:1px solid var(--border);transition:.2s}
+.nav a.cur{background:var(--accent);color:#fff;border-color:var(--accent)}
+.nav a:hover:not(.cur){color:var(--text)}
+
+.subtitle{color:var(--muted);font-size:1rem;margin-bottom:2rem}
+
+.diagram{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.5rem;margin:1.2rem 0;overflow-x:auto}
+.box{display:inline-block;padding:.4rem .9rem;border-radius:6px;font-size:.85rem;font-weight:600;text-align:center}
+.box.blue{background:#1e3a5f;border:1px solid var(--accent);color:var(--accent)}
+.box.purple{background:#2d1b69;border:1px solid var(--purple);color:var(--purple)}
+.box.green{background:#064e3b;border:1px solid var(--green);color:var(--green)}
+.box.orange{background:#451a03;border:1px solid var(--orange);color:var(--orange)}
+.box.cyan{background:#0c4a6e;border:1px solid var(--cyan);color:var(--cyan)}
+.box.pink{background:#4a1942;border:1px solid var(--pink);color:var(--pink)}
+.box.red{background:#450a0a;border:1px solid var(--red);color:var(--red)}
+.box.muted{background:var(--surface2);border:1px solid var(--border);color:var(--muted)}
+
+.row{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin:.5rem 0}
+.vflow{display:flex;flex-direction:column;align-items:center;gap:.5rem}
+.arrow{color:var(--muted);font-size:1.2rem}
+.rarrow{color:var(--muted);font-size:1.1rem}
+.label{font-size:.78rem;color:var(--orange);font-style:italic}
+
+.callout{border-left:3px solid var(--orange);background:var(--surface2);padding:.8rem 1rem;border-radius:0 6px 6px 0;margin:1rem 0;font-size:.92rem}
+.callout.blue{border-left-color:var(--accent);background:#0c1a2e}
+.callout.green{border-left-color:var(--green);background:#052015}
+.callout.purple{border-left-color:var(--purple);background:#1a0d40}
+.callout.red{border-left-color:var(--red);background:#200}
+
+.pill{display:inline-block;padding:.2rem .6rem;border-radius:999px;font-size:.78rem;font-weight:600}
+.pill.green{background:#064e3b;color:var(--green)}
+.pill.red{background:#450a0a;color:var(--red)}
+.pill.blue{background:#1e3a5f;color:var(--accent)}
+.pill.orange{background:#451a03;color:var(--orange)}
+.pill.purple{background:#2d1b69;color:var(--purple)}
+
+.timeline{border:1px solid var(--border);border-radius:8px;overflow:hidden;font-size:.82rem;margin:1rem 0}
+.tl-header-row{display:grid;background:var(--surface2)}
+.tl-row{display:grid;border-top:1px solid var(--border)}
+.tl-time{padding:.4rem .6rem;color:var(--muted);font-size:.75rem;border-right:1px solid var(--border);text-align:center;min-width:50px;background:var(--surface2)}
+.tl-cell{padding:.4rem .75rem}
+.ok{color:var(--green)}
+.bad{color:var(--red)}
+.info{color:var(--orange)}
+.warn{color:var(--orange)}
+
+.table-wrap{overflow-x:auto;margin:1rem 0}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th{background:var(--surface2);color:var(--accent);padding:.6rem .8rem;text-align:left;border:1px solid var(--border)}
+td{padding:.5rem .8rem;border:1px solid var(--border);color:var(--text);vertical-align:top}
+tr:nth-child(even) td{background:var(--surface)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="nav">
+  <a href="chapter-7-part1.html">Part 1: ACID &amp; Read Committed</a>
+  <a href="chapter-7-part2.html" class="cur">Part 2: Snapshot Isolation &amp; Anomalies</a>
+  <a href="chapter-7-part3.html">Part 3: Serializability &amp; Q&amp;A</a>
+</div>
+
+<h1>Chapter 7 — Transactions</h1>
+<div class="subtitle">Part 2: Snapshot Isolation, Preventing Lost Updates, Write Skew &amp; Phantoms</div>
+
+<!-- ============================================================ -->
+<h2>Snapshot Isolation and Repeatable Read</h2>
+
+<p>Snapshot isolation is the solution to read skew. The idea: each transaction reads from a <strong>consistent snapshot</strong> of the database — the committed data at the point the transaction started. Subsequent commits by other transactions don't affect what this transaction sees.</p>
+
+<div class="diagram">
+  <div style="font-size:.85rem;color:var(--muted);margin-bottom:.75rem">Snapshot isolation solves Alice's bank account problem</div>
+  <div class="timeline">
+    <div class="tl-header-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time" style="font-weight:700;color:var(--accent)">Time</div>
+      <div class="tl-cell" style="font-weight:700;color:var(--accent)">Alice (snapshot txn)</div>
+      <div class="tl-cell" style="font-weight:700;color:var(--accent)">Transfer transaction</div>
+    </div>
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time">t1</div>
+      <div class="tl-cell ok">BEGIN (snapshot = txn 12)</div>
+      <div class="tl-cell"></div>
+    </div>
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time">t2</div>
+      <div class="tl-cell ok">READ account1 = $500</div>
+      <div class="tl-cell"></div>
+    </div>
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time">t3</div>
+      <div class="tl-cell"></div>
+      <div class="tl-cell info">Transfer $100. COMMIT (txn 13)</div>
+    </div>
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time">t4</div>
+      <div class="tl-cell ok">READ account2 = $200 (sees snapshot 12, not 13!)</div>
+      <div class="tl-cell"></div>
+    </div>
+  </div>
+  <div style="margin-top:.5rem;font-size:.8rem;color:var(--green)">
+    Alice consistently sees: account1=$500, account2=$200. Total=$700... wait, that's wrong! No — she sees both accounts as they were at her snapshot (before transfer): account1=$500, account2=$100. Total=$600 ✓
+  </div>
+</div>
+
+<h3>Implementing Snapshot Isolation: MVCC</h3>
+
+<p><strong>Multi-Version Concurrency Control (MVCC)</strong> — the standard implementation. Instead of updating data in place, the database keeps multiple versions of each row, each tagged with the transaction ID that created it.</p>
+
+<div class="diagram">
+  <div style="font-size:.85rem;color:var(--muted);margin-bottom:1rem">Multiple versions of a row in PostgreSQL's MVCC</div>
+
+  <div style="background:var(--surface2);border-radius:6px;overflow:hidden;font-size:.82rem">
+    <div class="row" style="background:#1a2234;padding:.4rem .75rem;font-weight:700;gap:1rem">
+      <span style="min-width:90px;color:var(--muted)">created_by_txn</span>
+      <span style="min-width:90px;color:var(--muted)">deleted_by_txn</span>
+      <span style="color:var(--muted)">account2.balance</span>
+    </div>
+    <div class="row" style="padding:.4rem .75rem;gap:1rem;border-top:1px solid var(--border)">
+      <span style="min-width:90px;color:var(--orange)">txn 1</span>
+      <span style="min-width:90px;color:var(--muted)">txn 13</span>
+      <span style="color:var(--text)">$100 (original value)</span>
+    </div>
+    <div class="row" style="padding:.4rem .75rem;gap:1rem;border-top:1px solid var(--border)">
+      <span style="min-width:90px;color:var(--green)">txn 13</span>
+      <span style="min-width:90px;color:var(--muted)">∞</span>
+      <span style="color:var(--green)">$200 (after transfer)</span>
+    </div>
+  </div>
+
+  <div style="margin-top:.75rem;font-size:.82rem;color:var(--muted)">
+    Alice (snapshot txn 12) reads: finds the version created_by_txn=1 (visible at txn 12), deleted_by_txn=13 (not yet deleted at txn 12). Returns $100.
+    <br/>Carol (snapshot txn 14) reads: version created=1 is deleted at 13 (before her snapshot). Returns $200 (created=13, not yet deleted).
+  </div>
+</div>
+
+<h3>Visibility Rules</h3>
+
+<p>A transaction sees a row version if:</p>
+<ol>
+  <li>The <code>created_by_txn</code> is already committed <em>and</em> the transaction ID ≤ this transaction's snapshot ID</li>
+  <li>The <code>deleted_by_txn</code> is either not set, or the deleting transaction had not yet committed at snapshot time</li>
+</ol>
+
+<div class="callout blue">
+  Reads never block writes, and writes never block reads. This is why PostgreSQL and MySQL (InnoDB) can have high read concurrency — readers and writers don't conflict. The downside: old row versions accumulate and must be garbage collected (VACUUM in PostgreSQL).
+</div>
+
+<h3>Indexes and Snapshot Isolation</h3>
+
+<p>Two approaches for indexes with MVCC:</p>
+<ul>
+  <li><strong>Point to all versions</strong>: Index entries point to all versions of a row; at query time, filter by visibility rules</li>
+  <li><strong>Copy-on-write B-trees</strong>: Each write creates a new B-tree root, so each snapshot has its own root. Old roots serve old snapshots. (Used by CouchDB, Datomic)</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2>Preventing Lost Updates</h2>
+
+<p>Read Committed and Snapshot Isolation are about what a <em>reading</em> transaction sees. Now consider two concurrent <em>write</em> transactions. The <strong>lost update</strong> problem:</p>
+
+<div class="diagram">
+  <div style="font-size:.85rem;color:var(--muted);margin-bottom:.75rem">Lost update — read-modify-write cycle</div>
+  <div class="timeline">
+    <div class="tl-header-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time" style="font-weight:700;color:var(--accent)">Time</div>
+      <div class="tl-cell" style="font-weight:700;color:var(--accent)">Transaction 1 (counter++)</div>
+      <div class="tl-cell" style="font-weight:700;color:var(--accent)">Transaction 2 (counter++)</div>
+    </div>
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time">t1</div>
+      <div class="tl-cell ok">READ counter = 42</div>
+      <div class="tl-cell"></div>
+    </div>
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time">t2</div>
+      <div class="tl-cell"></div>
+      <div class="tl-cell ok">READ counter = 42</div>
+    </div>
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time">t3</div>
+      <div class="tl-cell ok">WRITE counter = 43</div>
+      <div class="tl-cell"></div>
+    </div>
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time">t4</div>
+      <div class="tl-cell"></div>
+      <div class="tl-cell bad">WRITE counter = 43 (overwrites Tx1's write!)</div>
+    </div>
+  </div>
+  <div style="margin-top:.5rem;font-size:.8rem;color:var(--red)">
+    Expected: counter = 44. Actual: counter = 43. One increment was lost.
+  </div>
+</div>
+
+<p>Common patterns where lost updates occur:</p>
+<ul>
+  <li>Incrementing a counter or updating an account balance</li>
+  <li>Editing a wiki page (read → modify → write back)</li>
+  <li>Adding an item to a list stored as JSON blob</li>
+  <li>Two users editing their shopping carts simultaneously</li>
+</ul>
+
+<h3>Solutions to Lost Updates</h3>
+
+<div class="table-wrap">
+<table>
+  <thead>
+    <tr>
+      <th>Solution</th>
+      <th>How</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><span style="color:var(--accent);font-weight:700">Atomic operations</span></td>
+      <td><code>UPDATE counter SET val = val + 1</code> — the database atomically reads and increments</td>
+      <td>Best option when applicable. No application-level read needed.</td>
+    </tr>
+    <tr>
+      <td><span style="color:var(--purple);font-weight:700">Explicit locking</span></td>
+      <td><code>SELECT ... FOR UPDATE</code> — lock the row before reading; other transactions must wait</td>
+      <td>Forces serial execution. Works but reduces concurrency.</td>
+    </tr>
+    <tr>
+      <td><span style="color:var(--green);font-weight:700">Compare-and-set</span></td>
+      <td><code>UPDATE ... WHERE val = old_val</code> — only write if value hasn't changed since we read it</td>
+      <td>May not work if database allows reading from old snapshot (check docs)</td>
+    </tr>
+    <tr>
+      <td><span style="color:var(--cyan);font-weight:700">Automatic detection</span></td>
+      <td>Database detects lost update (e.g., PostgreSQL's repeatable read) and aborts one transaction</td>
+      <td>Transparent to application. PostgreSQL, MySQL, SQL Server, Oracle all support this.</td>
+    </tr>
+    <tr>
+      <td><span style="color:var(--orange);font-weight:700">Conflict resolution (multi-master)</span></td>
+      <td>In multi-master setups, allow concurrent writes, merge conflicts later</td>
+      <td>Hard to get right. Last-write-wins loses updates. Custom merge logic needed.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<!-- ============================================================ -->
+<h2>Write Skew and Phantoms</h2>
+
+<p>Lost updates happen when two transactions write the <em>same object</em>. Write skew is more subtle: two transactions each read some objects, then write to <em>different objects</em> — but together their writes violate an invariant.</p>
+
+<div class="diagram">
+  <div style="font-size:.85rem;color:var(--muted);margin-bottom:.75rem">Classic write skew: hospital on-call doctors</div>
+  <div style="font-size:.82rem;color:var(--text);margin-bottom:.75rem">
+    <strong>Invariant</strong>: At least one doctor must always be on call.
+    <br/>Currently: Alice and Bob are both on call.
+  </div>
+  <div class="timeline">
+    <div class="tl-header-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time" style="font-weight:700;color:var(--accent)">Time</div>
+      <div class="tl-cell" style="font-weight:700;color:var(--accent)">Alice's transaction</div>
+      <div class="tl-cell" style="font-weight:700;color:var(--accent)">Bob's transaction</div>
+    </div>
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time">t1</div>
+      <div class="tl-cell ok">SELECT count(*) from oncall → 2</div>
+      <div class="tl-cell"></div>
+    </div>
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time">t2</div>
+      <div class="tl-cell"></div>
+      <div class="tl-cell ok">SELECT count(*) from oncall → 2</div>
+    </div>
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time">t3</div>
+      <div class="tl-cell ok">count ≥ 2, safe to leave</div>
+      <div class="tl-cell ok">count ≥ 2, safe to leave</div>
+    </div>
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time">t4</div>
+      <div class="tl-cell ok">UPDATE alice: oncall = false</div>
+      <div class="tl-cell ok">UPDATE bob: oncall = false</div>
+    </div>
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time">t5</div>
+      <div class="tl-cell ok">COMMIT</div>
+      <div class="tl-cell bad">COMMIT → 0 doctors on call! ⚠️</div>
+    </div>
+  </div>
+  <div style="margin-top:.5rem;font-size:.8rem;color:var(--red)">
+    Each transaction read the same rows, made a decision based on that read, then wrote to different rows. The writes together violated the invariant. This is NOT a lost update — both writes committed successfully.
+  </div>
+</div>
+
+<h3>More Write Skew Examples</h3>
+
+<div class="diagram">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;font-size:.82rem">
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--cyan);font-weight:700;margin-bottom:.3rem">Meeting room booking</div>
+      Two people both check "is room free at 2pm?" → both see no conflicts → both book. Double-booked.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--purple);font-weight:700;margin-bottom:.3rem">Multiplayer game</div>
+      Two players both try to move to a square simultaneously. Both check "is square empty?" → both move. Two pieces on same square.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--orange);font-weight:700;margin-bottom:.3rem">Username uniqueness</div>
+      Both transactions check "is username taken?" → both see no → both insert. Duplicate usernames. (Solved with UNIQUE constraint.)
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--green);font-weight:700;margin-bottom:.3rem">Spending limit</div>
+      Two payments both check "is total spending < $1000?" → both see total=$900 → both approve $200 charges. Total = $1100.
+    </div>
+  </div>
+</div>
+
+<h3>The Phantom Problem</h3>
+
+<p>Write skew is often caused by <strong>phantoms</strong> — a transaction reads a set of objects based on a condition, another transaction inserts a new object matching that condition, and the first transaction's read result is now stale.</p>
+
+<div class="diagram">
+  <div class="row" style="justify-content:center;flex-wrap:wrap;gap:1.5rem'>
+    <div class="vflow">
+      <div class="box blue">Tx1: SELECT * FROM rooms WHERE time = '2pm' AND booked = false</div>
+      <div style="font-size:.78rem;color:var(--muted);margin-top:.3rem">Returns 0 rows (no booking conflict)</div>
+    </div>
+    <div class="arrow" style="font-size:2rem">↓</div>
+    <div class="vflow">
+      <div class="box red">Tx2: INSERT INTO bookings (room, time, user) VALUES (101, '2pm', bob)</div>
+      <div style="font-size:.78rem;color:var(--muted);margin-top:.3rem">Creates a "phantom" row that Tx1 didn't see</div>
+    </div>
+    <div class="arrow" style="font-size:2rem">↓</div>
+    <div class="vflow">
+      <div class="box red">Tx1: INSERT INTO bookings (room, time, user) VALUES (101, '2pm', alice)</div>
+      <div style="font-size:.78rem;color:var(--red);margin-top:.3rem">Double booking! Tx1's check was valid but is now stale</div>
+    </div>
+  </div>
+</div>
+
+<p>The phantom is the new row that "appeared" between Tx1's check and Tx1's write. Since it didn't exist when Tx1 checked, there's nothing to lock. Regular snapshot isolation doesn't prevent this.</p>
+
+<h3>Materializing Conflicts</h3>
+
+<p>One approach to phantoms: create artificial lock targets. For the room booking problem, pre-populate a table with time slots (even if not yet booked) and acquire row locks on those time slot rows. Now Tx2's insert conflicts with Tx1's lock on the time slot.</p>
+
+<div class="callout">
+  Materializing conflicts is fragile and ugly — it leaks concurrency control into the data model. The better solution is serializable isolation (covered in Part 3).
+</div>
+
+<!-- ============================================================ -->
+<h2>Isolation Level Summary</h2>
+
+<div class="table-wrap">
+<table>
+  <thead>
+    <tr>
+      <th>Isolation Level</th>
+      <th>Dirty Read</th>
+      <th>Dirty Write</th>
+      <th>Read Skew</th>
+      <th>Lost Update</th>
+      <th>Write Skew</th>
+      <th>Phantom</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Read Uncommitted</strong></td>
+      <td style="color:var(--red)">✗ possible</td>
+      <td style="color:var(--red)">✗ possible</td>
+      <td style="color:var(--red)">✗</td>
+      <td style="color:var(--red)">✗</td>
+      <td style="color:var(--red)">✗</td>
+      <td style="color:var(--red)">✗</td>
+    </tr>
+    <tr>
+      <td><strong>Read Committed</strong></td>
+      <td style="color:var(--green)">✓ prevented</td>
+      <td style="color:var(--green)">✓ prevented</td>
+      <td style="color:var(--red)">✗</td>
+      <td style="color:var(--red)">✗</td>
+      <td style="color:var(--red)">✗</td>
+      <td style="color:var(--red)">✗</td>
+    </tr>
+    <tr>
+      <td><strong>Snapshot Isolation</strong></td>
+      <td style="color:var(--green)">✓</td>
+      <td style="color:var(--green)">✓</td>
+      <td style="color:var(--green)">✓ prevented</td>
+      <td style="color:var(--orange)">sometimes</td>
+      <td style="color:var(--red)">✗</td>
+      <td style="color:var(--red)">✗</td>
+    </tr>
+    <tr>
+      <td><strong>Serializable</strong></td>
+      <td style="color:var(--green)">✓</td>
+      <td style="color:var(--green)">✓</td>
+      <td style="color:var(--green)">✓</td>
+      <td style="color:var(--green)">✓</td>
+      <td style="color:var(--green)">✓ prevented</td>
+      <td style="color:var(--green)">✓ prevented</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout blue">
+  Note: PostgreSQL calls Snapshot Isolation "Repeatable Read" (even though the SQL standard's Repeatable Read doesn't require snapshot semantics). MySQL's "Repeatable Read" actually prevents more anomalies than the standard requires. Confusing — always read the specific database docs.
+</div>
+
+<div style="margin-top:3rem;padding:1.5rem;background:var(--surface);border-radius:10px;border:1px solid var(--border)">
+  <div class="row" style="gap:2rem;flex-wrap:wrap">
+    <div>
+      <div style="font-size:.85rem;color:var(--muted)">← Previous</div>
+      <div style="margin:.3rem 0"><a href="chapter-7-part1.html" style="color:var(--accent);text-decoration:none">Part 1: ACID &amp; Read Committed</a></div>
+    </div>
+    <div>
+      <div style="font-size:.85rem;color:var(--muted)">Next →</div>
+      <div style="margin:.3rem 0"><a href="chapter-7-part3.html" style="color:var(--accent);text-decoration:none">Part 3: Serializability — Actual Serial Execution, 2PL, SSI + Q&amp;A</a></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /.wrap -->
+</body>
+</html>

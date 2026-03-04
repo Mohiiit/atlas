@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Ch 7 Part 1 — ACID &amp; Isolation</title>
+<style>
+:root {
+  --bg:#0a0e17; --surface:#111827; --surface2:#1a2234; --border:#1e293b;
+  --text:#e2e8f0; --muted:#94a3b8; --accent:#3b82f6; --purple:#8b5cf6;
+  --green:#10b981; --red:#ef4444; --orange:#f59e0b; --pink:#ec4899; --cyan:#06b6d4;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.7;padding:2rem 1rem}
+.wrap{max-width:860px;margin:0 auto}
+h1{font-size:2rem;color:var(--accent);margin-bottom:.25rem}
+h2{font-size:1.4rem;color:var(--purple);margin:2.5rem 0 .75rem;padding-left:.75rem;border-left:3px solid var(--purple)}
+h3{font-size:1.1rem;color:var(--cyan);margin:1.5rem 0 .5rem}
+p{margin:.6rem 0;color:var(--text)}
+ul,ol{margin:.5rem 0 .5rem 1.5rem;color:var(--text)}
+li{margin:.25rem 0}
+code{background:var(--surface2);color:var(--cyan);padding:.1rem .4rem;border-radius:4px;font-size:.88rem}
+pre{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0;color:var(--green)}
+
+.nav{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:2rem}
+.nav a{padding:.4rem 1rem;border-radius:6px;text-decoration:none;font-size:.9rem;background:var(--surface2);color:var(--muted);border:1px solid var(--border);transition:.2s}
+.nav a.cur{background:var(--accent);color:#fff;border-color:var(--accent)}
+.nav a:hover:not(.cur){color:var(--text)}
+
+.subtitle{color:var(--muted);font-size:1rem;margin-bottom:2rem}
+
+.diagram{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.5rem;margin:1.2rem 0;overflow-x:auto}
+.box{display:inline-block;padding:.4rem .9rem;border-radius:6px;font-size:.85rem;font-weight:600;text-align:center}
+.box.blue{background:#1e3a5f;border:1px solid var(--accent);color:var(--accent)}
+.box.purple{background:#2d1b69;border:1px solid var(--purple);color:var(--purple)}
+.box.green{background:#064e3b;border:1px solid var(--green);color:var(--green)}
+.box.orange{background:#451a03;border:1px solid var(--orange);color:var(--orange)}
+.box.cyan{background:#0c4a6e;border:1px solid var(--cyan);color:var(--cyan)}
+.box.pink{background:#4a1942;border:1px solid var(--pink);color:var(--pink)}
+.box.red{background:#450a0a;border:1px solid var(--red);color:var(--red)}
+.box.muted{background:var(--surface2);border:1px solid var(--border);color:var(--muted)}
+
+.row{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin:.5rem 0}
+.vflow{display:flex;flex-direction:column;align-items:center;gap:.5rem}
+.arrow{color:var(--muted);font-size:1.2rem}
+.rarrow{color:var(--muted);font-size:1.1rem}
+.label{font-size:.78rem;color:var(--orange);font-style:italic}
+
+.callout{border-left:3px solid var(--orange);background:var(--surface2);padding:.8rem 1rem;border-radius:0 6px 6px 0;margin:1rem 0;font-size:.92rem}
+.callout.blue{border-left-color:var(--accent);background:#0c1a2e}
+.callout.green{border-left-color:var(--green);background:#052015}
+.callout.purple{border-left-color:var(--purple);background:#1a0d40}
+.callout.red{border-left-color:var(--red);background:#200}
+
+.pill{display:inline-block;padding:.2rem .6rem;border-radius:999px;font-size:.78rem;font-weight:600}
+.pill.green{background:#064e3b;color:var(--green)}
+.pill.red{background:#450a0a;color:var(--red)}
+.pill.blue{background:#1e3a5f;color:var(--accent)}
+.pill.orange{background:#451a03;color:var(--orange)}
+.pill.purple{background:#2d1b69;color:var(--purple)}
+
+/* Timeline grid for concurrency diagrams */
+.timeline{display:grid;gap:0;border:1px solid var(--border);border-radius:8px;overflow:hidden;font-size:.82rem;margin:1rem 0}
+.tl-header{background:var(--surface2);padding:.5rem .75rem;font-weight:700;border-bottom:1px solid var(--border)}
+.tl-row{display:grid;border-bottom:1px solid var(--border)}
+.tl-row:last-child{border-bottom:none}
+.tl-time{background:var(--surface2);padding:.4rem .6rem;color:var(--muted);font-size:.75rem;border-right:1px solid var(--border);text-align:center;min-width:50px}
+.tl-tx1{padding:.4rem .75rem;border-right:1px solid var(--border);min-width:200px}
+.tl-tx2{padding:.4rem .75rem;min-width:200px}
+.ok{color:var(--green)}
+.bad{color:var(--red)}
+.info{color:var(--orange)}
+
+.table-wrap{overflow-x:auto;margin:1rem 0}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th{background:var(--surface2);color:var(--accent);padding:.6rem .8rem;text-align:left;border:1px solid var(--border)}
+td{padding:.5rem .8rem;border:1px solid var(--border);color:var(--text);vertical-align:top}
+tr:nth-child(even) td{background:var(--surface)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="nav">
+  <a href="chapter-7-part1.html" class="cur">Part 1: ACID &amp; Read Committed</a>
+  <a href="chapter-7-part2.html">Part 2: Snapshot Isolation &amp; Anomalies</a>
+  <a href="chapter-7-part3.html">Part 3: Serializability &amp; Q&amp;A</a>
+</div>
+
+<h1>Chapter 7 — Transactions</h1>
+<div class="subtitle">Part 1: The Concept of Transactions, ACID, and Read Committed Isolation</div>
+
+<p>Transactions are one of the most important abstractions in databases. They take a bunch of reads and writes and wrap them up as a single logical unit — either everything commits, or it all rolls back. You don't have to worry about partial failures, concurrent access, or machine crashes mid-operation.</p>
+
+<div class="callout blue">
+  Not every application needs transactions. But understanding what transactions give you helps you make an informed decision about when to use them — and what you're giving up when you don't.
+</div>
+
+<!-- ============================================================ -->
+<h2>The Slippery Concept of a Transaction</h2>
+
+<p>Transactions were introduced by IBM System R in 1975. NoSQL databases (2000s) moved away from them for scale and flexibility. But the safety guarantees they provide are genuinely valuable, and many NoSQL databases have reintroduced transaction-like features.</p>
+
+<div class="diagram">
+  <div style="font-size:.85rem;color:var(--muted);margin-bottom:.75rem">Why we need transactions: things that can go wrong</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem">
+    <div class="box red" style="padding:.75rem">Database crashes mid-write</div>
+    <div class="box red" style="padding:.75rem">Application crashes between two related writes</div>
+    <div class="box red" style="padding:.75rem">Network partition splits write across nodes</div>
+    <div class="box red" style="padding:.75rem">Two clients write concurrently, corrupting data</div>
+    <div class="box red" style="padding:.75rem">Client reads partially-updated data</div>
+    <div class="box red" style="padding:.75rem">Race condition causes incorrect balance</div>
+  </div>
+  <div style="margin-top:.75rem;font-size:.82rem;color:var(--muted)">
+    Without transactions, your application code must handle all of these. With transactions, the database handles them.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2>The Meaning of ACID</h2>
+
+<p>ACID is the set of properties that transactions provide. The term was coined by Theo Härder and Andreas Reuter in 1983.</p>
+
+<div class="diagram">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem">
+    <div style="background:var(--surface2);border-left:3px solid var(--accent);padding:1rem;border-radius:0 6px 6px 0">
+      <div style="color:var(--accent);font-size:1.1rem;font-weight:800;margin-bottom:.4rem">A — Atomicity</div>
+      <div style="font-size:.83rem;color:var(--text)">All-or-nothing. If any part fails, the whole transaction is aborted. No partial updates visible.</div>
+    </div>
+    <div style="background:var(--surface2);border-left:3px solid var(--purple);padding:1rem;border-radius:0 6px 6px 0">
+      <div style="color:var(--purple);font-size:1.1rem;font-weight:800;margin-bottom:.4rem">C — Consistency</div>
+      <div style="font-size:.83rem;color:var(--text)">The database goes from one valid state to another. Application-defined invariants must hold (e.g., no negative balances).</div>
+    </div>
+    <div style="background:var(--surface2);border-left:3px solid var(--green);padding:1rem;border-radius:0 6px 6px 0">
+      <div style="color:var(--green);font-size:1.1rem;font-weight:800;margin-bottom:.4rem">I — Isolation</div>
+      <div style="font-size:.83rem;color:var(--text)">Concurrent transactions appear as if they ran serially. You don't see another transaction's intermediate state.</div>
+    </div>
+    <div style="background:var(--surface2);border-left:3px solid var(--orange);padding:1rem;border-radius:0 6px 6px 0">
+      <div style="color:var(--orange);font-size:1.1rem;font-weight:800;margin-bottom:.4rem">D — Durability</div>
+      <div style="font-size:.83rem;color:var(--text)">Once committed, data survives crashes. Written to disk + WAL. In distributed systems: replicated.</div>
+    </div>
+  </div>
+</div>
+
+<div class="callout">
+  The "C" in ACID is a bit of a lie — it's really about application-level invariants, not something the database enforces automatically. The database ensures AID; <em>consistency</em> is your responsibility to define.
+</div>
+
+<h3>Atomicity: Abortability</h3>
+
+<p>If a transaction has made several writes and then crashes or is aborted, all partial writes are undone. This property is better called <strong>abortability</strong>.</p>
+
+<pre><code>BEGIN;
+  UPDATE accounts SET balance = balance - 100 WHERE user_id = alice;
+  UPDATE accounts SET balance = balance + 100 WHERE user_id = bob;
+COMMIT;  -- both changes visible at once, or neither</code></pre>
+
+<div class="diagram">
+  <div class="row" style="gap:1.5rem;flex-wrap:wrap">
+    <div class="vflow" style="text-align:center">
+      <div class="box green">Success path</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.4rem;max-width:140px">
+        Alice -100<br/>Bob +100<br/>COMMIT<br/>Both visible atomically
+      </div>
+    </div>
+    <div class="vflow" style="text-align:center">
+      <div class="box red">Failure path</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.4rem;max-width:140px">
+        Alice -100<br/>Crash before Bob +100<br/>ROLLBACK<br/>Alice gets her money back
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3>Isolation: The Hard Part</h3>
+
+<p>Full isolation means <strong>serializable</strong> isolation — as if transactions ran one at a time, even if they're concurrent. But serializability has a performance cost. In practice, databases offer weaker isolation levels that prevent some but not all race conditions.</p>
+
+<h3>Durability</h3>
+
+<p>Committed data must be stored persistently. Typically: write-ahead log, fsync to disk before acknowledging commit. In distributed databases: data replicated to N nodes before ack. "Perfect" durability is impossible — it's a spectrum.</p>
+
+<!-- ============================================================ -->
+<h2>Single-Object and Multi-Object Operations</h2>
+
+<p>The classic transaction model (above) handles <strong>multi-object</strong> operations — multiple rows across multiple tables in one atomic operation. This requires the database to determine which writes belong to the same transaction (often via a session token or transaction ID).</p>
+
+<div class="diagram">
+  <div style="font-size:.85rem;color:var(--muted);margin-bottom:.75rem">Why multi-object transactions are necessary</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem'>
+    <div style="background:var(--surface2);padding:1rem;border-radius:6px">
+      <div style="color:var(--cyan);font-size:.85rem;margin-bottom:.4rem;font-weight:700">Example 1: Foreign key</div>
+      <div style="font-size:.8rem;color:var(--text)">
+        INSERT into orders (user_id, ...)<br/>
+        user_id references users table<br/>
+        → both tables must be updated consistently
+      </div>
+    </div>
+    <div style="background:var(--surface2);padding:1rem;border-radius:6px">
+      <div style="color:var(--purple);font-size:.85rem;margin-bottom:.4rem;font-weight:700">Example 2: Denormalized document</div>
+      <div style="font-size:.8rem;color:var(--text)">
+        Update username in users table<br/>
+        AND update username in all their posts<br/>
+        → must be atomic or data is inconsistent
+      </div>
+    </div>
+    <div style="background:var(--surface2);padding:1rem;border-radius:6px">
+      <div style="color:var(--green);font-size:.85rem;margin-bottom:.4rem;font-weight:700">Example 3: Counters</div>
+      <div style="font-size:.8rem;color:var(--text)">
+        Read unread count from counters table<br/>
+        Update emails table (mark as read)<br/>
+        → counter and data must stay in sync
+      </div>
+    </div>
+    <div style="background:var(--surface2);padding:1rem;border-radius:6px">
+      <div style="color:var(--orange);font-size:.85rem;margin-bottom:.4rem;font-weight:700">Example 4: Transfer</div>
+      <div style="font-size:.8rem;color:var(--text)">
+        Debit Alice's account<br/>
+        Credit Bob's account<br/>
+        → must be atomic (no money appears/disappears)
+      </div>
+    </div>
+  </div>
+</div>
+
+<p>Many distributed databases have dropped multi-object transactions because they're hard to implement across nodes. If you need them, you must handle them at the application level — or use a database that supports distributed transactions.</p>
+
+<!-- ============================================================ -->
+<h2>Weak Isolation Levels</h2>
+
+<p>Serializable isolation means no concurrency anomalies — but it's expensive. Database vendors offer weaker isolation levels that prevent only some anomalies. Understanding exactly what each level prevents (and what it doesn't) is critical.</p>
+
+<div class="callout red">
+  <strong>Warning</strong>: Isolation level names are not standardized across databases. "Repeatable Read" in PostgreSQL is different from "Repeatable Read" in MySQL. Always check the specific database's documentation.
+</div>
+
+<h3>Read Committed</h3>
+
+<p>The weakest useful isolation level. Provides two guarantees:</p>
+<ol>
+  <li><strong>No dirty reads</strong> — You only see data that has been committed (not partially-written by an in-progress transaction)</li>
+  <li><strong>No dirty writes</strong> — You only overwrite data that has been committed (not overwrite another transaction's in-progress write)</li>
+</ol>
+
+<div class="diagram">
+  <div style="font-size:.85rem;color:var(--muted);margin-bottom:.75rem">Dirty Read — prevented by Read Committed</div>
+  <div class="timeline">
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-header">Time</div>
+      <div class="tl-header">Transaction 1</div>
+      <div class="tl-header">Transaction 2</div>
+    </div>
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time">t1</div>
+      <div class="tl-tx1 ok">BEGIN; SET x = 3</div>
+      <div class="tl-tx2"></div>
+    </div>
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time">t2</div>
+      <div class="tl-tx1"></div>
+      <div class="tl-tx2 bad">READ x → should NOT see 3!</div>
+    </div>
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time">t3</div>
+      <div class="tl-tx1 bad">ROLLBACK</div>
+      <div class="tl-tx2 bad">Too late — Tx2 already acted on the dirty value</div>
+    </div>
+  </div>
+  <div style="font-size:.8rem;color:var(--green);margin-top:.5rem">
+    With Read Committed: Tx2 at t2 still sees old value of x (before Tx1's uncommitted write)
+  </div>
+</div>
+
+<div class="diagram">
+  <div style="font-size:.85rem;color:var(--muted);margin-bottom:.75rem">Dirty Write — prevented by Read Committed</div>
+  <div class="timeline">
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-header">Time</div>
+      <div class="tl-header">Bob buys car</div>
+      <div class="tl-header">Alice buys car</div>
+    </div>
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time">t1</div>
+      <div class="tl-tx1 ok">SET listing.buyer = Bob</div>
+      <div class="tl-tx2"></div>
+    </div>
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time">t2</div>
+      <div class="tl-tx1"></div>
+      <div class="tl-tx2 bad">SET listing.buyer = Alice (overwrites Bob's uncommitted!)</div>
+    </div>
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time">t3</div>
+      <div class="tl-tx1 ok">SET invoice.buyer = Bob</div>
+      <div class="tl-tx2"></div>
+    </div>
+  </div>
+  <div style="font-size:.8rem;color:var(--red);margin-top:.3rem">Result without protection: Alice gets the car, Bob gets the invoice. Neither has a complete transaction.</div>
+  <div style="font-size:.8rem;color:var(--green)">With dirty write prevention: Tx2 waits until Tx1 commits or aborts before writing.</div>
+</div>
+
+<h3>Implementing Read Committed</h3>
+
+<p>How do databases implement "no dirty reads" without blocking all reads?</p>
+
+<div class="diagram">
+  <div style="font-size:.85rem;color:var(--muted);margin-bottom:1rem">Row-level versioning approach</div>
+  <div class="row" style="gap:1.5rem;flex-wrap:wrap;align-items:flex-start">
+    <div class="vflow" style="text-align:center">
+      <div class="box orange">In-progress update</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.4rem;max-width:160px">
+        Database holds both:<br/>
+        old value (committed)<br/>
+        new value (uncommitted)
+      </div>
+    </div>
+    <div class="rarrow" style="font-size:2rem;padding-top:1rem">→</div>
+    <div class="vflow" style="text-align:center">
+      <div class="box green">Other readers</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.4rem;max-width:160px">
+        See old committed value<br/>
+        until the write commits,<br/>
+        then see new value
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:.75rem;font-size:.82rem;color:var(--muted)">
+    Row-level locks for dirty write prevention: writer acquires lock on row, other writers must wait. Readers never blocked.
+  </div>
+</div>
+
+<h3>What Read Committed Does NOT Prevent</h3>
+
+<p>Read Committed prevents dirty reads and dirty writes. But it does NOT prevent all concurrency problems. The classic failure: <strong>non-repeatable reads</strong> (read skew).</p>
+
+<div class="diagram">
+  <div style="font-size:.85rem;color:var(--muted);margin-bottom:.75rem">Read skew — allowed by Read Committed</div>
+  <div class="timeline">
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-header">Time</div>
+      <div class="tl-header">Alice (checking accounts)</div>
+      <div class="tl-header">Transfer transaction</div>
+    </div>
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time">t1</div>
+      <div class="tl-tx1 ok">READ account1 = $500</div>
+      <div class="tl-tx2"></div>
+    </div>
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time">t2</div>
+      <div class="tl-tx1"></div>
+      <div class="tl-tx2 ok">Transfer $100: account1 → account2. COMMIT.</div>
+    </div>
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time">t3</div>
+      <div class="tl-tx1 bad">READ account2 = $200 (new value)</div>
+      <div class="tl-tx2"></div>
+    </div>
+  </div>
+  <div style="margin-top:.5rem;font-size:.8rem;color:var(--red)">
+    Alice sees account1=$500 (before transfer) and account2=$200 (after transfer). She sees $700 total when the correct total is $600. Neither read was dirty, but the combined view is inconsistent.
+  </div>
+</div>
+
+<p>This is a problem for:</p>
+<ul>
+  <li><strong>Backups</strong>: A multi-hour backup process reads different parts of the database at different times. Backup reflects an inconsistent state that never actually existed.</li>
+  <li><strong>Integrity checks</strong>: Scanning the whole database for consistency violations — reads at different times will see inconsistent combinations.</li>
+  <li><strong>Long-running reports</strong>: The report computes totals across many tables; concurrent updates cause it to see some data before and some after an update.</li>
+</ul>
+
+<p>The solution: <strong>Snapshot Isolation</strong> — covered in Part 2.</p>
+
+<div style="margin-top:3rem;padding:1.5rem;background:var(--surface);border-radius:10px;border:1px solid var(--border)">
+  <div style="font-size:.85rem;color:var(--muted)">Next →</div>
+  <div style="margin:.5rem 0"><a href="chapter-7-part2.html" style="color:var(--accent);text-decoration:none">Part 2: Snapshot Isolation, Lost Updates, Write Skew &amp; Phantoms</a></div>
+</div>
+
+</div><!-- /.wrap -->
+</body>
+</html>

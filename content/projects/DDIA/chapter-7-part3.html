@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Ch 7 Part 3 — Serializability &amp; Q&amp;A</title>
+<style>
+:root {
+  --bg:#0a0e17; --surface:#111827; --surface2:#1a2234; --border:#1e293b;
+  --text:#e2e8f0; --muted:#94a3b8; --accent:#3b82f6; --purple:#8b5cf6;
+  --green:#10b981; --red:#ef4444; --orange:#f59e0b; --pink:#ec4899; --cyan:#06b6d4;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.7;padding:2rem 1rem}
+.wrap{max-width:860px;margin:0 auto}
+h1{font-size:2rem;color:var(--accent);margin-bottom:.25rem}
+h2{font-size:1.4rem;color:var(--purple);margin:2.5rem 0 .75rem;padding-left:.75rem;border-left:3px solid var(--purple)}
+h3{font-size:1.1rem;color:var(--cyan);margin:1.5rem 0 .5rem}
+p{margin:.6rem 0;color:var(--text)}
+ul,ol{margin:.5rem 0 .5rem 1.5rem;color:var(--text)}
+li{margin:.25rem 0}
+code{background:var(--surface2);color:var(--cyan);padding:.1rem .4rem;border-radius:4px;font-size:.88rem}
+pre{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0;color:var(--green)}
+
+.nav{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:2rem}
+.nav a{padding:.4rem 1rem;border-radius:6px;text-decoration:none;font-size:.9rem;background:var(--surface2);color:var(--muted);border:1px solid var(--border);transition:.2s}
+.nav a.cur{background:var(--accent);color:#fff;border-color:var(--accent)}
+.nav a:hover:not(.cur){color:var(--text)}
+
+.subtitle{color:var(--muted);font-size:1rem;margin-bottom:2rem}
+
+.diagram{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.5rem;margin:1.2rem 0;overflow-x:auto}
+.box{display:inline-block;padding:.4rem .9rem;border-radius:6px;font-size:.85rem;font-weight:600;text-align:center}
+.box.blue{background:#1e3a5f;border:1px solid var(--accent);color:var(--accent)}
+.box.purple{background:#2d1b69;border:1px solid var(--purple);color:var(--purple)}
+.box.green{background:#064e3b;border:1px solid var(--green);color:var(--green)}
+.box.orange{background:#451a03;border:1px solid var(--orange);color:var(--orange)}
+.box.cyan{background:#0c4a6e;border:1px solid var(--cyan);color:var(--cyan)}
+.box.pink{background:#4a1942;border:1px solid var(--pink);color:var(--pink)}
+.box.red{background:#450a0a;border:1px solid var(--red);color:var(--red)}
+.box.muted{background:var(--surface2);border:1px solid var(--border);color:var(--muted)}
+
+.row{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin:.5rem 0}
+.vflow{display:flex;flex-direction:column;align-items:center;gap:.5rem}
+.arrow{color:var(--muted);font-size:1.2rem}
+.rarrow{color:var(--muted);font-size:1.1rem}
+.label{font-size:.78rem;color:var(--orange);font-style:italic}
+
+.callout{border-left:3px solid var(--orange);background:var(--surface2);padding:.8rem 1rem;border-radius:0 6px 6px 0;margin:1rem 0;font-size:.92rem}
+.callout.blue{border-left-color:var(--accent);background:#0c1a2e}
+.callout.green{border-left-color:var(--green);background:#052015}
+.callout.purple{border-left-color:var(--purple);background:#1a0d40}
+.callout.red{border-left-color:var(--red);background:#200}
+
+.pill{display:inline-block;padding:.2rem .6rem;border-radius:999px;font-size:.78rem;font-weight:600}
+.pill.green{background:#064e3b;color:var(--green)}
+.pill.red{background:#450a0a;color:var(--red)}
+.pill.blue{background:#1e3a5f;color:var(--accent)}
+.pill.orange{background:#451a03;color:var(--orange)}
+.pill.purple{background:#2d1b69;color:var(--purple)}
+
+.timeline{border:1px solid var(--border);border-radius:8px;overflow:hidden;font-size:.82rem;margin:1rem 0}
+.tl-header-row{display:grid;background:var(--surface2)}
+.tl-row{display:grid;border-top:1px solid var(--border)}
+.tl-time{padding:.4rem .6rem;color:var(--muted);font-size:.75rem;border-right:1px solid var(--border);text-align:center;min-width:50px;background:var(--surface2)}
+.tl-cell{padding:.4rem .75rem}
+.ok{color:var(--green)}
+.bad{color:var(--red)}
+.info{color:var(--orange)}
+
+.table-wrap{overflow-x:auto;margin:1rem 0}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th{background:var(--surface2);color:var(--accent);padding:.6rem .8rem;text-align:left;border:1px solid var(--border)}
+td{padding:.5rem .8rem;border:1px solid var(--border);color:var(--text);vertical-align:top}
+tr:nth-child(even) td{background:var(--surface)}
+
+.qa{border:1px solid var(--border);border-radius:8px;margin:.6rem 0;overflow:hidden}
+.qa-header{display:flex;align-items:center;gap:.75rem;padding:.8rem 1rem;cursor:pointer;background:var(--surface);user-select:none;transition:.2s}
+.qa-header:hover{background:var(--surface2)}
+.qa-num{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0;background:var(--purple);color:#fff}
+.qa-q{flex:1;font-weight:600;font-size:.92rem}
+.chev{color:var(--muted);transition:.3s}
+.qa.open .chev{transform:rotate(90deg)}
+.qa-body{display:none;padding:.8rem 1rem;border-top:1px solid var(--border);background:var(--surface2);font-size:.9rem;line-height:1.7}
+.qa.open .qa-body{display:block}
+
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin:1.5rem 0}
+.summary-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1rem}
+.summary-card h4{color:var(--accent);margin-bottom:.5rem;font-size:.95rem}
+.summary-card ul{margin-left:1rem;font-size:.85rem;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="nav">
+  <a href="chapter-7-part1.html">Part 1: ACID &amp; Read Committed</a>
+  <a href="chapter-7-part2.html">Part 2: Snapshot Isolation &amp; Anomalies</a>
+  <a href="chapter-7-part3.html" class="cur">Part 3: Serializability &amp; Q&amp;A</a>
+</div>
+
+<h1>Chapter 7 — Transactions</h1>
+<div class="subtitle">Part 3: Serializability — Actual Serial Execution, Two-Phase Locking, Serializable Snapshot Isolation</div>
+
+<!-- ============================================================ -->
+<h2>Serializability</h2>
+
+<p>Serializable isolation is the <strong>strongest isolation level</strong>. It guarantees that concurrent transactions have the same effect as if they ran one at a time in some serial order — even if they actually ran concurrently.</p>
+
+<p>Three main approaches to implementing serializability:</p>
+
+<div class="diagram">
+  <div class="row" style="justify-content:center;gap:2rem;flex-wrap:wrap">
+    <div class="vflow" style="text-align:center">
+      <div class="box blue" style="padding:.75rem 1.5rem">Actual Serial<br/>Execution</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.4rem;max-width:150px">Literally run one transaction at a time. No concurrency problems possible.</div>
+    </div>
+    <div class="vflow" style="text-align:center">
+      <div class="box purple" style="padding:.75rem 1.5rem">Two-Phase<br/>Locking (2PL)</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.4rem;max-width:150px">Acquire locks before reads/writes. Hold them until commit. Blocks concurrent access.</div>
+    </div>
+    <div class="vflow" style="text-align:center">
+      <div class="box green" style="padding:.75rem 1.5rem">Serializable<br/>Snapshot Isolation</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.4rem;max-width:150px">Optimistic approach. Allow concurrent runs, detect conflicts, abort if needed.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2>Actual Serial Execution</h2>
+
+<p>The simplest approach: only one transaction runs at a time, on a single CPU core. This sounds like a step backward, but it became viable around 2007 when:</p>
+<ul>
+  <li>RAM got cheap enough to keep the entire working dataset in memory</li>
+  <li>OLTP transactions are often short and touch few records</li>
+  <li>Many real-world applications have low concurrency requirements per shard</li>
+</ul>
+
+<div class="callout blue">
+  VoltDB, Redis (single-threaded), Datomic, and FoundationDB use actual serial execution. Redis processes all commands in a single thread — yet handles hundreds of thousands of ops/sec because each operation is O(1) or O(log n) and done in memory.
+</div>
+
+<h3>Stored Procedures: The Key Enabler</h3>
+
+<p>With serial execution, all transactions must complete quickly. But network round-trips between application and database are slow. Solution: <strong>stored procedures</strong> — send the entire transaction logic to the database in one shot.</p>
+
+<div class="diagram">
+  <div class="row" style="gap:3rem;flex-wrap:wrap;align-items:flex-start">
+    <div class="vflow" style="text-align:center">
+      <div class="box red">Interactive transaction (slow)</div>
+      <div style="font-size:.78rem;color:var(--muted);margin-top:.5rem;max-width:180px;text-align:left">
+        1. App → DB: READ seat availability<br/>
+        ← Wait for network (~10ms)<br/>
+        2. User selects seat (seconds!)<br/>
+        3. App → DB: LOCK seat<br/>
+        ← Wait<br/>
+        4. App → DB: INSERT booking<br/>
+        ← Wait<br/>
+        5. App → DB: COMMIT<br/>
+        Database blocked for the entire user think time!
+      </div>
+    </div>
+    <div class="vflow" style="text-align:center">
+      <div class="box green">Stored procedure (fast)</div>
+      <div style="font-size:.78rem;color:var(--muted);margin-top:.5rem;max-width:180px;text-align:left">
+        1. User selects seat (application-side)<br/>
+        2. App → DB: EXECUTE book_seat(user, seat)<br/>
+        ← Wait (~1ms)<br/>
+        3. Done. Database ran the whole thing atomically in microseconds with no external waits.
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3>Limitations of Actual Serial Execution</h3>
+<ul>
+  <li><strong>Single core bottleneck</strong>: Throughput limited to one core. Solution: partition data across cores/nodes, route transactions to the right partition.</li>
+  <li><strong>Cross-partition transactions</strong>: If a transaction touches multiple partitions, each partition must be locked in order. Expensive and rare in well-designed systems.</li>
+  <li><strong>Stored procedure language</strong>: Different databases use different languages (T-SQL, PL/pgSQL, Lua for Redis). Less tooling than application code.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2>Two-Phase Locking (2PL)</h2>
+
+<p>Two-phase locking has been the standard serializable isolation approach in SQL databases since the 1970s. The idea:</p>
+
+<div class="diagram">
+  <div style="font-size:.85rem;color:var(--muted);margin-bottom:.75rem">The two phases</div>
+  <div class="row" style="justify-content:center;gap:2rem;flex-wrap:wrap'>
+    <div class="vflow" style="text-align:center">
+      <div class="box blue" style="padding:.75rem">Phase 1: Growing</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.3rem;max-width:160px">
+        Acquire locks as needed.<br/>
+        Never release a lock in this phase.
+      </div>
+    </div>
+    <div class="vflow" style="text-align:center">
+      <div class="box purple" style="padding:.75rem">Phase 2: Shrinking</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.3rem;max-width:160px">
+        Release all locks at once at COMMIT/ROLLBACK.<br/>
+        Never acquire new locks in this phase.
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:.75rem;font-size:.82rem;color:var(--muted);text-align:center">
+    Hold locks until commit — this is what makes 2PL different from simple locking
+  </div>
+</div>
+
+<h3>Lock Types in 2PL</h3>
+
+<div class="table-wrap">
+<table>
+  <thead>
+    <tr>
+      <th>Action</th>
+      <th>Lock Required</th>
+      <th>Compatible with Shared?</th>
+      <th>Compatible with Exclusive?</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Read object</td>
+      <td>Shared (read) lock</td>
+      <td style="color:var(--green)">Yes — many readers OK</td>
+      <td style="color:var(--red)">No — wait for writer to commit</td>
+    </tr>
+    <tr>
+      <td>Write object</td>
+      <td>Exclusive (write) lock</td>
+      <td style="color:var(--red)">No — wait for all readers</td>
+      <td style="color:var(--red)">No — wait for other writer</td>
+    </tr>
+    <tr>
+      <td>Read then write (upgrade)</td>
+      <td>Upgrade shared → exclusive</td>
+      <td colspan="2" style="color:var(--orange)">Must wait for all other shared locks to release first</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout">
+  Writers block readers AND other writers. Readers block writers (but not other readers). This is very different from MVCC, where "readers never block writers and writers never block readers." 2PL has worse read performance than MVCC.
+</div>
+
+<h3>Deadlocks in 2PL</h3>
+
+<div class="diagram">
+  <div class="timeline">
+    <div class="tl-header-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time" style="font-weight:700;color:var(--accent)">Time</div>
+      <div class="tl-cell" style="font-weight:700;color:var(--accent)">Transaction A</div>
+      <div class="tl-cell" style="font-weight:700;color:var(--accent)">Transaction B</div>
+    </div>
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time">t1</div>
+      <div class="tl-cell ok">Acquires lock on row 1</div>
+      <div class="tl-cell"></div>
+    </div>
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time">t2</div>
+      <div class="tl-cell"></div>
+      <div class="tl-cell ok">Acquires lock on row 2</div>
+    </div>
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time">t3</div>
+      <div class="tl-cell info">Wants lock on row 2... WAITING</div>
+      <div class="tl-cell"></div>
+    </div>
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time">t4</div>
+      <div class="tl-cell"></div>
+      <div class="tl-cell info">Wants lock on row 1... WAITING</div>
+    </div>
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time">t5</div>
+      <div class="tl-cell bad" colspan="2" style="border-left:none">DEADLOCK DETECTED → one transaction aborted, other proceeds</div>
+    </div>
+  </div>
+</div>
+
+<p>Deadlocks are inevitable with 2PL. The database detects them (by scanning the wait-for graph) and aborts one transaction. The application must retry.</p>
+
+<h3>Predicate Locks and Index-Range Locks</h3>
+
+<p>To prevent phantoms, 2PL needs to lock not just existing rows but also the <em>potential</em> rows that a query would return — a <strong>predicate lock</strong>.</p>
+
+<pre><code>-- Predicate lock: lock all rows matching this condition
+SELECT * FROM bookings
+WHERE room_id = 123 AND start_time >= '2:00pm' AND end_time <= '3:00pm'
+FOR UPDATE;</code></pre>
+
+<p>Predicate locks are expensive to check (every insert must be checked against all active predicate locks). In practice, databases use <strong>index-range locks</strong> (also called gap locks) — a coarser lock covering an index range. Slightly more locking than needed, but much faster.</p>
+
+<!-- ============================================================ -->
+<h2>Serializable Snapshot Isolation (SSI)</h2>
+
+<p>SSI is an optimistic concurrency control mechanism. It provides full serializability with performance closer to snapshot isolation. Instead of blocking transactions, it <em>detects</em> conflicts and aborts when needed.</p>
+
+<p>The core insight from M. J. Cahill's PhD thesis (2008): serial anomalies arise from <strong>cycles in the dependency graph</strong> between transactions.</p>
+
+<h3>Detecting Stale MVCC Reads</h3>
+
+<div class="diagram">
+  <div style="font-size:.85rem;color:var(--muted);margin-bottom:.75rem">Write skew under SSI: the on-call example</div>
+  <div class="timeline">
+    <div class="tl-header-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time" style="font-weight:700;color:var(--accent)">Time</div>
+      <div class="tl-cell" style="font-weight:700;color:var(--accent)">Alice's transaction</div>
+      <div class="tl-cell" style="font-weight:700;color:var(--accent)">Bob's transaction</div>
+    </div>
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time">t1</div>
+      <div class="tl-cell ok">BEGIN (snapshot txn 12)</div>
+      <div class="tl-cell ok">BEGIN (snapshot txn 13)</div>
+    </div>
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time">t2</div>
+      <div class="tl-cell ok">READ oncall count → 2 (snapshot 12)</div>
+      <div class="tl-cell ok">READ oncall count → 2 (snapshot 13)</div>
+    </div>
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time">t3</div>
+      <div class="tl-cell ok">UPDATE alice: oncall=false<br/><span style="color:var(--orange)">[SSI tracks: txn 12 wrote oncall data]</span></div>
+      <div class="tl-cell"></div>
+    </div>
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time">t4</div>
+      <div class="tl-cell ok">COMMIT ✓</div>
+      <div class="tl-cell"></div>
+    </div>
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time">t5</div>
+      <div class="tl-cell"></div>
+      <div class="tl-cell ok">UPDATE bob: oncall=false</div>
+    </div>
+    <div class="tl-row" style="grid-template-columns:60px 1fr 1fr">
+      <div class="tl-time">t6</div>
+      <div class="tl-cell"></div>
+      <div class="tl-cell bad">COMMIT → SSI detects Bob read data that Alice already modified → ABORT</div>
+    </div>
+  </div>
+  <div style="margin-top:.5rem;font-size:.8rem;color:var(--green)">
+    Bob's transaction is aborted. The application retries — this time Bob sees count=1 (only Bob on call), so the invariant prevents him from leaving.
+  </div>
+</div>
+
+<h3>How SSI Tracks Dependencies</h3>
+
+<p>The database tracks two types of anti-dependencies:</p>
+<ol>
+  <li><strong>Read by committed transaction, then written by concurrent transaction</strong>: If Tx2 writes data that Tx1 already read (from a stale snapshot), Tx1 may have made a decision based on incorrect data → abort one</li>
+  <li><strong>Premises become false</strong>: If transaction reads a set of rows based on a condition, and a concurrent write changes the result of that condition</li>
+</ol>
+
+<div class="diagram">
+  <div class="row" style="justify-content:center;gap:2rem;flex-wrap:wrap">
+    <div class="vflow" style="text-align:center">
+      <div class="box blue" style="padding:.75rem">2PL (pessimistic)</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.4rem;max-width:150px">
+        Assumes conflicts will happen.<br/>Blocks transactions preemptively.<br/>High latency, deadlocks possible.
+      </div>
+    </div>
+    <div class="vflow" style="text-align:center">
+      <div class="box green" style="padding:.75rem">SSI (optimistic)</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.4rem;max-width:150px">
+        Assumes conflicts are rare.<br/>Runs transactions freely.<br/>Aborts after detecting conflict.
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:.75rem;font-size:.82rem;color:var(--muted);text-align:center">
+    SSI wins when conflicts are rare. 2PL wins when conflicts are frequent (fewer wasted aborts).
+  </div>
+</div>
+
+<div class="callout green">
+  PostgreSQL 9.1+ implements SSI as its "Serializable" isolation level. It offers full serializability with performance close to Snapshot Isolation for low-conflict workloads. This is one of the most practically important advances in database concurrency in decades.
+</div>
+
+<!-- ============================================================ -->
+<h2>Chapter 7 Summary</h2>
+
+<div class="summary-grid">
+  <div class="summary-card">
+    <h4>ACID</h4>
+    <ul>
+      <li>Atomicity: all or nothing</li>
+      <li>Consistency: app invariants</li>
+      <li>Isolation: concurrent = serial</li>
+      <li>Durability: survives crashes</li>
+    </ul>
+  </div>
+  <div class="summary-card">
+    <h4>Isolation Levels</h4>
+    <ul>
+      <li>Read Committed: no dirty r/w</li>
+      <li>Snapshot: MVCC consistency</li>
+      <li>Serializable: strongest</li>
+      <li>Named differently per DB!</li>
+    </ul>
+  </div>
+  <div class="summary-card">
+    <h4>Anomalies</h4>
+    <ul>
+      <li>Dirty read/write</li>
+      <li>Read skew (non-repeatable)</li>
+      <li>Lost update</li>
+      <li>Write skew, phantoms</li>
+    </ul>
+  </div>
+  <div class="summary-card">
+    <h4>Serializability Methods</h4>
+    <ul>
+      <li>Actual serial (VoltDB, Redis)</li>
+      <li>2PL: pessimistic locking</li>
+      <li>SSI: optimistic detection</li>
+      <li>PostgreSQL: uses SSI</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2>Review Q&amp;A</h2>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header">
+    <div class="qa-num">1</div>
+    <div class="qa-q">Why is "Consistency" in ACID considered the odd one out?</div>
+    <div class="chev">›</div>
+  </div>
+  <div class="qa-body">
+    Atomicity, Isolation, and Durability are database properties — the database enforces them mechanically. "Consistency" is an application property — it means the application maintains its own invariants (e.g., account balances are never negative, every order has a valid user). The database can help with consistency (constraints, foreign keys, UNIQUE), but it can't guarantee all application-level invariants. The "C" was added to make the acronym spell out "ACID" — it was retrofitted after the other three were already named.
+  </div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header">
+    <div class="qa-num">2</div>
+    <div class="qa-q">How does PostgreSQL's MVCC prevent dirty reads without blocking reads?</div>
+    <div class="chev">›</div>
+  </div>
+  <div class="qa-body">
+    When a transaction updates a row, PostgreSQL keeps both the old version and the new version. Each row version is tagged with the transaction ID that created it (<code>xmin</code>) and optionally the transaction ID that deleted/updated it (<code>xmax</code>). Readers look at <code>xmin</code> to determine if the creating transaction was committed at the time of their snapshot. If Tx1 has updated a row but not committed, readers still see the old version (where <code>xmax</code> is Tx1's ID, but Tx1 hasn't committed). Since readers access old versions directly from storage (not from a lock), they never need to block. Only writers acquiring exclusive locks on specific rows block each other.
+  </div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header">
+    <div class="qa-num">3</div>
+    <div class="qa-q">What is the difference between a lost update and write skew?</div>
+    <div class="chev">›</div>
+  </div>
+  <div class="qa-body">
+    <strong>Lost update</strong>: Both transactions write to the <em>same object</em>. Tx1 reads value, Tx2 reads same value, Tx1 writes new value, Tx2 overwrites with its own new value (based on the old read). Tx1's write is "lost." Example: two users both incrementing a counter. <strong>Write skew</strong>: Transactions read some objects, then write to <em>different objects</em>. But the combination of their writes violates an invariant that each individual transaction checked was true. Example: two doctors both check "count > 1 on-call doctors?" → both see true → both go off-call → 0 doctors remain. Each transaction individually is valid; together they violate the invariant.
+  </div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header">
+    <div class="qa-num">4</div>
+    <div class="qa-q">What is a phantom read, and why is it harder to prevent than non-repeatable reads?</div>
+    <div class="chev">›</div>
+  </div>
+  <div class="qa-body">
+    A <strong>non-repeatable read</strong> happens when you read the same row twice and get different values (because another transaction updated it between your reads). You can prevent this by locking the specific rows you read. A <strong>phantom read</strong> happens when you execute a query with a predicate (WHERE condition) and get different result sets on two executions — because another transaction inserted or deleted rows matching that predicate. You can't prevent phantoms by locking existing rows, because the phantom row didn't exist yet when you first checked. You'd need to lock the entire key range, which is expensive — or use predicate locks / index-range locks / SSI.
+  </div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header">
+    <div class="qa-num">5</div>
+    <div class="qa-q">How does Two-Phase Locking prevent phantoms compared to simple row locking?</div>
+    <div class="chev">›</div>
+  </div>
+  <div class="qa-body">
+    Simple row locking locks specific row IDs. If a transaction reads "all rooms booked at 2pm" and gets an empty set, there are no row IDs to lock — so nothing prevents another transaction from inserting a new booking at 2pm. 2PL with <strong>predicate locks</strong> locks not specific rows but all rows matching a condition. Any new insert that would match an active predicate lock is blocked. In practice, predicate locks are expensive (every insert must be checked against all predicate locks), so databases use <strong>index-range locks</strong> (gap locks) — they lock the index range that encompasses the predicate, preventing any insert into that range.
+  </div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header">
+    <div class="qa-num">6</div>
+    <div class="qa-q">Why did actual serial execution become viable around 2007?</div>
+    <div class="chev">›</div>
+  </div>
+  <div class="qa-body">
+    Two factors converged: (1) <strong>RAM became cheap enough</strong> to hold entire working datasets in memory — no more slow disk I/O between operations. An in-memory transaction can complete in microseconds rather than milliseconds, so a single CPU core can handle many transactions per second. (2) <strong>OLTP transactions are typically short</strong> — most user-facing operations touch a small number of rows and complete in under a millisecond. The bottleneck shifted from CPU to I/O, and with in-memory databases, I/O is no longer the bottleneck. VoltDB, H-Store, and similar systems demonstrated that serial execution of stored procedures could outperform concurrent 2PL systems.
+  </div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header">
+    <div class="qa-num">7</div>
+    <div class="qa-q">What is the key difference between 2PL and SSI in their approach to concurrency?</div>
+    <div class="chev">›</div>
+  </div>
+  <div class="qa-body">
+    <strong>2PL is pessimistic</strong>: It assumes conflicts will happen and prevents them upfront by acquiring locks. Any transaction that might conflict with another must wait. This is safe but causes high latency and deadlocks. <strong>SSI is optimistic</strong>: It assumes conflicts are rare and lets transactions proceed without blocking. It tracks what each transaction has read and what has been written. At commit time, it checks if any transaction's reads have been invalidated by concurrent writes. If a conflict is detected, one transaction is aborted. SSI is better when conflict rates are low (most real OLTP workloads); 2PL is better when conflicts are frequent (aborts in SSI would waste work).
+  </div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header">
+    <div class="qa-num">8</div>
+    <div class="qa-q">Why does SELECT FOR UPDATE prevent lost updates in read-modify-write cycles?</div>
+    <div class="chev">›</div>
+  </div>
+  <div class="qa-body">
+    <code>SELECT FOR UPDATE</code> acquires an exclusive lock on the selected rows immediately at read time. If Transaction 2 tries to <code>SELECT FOR UPDATE</code> the same rows while Transaction 1 holds the lock, Tx2 must wait. Once Tx1 commits, Tx2 re-reads the rows (now seeing Tx1's updated value) and computes its update from that. This serializes the read-modify-write cycle: Tx1 completes its cycle fully before Tx2 starts. The "FOR UPDATE" part is crucial — a regular SELECT doesn't acquire any lock in PostgreSQL and won't prevent the lost update.
+  </div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header">
+    <div class="qa-num">9</div>
+    <div class="qa-q">What does "VACUUM" have to do with MVCC in PostgreSQL?</div>
+    <div class="chev">›</div>
+  </div>
+  <div class="qa-body">
+    MVCC keeps old versions of rows to serve active snapshots. A row that was updated or deleted isn't immediately removed — older transactions might still be reading the old version. VACUUM is PostgreSQL's garbage collection process: it scans tables for row versions where <code>xmax</code> is committed and older than the oldest active transaction snapshot. Such row versions are no longer needed and can be reclaimed. Without VACUUM, the table would grow indefinitely (called "table bloat"). autovacuum runs in the background automatically. If VACUUM falls behind (e.g., a very long-running transaction holds an old snapshot), old row versions accumulate and performance degrades.
+  </div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header">
+    <div class="qa-num">10</div>
+    <div class="qa-q">How does the "hospital on-call" write skew problem demonstrate that snapshot isolation alone is insufficient?</div>
+    <div class="chev">›</div>
+  </div>
+  <div class="qa-body">
+    Snapshot isolation prevents dirty reads and read skew by giving each transaction a consistent view of data. But it doesn't prevent write skew because: each transaction reads a consistent snapshot (2 doctors on call), makes a valid decision based on that snapshot (safe to go off-call), and writes to a different row (their own record). Neither transaction's read was "dirty" — both read committed data from their snapshot. The problem is that the two transactions' combined decisions violated an invariant, but each individual decision looked valid in isolation. Preventing this requires either: explicit locking (<code>SELECT FOR UPDATE</code> on the on-call rows), materializing the conflict (create a lock target), or serializable isolation (SSI detects the dependency cycle and aborts one transaction).
+  </div>
+</div>
+
+<div style="margin-top:3rem;padding:1.5rem;background:var(--surface);border-radius:10px;border:1px solid var(--border)">
+  <div class="row" style="gap:2rem;flex-wrap:wrap">
+    <div>
+      <div style="font-size:.85rem;color:var(--muted)">← Previous</div>
+      <div style="margin:.3rem 0"><a href="chapter-7-part2.html" style="color:var(--accent);text-decoration:none">Part 2: Snapshot Isolation &amp; Anomalies</a></div>
+    </div>
+    <div>
+      <div style="font-size:.85rem;color:var(--muted)">Next Chapter →</div>
+      <div style="margin:.3rem 0"><a href="chapter-8-part1.html" style="color:var(--accent);text-decoration:none">Chapter 8: Distributed Systems — Faults &amp; Partial Failures</a></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /.wrap -->
+</body>
+</html>
