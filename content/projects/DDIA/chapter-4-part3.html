@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Ch.4 Part 3 — Dataflow &amp; Q&amp;A</title>
+<style>
+  :root {
+    --bg:#0a0e17; --surface:#111827; --surface2:#1a2234; --border:#1e293b;
+    --text:#e2e8f0; --muted:#94a3b8; --accent:#3b82f6; --purple:#8b5cf6;
+    --green:#10b981; --red:#ef4444; --orange:#f59e0b; --pink:#ec4899; --cyan:#06b6d4;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;}
+  .wrap{max-width:900px;margin:0 auto;padding:40px 24px 100px;}
+  h1{font-size:2rem;font-weight:800;background:linear-gradient(135deg,var(--purple),var(--pink));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px;}
+  .sub{color:var(--muted);font-size:1rem;margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:20px;}
+  .nav{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:40px;}
+  .nav a{color:var(--muted);font-size:0.8rem;text-decoration:none;padding:4px 12px;border:1px solid var(--border);border-radius:20px;}
+  .nav a.cur{color:var(--purple);border-color:var(--purple);}
+  .nav a:hover{color:var(--text);}
+  h2{font-size:1.4rem;font-weight:700;color:var(--accent);margin:44px 0 14px;}
+  h3{font-size:1.1rem;font-weight:600;color:var(--text);margin:28px 0 10px;}
+  p{margin-bottom:14px;color:var(--muted);}
+  strong{color:var(--text);}
+  .label{font-size:0.72rem;text-transform:uppercase;letter-spacing:2px;color:var(--purple);font-weight:700;margin-bottom:6px;}
+  code{background:var(--surface2);padding:2px 7px;border-radius:4px;font-size:0.83rem;color:var(--green);}
+  .key{color:var(--accent);font-weight:600;}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin:18px 0;}
+  .card-blue{border-left:4px solid var(--accent);}
+  .card-purple{border-left:4px solid var(--purple);}
+  .card-green{border-left:4px solid var(--green);}
+  .card-red{border-left:4px solid var(--red);}
+  .card-orange{border-left:4px solid var(--orange);}
+  .card-cyan{border-left:4px solid var(--cyan);}
+  .card h4{font-size:0.95rem;font-weight:700;margin-bottom:8px;color:var(--text);}
+  .card ul{padding-left:18px;color:var(--muted);}
+  .card li{margin-bottom:5px;}
+
+  .diagram{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:28px 24px;margin:22px 0;}
+  .diagram-title{font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--purple);margin-bottom:18px;}
+
+  .g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+  @media(max-width:640px){.g2,.g3{grid-template-columns:1fr;}}
+  .pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:0.73rem;font-weight:600;}
+  .p-green{background:rgba(16,185,129,.15);color:var(--green);}
+  .p-red{background:rgba(239,68,68,.15);color:var(--red);}
+  .p-blue{background:rgba(59,130,246,.15);color:var(--accent);}
+  .p-orange{background:rgba(245,158,11,.15);color:var(--orange);}
+  .p-purple{background:rgba(139,92,246,.15);color:var(--purple);}
+  .p-cyan{background:rgba(6,182,212,.15);color:var(--cyan);}
+
+  .vflow{display:flex;flex-direction:column;align-items:center;gap:8px;}
+  .box{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 16px;text-align:center;font-size:0.83rem;}
+  .box-blue{border:2px solid var(--accent);color:var(--accent);}
+  .box-green{border:2px solid var(--green);color:var(--green);}
+  .box-orange{border:2px solid var(--orange);color:var(--orange);}
+  .box-red{border:2px solid var(--red);color:var(--red);}
+  .box-purple{border:2px solid var(--purple);color:var(--purple);}
+  .box-cyan{border:2px solid var(--cyan);color:var(--cyan);}
+  .row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .arrow-r{color:var(--muted);font-size:1.3rem;}
+  .arrow-d{color:var(--muted);font-size:1.1rem;}
+
+  table{width:100%;border-collapse:collapse;margin:14px 0;}
+  th,td{text-align:left;padding:9px 13px;border-bottom:1px solid var(--border);font-size:0.85rem;}
+  th{color:var(--accent);font-weight:600;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.8px;}
+  td{color:var(--muted);}
+
+  /* Q&A blocks */
+  .qa{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin:14px 0;overflow:hidden;}
+  .qa-header{padding:14px 18px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:0.93rem;}
+  .qa-header:hover{background:var(--surface2);}
+  .qa-body{padding:0 18px 14px;display:none;color:var(--muted);border-top:1px solid var(--border);padding-top:14px;font-size:0.9rem;line-height:1.7;}
+  .qa.open .qa-body{display:block;}
+  .qa-num{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;background:var(--purple);color:#fff;border-radius:50%;font-size:0.78rem;font-weight:700;margin-right:10px;flex-shrink:0;}
+  .chev{transition:transform .2s;color:var(--muted);}
+  .qa.open .chev{transform:rotate(180deg);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="label">DDIA · Part I: Foundations</div>
+  <h1>Chapter 4: Encoding and Evolution</h1>
+  <p class="sub">Part 3 of 3 — How encoded data flows between processes: through databases, services (REST/RPC), and message brokers. Distributed actors. Summary and 12 first-principles questions.</p>
+
+  <div class="nav">
+    <a href="chapter-4-part1.html">Part 1: Encoding Formats</a>
+    <a href="chapter-4-part2.html">Part 2: Schema Evolution</a>
+    <a href="chapter-4-part3.html" class="cur">Part 3: Dataflow &amp; Q&amp;A</a>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 1. THREE MODES OF DATAFLOW                 -->
+  <!-- ══════════════════════════════════════════ -->
+  <h2>1. Three Modes of Dataflow</h2>
+
+  <p>Encoding is only half the story. Who encodes the data, and who decodes it? There are three fundamentally different ways encoded data moves between processes, each with different compatibility implications.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 1 — The Three Modes of Dataflow</div>
+    <div class="g3">
+      <div style="border:2px solid var(--accent);border-radius:12px;padding:18px;text-align:center;">
+        <div style="font-size:1.8rem;margin-bottom:8px;">🗄️</div>
+        <p style="font-weight:700;color:var(--accent);margin-bottom:6px;">1. Through Databases</p>
+        <p style="font-size:0.8rem;margin:0;">Writer encodes → stored → reader decodes.<br>Like a message to your future self.</p>
+        <p style="font-size:0.75rem;margin-top:8px;color:var(--orange);">Needs both directions</p>
+      </div>
+      <div style="border:2px solid var(--green);border-radius:12px;padding:18px;text-align:center;">
+        <div style="font-size:1.8rem;margin-bottom:8px;">🌐</div>
+        <p style="font-weight:700;color:var(--green);margin-bottom:6px;">2. Through Services</p>
+        <p style="font-size:0.8rem;margin:0;">Client → Server (request). Server → Client (response). REST, RPC, SOAP.</p>
+        <p style="font-size:0.75rem;margin-top:8px;color:var(--green);">Servers upgraded first</p>
+      </div>
+      <div style="border:2px solid var(--purple);border-radius:12px;padding:18px;text-align:center;">
+        <div style="font-size:1.8rem;margin-bottom:8px;">📨</div>
+        <p style="font-weight:700;color:var(--purple);margin-bottom:6px;">3. Async Messages</p>
+        <p style="font-size:0.8rem;margin:0;">Sender → Broker → Receiver(s). One-way, buffered, loosely coupled.</p>
+        <p style="font-size:0.75rem;margin-top:8px;color:var(--purple);">Decoupled deployment</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 2. THROUGH DATABASES                       -->
+  <!-- ══════════════════════════════════════════ -->
+  <h2>2. Dataflow Through Databases</h2>
+
+  <p>In a database, the process that writes encodes the data, and the process that reads decodes it. Often it's the same process at a different time — <strong>"sending a message to your future self."</strong> But during a rolling upgrade, different processes at different code versions access the same database simultaneously.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 2 — The Silent Data Loss Danger During Rolling Upgrades</div>
+    <div style="display:flex;flex-direction:column;gap:12px;max-width:680px;margin:0 auto;">
+      <div class="row" style="justify-content:center;">
+        <div class="box box-green" style="min-width:130px;"><strong>App v2</strong><br><span style="font-size:0.72rem;">writes record with<br>new "email" field</span></div>
+        <span class="arrow-r">→</span>
+        <div class="box box-purple" style="min-width:130px;"><strong>Database</strong><br><span style="font-size:0.72rem;">stores record<br>including "email"</span></div>
+        <span class="arrow-r">→</span>
+        <div class="box box-orange" style="min-width:130px;"><strong>App v1</strong><br><span style="font-size:0.72rem;">reads record,<br>ignores "email" ✓</span></div>
+      </div>
+
+      <div style="text-align:center;color:var(--red);font-weight:600;font-size:0.88rem;">
+        ⚠ But what if v1 then updates and writes the record back?
+      </div>
+
+      <div class="row" style="justify-content:center;">
+        <div class="box box-orange" style="min-width:130px;"><strong>App v1</strong><br><span style="font-size:0.72rem;">updates some field,<br>rewrites record WITHOUT "email"</span></div>
+        <span style="color:var(--red);font-size:1.3rem;">→</span>
+        <div class="box box-red" style="min-width:130px;"><strong>Database</strong><br><span style="font-size:0.72rem;color:var(--red);">"email" field LOST.<br>Silent corruption.</span></div>
+      </div>
+
+      <div style="border:2px dashed var(--green);border-radius:8px;padding:12px;text-align:center;">
+        <p style="font-size:0.85rem;margin:0;color:var(--green);"><strong>Solution:</strong> Application code must preserve unknown fields when reading and rewriting a record. Some encoding libraries (Avro) handle this automatically. Not all do.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-orange">
+    <h4>"Data Outlives Code"</h4>
+    <p>You can replace all running code in minutes via a rolling upgrade. But <strong>database contents stay in their original encoding</strong> unless explicitly migrated. Data written 5 years ago is still there in the old format. A single database may contain records encoded with many different historical schema versions.</p>
+    <p style="margin:0;">Schema evolution allows the entire database to appear as though encoded with a single schema (the current one), even though the underlying records use many versions. Most relational databases allow simple additions (<code>ALTER TABLE ADD COLUMN NULL</code>) without rewriting existing rows — old rows simply return <code>null</code> for the new column.</p>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 3. SERVICES: REST AND RPC                  -->
+  <!-- ══════════════════════════════════════════ -->
+  <h2>3. Dataflow Through Services: REST and RPC</h2>
+
+  <p>The most common network communication pattern: <strong>clients and servers</strong>. The server exposes an API; the client connects and makes requests. A server can itself be a client to another service (<span class="key">microservices architecture</span>). The key constraint: services must be independently deployable and evolvable — old and new versions run simultaneously.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 3 — Microservices: Every Service Is at a Different Version</div>
+    <div class="vflow" style="gap:10px;">
+      <div class="row" style="justify-content:center;">
+        <div class="box" style="border-color:var(--muted);">Mobile App</div>
+        <div class="box" style="border-color:var(--muted);">Web Browser</div>
+      </div>
+      <div style="color:var(--muted);">▼ &nbsp; ▼</div>
+      <div class="box box-cyan" style="min-width:280px;"><strong>API Gateway / Load Balancer</strong></div>
+      <div style="color:var(--muted);">▼ &nbsp; ▼ &nbsp; ▼</div>
+      <div class="row" style="justify-content:center;">
+        <div class="box box-green" style="min-width:110px;"><strong>User Svc</strong><br><span style="font-size:0.72rem;">v2</span></div>
+        <div class="box box-orange" style="min-width:110px;"><strong>Order Svc</strong><br><span style="font-size:0.72rem;">v3</span></div>
+        <div class="box box-purple" style="min-width:110px;"><strong>Payment Svc</strong><br><span style="font-size:0.72rem;">v1</span></div>
+      </div>
+      <div style="color:var(--muted);font-size:0.78rem;">↓ calls ↓ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ↓ calls ↓</div>
+      <div class="row" style="justify-content:center;">
+        <div class="box box-cyan" style="min-width:110px;"><strong>Auth Svc</strong><br><span style="font-size:0.72rem;">v4</span></div>
+        <div class="box box-cyan" style="min-width:110px;"><strong>Inventory</strong><br><span style="font-size:0.72rem;">v2</span></div>
+      </div>
+    </div>
+    <p style="font-size:0.8rem;color:var(--muted);margin-top:12px;text-align:center;">Each service is both a server (to its callers) and a client (to services it calls). Encoding compatibility is essential at every boundary.</p>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 4 — REST vs SOAP vs RPC</div>
+    <div style="overflow-x:auto;">
+    <table>
+      <tr><th>Aspect</th><th>REST</th><th>SOAP</th><th>Modern RPC (gRPC, Thrift)</th></tr>
+      <tr><td><strong>Philosophy</strong></td><td>Embrace HTTP. URLs = resources. Verbs = actions.</td><td>XML protocol. Avoids HTTP semantics. WS-* standards.</td><td>Make remote call look like local function. Binary IDL.</td></tr>
+      <tr><td><strong>Format</strong></td><td>JSON (usually)</td><td>XML only</td><td>Binary (Protobuf, Thrift)</td></tr>
+      <tr><td><strong>Debugging</strong></td><td style="color:var(--green);">Easy (curl, browser)</td><td style="color:var(--red);">Hard (XML, tools needed)</td><td style="color:var(--orange);">Moderate (binary, need tooling)</td></tr>
+      <tr><td><strong>Performance</strong></td><td>Moderate</td><td style="color:var(--red);">Poor (verbose XML)</td><td style="color:var(--green);">Excellent (compact binary)</td></tr>
+      <tr><td><strong>Cross-org use</strong></td><td style="color:var(--green);">Excellent (lingua franca)</td><td>Declining</td><td style="color:var(--red);">Rare (both sides need IDL)</td></tr>
+      <tr><td><strong>Best for</strong></td><td>Public APIs, web, cross-org</td><td>Legacy enterprise</td><td>Internal microservices</td></tr>
+    </table>
+    </div>
+  </div>
+
+  <div class="card card-red">
+    <h4>Why "Location Transparency" in RPC Is Fundamentally Flawed</h4>
+    <p>RPC frameworks try to make a remote call look like a local function call. This is a <strong>leaky abstraction</strong>. A network request is fundamentally different from a local call:</p>
+    <ul>
+      <li><strong>Unpredictable network</strong>: requests and responses can be lost, delayed, or duplicated</li>
+      <li><strong>Timeouts</strong>: a local call either returns or throws. A network call might just hang — you don't know if the request arrived</li>
+      <li><strong>Retries may duplicate</strong>: if you retry after a timeout, the request may have already executed. Need <strong>idempotence</strong></li>
+      <li><strong>Wildly variable latency</strong>: local = nanoseconds; network = milliseconds to seconds</li>
+      <li><strong>Parameters must be serialized</strong>: no pointers, no complex in-memory objects</li>
+      <li><strong>Cross-language types</strong>: JavaScript number ≠ Java long ≠ Go int64</li>
+    </ul>
+    <p style="margin:0;">Modern RPC frameworks (gRPC, Finagle) acknowledge this by exposing <strong>futures/promises</strong>, <strong>streams</strong>, and explicit error types. They don't pretend remote = local.</p>
+  </div>
+
+  <div class="card card-blue">
+    <h4>Compatibility Direction for Services</h4>
+    <p style="font-size:0.88rem;margin:0;">In practice, servers are updated before clients. So: requests need <strong>backward compatibility</strong> (new server handles old client requests). Responses need <strong>forward compatibility</strong> (old clients handle new server responses with extra fields). API versioning (<code>/api/v1/</code>) is common for REST to signal which schema the client expects.</p>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 4. MESSAGE-PASSING                         -->
+  <!-- ══════════════════════════════════════════ -->
+  <h2>4. Async Message-Passing Dataflow</h2>
+
+  <p>Between direct RPC and databases sits <span class="key">asynchronous message passing</span>: a <strong>message broker</strong> (message queue) intermediates. The sender writes to a named queue or topic; the broker delivers to one or more consumers. The sender fires and forgets — no waiting for a response.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 5 — Message Broker Architecture</div>
+    <div class="vflow" style="gap:12px;">
+      <div class="row" style="justify-content:center;">
+        <div class="box box-green" style="min-width:100px;"><strong>Producer A</strong><br><span style="font-size:0.72rem;">Order Svc v3</span></div>
+        <div class="box box-green" style="min-width:100px;"><strong>Producer B</strong><br><span style="font-size:0.72rem;">User Svc v2</span></div>
+        <div class="box box-green" style="min-width:100px;"><strong>Producer C</strong><br><span style="font-size:0.72rem;">Payment v1</span></div>
+      </div>
+      <div style="color:var(--muted);font-size:0.78rem;">▼ encode + publish ▼ ▼</div>
+
+      <div style="border:2px solid var(--purple);border-radius:12px;padding:16px;min-width:480px;max-width:560px;">
+        <p style="text-align:center;font-weight:700;color:var(--purple);margin-bottom:10px;">Message Broker (Kafka / RabbitMQ / NATS)</p>
+        <div class="row" style="justify-content:center;gap:10px;">
+          <div class="box" style="border-color:var(--orange);min-width:110px;"><span style="color:var(--orange);font-weight:600;">Topic: orders</span><br><span style="font-size:0.72rem;color:var(--muted);">msg msg msg</span></div>
+          <div class="box" style="border-color:var(--cyan);min-width:110px;"><span style="color:var(--cyan);font-weight:600;">Topic: users</span><br><span style="font-size:0.72rem;color:var(--muted);">msg msg</span></div>
+          <div class="box" style="border-color:var(--pink);min-width:110px;"><span style="color:var(--pink);font-weight:600;">Queue: payments</span><br><span style="font-size:0.72rem;color:var(--muted);">msg msg msg</span></div>
+        </div>
+      </div>
+
+      <div style="color:var(--muted);font-size:0.78rem;">▼ deliver + decode ▼ ▼</div>
+      <div class="row" style="justify-content:center;">
+        <div class="box box-blue" style="min-width:100px;"><strong>Consumer X</strong><br><span style="font-size:0.72rem;">Analytics v1</span></div>
+        <div class="box box-blue" style="min-width:100px;"><strong>Consumer Y</strong><br><span style="font-size:0.72rem;">Email Svc v2</span></div>
+        <div class="box box-blue" style="min-width:100px;"><strong>Consumer Z</strong><br><span style="font-size:0.72rem;">Audit Log v1</span></div>
+      </div>
+    </div>
+    <div style="margin-top:14px;display:flex;flex-wrap:wrap;gap:8px;">
+      <span class="pill p-purple">One-way: sender doesn't wait for response</span>
+      <span class="pill p-green">Buffering: holds messages if consumer is down</span>
+      <span class="pill p-blue">Fan-out: one message → many consumers</span>
+      <span class="pill p-orange">Decoupled: sender doesn't know who consumes</span>
+    </div>
+  </div>
+
+  <div class="card card-green">
+    <h4>Message Broker Advantages Over Direct RPC</h4>
+    <ul>
+      <li><strong>Buffer if recipient unavailable</strong>: messages queue until consumer is ready — improves resilience</li>
+      <li><strong>Auto-redeliver on consumer crash</strong>: message isn't lost if consumer dies mid-processing</li>
+      <li><strong>Sender doesn't need recipient's address</strong>: useful in cloud with dynamically created/destroyed VMs</li>
+      <li><strong>Fan-out</strong>: one published message → multiple consumers without modifying the sender</li>
+      <li><strong>Logical decoupling</strong>: add new consumers without touching producers</li>
+    </ul>
+    <p style="margin:0;font-size:0.85rem;">Message brokers don't enforce a data model — a message is just bytes with metadata. You can use any encoding. If the encoding is forward and backward compatible, publishers and consumers can be deployed independently in any order.</p>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 5. DISTRIBUTED ACTORS                      -->
+  <!-- ══════════════════════════════════════════ -->
+  <h2>5. Distributed Actor Frameworks</h2>
+
+  <p>The <span class="key">actor model</span> is a concurrency model: logic is encapsulated in <strong>actors</strong>, each with local state, communicating by sending and receiving asynchronous messages. Unlike threads, actors never share state. Message delivery isn't guaranteed even within a single process — the model embraces this from the start.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 6 — Actor Model: Local vs Distributed</div>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div style="border:1px solid var(--border);border-radius:8px;padding:14px;">
+        <p style="font-weight:600;color:var(--green);margin-bottom:8px;">Single-Node Actors (same JVM/process)</p>
+        <div class="row" style="justify-content:center;">
+          <div style="border:2px solid var(--green);border-radius:8px;padding:10px;text-align:center;min-width:90px;"><strong style="color:var(--green);">Actor A</strong><br><span style="font-size:0.72rem;color:var(--muted);">local state</span></div>
+          <div style="display:flex;flex-direction:column;align-items:center;"><span style="font-size:0.72rem;color:var(--muted);">async msg</span><span style="color:var(--green);">→</span></div>
+          <div style="border:2px solid var(--green);border-radius:8px;padding:10px;text-align:center;min-width:90px;"><strong style="color:var(--green);">Actor B</strong><br><span style="font-size:0.72rem;color:var(--muted);">local state</span></div>
+          <div style="display:flex;flex-direction:column;align-items:center;"><span style="font-size:0.72rem;color:var(--muted);">async msg</span><span style="color:var(--green);">→</span></div>
+          <div style="border:2px solid var(--green);border-radius:8px;padding:10px;text-align:center;min-width:90px;"><strong style="color:var(--green);">Actor C</strong><br><span style="font-size:0.72rem;color:var(--muted);">local state</span></div>
+        </div>
+      </div>
+      <div style="border:1px solid var(--purple);border-radius:8px;padding:14px;">
+        <p style="font-weight:600;color:var(--purple);margin-bottom:8px;">Distributed Actors (across nodes — rolling upgrade scenario)</p>
+        <div style="display:grid;grid-template-columns:1fr 50px 1fr;gap:0;align-items:center;">
+          <div style="border:2px solid var(--accent);border-radius:8px;padding:12px;text-align:center;">
+            <strong style="color:var(--accent);">Node 1 (v2)</strong><br>
+            <span style="font-size:0.75rem;color:var(--muted);">Actor A · Actor B</span>
+          </div>
+          <div style="text-align:center;">
+            <span style="font-size:0.72rem;color:var(--muted);">network msgs</span><br>
+            <span style="color:var(--purple);">⇄</span>
+          </div>
+          <div style="border:2px solid var(--orange);border-radius:8px;padding:12px;text-align:center;">
+            <strong style="color:var(--orange);">Node 2 (v1)</strong><br>
+            <span style="font-size:0.75rem;color:var(--muted);">Actor C · Actor D</span>
+          </div>
+        </div>
+        <p style="font-size:0.78rem;color:var(--muted);margin-top:8px;text-align:center;">Messages between actors on different nodes are encoded, sent over the network, and decoded. Need forward + backward compat during rolling upgrades.</p>
+      </div>
+    </div>
+    <div style="margin-top:14px;display:flex;flex-wrap:wrap;gap:8px;">
+      <span class="pill p-green">Akka (JVM) — avoid default Java serialization, use Protobuf</span>
+      <span class="pill p-blue">Orleans (.NET) — custom encoding with versioning</span>
+      <span class="pill p-purple">Erlang OTP — requires careful schema planning for upgrades</span>
+    </div>
+  </div>
+
+  <div class="card card-purple">
+    <h4>Why Actors Handle Distribution Better Than RPC</h4>
+    <p style="margin:0;">The actor model already assumes messages <strong>may be lost</strong> within a single process. When extended across nodes, there's <strong>less fundamental mismatch</strong> — the model was designed for unreliable delivery from day one. RPC fails because it tries to hide network unreliability behind a synchronous function call interface. Actors embrace it. That said: rolling upgrades still require encoding compatibility, and cross-node latency is still higher than intra-node.</p>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 6. CHAPTER SUMMARY                         -->
+  <!-- ══════════════════════════════════════════ -->
+  <h2>6. Chapter Summary</h2>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 7 — Chapter 4 Concept Map</div>
+    <div class="vflow" style="gap:10px;">
+      <div class="box box-purple" style="max-width:380px;padding:14px;">
+        <strong>Core Requirement: Evolvability</strong><br>
+        <span style="font-size:0.8rem;color:var(--muted);">Rolling upgrades require both backward + forward compatibility simultaneously</span>
+      </div>
+      <div class="arrow-d">▼</div>
+      <div class="row" style="justify-content:center;">
+        <div class="box box-red" style="min-width:130px;"><strong>Avoid</strong><br><span style="font-size:0.72rem;">Language-specific<br>encoding (pickle, Java Ser.)</span></div>
+        <div class="box box-orange" style="min-width:130px;"><strong>OK for external</strong><br><span style="font-size:0.72rem;">JSON / XML / CSV<br>(but flawed)</span></div>
+        <div class="box box-green" style="min-width:130px;"><strong>Best for internal</strong><br><span style="font-size:0.72rem;">Thrift / Protobuf / Avro<br>(schema-driven)</span></div>
+      </div>
+      <div class="arrow-d">▼</div>
+      <div class="box box-blue" style="max-width:380px;padding:14px;">
+        <strong>Schema Evolution</strong><br>
+        <span style="font-size:0.8rem;color:var(--muted);">Field tags (Thrift/Protobuf) or name matching (Avro) enable safe changes</span>
+      </div>
+      <div class="arrow-d">▼</div>
+      <div class="row" style="justify-content:center;">
+        <div class="box box-blue" style="min-width:130px;"><strong>Databases</strong><br><span style="font-size:0.72rem;">Data outlives code<br>Both compat directions</span></div>
+        <div class="box box-green" style="min-width:130px;"><strong>Services</strong><br><span style="font-size:0.72rem;">REST / RPC<br>Servers updated first</span></div>
+        <div class="box box-purple" style="min-width:130px;"><strong>Msg Brokers</strong><br><span style="font-size:0.72rem;">Async, decoupled<br>Deploy independently</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 7. FIRST-PRINCIPLES Q&A                    -->
+  <!-- ══════════════════════════════════════════ -->
+  <h2 style="color:var(--pink);">First-Principles Questions</h2>
+  <p>Click to reveal. Try to answer before expanding.</p>
+
+  <div class="qa" onclick="this.classList.toggle('open')">
+    <div class="qa-header"><span><span class="qa-num">1</span>Why do we need BOTH backward and forward compatibility? Why isn't one sufficient?</span><span class="chev">▼</span></div>
+    <div class="qa-body">During <strong>rolling upgrades</strong>, some nodes run new code while others still run old code. New code must read old data (<strong>backward compatibility</strong>) — easy, because you wrote the new code and know the old format. Old code must handle data from new code without breaking (<strong>forward compatibility</strong>) — trickier, because old code must gracefully ignore additions it doesn't know about. Without <em>both</em>, you cannot do rolling upgrades — you'd need to update all nodes simultaneously, which requires downtime. For client-side apps it's even worse: users may not upgrade for months, giving you many versions in the wild simultaneously.</div>
+  </div>
+
+  <div class="qa" onclick="this.classList.toggle('open')">
+    <div class="qa-header"><span><span class="qa-num">2</span>Why are language-specific formats (Java Serializable, Python pickle) dangerous for anything beyond transient purposes?</span><span class="chev">▼</span></div>
+    <div class="qa-body">Four deep problems: (1) <strong>Language lock-in</strong>: encoding tied to one language; other languages can't read the data, committing you potentially for years. (2) <strong>Security</strong>: decoding instantiates arbitrary classes. An attacker who feeds your application a crafted byte sequence can trigger arbitrary class instantiation → remote code execution. (3) <strong>No versioning</strong>: forward and backward compatibility are afterthoughts — schema evolution is painful or impossible. (4) <strong>Performance</strong>: Java's built-in serialization is notorious for slow speed and bloated output size.</div>
+  </div>
+
+  <div class="qa" onclick="this.classList.toggle('open')">
+    <div class="qa-header"><span><span class="qa-num">3</span>Why is MessagePack only marginally smaller than JSON, while Protobuf is dramatically smaller?</span><span class="chev">▼</span></div>
+    <div class="qa-body">MessagePack keeps the JSON data model: it still includes all field names ("userName", "favoriteNumber") as strings in every encoded record, because it has no schema. The field name strings dominate the payload. Protocol Buffers uses a <strong>schema with numbered field tags</strong> — field names never appear in the encoded data, only small tag numbers (1, 2, 3). Additionally, Protobuf uses variable-length integers so small numbers use fewer bytes. The biggest savings come from <strong>omitting field names</strong>, not from binary-encoding the values.</div>
+  </div>
+
+  <div class="qa" onclick="this.classList.toggle('open')">
+    <div class="qa-header"><span><span class="qa-num">4</span>How do Thrift/Protobuf achieve forward compatibility (old code reads data written by new code)?</span><span class="chev">▼</span></div>
+    <div class="qa-body">Fields are identified by <strong>tag numbers</strong> and include a datatype annotation. When old code encounters a tag number it doesn't recognize (a new field added by newer code), the datatype annotation tells the parser exactly how many bytes to <strong>skip</strong>. The unknown field is ignored. This is why old code can safely read records written by new code — it skips what it doesn't understand. This mechanism also explains why new fields must be <strong>optional or have defaults</strong>: if new code reads old data, the new field is absent, and the code must handle that gracefully.</div>
+  </div>
+
+  <div class="qa" onclick="this.classList.toggle('open')">
+    <div class="qa-header"><span><span class="qa-num">5</span>Why can you never change a field's tag number, and why can you never reuse a removed field's tag?</span><span class="chev">▼</span></div>
+    <div class="qa-body">The tag number is the <strong>identity</strong> of the field in encoded bytes. Changing it makes every existing encoded record unreadable — the parser maps tag → wrong field, causing data corruption. Reusing a removed tag is equally dangerous: old data in databases, message queues, and log files still contains records with that tag number. The parser would silently misinterpret the old field as the new field — subtle, hard-to-detect corruption. These rules are absolute because <strong>encoded data can persist for years</strong>, long after the original code is gone.</div>
+  </div>
+
+  <div class="qa" onclick="this.classList.toggle('open')">
+    <div class="qa-header"><span><span class="qa-num">6</span>How is Avro's schema evolution fundamentally different from Thrift/Protobuf, and what use case does this enable?</span><span class="chev">▼</span></div>
+    <div class="qa-body">Avro has <strong>no tag numbers</strong>. Fields are matched by <strong>name</strong> between writer's and reader's schema. This enables <strong>dynamically generated schemas</strong>. Example: dumping a relational database to binary files. With Avro, you auto-generate a schema from the database schema (column names → field names). When the DB schema changes, regenerate the Avro schema automatically. With Thrift/Protobuf, you'd need to manually assign tag numbers every time a column is added or removed — one mistake and you corrupt data. Avro was designed specifically for this Hadoop use case.</div>
+  </div>
+
+  <div class="qa" onclick="this.classList.toggle('open')">
+    <div class="qa-header"><span><span class="qa-num">7</span>What does "data outlives code" mean, and what specific danger does it create?</span><span class="chev">▼</span></div>
+    <div class="qa-body">You can replace all running code in minutes. But database contents stay in their <strong>original encoding</strong> until explicitly migrated — data written 5 years ago is still there. During a rolling upgrade, an old app instance may read a record written by new code (with a new "email" field), update some other field, and <strong>write the record back without the unknown "email" field</strong> — silently losing data. The solution: encoding libraries (or application code) must preserve unknown fields when reading and rewriting records. Not all libraries do this correctly.</div>
+  </div>
+
+  <div class="qa" onclick="this.classList.toggle('open')">
+    <div class="qa-header"><span><span class="qa-num">8</span>Why is "location transparency" in RPC fundamentally flawed?</span><span class="chev">▼</span></div>
+    <div class="qa-body">Location transparency tries to hide the difference between local and remote calls. But six properties make them fundamentally different: (1) <strong>Unpredictable network</strong> — requests can be lost. (2) <strong>Timeouts</strong> — no way to know if request succeeded. (3) <strong>Retries may execute twice</strong> — idempotence required. (4) <strong>Variable latency</strong> — nanoseconds vs milliseconds. (5) <strong>Serialization required</strong> — no pointers or complex objects. (6) <strong>Cross-language types</strong> — JavaScript number ≠ Java long. Hiding all this behind a function call leads to brittle systems. Modern frameworks (gRPC) expose futures, streams, and errors explicitly.</div>
+  </div>
+
+  <div class="qa" onclick="this.classList.toggle('open')">
+    <div class="qa-header"><span><span class="qa-num">9</span>What are the five advantages of a message broker over direct RPC?</span><span class="chev">▼</span></div>
+    <div class="qa-body">(1) <strong>Buffer if recipient unavailable</strong>: messages queue until consumer is ready — improves resilience. (2) <strong>Auto-redeliver on crash</strong>: consumer crash doesn't lose the message — broker redelivers to another worker. (3) <strong>Sender doesn't need recipient's address</strong>: useful in cloud where VMs come and go dynamically. (4) <strong>Fan-out</strong>: one published message delivered to multiple subscribers without modifying the sender. (5) <strong>Logical decoupling</strong>: add new consumers without touching producers. The fundamental trade-off: communication is <strong>one-way and asynchronous</strong>. If you need a response, you must implement a separate reply-queue pattern.</div>
+  </div>
+
+  <div class="qa" onclick="this.classList.toggle('open')">
+    <div class="qa-header"><span><span class="qa-num">10</span>Why does the actor model handle distribution better than traditional RPC?</span><span class="chev">▼</span></div>
+    <div class="qa-body">The actor model already assumes messages <strong>may be lost</strong>, even within a single process. All communication is asynchronous and one-way — no waiting for responses. When extended across nodes, there's <strong>less fundamental mismatch</strong> because the model was designed for unreliable delivery from the start. RPC fails because it tries to hide network unreliability behind a synchronous interface, which is a lie — the network <em>is</em> unreliable. Actors embrace it. That said, rolling upgrades still require encoding compatibility, and Akka's default Java serialization is a known pain point.</div>
+  </div>
+
+  <div class="qa" onclick="this.classList.toggle('open')">
+    <div class="qa-header"><span><span class="qa-num">11</span>Why did Twitter have to include tweet IDs twice in their API responses?</span><span class="chev">▼</span></div>
+    <div class="qa-body">Tweet IDs are 64-bit integers. JavaScript's <code>Number</code> type (IEEE 754 double-precision float) can only represent integers exactly up to 2<sup>53</sup> ≈ 9 quadrillion. Tweet IDs can exceed this. When a JavaScript app parses a large tweet ID as a JSON number, the last few digits are <strong>silently corrupted</strong> due to floating-point precision loss. Twitter's workaround: include each ID twice — once as a JSON number (for non-JS consumers) and once as a decimal string (for JavaScript consumers). This is a direct consequence of JSON having no integer/float distinction and no way to specify numeric precision.</div>
+  </div>
+
+  <div class="qa" onclick="this.classList.toggle('open')">
+    <div class="qa-header"><span><span class="qa-num">12</span>For service requests vs responses in microservices, which compatibility direction matters and why?</span><span class="chev">▼</span></div>
+    <div class="qa-body">Servers are typically updated before clients. So: <strong>requests</strong> need <strong>backward compatibility</strong> — the new server must understand requests from old clients (which use the old request schema). <strong>Responses</strong> need <strong>forward compatibility</strong> — old clients must tolerate responses from the new server (which may include new fields they don't know about). Think of it directionally: the server is always "ahead" of the client. It receives old-format requests (backward compat) and sends new-format responses that old clients must silently tolerate (forward compat). API versioning (<code>/api/v1/</code>) lets the server know which schema the client expects, giving you an escape hatch when changes are too large.</div>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- NAV FOOTER                                 -->
+  <!-- ══════════════════════════════════════════ -->
+  <div style="margin-top:60px;padding-top:24px;border-top:1px solid var(--border);display:flex;justify-content:flex-start;">
+    <a href="chapter-4-part2.html" style="color:var(--muted);font-size:0.9rem;text-decoration:none;">← Part 2: Schema Evolution</a>
+  </div>
+</div>
+<script>
+  // Q&A click is handled by onclick on each .qa div, but toggle needs to close siblings for cleaner UX
+  // (already handled by classList.toggle — each block toggles independently, which is fine)
+</script>
+</body>
+</html>

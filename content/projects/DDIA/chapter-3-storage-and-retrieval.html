@@ -55,8 +55,9 @@
   .flow-box.purple { border-color: var(--accent2); color: var(--accent2); }
   .flow-box.orange { border-color: var(--orange); color: var(--orange); }
   .flow-box.red { border-color: var(--red); color: var(--red); }
+  .flow-box.cyan { border-color: var(--cyan); color: var(--cyan); }
   .flow-arrow { color: var(--text-muted); font-size: 1.2rem; }
-  .tree-level { display: flex; justify-content: center; gap: 8px; margin: 8px 0; }
+  .tree-level { display: flex; justify-content: center; gap: 8px; margin: 8px 0; flex-wrap: wrap; }
   .tree-node { padding: 6px 14px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; text-align: center; }
   .tree-node.root { background: var(--accent); color: white; }
   .tree-node.internal { background: var(--accent2); color: white; }
@@ -64,329 +65,1136 @@
   .vs { display: flex; align-items: center; justify-content: center; gap: 32px; margin: 20px 0; flex-wrap: wrap; }
   .vs-side { flex: 1; min-width: 200px; text-align: center; }
   .vs-divider { font-size: 1.5rem; font-weight: 800; color: var(--text-muted); }
+  pre.codeblock { background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin: 16px 0; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.8rem; color: var(--accent3); line-height: 1.6; overflow-x: auto; white-space: pre; }
+  .ascii-diagram { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.75rem; line-height: 1.35; color: var(--text); white-space: pre; overflow-x: auto; }
+  .highlight { color: var(--orange); font-weight: 600; }
+  .highlight-blue { color: var(--accent); font-weight: 600; }
+  .highlight-green { color: var(--accent3); font-weight: 600; }
+  .highlight-purple { color: var(--accent2); font-weight: 600; }
+  .highlight-red { color: var(--red); font-weight: 600; }
+  .highlight-cyan { color: var(--cyan); font-weight: 600; }
+  .step-grid { display: grid; grid-template-columns: 40px 1fr; gap: 0; margin: 16px 0; }
+  .step-num { display: flex; align-items: flex-start; justify-content: center; padding-top: 4px; }
+  .step-circle { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; color: white; }
+  .step-content { padding: 0 0 20px 12px; border-left: 2px solid var(--border); color: var(--text-muted); font-size: 0.9rem; }
+  .mini-table { width: 100%; font-size: 0.8rem; }
+  .mini-table th { font-size: 0.7rem; padding: 6px 10px; }
+  .mini-table td { padding: 6px 10px; font-size: 0.8rem; }
 </style>
 </head>
 <body>
 <div class="container">
-  <p class="section-label">DDIA — Part I: Foundations of Data Systems</p>
+  <p class="section-label">DDIA -- Part I: Foundations of Data Systems</p>
   <h1>Chapter 3: Storage and Retrieval</h1>
-  <p class="subtitle">A database needs to do two things: store data when you give it, and give it back when you ask. Understanding <em>how</em> it does this lets you choose the right engine for your workload.</p>
+  <p class="subtitle">A database needs to do two things: store data when you give it, and give it back when you ask. Understanding <em>how</em> it does this lets you choose the right engine for your workload. This chapter examines the internals of storage engines -- from the simplest append-only log to sophisticated column-oriented warehouses.</p>
 
-  <!-- THE SIMPLEST DATABASE -->
+  <div class="quote">"Wer Ordnung halt, ist nur zu faul zum Suchen." (If you keep things tidily ordered, you're just too lazy to go searching.) -- German proverb</div>
+
+  <!-- ============================================================ -->
+  <!-- THE SIMPLEST DATABASE                                        -->
+  <!-- ============================================================ -->
   <h2>The World's Simplest Database</h2>
-  <p>Two bash functions: <code>db_set key value</code> appends to a file. <code>db_get key</code> greps for the latest value. Writes are O(1) (just append). Reads are O(n) (scan the whole file). This is the core insight: <strong>an append-only log has great write performance but terrible read performance</strong>. We need an <span class="key-term">index</span> to speed up reads.</p>
+  <p>Two bash functions implement a complete key-value store. <code>db_set key value</code> appends a comma-separated pair to a file. <code>db_get key</code> greps for the key and returns the last match (the most recent value). This reveals the core tension in storage systems:</p>
 
-  <div class="card card-orange">
-    <h4>The Fundamental Trade-Off</h4>
-    <p>An index is an <em>additional</em> structure derived from the primary data. It speeds up reads but slows down writes (every write must also update the index). This is a trade-off: well-chosen indexes speed up reads without slowing writes too much.</p>
+  <pre class="codeblock">#!/bin/bash
+db_set () { echo "$1,$2" >> database; }
+db_get () { grep "^$1," database | sed -e "s/^$1,//" | tail -n 1; }
+
+$ db_set 42 '{"name":"San Francisco","attractions":["Golden Gate Bridge"]}'
+$ db_set 42 '{"name":"San Francisco","attractions":["Exploratorium"]}'
+$ db_get 42
+{"name":"San Francisco","attractions":["Exploratorium"]}</pre>
+
+  <!-- DIAGRAM 1: Append-only log step by step -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 1: Append-Only Log -- Step by Step</div>
+    <div class="ascii-diagram">
+  <span class="highlight">Step 1: db_set 123 "London"</span>
+
+  Data File (database):
+  +---------------------------------------------+
+  | <span class="highlight-green">123,London</span>                                   | &larr; offset 0
+  +---------------------------------------------+
+
+  <span class="highlight">Step 2: db_set 42 "San Francisco"</span>
+
+  Data File (database):
+  +---------------------------------------------+
+  | 123,London                                   | &larr; offset 0
+  | <span class="highlight-green">42,San Francisco</span>                          | &larr; offset 28
+  +---------------------------------------------+
+
+  <span class="highlight">Step 3: db_set 42 "Exploratorium"</span>   (update!)
+
+  Data File (database):
+  +---------------------------------------------+
+  | 123,London                                   | &larr; offset 0
+  | 42,San Francisco                             | &larr; offset 28  (stale!)
+  | <span class="highlight-green">42,Exploratorium</span>                          | &larr; offset 56  (latest!)
+  +---------------------------------------------+
+
+  <span class="highlight-red">db_get 42</span> &rarr; Must scan ALL lines, take <span class="highlight-red">last match</span>
+  Write: O(1) -- just append     Read: O(n) -- scan everything
+    </div>
   </div>
 
-  <!-- TWO FAMILIES -->
+  <p>Writes are O(1) because appending to the end of a file is the simplest possible write operation -- no seeking, no rewriting. But reads are O(n) because we must scan the entire file to find the latest value for a key. Real databases use <strong>logs</strong> (append-only sequences of records) as a fundamental building block, but they add <span class="key-term">indexes</span> to speed up reads.</p>
+
+  <div class="card card-orange">
+    <h4>The Fundamental Trade-Off of Indexes</h4>
+    <p>An index is an <em>additional structure derived from the primary data</em>. It speeds up reads but slows down writes, because every write must also update the index. Databases don't index everything by default -- the application developer must choose indexes using knowledge of typical query patterns. This is a conscious trade-off: well-chosen indexes speed up reads enormously without slowing writes too much.</p>
+    <p>Simply appending to a file is the fastest possible write. <strong>Any index you add will slow writes down.</strong> The goal is to find the sweet spot where read speedup vastly exceeds write overhead.</p>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- TWO FAMILIES                                                 -->
+  <!-- ============================================================ -->
   <h2>Two Families of Storage Engines</h2>
+  <p>OLTP storage engines fall into two broad categories with fundamentally different design philosophies. Understanding which family your database belongs to helps predict its performance characteristics.</p>
 
   <div class="diagram">
-    <div class="diagram-title">OLTP Storage Engine Families</div>
+    <div class="diagram-title">Diagram 2: OLTP Storage Engine Families</div>
     <div class="vs">
       <div class="vs-side">
         <div class="flow-box green" style="font-size:1rem; padding:16px 24px;"><strong>Log-Structured</strong></div>
         <p style="margin-top:12px; font-size:0.85rem;">Append-only. Never update a file in place. Turn random writes into sequential writes.</p>
-        <p style="font-size:0.8rem; color:var(--accent3);">Bitcask, SSTables, LSM-Trees, LevelDB, RocksDB, Cassandra, HBase, Lucene</p>
+        <p style="font-size:0.8rem; color:var(--accent3);"><strong>Key idea:</strong> Sequential writes are 100-1000x faster than random writes on spinning disks, and still faster on SSDs.</p>
+        <p style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Bitcask, SSTables, LSM-Trees, LevelDB, RocksDB, Cassandra, HBase, Lucene</p>
       </div>
       <div class="vs-divider">vs</div>
       <div class="vs-side">
         <div class="flow-box primary" style="font-size:1rem; padding:16px 24px;"><strong>Page-Oriented (B-Trees)</strong></div>
-        <p style="margin-top:12px; font-size:0.85rem;">Fixed-size pages. Update in place. The disk is a set of overwritable pages.</p>
-        <p style="font-size:0.8rem; color:var(--accent);">All major relational DBs (PostgreSQL, MySQL, Oracle, SQL Server) + many nonrelational</p>
+        <p style="margin-top:12px; font-size:0.85rem;">Fixed-size pages (typically 4 KB). Update in place. The disk is a set of overwritable pages.</p>
+        <p style="font-size:0.8rem; color:var(--accent);"><strong>Key idea:</strong> Each key exists in exactly one place. Random reads are fast (follow tree pointers).</p>
+        <p style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">PostgreSQL, MySQL, Oracle, SQL Server, SQLite + many nonrelational DBs</p>
       </div>
     </div>
   </div>
 
-  <!-- HASH INDEXES -->
-  <h3>Hash Indexes (Bitcask)</h3>
-  <p>Keep an in-memory hash map: key &rarr; byte offset in the data file. Every write appends to the file and updates the hash map. Reads: look up offset, seek to position, read value.</p>
+  <!-- ============================================================ -->
+  <!-- HASH INDEXES                                                 -->
+  <!-- ============================================================ -->
+  <h2>Hash Indexes (Bitcask)</h2>
+  <p>The simplest indexing strategy: keep an <strong>in-memory hash map</strong> where every key maps to a <strong>byte offset</strong> in the data file. On write: append to file, update hash map. On read: look up offset in hash map, seek to that position, read the value. This is exactly what <span class="key-term">Bitcask</span> (the default storage engine in Riak) does.</p>
+
+  <!-- DIAGRAM 3: Hash index architecture -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 3: In-Memory Hash Index Pointing to Byte Offsets</div>
+    <div class="ascii-diagram">
+  <span class="highlight-blue">IN-MEMORY HASH MAP</span>                    <span class="highlight-green">DATA FILE ON DISK</span>
+  +-------------------+                   +---------------------------------------+
+  | key   | offset    |                   | Byte 0:   123456,{"name":"London"...} |
+  |-------|-----------|                   | Byte 64:  42,{"name":"San Fran"...}   |
+  | 123456| <span class="highlight">0</span>    ----+---------&rarr;         | Byte 128: 99,{"name":"Paris"...}      |
+  | 42    | <span class="highlight">64</span>   ----+---------&rarr;         | Byte 192: 42,{"name":"Explora"...}    |
+  | 99    | <span class="highlight">128</span>  ----+---------&rarr;         |                                       |
+  +-------------------+                   +---------------------------------------+
+
+  <span class="highlight-red">WRITE db_set(42, "new_value"):</span>
+  1. Append "42,new_value" to end of file at byte 256
+  2. Update hash map: 42 &rarr; 256 (overwrites old offset 64)
+
+  <span class="highlight-green">READ db_get(42):</span>
+  1. Hash map lookup: 42 &rarr; byte 256
+  2. Seek to byte 256 in file, read value  (one disk seek!)
+    </div>
+    <p style="font-size:0.85rem; color:var(--text-muted); margin-top:16px;"><strong>Requirement:</strong> All keys must fit in RAM (hash map is entirely in memory). Values can exceed RAM since they're loaded from disk with a single seek. If the data file portion is in the filesystem cache, reads require zero disk I/O.</p>
+  </div>
 
   <div class="card card-green">
-    <h4>Compaction &amp; Segment Merging</h4>
-    <p>Break the log into <strong>segments</strong>. When a segment reaches a size limit, close it and start a new one. Then run <strong>compaction</strong>: throw away duplicate keys, keeping only the most recent value. Merge several segments into one. Old segments are deleted after merging completes.</p>
-    <ul>
-      <li>Each segment has its own in-memory hash table</li>
-      <li>To find a key: check most recent segment first, then next-oldest, etc.</li>
-      <li>Merging keeps the number of segments small</li>
-    </ul>
+    <h4>Bitcask Use Case</h4>
+    <p>Ideal for workloads with many writes per key but a manageable number of distinct keys. Example: URL of a cat video (key) mapped to play count (value). Lots of writes (every play increments the counter), but relatively few distinct URLs. All keys fit comfortably in memory.</p>
+  </div>
+
+  <h3>Compaction and Segment Merging</h3>
+  <p>Problem: the data file grows forever. Solution: break the log into <strong>segments</strong> of a certain size. When a segment is full, close it and start a new one. Then run <strong>compaction</strong>: throw away duplicate keys, keeping only the most recent value. Merge multiple compacted segments into one.</p>
+
+  <!-- DIAGRAM 4: Compaction and segment merging -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 4: Compaction and Segment Merging (Before/After)</div>
+    <div class="ascii-diagram">
+  <span class="highlight-red">BEFORE COMPACTION:</span>
+
+  Segment 1 (closed):          Segment 2 (closed):          Segment 3 (active):
+  +-------------------+        +-------------------+        +-------------------+
+  | cat &rarr; 1           |        | cat &rarr; 5           |        | cat &rarr; 7           |
+  | dog &rarr; 3           |        | dog &rarr; 4           |        | bird &rarr; 2          |
+  | cat &rarr; 2           |        | cat &rarr; 6           |        |                   |
+  | bird &rarr; 1          |        | bird &rarr; 2          |        |                   |
+  | cat &rarr; 4           |        |                   |        |                   |
+  +-------------------+        +-------------------+        +-------------------+
+  3 segments, lots of duplicate keys consuming disk space
+
+  <span class="highlight">STEP 1 -- Compact each segment</span> (discard old values for same key):
+
+  Segment 1 compacted:         Segment 2 compacted:
+  +-------------------+        +-------------------+
+  | dog &rarr; 3           |        | cat &rarr; 6           |
+  | cat &rarr; 4           |        | dog &rarr; 4           |
+  | bird &rarr; 1          |        | bird &rarr; 2          |
+  +-------------------+        +-------------------+
+
+  <span class="highlight-green">STEP 2 -- Merge compacted segments</span> (keep most recent across segments):
+
+  Merged Segment:
+  +-------------------+
+  | bird &rarr; 2          |  (from Segment 2, more recent)
+  | cat &rarr; 6           |  (from Segment 2, more recent)
+  | dog &rarr; 4           |  (from Segment 2, more recent)
+  +-------------------+
+  Merging happens in background thread. Old segments deleted after merge completes.
+  Reads use old segments until merge is done -- zero downtime.
+    </div>
   </div>
 
   <div class="card">
+    <h4>Implementation Details for Real Systems</h4>
+    <ul>
+      <li><strong>File format:</strong> Binary format (length-prefixed strings), not CSV. Faster and simpler.</li>
+      <li><strong>Deleting records:</strong> Append a <span class="key-term">tombstone</span> -- a special deletion marker. Merging process discards previous values for that key.</li>
+      <li><strong>Crash recovery:</strong> In-memory hash maps are lost on restart. Bitcask stores snapshots of each segment's hash map on disk for fast recovery.</li>
+      <li><strong>Partially written records:</strong> Checksums detect corrupted records from mid-write crashes.</li>
+      <li><strong>Concurrency:</strong> One writer thread (sequential appends). Segment files are immutable after closing, so multiple reader threads are safe.</li>
+    </ul>
+  </div>
+
+  <div class="card card-red">
     <h4>Limitations of Hash Indexes</h4>
     <ul>
-      <li>Hash table must fit in memory — doesn't work if you have very many keys</li>
-      <li>Range queries are not efficient (can't scan keys in order)</li>
+      <li><strong>Hash table must fit in memory:</strong> If you have billions of distinct keys, the hash map won't fit in RAM. On-disk hash maps are possible but perform poorly (lots of random I/O, expensive to grow, hash collision handling is complex).</li>
+      <li><strong>Range queries are inefficient:</strong> Cannot scan keys between <code>kitty00000</code> and <code>kitty99999</code> -- must look up each key individually. No ordering.</li>
     </ul>
+    <p>These two limitations motivate the next evolution: SSTables.</p>
   </div>
 
-  <!-- SSTABLES AND LSM-TREES -->
+  <!-- ============================================================ -->
+  <!-- SSTABLES AND LSM-TREES                                       -->
+  <!-- ============================================================ -->
   <h2>SSTables and LSM-Trees</h2>
-  <p>Key improvement: require that key-value pairs in each segment are <strong>sorted by key</strong>. This format is called a <span class="key-term">Sorted String Table (SSTable)</span>.</p>
+  <p>A simple but powerful change: require that key-value pairs in each segment are <strong>sorted by key</strong>. This format is called a <span class="key-term">Sorted String Table (SSTable)</span>. Each key appears only once per merged segment (compaction ensures this).</p>
 
   <div class="card card-accent">
-    <h4>Advantages over Hash Indexes</h4>
+    <h4>Three Advantages of SSTables over Hash Indexes</h4>
     <ul>
-      <li><strong>Efficient merging</strong>: mergesort-like — read side-by-side, output lowest key. Like merge step of mergesort.</li>
-      <li><strong>Sparse in-memory index</strong>: don't need every key in memory. Know that key is between two index entries &rarr; scan that range on disk.</li>
-      <li><strong>Range queries</strong>: scan keys in order.</li>
-      <li><strong>Compression</strong>: group records into blocks, compress before writing to disk.</li>
+      <li><strong>Efficient merging:</strong> Like the merge step of mergesort. Read input segments side by side, output the lowest key. When the same key appears in multiple segments, keep the value from the most recent segment. Works even if files are larger than available memory.</li>
+      <li><strong>Sparse in-memory index:</strong> Don't need every key in memory. If you know offsets for <code>handbag</code> and <code>handsome</code>, then <code>handiwork</code> must be between them -- just scan that small range on disk. One index entry per few kilobytes of segment file is enough.</li>
+      <li><strong>Block compression:</strong> Group records into blocks, compress before writing to disk. Each sparse index entry points at the start of a compressed block. Saves disk space and I/O bandwidth.</li>
     </ul>
   </div>
 
+  <!-- DIAGRAM 5: SSTable with sparse index -->
   <div class="diagram">
-    <div class="diagram-title">How an LSM-Tree Works</div>
-    <div class="flow" style="flex-direction:column; gap:16px;">
-      <div class="flow-box red" style="width:80%;"><strong>1. Write</strong> &rarr; Add to in-memory balanced tree (<span class="key-term">memtable</span>) — e.g. red-black tree</div>
-      <div class="flow-arrow">&darr;</div>
-      <div class="flow-box orange" style="width:80%;"><strong>2. Flush</strong> &rarr; When memtable exceeds threshold (~few MB), write it to disk as an SSTable segment (already sorted!)</div>
-      <div class="flow-arrow">&darr;</div>
-      <div class="flow-box green" style="width:80%;"><strong>3. Read</strong> &rarr; Check memtable first, then most recent on-disk segment, then next-oldest, etc.</div>
-      <div class="flow-arrow">&darr;</div>
-      <div class="flow-box purple" style="width:80%;"><strong>4. Compact</strong> &rarr; Background process merges and compacts segment files, discarding overwritten/deleted values</div>
+    <div class="diagram-title">Diagram 5: SSTable with Sparse In-Memory Index</div>
+    <div class="ascii-diagram">
+  <span class="highlight-blue">SPARSE IN-MEMORY INDEX</span>         <span class="highlight-green">SSTABLE SEGMENT FILE (sorted by key)</span>
+  +------------------+
+  | key      | offset|           Byte 0      Byte 1200    Byte 2900    Byte 4500
+  |----------|-------|           |             |            |            |
+  | handbag  | <span class="highlight">0</span>     |---&rarr;    [handbag=... , handball=... , handicap=... ,
+  | handsome | <span class="highlight">2900</span>  |---&rarr;     <span class="highlight-red">handiwork=...</span> , handlebar=... , handsome=... ,
+  | harvest  | <span class="highlight">4500</span>  |---&rarr;     hardcover=... , hardware=... , harvest=... ]
+  +------------------+
+
+  <span class="highlight-red">Looking up "handiwork":</span>
+  1. Index: handiwork is between "handbag" (offset 0) and "handsome" (offset 2900)
+  2. Seek to offset 0, scan forward until we find "handiwork"
+  3. Scan a few KB at most -- very fast!
+
+  <span class="highlight-purple">Compressed blocks:</span>
+  [====Block 1=====]  [====Block 2=====]  [====Block 3=====]
+   handbag..handicap   handiwork..handsome  hardcover..harvest
+   Compressed on disk   Each index entry points to block start
+    </div>
+  </div>
+
+  <h3>Constructing SSTables: The Memtable</h3>
+  <p>How do you sort data by key when writes arrive in random order? Maintain a sorted structure <strong>in memory</strong> using a balanced tree (red-black tree or AVL tree). This in-memory tree is called a <span class="key-term">memtable</span>. When it exceeds a size threshold (typically a few MB), write it out to disk as a sorted SSTable file.</p>
+
+  <!-- DIAGRAM 6: Full LSM-Tree Architecture -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 6: LSM-Tree Full Architecture</div>
+    <div class="ascii-diagram">
+                              <span class="highlight-red">WRITES</span>
+                                |
+                                v
+                    +-------------------------+
+                    |   <span class="highlight-red">MEMTABLE</span> (in-memory)  |  Red-black tree / AVL tree
+                    |   Sorted by key         |  Typically a few MB
+                    |   dog=3, cat=7, fox=1   |
+                    +-------------------------+
+                                |
+                  When size &gt; threshold, flush to disk
+                                |
+                                v
+            +-------------------------------------------+
+            |   <span class="highlight-orange">IMMUTABLE MEMTABLE</span>                      |  Being written to disk
+            |   (frozen, no more writes accepted)       |  New memtable starts
+            +-------------------------------------------+
+                                |
+                         Write as SSTable
+                                |
+        ========================v================================
+                         <span class="highlight-green">ON DISK (SSTables)</span>
+        ==========================================================
+
+        Level 0 (most recent):
+        +------------------+ +------------------+ +------------------+
+        |  SSTable 0-1     | |  SSTable 0-2     | |  SSTable 0-3     |
+        |  (sorted by key) | |  (sorted by key) | |  (sorted by key) |
+        +------------------+ +------------------+ +------------------+
+                     \              |              /
+                      \    Compaction + Merge     /
+                       \           |             /
+                        v          v            v
+        Level 1 (older, larger):
+        +--------------------------------------------+
+        |           SSTable 1-1 (merged, sorted)     |
+        +--------------------------------------------+
+        +--------------------------------------------+
+        |           SSTable 1-2 (merged, sorted)     |
+        +--------------------------------------------+
+                               |
+                        Further compaction
+                               v
+        Level 2 (oldest, largest):
+        +------------------------------------------------------+
+        |              SSTable 2-1 (merged, sorted)            |
+        +------------------------------------------------------+
+
+
+  <span class="highlight-blue">READ PATH:</span>
+  1. Check memtable (in-memory, fastest)
+  2. Check immutable memtable (if flushing)
+  3. Check Level 0 SSTables (most recent first)
+  4. Check Level 1 SSTables
+  5. Check Level 2 SSTables
+  ...until key is found or all levels exhausted
+    </div>
+  </div>
+
+  <div class="card card-accent">
+    <h4>LSM-Tree Write Path -- Step by Step</h4>
+    <div class="step-grid">
+      <div class="step-num"><div class="step-circle" style="background:var(--red);">1</div></div>
+      <div class="step-content"><strong>Write arrives:</strong> Insert key-value pair into the <span class="key-term">memtable</span> (in-memory balanced tree). Also append to the Write-Ahead Log (WAL) for crash recovery. The memtable automatically maintains sorted order.</div>
+      <div class="step-num"><div class="step-circle" style="background:var(--orange);">2</div></div>
+      <div class="step-content"><strong>Memtable full:</strong> When the memtable exceeds a threshold (e.g., 4 MB), it becomes an <span class="key-term">immutable memtable</span>. A new empty memtable is created for incoming writes. The immutable memtable is scheduled for flushing.</div>
+      <div class="step-num"><div class="step-circle" style="background:var(--accent3);">3</div></div>
+      <div class="step-content"><strong>Flush to disk:</strong> The immutable memtable is written as a new SSTable file (Level 0). Since the tree was already sorted, this is a sequential write -- very fast. The corresponding WAL segment is discarded.</div>
+      <div class="step-num"><div class="step-circle" style="background:var(--accent2);">4</div></div>
+      <div class="step-content"><strong>Background compaction:</strong> A background thread merges and compacts SSTables. In <strong>leveled compaction</strong> (LevelDB, RocksDB): Level 0 SSTables are merged into Level 1, Level 1 into Level 2, etc. Each level is 10x larger than the previous. In <strong>size-tiered compaction</strong> (HBase, Cassandra): newer, smaller SSTables are merged into older, larger ones.</div>
+    </div>
+  </div>
+
+  <!-- DIAGRAM 7: WAL Flow -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 7: Write-Ahead Log (WAL) for Crash Recovery</div>
+    <div class="ascii-diagram">
+  <span class="highlight-red">WRITE REQUEST: SET("cat", 7)</span>
+          |
+          |  Step 1: Append to WAL FIRST (before memtable)
+          |
+          v
+  +----------------------------------+
+  | <span class="highlight-orange">WAL (append-only file on disk)</span>    |
+  | ...                              |
+  | SET cat=7  &larr; new entry           |
+  +----------------------------------+
+          |
+          |  Step 2: Then update memtable
+          v
+  +----------------------------------+
+  | <span class="highlight-green">MEMTABLE (in-memory)</span>              |
+  | bird=2, cat=7, dog=3, fox=1     |
+  +----------------------------------+
+
+  <span class="highlight-red">IF CRASH HAPPENS:</span>
+  +----------------------------------+
+  | Memtable is LOST (it was in RAM) |
+  +----------------------------------+
+          |
+          |  On restart: replay WAL from disk
+          v
+  +----------------------------------+
+  | Reconstruct memtable from WAL    |
+  | bird=2, cat=7, dog=3, fox=1     |
+  | No data lost!                    |
+  +----------------------------------+
+
+  <span class="highlight-green">AFTER FLUSH:</span>
+  When memtable is written to SSTable on disk,
+  the corresponding WAL segment is <span class="highlight-green">discarded</span>.
+  WAL is only needed for data not yet in an SSTable.
     </div>
   </div>
 
   <div class="card card-red">
-    <h4>Crash Recovery</h4>
-    <p>If the database crashes, the memtable (in-memory) is lost. Solution: keep a separate <strong>write-ahead log (WAL)</strong> on disk — every write is appended to this log first. Used only to restore the memtable after a crash, then discarded.</p>
+    <h4>Crash Recovery in LSM-Trees</h4>
+    <p>The memtable lives in memory -- if the database crashes, its contents are lost. The WAL solves this: every write is appended to the WAL <em>before</em> updating the memtable. On crash recovery, the WAL is replayed to reconstruct the memtable. The WAL is not sorted (entries appear in write order), but that doesn't matter -- its only purpose is crash recovery. Once a memtable is flushed to an SSTable, the corresponding WAL can be deleted.</p>
   </div>
 
-  <div class="card">
-    <h4>Bloom Filters</h4>
-    <p>Problem: reading a key that doesn't exist requires checking memtable + all segments. Solution: a <span class="key-term">Bloom filter</span> — a memory-efficient probabilistic data structure that tells you if a key <em>definitely does not exist</em> or <em>might exist</em>. Saves many unnecessary disk reads.</p>
-  </div>
-
-  <!-- B-TREES -->
-  <h2>B-Trees</h2>
-  <p>The most widely used indexing structure. Like SSTables, they keep key-value pairs sorted by key. But the design philosophy is completely different.</p>
-
-  <div class="card card-accent">
-    <h4>How B-Trees Work</h4>
-    <ul>
-      <li>Break the database into fixed-size <strong>pages</strong> (typically 4 KB), corresponding to the underlying disk hardware</li>
-      <li>Each page can be read or written as a unit; pages can reference other pages (like pointers on disk)</li>
-      <li>One page is the <strong>root</strong>; queries start here</li>
-      <li>Each page contains keys in sorted order, and references to child pages</li>
-      <li><strong>Leaf pages</strong> contain the actual values (or references to where values are found)</li>
-      <li>The <strong>branching factor</strong> is typically several hundred</li>
-    </ul>
-  </div>
-
-  <div class="diagram">
-    <div class="diagram-title">B-Tree Structure (Simplified)</div>
-    <div class="tree-level">
-      <div class="tree-node root">Root: [100 | 300 | 500]</div>
-    </div>
-    <div style="text-align:center; color:var(--text-muted); font-size:0.8rem;">&darr; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &darr; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &darr; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &darr;</div>
-    <div class="tree-level">
-      <div class="tree-node internal">[10|50|80]</div>
-      <div class="tree-node internal">[120|200|250]</div>
-      <div class="tree-node internal">[310|400|450]</div>
-      <div class="tree-node internal">[510|600|800]</div>
-    </div>
-    <div style="text-align:center; color:var(--text-muted); font-size:0.8rem;">&darr;&darr;&darr;&darr; &nbsp;&nbsp;&nbsp; &darr;&darr;&darr;&darr; &nbsp;&nbsp;&nbsp; &darr;&darr;&darr;&darr; &nbsp;&nbsp;&nbsp; &darr;&darr;&darr;&darr;</div>
-    <div class="tree-level">
-      <div class="tree-node leaf">Leaf pages (values)</div>
-      <div class="tree-node leaf">Leaf pages (values)</div>
-      <div class="tree-node leaf">Leaf pages (values)</div>
-    </div>
-    <p style="text-align:center; font-size:0.8rem; color:var(--text-muted); margin-top:12px;">Branching factor ~500 &rarr; 4-level tree stores up to 256 TB. Most DBs fit in 3-4 levels.</p>
-  </div>
-
-  <div class="card">
-    <h4>B-Tree Updates &amp; WAL</h4>
-    <p>To update: find the leaf page, change the value, write the page back to disk (overwrite in place). To add: find the page, add key; if page full, <strong>split</strong> into two half-full pages. Parent updated to reference both.</p>
-    <p>Dangerous: overwriting pages can leave tree in corrupted state if crash mid-write (especially during page splits). Solution: <strong>write-ahead log (WAL / redo log)</strong>. Every modification is written to the WAL before applying to the tree pages.</p>
-  </div>
-
-  <!-- COMPARISON -->
-  <h2>B-Trees vs. LSM-Trees</h2>
-
-  <table>
-    <tr><th>Aspect</th><th>LSM-Trees</th><th>B-Trees</th></tr>
-    <tr><td><strong>Write throughput</strong></td><td>Generally higher (sequential writes)</td><td>Lower (random writes, though still fast)</td></tr>
-    <tr><td><strong>Write amplification</strong></td><td>Compaction rewrites data multiple times</td><td>WAL + page write (min 2x), page splits</td></tr>
-    <tr><td><strong>Read performance</strong></td><td>Slower (must check multiple levels)</td><td>Generally faster (one path through tree)</td></tr>
-    <tr><td><strong>Space usage</strong></td><td>Can be more compact (no page fragmentation)</td><td>Pages can be partially empty (fragmentation)</td></tr>
-    <tr><td><strong>Compaction interference</strong></td><td>Can interfere with reads/writes at high throughput</td><td>More predictable performance</td></tr>
-    <tr><td><strong>Key uniqueness</strong></td><td>Key may exist in multiple segments</td><td>Each key exists in exactly one place</td></tr>
-    <tr><td><strong>Transactions</strong></td><td>Harder (key in multiple places)</td><td>Easier (key in one place, lock the page/range)</td></tr>
-  </table>
-
-  <div class="quote">"Log-structured storage engines are a comparatively recent development. Their key idea is that they systematically turn random-access writes into sequential writes on disk, which enables higher write throughput."</div>
-
-  <!-- OLTP vs OLAP -->
-  <h2>Transaction Processing (OLTP) vs. Analytics (OLAP)</h2>
-
-  <table>
-    <tr><th>Property</th><th>OLTP</th><th>OLAP</th></tr>
-    <tr><td><strong>Read pattern</strong></td><td>Small number of records by key</td><td>Aggregate over huge number of records</td></tr>
-    <tr><td><strong>Write pattern</strong></td><td>Random-access, low-latency from user input</td><td>Bulk import (ETL) or event stream</td></tr>
-    <tr><td><strong>Used by</strong></td><td>End users via web app</td><td>Internal analysts for decision support</td></tr>
-    <tr><td><strong>Data represents</strong></td><td>Latest state (current point in time)</td><td>History of events over time</td></tr>
-    <tr><td><strong>Dataset size</strong></td><td>GB to TB</td><td>TB to PB</td></tr>
-    <tr><td><strong>Bottleneck</strong></td><td>Disk seek time</td><td>Disk bandwidth</td></tr>
-  </table>
-
-  <!-- DATA WAREHOUSING -->
-  <h2>Data Warehousing &amp; ETL</h2>
-  <p>OLTP databases must be highly available and low-latency. Running expensive analytic queries on them harms performance. Solution: a separate <span class="key-term">data warehouse</span> — a read-only copy optimized for analytics.</p>
-
-  <div class="diagram">
-    <div class="diagram-title">ETL Pipeline: Extract-Transform-Load</div>
-    <div class="flow">
-      <div class="flow-box primary">OLTP DB 1</div>
-      <div class="flow-box primary">OLTP DB 2</div>
-      <div class="flow-box primary">OLTP DB 3</div>
-    </div>
-    <div style="text-align:center; margin:8px 0;"><span class="flow-arrow">&darr; Extract &darr;</span></div>
-    <div class="flow">
-      <div class="flow-box orange" style="width:60%;"><strong>Transform</strong>: clean, restructure into analysis-friendly schema</div>
-    </div>
-    <div style="text-align:center; margin:8px 0;"><span class="flow-arrow">&darr; Load &darr;</span></div>
-    <div class="flow">
-      <div class="flow-box green" style="width:60%;"><strong>Data Warehouse</strong> (optimized for analytics)</div>
-    </div>
-  </div>
-
-  <h3>Star Schema (Dimensional Modeling)</h3>
-  <div class="card card-purple">
-    <h4>Fact Table + Dimension Tables</h4>
-    <ul>
-      <li><strong>Fact table</strong>: center of the star. Each row = an event (e.g., a sale). Can have 100+ columns. Often trillions of rows.</li>
-      <li><strong>Dimension tables</strong>: who, what, where, when, how, why. E.g., dim_product, dim_store, dim_date, dim_customer.</li>
-      <li>Fact table columns are either attributes (price, quantity) or foreign keys to dimension tables.</li>
-      <li><strong>Snowflake schema</strong>: dimensions further broken into subdimensions (more normalized, but star is simpler for analysts).</li>
-    </ul>
-  </div>
-
-  <!-- COLUMN-ORIENTED STORAGE -->
-  <h2>Column-Oriented Storage</h2>
-  <p>Analytics queries typically touch only 4-5 columns out of 100+. Row-oriented storage loads entire rows even if you only need a few columns. Wasteful.</p>
-
-  <div class="diagram">
-    <div class="diagram-title">Row vs. Column Storage</div>
-    <div class="grid2" style="gap:24px;">
-      <div>
-        <h4 style="color:var(--red); margin-bottom:8px;">Row-Oriented</h4>
-        <div style="font-family:monospace; font-size:0.75rem; color:var(--text-muted); line-height:1.4;">
-          Row 1: [date, product, store, qty, price, ...]<br>
-          Row 2: [date, product, store, qty, price, ...]<br>
-          Row 3: [date, product, store, qty, price, ...]<br>
-          <span style="color:var(--red);">Must load ALL columns to read any.</span>
-        </div>
-      </div>
-      <div>
-        <h4 style="color:var(--accent3); margin-bottom:8px;">Column-Oriented</h4>
-        <div style="font-family:monospace; font-size:0.75rem; color:var(--text-muted); line-height:1.4;">
-          date.col: [d1, d2, d3, d4, d5, ...]<br>
-          product.col: [p1, p2, p3, p4, p5, ...]<br>
-          qty.col: [q1, q2, q3, q4, q5, ...]<br>
-          <span style="color:var(--accent3);">Only load columns you need!</span>
-        </div>
-      </div>
-    </div>
-    <p style="text-align:center; margin-top:16px; font-size:0.85rem; color:var(--text-muted);">Key invariant: the k-th entry in every column file belongs to the same row.</p>
-  </div>
-
+  <h3>Compaction Strategies</h3>
   <div class="grid2">
-    <div class="card card-cyan">
-      <h4>Column Compression</h4>
-      <p style="font-size:0.85rem;"><strong>Bitmap encoding</strong>: n distinct values &rarr; n bitmaps, one bit per row. WHERE IN = bitwise OR. WHERE AND = bitwise AND. Sparse bitmaps use run-length encoding.</p>
-    </div>
     <div class="card card-purple">
-      <h4>Vectorized Processing</h4>
-      <p style="font-size:0.85rem;">Compressed column chunks fit in CPU L1 cache. Tight loops with no function calls. Bitwise ops on compressed data directly. SIMD instructions. Much faster than row-at-a-time processing.</p>
+      <h4>Size-Tiered Compaction</h4>
+      <p style="font-size:0.85rem;">Used by HBase, Cassandra (default). Newer, smaller SSTables are successively merged into older, larger SSTables. Simple but can temporarily use a lot of disk space (old + new SSTables coexist during compaction).</p>
     </div>
+    <div class="card card-cyan">
+      <h4>Leveled Compaction</h4>
+      <p style="font-size:0.85rem;">Used by LevelDB, RocksDB. Key range is split across smaller SSTables at each level. Level N is ~10x larger than Level N-1. More incremental, uses less disk space, but more compaction work overall. Better read performance (fewer files to check at each level).</p>
+    </div>
+  </div>
+
+  <!-- DIAGRAM 8: Bloom Filter -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 8: Bloom Filter -- Avoiding Unnecessary Disk Reads</div>
+    <div class="ascii-diagram">
+  <span class="highlight-red">PROBLEM:</span> Reading a key that doesn't exist in the database.
+  Without optimization: must check memtable + ALL SSTables at all levels.
+  Could require many disk reads just to conclude "key not found."
+
+  <span class="highlight-green">SOLUTION: Bloom Filter</span>
+  A memory-efficient probabilistic data structure for each SSTable.
+
+  +-------------------------------------------------------------------+
+  | Bloom Filter for SSTable-3:  [0,1,0,1,1,0,0,1,0,1,0,0,1,0,1,0] |
+  |                               Bit array (very compact, ~10 bits  |
+  |                               per key in the SSTable)            |
+  +-------------------------------------------------------------------+
+
+  <span class="highlight-blue">How it works:</span>
+  1. Hash the key with k different hash functions
+  2. Check if ALL corresponding bits are set to 1
+
+  Query: "Is key 'zebra' in SSTable-3?"
+
+  hash1("zebra") = bit 3  &rarr; bit[3] = <span class="highlight-green">1</span>
+  hash2("zebra") = bit 7  &rarr; bit[7] = <span class="highlight-green">1</span>
+  hash3("zebra") = bit 11 &rarr; bit[11] = <span class="highlight-red">0</span>  &larr; Not all bits are 1!
+
+  Answer: "zebra" is <span class="highlight-red">DEFINITELY NOT</span> in this SSTable. Skip it!
+
+  <span class="highlight-purple">Key properties:</span>
+  - If Bloom filter says NO  &rarr; key is <span class="highlight-red">definitely not</span> in the SSTable (100% certain)
+  - If Bloom filter says YES &rarr; key <span class="highlight-orange">might</span> be in the SSTable (small false positive rate)
+  - False positive rate tunable: ~1% with 10 bits/key, ~0.1% with 15 bits/key
+  - Saves enormous amounts of disk I/O for nonexistent key lookups
+    </div>
+  </div>
+
+  <div class="card">
+    <h4>Performance Optimizations in Practice</h4>
+    <ul>
+      <li><strong>Bloom filters:</strong> Each SSTable has a Bloom filter. Before reading an SSTable from disk, check the Bloom filter. If it says "no," skip the SSTable entirely. Essential for LSM-trees because without it, nonexistent key lookups would be extremely slow.</li>
+      <li><strong>Sparse index caching:</strong> Keep the sparse index for each SSTable in memory for fast binary search.</li>
+      <li><strong>Block cache:</strong> Cache frequently accessed SSTable blocks in memory to avoid repeated disk reads.</li>
+      <li><strong>Fence pointers:</strong> Store min/max key for each SSTable to quickly rule out SSTables during range queries.</li>
+    </ul>
   </div>
 
   <div class="card card-green">
-    <h4>Sort Order in Column Storage</h4>
-    <p>Sort rows by a chosen column (e.g., date_key) — all column files sorted in the same order. First sort column compresses extremely well (long runs of same value &rarr; run-length encoding). <strong>C-Store/Vertica</strong>: store same data sorted in different orders on different replicas. Each query uses the best-sorted replica.</p>
+    <h4>LSM-Trees in the Real World</h4>
+    <p>The LSM-tree algorithm is used in LevelDB and RocksDB (embeddable key-value stores), Cassandra, HBase (distributed databases inspired by Google Bigtable), and Lucene (full-text search engine used by Elasticsearch and Solr). Lucene's term dictionary maps each word to a postings list (list of document IDs containing that word), stored in SSTable-like sorted files merged in the background.</p>
   </div>
 
-  <div class="card card-orange">
-    <h4>Writing to Column Storage</h4>
-    <p>Update-in-place won't work (compressed columns). Solution: <strong>LSM-tree approach</strong>. Writes go to in-memory store first, then merged with column files on disk in bulk. Vertica does this. Queries combine column data on disk + recent writes in memory.</p>
+  <!-- ============================================================ -->
+  <!-- B-TREES                                                      -->
+  <!-- ============================================================ -->
+  <h2>B-Trees</h2>
+  <p>The most widely used indexing structure, introduced in 1970 and called "ubiquitous" less than 10 years later. B-trees remain the standard index in virtually all relational databases. Like SSTables, B-trees keep key-value pairs sorted by key (enabling lookups and range queries), but the design philosophy is completely different.</p>
+
+  <div class="card card-accent">
+    <h4>B-Tree Design Philosophy</h4>
+    <ul>
+      <li>Break the database into fixed-size <strong>pages</strong> (blocks), typically 4 KB, corresponding to disk hardware</li>
+      <li>Each page can be read/written as a unit and can reference other pages via <strong>on-disk pointers</strong></li>
+      <li>One page is the <strong>root</strong> -- all queries start here</li>
+      <li>Internal pages contain keys in sorted order + references to child pages</li>
+      <li><strong>Leaf pages</strong> contain actual values (or pointers to where values are stored)</li>
+      <li>The <strong>branching factor</strong> is typically several hundred (depends on page size and key size)</li>
+      <li>A 4-level tree with branching factor 500 stores up to <strong>256 TB</strong> of data</li>
+    </ul>
   </div>
 
-  <div class="card">
-    <h4>Materialized Views &amp; Data Cubes</h4>
-    <p><strong>Materialized view</strong>: precomputed query results stored on disk (unlike virtual views which expand on-the-fly). Must be updated when underlying data changes &rarr; makes writes more expensive.</p>
-    <p><strong>Data cube (OLAP cube)</strong>: a grid of aggregates grouped by multiple dimensions. Fast for precomputed aggregates but loses flexibility — can't answer queries about dimensions not in the cube.</p>
-  </div>
-
-  <!-- SUMMARY -->
+  <!-- DIAGRAM 9: B-Tree Structure -->
   <div class="diagram">
-    <div class="diagram-title">Chapter 3 — The Big Picture</div>
-    <div style="font-size:0.9rem; color:var(--text-muted);">
-      <p><strong>OLTP storage:</strong> Two schools — (1) <span style="color:var(--accent3);">Log-structured</span> (append-only, sequential writes, LSM-trees) vs (2) <span style="color:var(--accent);">Update-in-place</span> (B-trees, fixed pages, overwrite). Log-structured enables higher write throughput; B-trees have more predictable reads.</p>
-      <p><strong>OLAP storage:</strong> Column-oriented storage, bitmap compression, vectorized processing. Star/snowflake schemas. Materialized views for precomputed aggregates.</p>
-      <p><strong>The core insight:</strong> OLTP bottleneck is disk seeks; OLAP bottleneck is disk bandwidth. Different problems &rarr; different storage engines.</p>
+    <div class="diagram-title">Diagram 9: B-Tree Structure -- Looking Up Key 251</div>
+    <div class="ascii-diagram">
+  <span class="highlight-blue">ROOT PAGE</span>                              Branching factor = 4
+  +-------+-------+-------+-------+
+  | ref   | <span class="highlight">100</span>   | ref   | <span class="highlight">300</span>   | ref   | <span class="highlight">500</span>   | ref   |
+  +---+---+-------+---+---+-------+---+---+-------+---+---+
+      |               |               |               |
+      v               v               v               v
+  keys &lt;100       100-299         300-499         keys &ge;500
+
+                      |
+      <span class="highlight-red">Looking up 251: 100 &le; 251 &lt; 300, follow this ref</span>
+                      |
+                      v
+  <span class="highlight-purple">INTERNAL PAGE</span>
+  +-------+-------+-------+-------+
+  | ref   | <span class="highlight">150</span>   | ref   | <span class="highlight">200</span>   | ref   | <span class="highlight">270</span>   | ref   |
+  +---+---+-------+---+---+-------+---+---+-------+---+---+
+      |               |               |               |
+      v               v               v               v
+  100-149         150-199         200-269         270-299
+
+                                      |
+              <span class="highlight-red">200 &le; 251 &lt; 270, follow this ref</span>
+                                      |
+                                      v
+  <span class="highlight-green">LEAF PAGE</span>
+  +-------+-------+-------+-------+-------+-------+
+  | 201   | 215   | 230   | <span class="highlight-red">251</span>   | 260   | 265   |
+  | val   | val   | val   | <span class="highlight-red">val</span>   | val   | val   |
+  +-------+-------+-------+-------+-------+-------+
+
+  <span class="highlight-red">Found key 251!</span>  Total pages read: 3 (root + internal + leaf)
+  Depth = O(log n). A 4-level tree with branching factor 500 can
+  store up to 500^4 = 62.5 billion keys = ~256 TB of data.
+  Most real databases only need 3-4 levels.
     </div>
   </div>
 
-  <!-- FIRST PRINCIPLES QUESTIONS -->
+  <!-- DIAGRAM 10: B-Tree Page Split -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 10: B-Tree Page Split -- Inserting Key 252</div>
+    <div class="ascii-diagram">
+  <span class="highlight-red">BEFORE: Leaf page is FULL (max 6 keys per page)</span>
+
+  Parent page:                   Leaf page (full):
+  +------+------+------+        +-----+-----+-----+-----+-----+-----+
+  | ...  | <span class="highlight">200</span>  | <span class="highlight">270</span>  |  ---&rarr;  | 201 | 215 | 230 | 251 | 260 | 265 |
+  +------+------+------+        +-----+-----+-----+-----+-----+-----+
+                                 No room for 252!
+
+  <span class="highlight-green">AFTER: Split the leaf page into two half-full pages</span>
+
+  Parent page (updated with new boundary):
+  +------+------+------+------+
+  | ...  | <span class="highlight">200</span>  | <span class="highlight-green">251</span>  | <span class="highlight">270</span>  |     &larr; new key 251 added as boundary
+  +------+------+--+---+------+
+                   |   |
+          +--------+   +----------+
+          v                       v
+  Left half:                Right half:
+  +-----+-----+-----+      +-----+-----+-----+-----+
+  | 201 | 215 | 230 |      | 251 | <span class="highlight-green">252</span> | 260 | 265 |
+  +-----+-----+-----+      +-----+-----+-----+-----+
+                                    ^
+                                    New key inserted!
+
+  <span class="highlight-orange">DANGER: This requires writing 3 pages:</span>
+  1. Left half (new page)
+  2. Right half (new page)
+  3. Parent page (updated boundary + new pointer)
+
+  If crash happens after writing 1 or 2 but before 3:
+  &rarr; Orphan pages! Corrupted tree! This is why B-trees need a WAL.
+    </div>
+  </div>
+
+  <div class="card card-orange">
+    <h4>Making B-Trees Reliable: WAL (Redo Log)</h4>
+    <p>B-trees modify pages <strong>in place</strong> on disk. A page split requires writing multiple pages atomically -- if the database crashes mid-split, the tree is corrupted (orphan pages with no parent). The solution: a <span class="key-term">Write-Ahead Log (WAL)</span>, also called a redo log. Every B-tree modification is written to the WAL <em>before</em> applying it to the tree pages. After a crash, the WAL is replayed to restore the B-tree to a consistent state.</p>
+    <p><strong>Concurrency control:</strong> Multiple threads accessing a B-tree simultaneously can see inconsistent state during page splits. Solution: <span class="key-term">latches</span> (lightweight locks) protect the tree's data structures. This is more complex than log-structured approaches where background merging doesn't interfere with queries.</p>
+  </div>
+
+  <div class="card">
+    <h4>B-Tree Optimizations</h4>
+    <ul>
+      <li><strong>Copy-on-write:</strong> Instead of overwriting pages + WAL, write modified pages to new locations. Parent pages point to new locations. Used by LMDB. Also useful for snapshot isolation (MVCC).</li>
+      <li><strong>Key abbreviation:</strong> Interior pages only need enough key info to act as boundaries. Shorter keys = higher branching factor = fewer levels = faster lookups.</li>
+      <li><strong>Sequential leaf layout:</strong> Try to place leaf pages in sequential order on disk for fast range scans. Hard to maintain as tree grows (LSM-trees are better at keeping sequential keys close on disk).</li>
+      <li><strong>Sibling pointers:</strong> Each leaf page has references to its left and right neighbors, enabling efficient range scans without backtracking to parent pages.</li>
+      <li><strong>Fractal trees:</strong> B-tree variants that borrow log-structured ideas to reduce disk seeks (used in TokuDB).</li>
+    </ul>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- B-TREES VS LSM-TREES                                        -->
+  <!-- ============================================================ -->
+  <h2>B-Trees vs. LSM-Trees</h2>
+
+  <!-- DIAGRAM 11: Detailed comparison -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 11: B-Trees vs. LSM-Trees -- Visual Comparison</div>
+    <div class="ascii-diagram">
+  <span class="highlight-blue">LSM-TREE WRITE PATH</span>                       <span class="highlight-green">B-TREE WRITE PATH</span>
+
+  Write("k", "v")                            Write("k", "v")
+       |                                          |
+       v                                          v
+  +----------+                               +---------+
+  |  Append  |                               | Append  |
+  |  to WAL  |                               | to WAL  |
+  +----------+                               +---------+
+       |                                          |
+       v                                          v
+  +----------+                               +---------+
+  | Insert   |                               | Find    |
+  | into     |                               | leaf    |
+  | memtable |                               | page    |
+  | (memory) |                               | (disk)  |
+  +----------+                               +---------+
+       |                                          |
+  (later, async)                                  v
+       |                                     +---------+
+       v                                     |Overwrite|
+  +----------+                               | page    |
+  | Flush to |                               | in place|
+  | SSTable  |                               +---------+
+  +----------+                               (maybe split)
+       |
+  (later, async)
+       |
+       v
+  +----------+
+  | Compact  |
+  | & merge  |
+  +----------+
+
+  <span class="highlight">Sequential writes</span>                        <span class="highlight-red">Random writes</span>
+  (append-only)                              (seek to page, overwrite)
+    </div>
+  </div>
+
+  <table>
+    <tr><th>Aspect</th><th>LSM-Trees</th><th>B-Trees</th></tr>
+    <tr><td><strong>Write throughput</strong></td><td><span style="color:var(--accent3);">Higher</span> -- sequential writes, can batch</td><td>Lower -- random writes to specific pages</td></tr>
+    <tr><td><strong>Write amplification</strong></td><td>Data rewritten multiple times through compaction levels</td><td>WAL + page write (min 2x); full page even for small changes</td></tr>
+    <tr><td><strong>Read latency</strong></td><td>Slower -- may check memtable + multiple SSTable levels</td><td><span style="color:var(--accent3);">Faster</span> -- single path through tree, O(log n) page reads</td></tr>
+    <tr><td><strong>Space efficiency</strong></td><td><span style="color:var(--accent3);">More compact</span> -- no page fragmentation, periodic rewrite</td><td>Pages can be partially empty after splits (fragmentation)</td></tr>
+    <tr><td><strong>Compaction interference</strong></td><td><span style="color:var(--red);">Can</span> interfere with reads/writes; p99 latency spikes</td><td>More predictable performance (no background compaction)</td></tr>
+    <tr><td><strong>Key uniqueness</strong></td><td>Same key may exist in multiple SSTables across levels</td><td><span style="color:var(--accent3);">Each key exists in exactly one place</span></td></tr>
+    <tr><td><strong>Transaction locking</strong></td><td>Harder -- key in multiple places, no single lock point</td><td><span style="color:var(--accent3);">Easier</span> -- lock the specific page or key range</td></tr>
+    <tr><td><strong>SSD wear</strong></td><td><span style="color:var(--accent3);">Lower</span> write amp = less SSD wear</td><td>Higher write amp (full pages), more wear</td></tr>
+    <tr><td><strong>Compaction runaway</strong></td><td><span style="color:var(--red);">Risk:</span> if writes exceed compaction throughput, unmerged segments grow, reads slow down</td><td>No compaction -- no runaway risk</td></tr>
+  </table>
+
+  <div class="quote">"Log-structured storage engines are a comparatively recent development. Their key idea is that they systematically turn random-access writes into sequential writes on disk, which enables higher write throughput due to the performance characteristics of hard drives and SSDs."</div>
+
+  <div class="card card-purple">
+    <h4>Write Amplification Explained</h4>
+    <p><span class="key-term">Write amplification</span> = one application write results in multiple writes to disk over the database's lifetime. For B-trees: at minimum 2x (WAL + page), often more due to page splits and full-page writes even for tiny changes. Some engines overwrite pages twice to avoid partial updates on power failure. For LSM-trees: data is written once to WAL, once to memtable flush, then rewritten multiple times through compaction levels. On SSDs, write amplification matters because flash cells wear out after a limited number of write cycles.</p>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- OTHER INDEXING STRUCTURES                                    -->
+  <!-- ============================================================ -->
+  <h2>Other Indexing Structures</h2>
+
+  <h3>Secondary Indexes</h3>
+  <p>Both B-trees and LSM-trees can serve as secondary indexes. The key difference from primary indexes: keys are <strong>not unique</strong> (many rows may match). Two approaches: (1) value is a list of matching row IDs (postings list), or (2) make each key unique by appending a row ID.</p>
+
+  <h3>Storing Values: Heap File vs. Clustered Index</h3>
+  <div class="grid2">
+    <div class="card card-accent">
+      <h4>Heap File (Non-Clustered)</h4>
+      <p style="font-size:0.85rem;">Index stores key &rarr; pointer to row in a <span class="key-term">heap file</span>. Actual data lives in the heap file in no particular order. Multiple indexes can reference the same heap location. Extra hop from index to heap on reads.</p>
+    </div>
+    <div class="card card-green">
+      <h4>Clustered Index</h4>
+      <p style="font-size:0.85rem;">Row data stored <em>directly within the index</em>. No extra hop. MySQL InnoDB: primary key is always a clustered index. Secondary indexes reference the primary key (not heap location). Faster reads but more expensive writes and storage.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h4>Covering Index (Index with Included Columns)</h4>
+    <p>A compromise: stores <em>some</em> columns within the index (not all). If a query only needs those columns, it can be answered from the index alone (the index "covers" the query). Speeds up common queries without the full overhead of a clustered index.</p>
+  </div>
+
+  <h3>Multi-Column Indexes</h3>
+  <div class="card card-cyan">
+    <h4>Concatenated Index &amp; Multi-Dimensional Index</h4>
+    <ul>
+      <li><strong>Concatenated index:</strong> Combines fields into one key (e.g., <code>(lastname, firstname)</code>). Like a phone book: useful for lastname queries or lastname+firstname, but useless for firstname-only queries.</li>
+      <li><strong>Multi-dimensional index (R-trees):</strong> For geospatial queries like "all restaurants within this rectangle on a map." A standard B-tree can only give you latitude ranges OR longitude ranges, not both simultaneously. R-trees and space-filling curves solve this. Used by PostGIS, HyperDex.</li>
+      <li><strong>Beyond geography:</strong> Color search (red, green, blue dimensions), weather data (date, temperature), etc.</li>
+    </ul>
+  </div>
+
+  <h3>Full-Text Search and Fuzzy Indexes</h3>
+  <p>Standard indexes assume exact key matches or range queries. Full-text search needs synonyms, grammatical variations, typo tolerance (edit distance). Lucene uses an SSTable-like structure for its term dictionary, with an in-memory index that is a <strong>finite state automaton</strong> (similar to a trie) over characters. This can be transformed into a <span class="key-term">Levenshtein automaton</span> for efficient fuzzy search within a given edit distance.</p>
+
+  <h3>In-Memory Databases</h3>
+  <div class="card card-orange">
+    <h4>Why In-Memory Databases Are Fast</h4>
+    <p>Products like VoltDB, MemSQL, Redis, and RAMCloud keep all data in memory. Counterintuitively, their speed advantage is <strong>not</strong> because they avoid reading from disk -- a disk-based engine with enough RAM also avoids disk reads thanks to OS caching. Rather, in-memory databases are fast because they <strong>avoid the overhead of encoding data structures in a disk-writable format</strong>. They can use data structures like priority queues, sets, and sorted sets that would be complex to implement on disk.</p>
+    <p>Durability is achieved via WAL on disk, periodic snapshots, or replication to other machines. The <strong>anti-caching</strong> approach (evict cold data to disk, reload on access) extends in-memory databases beyond available RAM while keeping indexes fully in memory.</p>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- OLTP vs OLAP                                                 -->
+  <!-- ============================================================ -->
+  <h2>Transaction Processing (OLTP) vs. Analytics (OLAP)</h2>
+  <p>Databases serve two fundamentally different workloads with very different access patterns. Understanding this distinction is crucial for choosing the right storage engine.</p>
+
+  <!-- DIAGRAM 12: OLTP vs OLAP Architecture -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 12: OLTP vs. OLAP -- Side-by-Side Architecture</div>
+    <div class="ascii-diagram">
+  <span class="highlight-blue">OLTP (Online Transaction Processing)</span>        <span class="highlight-green">OLAP (Online Analytic Processing)</span>
+
+  +-------------------+                        +-------------------+
+  |    Web / Mobile   |                        | Business Analyst  |
+  |    Application    |                        | / BI Dashboard    |
+  +--------+----------+                        +--------+----------+
+           |                                            |
+   Small, fast queries                         Large aggregate queries
+   "Get user #42's profile"                    "Total revenue by store in Q4"
+   "Update order status"                       "Top 10 products this month"
+           |                                            |
+           v                                            v
+  +-------------------+                        +-------------------+
+  |   OLTP Database   |                        |  Data Warehouse   |
+  |   (Row-oriented)  |                        | (Column-oriented) |
+  |                   |                        |                   |
+  | B-tree / LSM-tree |                        | Columnar storage  |
+  | index on keys     |                        | + compression     |
+  | 4KB pages or      |                        | + bitmap indexes  |
+  | sorted segments   |                        | + vectorized exec |
+  +-------------------+                        +-------------------+
+
+  <span class="highlight-red">Bottleneck: Disk SEEK time</span>                   <span class="highlight-red">Bottleneck: Disk BANDWIDTH</span>
+  (Finding a specific record fast)              (Scanning millions of rows fast)
+
+  Reads: few records by key                    Reads: aggregate over huge # records
+  Writes: random, low-latency, user input      Writes: bulk ETL import or event stream
+  Data: current state (point in time)           Data: history of events over time
+  Size: GB to TB                                Size: TB to PB
+  Users: end users via web app                  Users: internal analysts
+    </div>
+  </div>
+
+  <table>
+    <tr><th>Property</th><th>OLTP</th><th>OLAP</th></tr>
+    <tr><td><strong>Read pattern</strong></td><td>Small number of records by key, using an index</td><td>Aggregate over millions/billions of records</td></tr>
+    <tr><td><strong>Write pattern</strong></td><td>Random-access, low-latency from user input</td><td>Bulk import (ETL) or continuous event stream</td></tr>
+    <tr><td><strong>Used by</strong></td><td>End users via web application</td><td>Internal analysts for decision support (business intelligence)</td></tr>
+    <tr><td><strong>Data represents</strong></td><td>Latest state of data (current point in time)</td><td>History of events that happened over time</td></tr>
+    <tr><td><strong>Dataset size</strong></td><td>GB to TB</td><td>TB to PB</td></tr>
+    <tr><td><strong>Bottleneck</strong></td><td>Disk seek time (finding specific records)</td><td>Disk bandwidth (scanning large volumes)</td></tr>
+    <tr><td><strong>Storage engine</strong></td><td>B-trees, LSM-trees (row-oriented)</td><td>Column-oriented storage with compression</td></tr>
+    <tr><td><strong>Index type</strong></td><td>B-tree / hash index (fast key lookup)</td><td>Bitmap indexes, column compression, zone maps</td></tr>
+  </table>
+
+  <div class="card card-accent">
+    <h4>Why Separate OLTP and OLAP?</h4>
+    <p>OLTP databases must be highly available and low-latency -- they're often critical to business operations. Running expensive analytic queries (scanning millions of rows) harms transaction performance. Database administrators are reluctant to let analysts run ad hoc queries on production OLTP databases. The solution: extract data into a separate <span class="key-term">data warehouse</span> optimized for analytics.</p>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- DATA WAREHOUSING & ETL                                       -->
+  <!-- ============================================================ -->
+  <h2>Data Warehousing &amp; ETL</h2>
+  <p>A <span class="key-term">data warehouse</span> is a separate, read-only database that contains copies of data from all the various OLTP systems in a company, optimized for analytic queries. Data is extracted from OLTP databases, transformed into an analysis-friendly schema, cleaned up, and loaded into the warehouse.</p>
+
+  <!-- DIAGRAM 13: ETL Pipeline -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 13: ETL Pipeline -- Extract, Transform, Load</div>
+    <div class="ascii-diagram">
+  <span class="highlight-blue">OLTP SOURCES</span>                <span class="highlight-orange">ETL PROCESS</span>              <span class="highlight-green">DATA WAREHOUSE</span>
+
+  +-------------+
+  | E-commerce  |---+
+  | Database    |   |
+  +-------------+   |
+                    |     +-----------+     +-------------+     +------------------+
+  +-------------+   +---&rarr; |  EXTRACT  |---&rarr; |  TRANSFORM  |---&rarr; |       LOAD       |
+  | Inventory   |---+---&rarr; |           |     |             |     |                  |
+  | System      |   |     | Periodic  |     | - Clean     |     | Write to data    |
+  +-------------+   |     | data dump |     | - Dedupe    |     | warehouse in     |
+                    |     | or CDC    |     | - Restructure    | analysis-friendly |
+  +-------------+   |     | stream    |     |   into star |     | schema           |
+  | CRM         |---+     |           |     |   schema    |     |                  |
+  | System      |         +-----------+     +-------------+     +--------+---------+
+  +-------------+                                                        |
+                                                                         v
+  +-------------+                                               +------------------+
+  | Point of    |---+                                           |  DATA WAREHOUSE  |
+  | Sale (POS)  |   |                                           |                  |
+  +-------------+   |  (same ETL)                               | - Star schema    |
+                    +---&rarr;  ...  ---&rarr;  ...  ---&rarr;               | - Column storage  |
+  +-------------+   |                                           | - Compression    |
+  | HR / Payroll|---+                                           | - Materialized   |
+  +-------------+                                               |   views          |
+                                                                +------------------+
+                                                                         |
+                                                                         v
+                                                                +------------------+
+                                                                | BI Dashboards    |
+                                                                | Analyst Queries  |
+                                                                | Reports          |
+                                                                +------------------+
+
+  <span class="highlight-purple">Key insight:</span> OLTP indexing (B-trees, LSM-trees) works well for OLTP but
+  poorly for analytics. The warehouse can use completely different storage
+  engines optimized for sequential scans, compression, and aggregation.
+    </div>
+  </div>
+
+  <div class="card">
+    <h4>OLTP vs. Data Warehouse Internals</h4>
+    <p>Both use SQL and look similar on the surface. But internally they are very different. OLTP uses row-oriented storage with B-tree/LSM-tree indexes. Warehouses use column-oriented storage with bitmap indexes and compression. Some products (SQL Server, SAP HANA) support both in the same system, but they're increasingly separate engines behind a common SQL interface.</p>
+    <p><strong>Warehouse vendors:</strong> Teradata, Vertica, SAP HANA, Amazon Redshift (based on ParAccel). <strong>Open source:</strong> Apache Hive, Spark SQL, Presto, Apache Drill (some based on Google Dremel/BigQuery).</p>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- STAR SCHEMA                                                  -->
+  <!-- ============================================================ -->
+  <h3>Star Schema (Dimensional Modeling)</h3>
+  <p>The most common data model for data warehouses. A central <span class="key-term">fact table</span> captures individual events (each row = a sale, a page view, a click). <span class="key-term">Dimension tables</span> describe the who, what, where, when, how, and why of each event.</p>
+
+  <!-- DIAGRAM 14: Star Schema -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 14: Star Schema -- Fact Table + Dimension Tables</div>
+    <div class="ascii-diagram">
+                              +-------------------+
+                              |   <span class="highlight-orange">dim_date</span>        |
+                              |-------------------|
+                              | date_key (PK)     |
+                              | year              |
+                              | month             |
+                              | day_of_week       |
+                              | is_holiday        |
+                              +--------+----------+
+                                       |
+  +-------------------+                |                +-------------------+
+  |   <span class="highlight-purple">dim_product</span>     |                |                |   <span class="highlight-cyan">dim_store</span>       |
+  |-------------------|     +----------+-----------+    |-------------------|
+  | product_sk (PK)   |     |    <span class="highlight-red">fact_sales</span>        |    | store_sk (PK)     |
+  | SKU               |     |----------------------|    | store_name        |
+  | description       |     | sale_id (PK)         |    | city              |
+  | brand             |&larr;----| date_key (FK)  ------+---&rarr;| state             |
+  | category          |     | product_sk (FK) -----+-&rarr;  | square_footage    |
+  | fat_content       |     | store_sk (FK)   -----+---&rarr;| has_bakery        |
+  | package_size      |     | promotion_sk (FK) ---+--+ +-------------------+
+  +-------------------+     | customer_sk (FK) ----+-+|
+                            |                      | ||
+                            | quantity_sold        | ||  +-------------------+
+                            | unit_price           | |+--| <span class="highlight-green">dim_promotion</span>   |
+                            | discount             | |   |-------------------|
+                            | net_price            | |   | promotion_sk (PK) |
+                            +----------------------+ |   | name              |
+                                                     |   | type              |
+                            Each row = one sale event |   | discount_pct      |
+                            Billions of rows!         |   +-------------------+
+                                                     |
+                                                     |   +-------------------+
+                                                     +---| <span class="highlight-blue">dim_customer</span>    |
+                                                         |-------------------|
+                                                         | customer_sk (PK)  |
+                                                         | name              |
+                                                         | email             |
+                                                         | loyalty_tier      |
+                                                         | first_purchase    |
+                                                         +-------------------+
+
+  The name "star" comes from this visual: fact table in the center,
+  dimension tables radiating outward like rays of a star.
+
+  <span class="highlight-purple">Snowflake schema:</span> Dimensions are further broken into subdimensions
+  (e.g., dim_product references dim_brand and dim_category).
+  More normalized but harder for analysts. Star is usually preferred.
+    </div>
+  </div>
+
+  <div class="card card-purple">
+    <h4>Fact Tables Are HUGE</h4>
+    <p>Fact tables capture individual events for maximum analysis flexibility. A big enterprise (Apple, Walmart, eBay) may have <strong>tens of petabytes</strong> of transaction history, mostly in fact tables. Fact tables often have 100+ columns (some are attributes like price/quantity, others are foreign keys to dimension tables). Dimension tables are much smaller (millions of rows) but can be very wide (all metadata relevant for analysis).</p>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- COLUMN-ORIENTED STORAGE                                      -->
+  <!-- ============================================================ -->
+  <h2>Column-Oriented Storage</h2>
+  <p>Analytic queries typically access only 4-5 columns out of 100+. Row-oriented storage loads <em>entire rows</em> even if you only need a few columns -- extremely wasteful when scanning billions of rows. The idea behind column-oriented storage is simple: <strong>store all values from each column together, in separate files</strong>.</p>
+
+  <!-- DIAGRAM 15: Row vs Column Layout -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 15: Row-Oriented vs. Column-Oriented Storage</div>
+    <div class="ascii-diagram">
+  <span class="highlight-red">ROW-ORIENTED STORAGE</span> (traditional OLTP)
+
+  Disk layout: all columns of a row stored together
+  +--------------------------------------------------------------+
+  | Row 1: | 2024-01-05 | Apple  | Store-A | 10 | $1.50 | ...   |
+  | Row 2: | 2024-01-05 | Banana | Store-B |  5 | $0.80 | ...   |
+  | Row 3: | 2024-01-06 | Apple  | Store-A | 12 | $1.50 | ...   |
+  | Row 4: | 2024-01-06 | Candy  | Store-C | 20 | $3.00 | ...   |
+  | Row 5: | 2024-01-07 | Banana | Store-A |  8 | $0.80 | ...   |
+  +--------------------------------------------------------------+
+
+  Query: SELECT SUM(quantity) WHERE product = 'Apple'
+  Must load ALL 100+ columns per row just to check product and sum quantity!
+  <span class="highlight-red">~98% of loaded data is thrown away.</span>
+
+  ================================================================
+
+  <span class="highlight-green">COLUMN-ORIENTED STORAGE</span> (data warehouse)
+
+  Disk layout: each column stored in a separate file
+  date.col:     | 2024-01-05 | 2024-01-05 | 2024-01-06 | 2024-01-06 | 2024-01-07 |
+  product.col:  | Apple      | Banana     | Apple      | Candy      | Banana     |
+  store.col:    | Store-A    | Store-B    | Store-A    | Store-C    | Store-A    |
+  quantity.col: | 10         | 5          | 12         | 20         | 8          |
+  price.col:    | $1.50      | $0.80      | $1.50      | $3.00      | $0.80      |
+
+  Query: SELECT SUM(quantity) WHERE product = 'Apple'
+  Only load product.col and quantity.col -- 2 columns out of 100+!
+  <span class="highlight-green">~98% reduction in data loaded from disk.</span>
+
+  <span class="highlight-purple">KEY INVARIANT:</span> The k-th entry in every column file belongs to the same row.
+  Row 3 = date.col[3] + product.col[3] + store.col[3] + quantity.col[3] + ...
+    </div>
+  </div>
+
+  <div class="card card-accent">
+    <h4>Why Column Storage Works for Analytics</h4>
+    <ul>
+      <li><strong>Reduced I/O:</strong> Only load columns referenced by the query. For a 100-column table where the query touches 5 columns, this is a 20x reduction in data read from disk.</li>
+      <li><strong>Better compression:</strong> Values in a single column have the same type and often repeat heavily (e.g., only 200 distinct countries across billions of rows). This enables aggressive compression.</li>
+      <li><strong>CPU cache efficiency:</strong> Compressed column chunks fit in L1 cache. Tight loops without function calls. SIMD instructions operate on column vectors directly.</li>
+      <li><strong>Parquet format:</strong> Columnar storage for Hadoop/Spark, supports document data models. Based on Google Dremel.</li>
+    </ul>
+  </div>
+
+  <h3>Column Compression</h3>
+
+  <!-- DIAGRAM 16: Bitmap Encoding and Run-Length Encoding -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 16: Column Compression -- Bitmap Encoding + Run-Length Encoding</div>
+    <div class="ascii-diagram">
+  <span class="highlight-blue">ORIGINAL COLUMN: product_sk</span>
+  Row:     1    2    3    4    5    6    7    8    9    10   11   12
+  Value:   69   69   69   69   31   31   69   69   30   30   31   68
+
+  Only 4 distinct values: {30, 31, 68, 69}  (n = 4)
+
+  <span class="highlight-green">STEP 1: BITMAP ENCODING</span>  (one bitmap per distinct value)
+
+  product_sk = 30:  [0, 0, 0, 0, 0, 0, 0, 0, <span class="highlight-green">1, 1</span>, 0, 0]
+  product_sk = 31:  [0, 0, 0, 0, <span class="highlight-green">1, 1</span>, 0, 0, 0, 0, <span class="highlight-green">1</span>, 0]
+  product_sk = 68:  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, <span class="highlight-green">1</span>]
+  product_sk = 69:  [<span class="highlight-green">1, 1, 1, 1</span>, 0, 0, <span class="highlight-green">1, 1</span>, 0, 0, 0, 0]
+
+  <span class="highlight-orange">STEP 2: RUN-LENGTH ENCODING</span> (compress sparse bitmaps)
+
+  product_sk = 69:  [1,1,1,1, 0,0, 1,1, 0,0,0,0]
+  RLE encoded:      <span class="highlight-orange">4x1, 2x0, 2x1, 4x0</span>  = just 4 numbers instead of 12 bits!
+
+  For the first sort column with billions of rows and long runs:
+  Run-length encoding can compress to just <span class="highlight-green">a few kilobytes</span>!
+
+  <span class="highlight-purple">QUERY PROCESSING WITH BITMAPS:</span>
+
+  WHERE product_sk IN (30, 68, 69):
+    bitmap_30 OR bitmap_68 OR bitmap_69 = [1,1,1,1,0,0,1,1,1,1,0,1]
+    Bitwise OR -- extremely fast!
+
+  WHERE product_sk = 31 AND store_sk = 3:
+    bitmap_product_31 AND bitmap_store_3
+    Bitwise AND across columns (works because k-th bit = same row)
+    </div>
+  </div>
+
+  <div class="card card-cyan">
+    <h4>Compression Details</h4>
+    <p>If a column has <em>n</em> distinct values, we create <em>n</em> bitmaps (one bit per row each). If <em>n</em> is very small (e.g., ~200 countries), bitmaps are stored directly. If <em>n</em> is larger, most bitmaps are sparse (mostly zeros) and benefit from run-length encoding. The sorted first column compresses especially well: long runs of the same value. Even with billions of rows, the first sort column may compress to just a few kilobytes.</p>
+    <p>Important: Cassandra and HBase have "column families" but are <strong>NOT</strong> column-oriented. They store all columns from a row together within each column family. The Bigtable model is still mostly row-oriented.</p>
+  </div>
+
+  <h3>Vectorized Processing</h3>
+
+  <!-- DIAGRAM 17: Vectorized Processing -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 17: Vectorized Processing vs. Row-at-a-Time</div>
+    <div class="ascii-diagram">
+  <span class="highlight-red">ROW-AT-A-TIME PROCESSING (traditional)</span>
+
+  for each row in table:             &larr; function call overhead per row
+    if row.product == 'Apple':       &larr; branch prediction miss
+      sum += row.quantity            &larr; cache miss (row data scattered)
+
+  Problems:
+  - Function call per row (millions of calls)
+  - Branch mispredictions (CPU pipeline stalls)
+  - Poor cache locality (row data not contiguous for single column)
+
+  ================================================================
+
+  <span class="highlight-green">VECTORIZED PROCESSING (column-oriented)</span>
+
+  Step 1: Load product.col chunk into L1 cache
+  +-------+-------+-------+-------+-------+-------+-------+-------+
+  | Apple | Banana| Apple | Candy | Banana| Apple | Apple | Candy |
+  +-------+-------+-------+-------+-------+-------+-------+-------+
+  &uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;&uarr;
+  Entire chunk fits in CPU L1 cache (32-64 KB)
+
+  Step 2: SIMD comparison (8 values at once!)
+  product == 'Apple'?  &rarr;  [1, 0, 1, 0, 0, 1, 1, 0]  (bitmask result)
+
+  Step 3: Load quantity.col chunk, apply bitmask
+  quantities: [10, 5, 12, 20, 8, 15, 7, 25]
+  bitmask:    [ 1, 0,  1,  0, 0,  1, 1,  0]
+  result:     [10, _, 12,  _,  _, 15, 7,  _]  &rarr; sum = 44
+
+  <span class="highlight-purple">Advantages:</span>
+  - Tight loop, no function calls per element
+  - SIMD: process 4-8+ values per CPU instruction
+  - Data fits in L1 cache (compressed column chunks)
+  - Bitwise operations on compressed data directly
+  - 10-100x faster than row-at-a-time
+    </div>
+  </div>
+
+  <h3>Sort Order in Column Storage</h3>
+  <div class="card card-green">
+    <h4>Sorted Column Storage</h4>
+    <p>Rows can be sorted by a chosen column (e.g., <code>date_key</code>). <strong>All column files must be sorted in the same order</strong> (otherwise the k-th entry invariant breaks). The first sort column compresses extremely well -- long runs of the same value become tiny with run-length encoding. A second sort column can further organize rows with the same first-column value.</p>
+    <p><strong>C-Store/Vertica trick:</strong> Store the same data sorted in <em>different orders</em> on different replicas. Since data must be replicated for fault tolerance anyway, you might as well sort each replica differently. Queries use whichever sort order best fits the query pattern. This is like having multiple secondary indexes, but without pointers -- just differently sorted column data.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h4>Writing to Column-Oriented Storage</h4>
+    <p>Inserting a row means updating <em>every</em> column file. With compressed, sorted columns, update-in-place is impossible. Solution: the <strong>LSM-tree approach</strong>. Writes first go to an in-memory store (can be row-oriented or column-oriented). When enough writes accumulate, they are merged with the on-disk column files in bulk. This is what Vertica does. Queries examine both on-disk column data and recent in-memory writes, combining the two transparently.</p>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- MATERIALIZED VIEWS AND DATA CUBES                            -->
+  <!-- ============================================================ -->
+  <h3>Materialized Views &amp; Data Cubes</h3>
+
+  <!-- DIAGRAM 18: Materialized View and Data Cube -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 18: Data Cube (OLAP Cube) -- Precomputed Aggregates</div>
+    <div class="ascii-diagram">
+  <span class="highlight-blue">MATERIALIZED VIEW</span>
+  A precomputed copy of query results stored on disk.
+  Unlike a virtual view (which is just a saved query that runs on the fly),
+  a materialized view contains actual computed data.
+
+  CREATE MATERIALIZED VIEW monthly_sales AS
+    SELECT date_key, product_sk, SUM(quantity), SUM(net_price)
+    FROM fact_sales GROUP BY date_key, product_sk;
+
+  Trade-off: Makes reads faster but writes more expensive
+  (must update materialized view when underlying data changes).
+
+  ================================================================
+
+  <span class="highlight-green">DATA CUBE (OLAP CUBE)</span>
+  A grid of aggregates grouped by multiple dimensions.
+
+                     Products
+              Apple  Banana  Candy  <span class="highlight-orange">TOTAL</span>
+          +--------+--------+------+-------+
+  Jan     |  $500  |  $200  | $300 | <span class="highlight-orange">$1000</span> |
+  Dates   +--------+--------+------+-------+
+  Feb     |  $600  |  $250  | $400 | <span class="highlight-orange">$1250</span> |
+          +--------+--------+------+-------+
+  Mar     |  $550  |  $180  | $350 | <span class="highlight-orange">$1080</span> |
+          +--------+--------+------+-------+
+  <span class="highlight-orange">TOTAL</span>   | <span class="highlight-orange">$1650</span> | <span class="highlight-orange">$630</span>  | <span class="highlight-orange">$1050</span>| <span class="highlight-orange">$3330</span> |
+          +--------+--------+------+-------+
+
+  Each cell = SUM(net_price) for that date-product combination.
+  Marginals: sum along rows (by product) or columns (by date).
+
+  With 5 dimensions (date, product, store, promotion, customer):
+  A 5-dimensional hypercube. Same principle, harder to visualize.
+
+  <span class="highlight-green">Advantage:</span> Certain queries are instant (just look up the cell).
+  "Total sales of Candy in February?" &rarr; Just read cell [Feb, Candy] = $400
+
+  <span class="highlight-red">Disadvantage:</span> Inflexible. Can't answer "What % of sales were &gt; $100?"
+  because price isn't a dimension in this cube. Most warehouses keep
+  raw data and use cubes only as a performance boost for common queries.
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- CHAPTER SUMMARY                                              -->
+  <!-- ============================================================ -->
+  <div class="diagram">
+    <div class="diagram-title">Chapter 3 -- The Complete Big Picture</div>
+    <div style="font-size:0.9rem; color:var(--text-muted);">
+      <p><strong>Storage engines serve two broad categories:</strong></p>
+      <p style="margin-left:16px;"><span style="color:var(--accent);">OLTP (transaction processing):</span> User-facing, high volume of small queries. Bottleneck = disk seek time. Two schools: (1) <span style="color:var(--accent3);">Log-structured</span> -- append-only, sequential writes, LSM-trees (Bitcask, LevelDB, RocksDB, Cassandra, HBase, Lucene). Higher write throughput, compaction overhead. (2) <span style="color:var(--accent);">Update-in-place</span> -- B-trees, fixed pages, overwrite (PostgreSQL, MySQL, Oracle). More predictable reads, easier transactions. Each key in exactly one place.</p>
+      <p style="margin-left:16px;"><span style="color:var(--accent3);">OLAP (analytics):</span> Analyst-facing, low volume of huge queries. Bottleneck = disk bandwidth. Column-oriented storage, bitmap compression, vectorized processing. Star/snowflake schemas. Materialized views and data cubes for precomputed aggregates. Writing uses LSM-tree approach (buffer in memory, bulk merge to column files).</p>
+      <p><strong>The core insight:</strong> OLTP and OLAP have fundamentally different access patterns (seek vs. bandwidth, point vs. scan, current state vs. history). Different problems require different storage engines. Understanding these internals helps you choose the right tool and tune it effectively.</p>
+    </div>
+  </div>
+
+  <div class="quote">"As an application developer, if you're armed with this knowledge about the internals of storage engines, you are in a much better position to know which tool is best suited for your particular application. If you need to adjust a database's tuning parameters, this understanding allows you to imagine what effect a higher or a lower value may have."</div>
+
+  <!-- ============================================================ -->
+  <!-- FIRST PRINCIPLES QUESTIONS                                   -->
+  <!-- ============================================================ -->
   <h2 style="color: var(--pink);">First-Principles Questions</h2>
   <p>Test your understanding. Click to reveal the answer.</p>
 
   <div class="question-block" onclick="this.classList.toggle('open')">
     <div class="question-header"><span><span class="q-num">1</span>Why does an append-only log have O(1) writes but O(n) reads?</span><span class="chevron">&#9660;</span></div>
-    <div class="question-body">Writing just appends to the end of the file — always the same cost regardless of database size. But reading requires scanning the file from beginning to end to find the latest value for a key, because later writes with the same key override earlier ones. The more data you have, the more you scan. This is why we need indexes.</div>
+    <div class="question-body">Writing just appends to the end of the file -- always the same cost regardless of database size. No seeking, no rewriting, no index update. But reading requires scanning the file from beginning to end to find the latest value for a key, because later writes with the same key override earlier ones. If you have n records, you must scan up to n entries. This is why we need indexes: they trade a small write overhead for a massive read speedup.</div>
   </div>
 
   <div class="question-block" onclick="this.classList.toggle('open')">
-    <div class="question-header"><span><span class="q-num">2</span>What is the fundamental trade-off of indexes?</span><span class="chevron">&#9660;</span></div>
-    <div class="question-body">An index is an <strong>additional structure derived from the primary data</strong>. It speeds up reads but slows down writes, because every write must also update the index. The database doesn't index everything by default — the application developer must choose indexes using knowledge of typical query patterns, to get the right balance of read speedup vs. write overhead.</div>
+    <div class="question-header"><span><span class="q-num">2</span>What is write amplification, and why does it matter differently for SSDs vs HDDs?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body"><strong>Write amplification</strong> means one application-level write results in multiple physical writes to disk over the database's lifetime. For B-trees: at minimum 2x (WAL + page write), often more during page splits or when writing full 4KB pages for small changes. For LSM-trees: data is rewritten through compaction levels. On <strong>HDDs</strong>, write amplification mainly affects throughput (disk bandwidth is shared between application writes and compaction). On <strong>SSDs</strong>, it's more critical because flash cells have a limited number of write-erase cycles before wearing out. Higher write amplification = faster SSD degradation. LSM-trees typically have lower write amplification than B-trees, making them more SSD-friendly.</div>
   </div>
 
   <div class="question-block" onclick="this.classList.toggle('open')">
-    <div class="question-header"><span><span class="q-num">3</span>How does an SSTable improve over a simple hash-indexed log?</span><span class="chevron">&#9660;</span></div>
-    <div class="question-body">SSTables require key-value pairs to be <strong>sorted by key</strong> within each segment. This enables: (1) efficient merging via mergesort-style algorithm, (2) a sparse in-memory index (you don't need every key — just scan between known offsets), (3) efficient range queries (scan keys in order), and (4) better compression (group sorted records into blocks).</div>
+    <div class="question-header"><span><span class="q-num">3</span>How does an SSTable improve over a hash-indexed log, and what is the key trick that makes it possible?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">SSTables require key-value pairs to be <strong>sorted by key</strong> within each segment. This enables: (1) efficient merging via mergesort (read segments side-by-side, output lowest key), (2) a sparse in-memory index (don't need every key -- scan between known offsets), (3) efficient range queries, and (4) block compression. The trick that makes sorting possible despite random writes: maintain a <strong>memtable</strong> (in-memory balanced tree like a red-black tree) that keeps data sorted automatically. When the memtable is full, write it out to disk as a sorted SSTable. The sorting happens in memory, so disk writes are always sequential.</div>
   </div>
 
   <div class="question-block" onclick="this.classList.toggle('open')">
-    <div class="question-header"><span><span class="q-num">4</span>How does an LSM-tree maintain sorted order despite random writes?</span><span class="chevron">&#9660;</span></div>
-    <div class="question-body">Writes go to an in-memory balanced tree (a <strong>memtable</strong>, e.g. red-black tree) which maintains sorted order automatically. When the memtable exceeds a size threshold, it is written out to disk as a sorted SSTable segment. The sort happens in memory — writes to disk are always sequential. Background compaction merges sorted segments together.</div>
+    <div class="question-header"><span><span class="q-num">4</span>Why do both B-trees AND LSM-trees need a Write-Ahead Log, but for different reasons?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body"><strong>B-trees</strong> need a WAL because they modify pages <em>in place</em>. A page split requires writing multiple pages (two split pages + updated parent). If the crash happens mid-split, the tree is left in a corrupted state with orphan pages. The WAL records the intended changes so the tree can be restored to a consistent state. <strong>LSM-trees</strong> need a WAL because the memtable lives in memory. If the process crashes, the memtable contents (all writes since the last flush) are lost. The WAL allows reconstructing the memtable on restart. In both cases, the WAL is append-only (fast sequential writes) and serves as a recovery mechanism, but the failure modes it protects against are different: structural corruption (B-trees) vs. data loss (LSM-trees).</div>
   </div>
 
   <div class="question-block" onclick="this.classList.toggle('open')">
-    <div class="question-header"><span><span class="q-num">5</span>Why do B-trees need a write-ahead log (WAL)?</span><span class="chevron">&#9660;</span></div>
-    <div class="question-body">B-trees modify pages <strong>in place</strong> on disk. If the database crashes mid-write — especially during a page split that requires updating a parent page — the tree can be left in a corrupted state (orphan pages). The WAL is an append-only log where every modification is recorded <em>before</em> applying it to the tree pages. After a crash, the WAL is used to restore the B-tree to a consistent state.</div>
+    <div class="question-header"><span><span class="q-num">5</span>What is "compaction runaway" in LSM-trees, and why don't B-trees have this problem?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">In LSM-trees, background compaction threads share disk bandwidth with foreground writes and reads. If write throughput is very high and compaction can't keep up, the number of unmerged SSTables on disk keeps growing. This causes: (1) reads slow down (must check more SSTables), (2) disk space grows unboundedly, (3) eventually the system degrades catastrophically. Most SSTable engines don't throttle incoming writes even when compaction falls behind, so explicit monitoring is needed. B-trees don't have this problem because they have no background compaction process -- writes go directly to the tree pages. Their write cost is more predictable (and more expensive per write), but there's no risk of runaway accumulation.</div>
   </div>
 
   <div class="question-block" onclick="this.classList.toggle('open')">
-    <div class="question-header"><span><span class="q-num">6</span>Why are LSM-trees generally better for write-heavy workloads?</span><span class="chevron">&#9660;</span></div>
-    <div class="question-body">LSM-trees turn random writes into <strong>sequential writes</strong> (append to memtable, then flush to disk in sorted order). Sequential writes are much faster than random writes on both hard drives and SSDs. B-trees must overwrite specific pages at random locations on disk. However, LSM-trees have write amplification from compaction — data is rewritten multiple times through compaction levels.</div>
+    <div class="question-header"><span><span class="q-num">6</span>Why is the OLTP bottleneck "disk seek time" while the OLAP bottleneck is "disk bandwidth"?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">OLTP queries read a <strong>small number of specific records</strong> by key. The cost is dominated by finding each record -- seeking to its location on disk (or traversing a B-tree). The actual data transfer is tiny. OLAP queries <strong>scan millions or billions of rows</strong>, reading only a few columns. The cost is dominated by how fast you can stream data from disk to memory. Seeking isn't the issue (you're reading sequentially); the bottleneck is the raw data transfer rate. This is why OLTP uses indexes (minimize seeks) while OLAP uses column storage + compression (maximize bandwidth efficiency by minimizing bytes read).</div>
   </div>
 
   <div class="question-block" onclick="this.classList.toggle('open')">
-    <div class="question-header"><span><span class="q-num">7</span>What is the OLTP vs OLAP bottleneck difference, and why does it matter for storage?</span><span class="chevron">&#9660;</span></div>
-    <div class="question-body">OLTP bottleneck = <strong>disk seek time</strong> (finding a specific small record). OLAP bottleneck = <strong>disk bandwidth</strong> (scanning millions of rows). This is why OLTP uses B-trees/LSM-trees (index to avoid scanning) while OLAP uses column-oriented storage (minimize bytes read from disk by only loading needed columns, plus compression).</div>
+    <div class="question-header"><span><span class="q-num">7</span>Why is column-oriented storage so much better for compression than row-oriented storage?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Values in a single column have the <strong>same data type</strong> and are often <strong>highly repetitive</strong>. A "country" column with billions of rows might have only ~200 distinct values. A "product_category" column might have ~50 distinct values. Bitmap encoding creates one bitmap per distinct value (one bit per row), and sparse bitmaps compress further with run-length encoding. When the column is sorted, the first sort column has extremely long runs of identical values (e.g., all January dates together), compressing to just kilobytes even with billions of rows. Row-oriented storage mixes different data types (strings, integers, dates, floats) in each row, making compression much less effective because there's no type-level or value-level repetition pattern to exploit.</div>
   </div>
 
   <div class="question-block" onclick="this.classList.toggle('open')">
-    <div class="question-header"><span><span class="q-num">8</span>Why is column-oriented storage so good for compression?</span><span class="chevron">&#9660;</span></div>
-    <div class="question-body">Values in a single column are often very repetitive (e.g., a country column with only ~200 distinct values across billions of rows). <strong>Bitmap encoding</strong>: n distinct values &rarr; n bitmaps with one bit per row. Sparse bitmaps are further compressed with run-length encoding. Sorted columns compress even better: the first sort key has long runs of the same value, compressible to a few kilobytes even with billions of rows.</div>
+    <div class="question-header"><span><span class="q-num">8</span>How does Vertica solve the write problem for column-oriented storage?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Inserting a row into compressed, sorted column storage would require rewriting every column file. Vertica uses the <strong>LSM-tree approach</strong>: writes go to an in-memory buffer (which can be row-oriented or column-oriented), where they're sorted and accumulated. When enough writes build up, they're bulk-merged with the on-disk column files, producing new column files. Queries transparently combine on-disk column data with recent in-memory writes. This is the same memtable-flush-merge pattern from LSM-trees, adapted for columnar storage. Reads see a consistent, up-to-date view even though the physical storage lags behind.</div>
   </div>
 
   <div class="question-block" onclick="this.classList.toggle('open')">
-    <div class="question-header"><span><span class="q-num">9</span>What is a Bloom filter and why is it essential for LSM-trees?</span><span class="chevron">&#9660;</span></div>
-    <div class="question-body">A Bloom filter is a memory-efficient probabilistic data structure. It can tell you if a key <strong>definitely does not exist</strong> or <strong>might exist</strong> in a set. For LSM-trees, looking up a nonexistent key would otherwise require checking the memtable and every SSTable segment on disk. A Bloom filter avoids these unnecessary disk reads by quickly ruling out segments that don't contain the key.</div>
+    <div class="question-header"><span><span class="q-num">9</span>What is a Bloom filter, and why is it described as "essential" for LSM-trees but unnecessary for B-trees?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">A Bloom filter is a memory-efficient probabilistic data structure. It answers "Is key X in this set?" with either "definitely no" (100% certain) or "maybe yes" (small false positive rate). For <strong>LSM-trees</strong>, looking up a nonexistent key requires checking the memtable + every SSTable at every level. Without Bloom filters, this could mean dozens of disk reads just to conclude "not found." Bloom filters let you skip SSTables that definitely don't contain the key, turning a potentially expensive operation into a few in-memory bit checks + at most 1-2 disk reads. <strong>B-trees</strong> don't need Bloom filters because each key exists in exactly one place. A B-tree lookup follows a single path from root to leaf -- you either find the key or you don't, in O(log n) page reads regardless.</div>
   </div>
 
   <div class="question-block" onclick="this.classList.toggle('open')">
-    <div class="question-header"><span><span class="q-num">10</span>Why does the star schema have a "fact table" at the center, and what goes in dimension tables?</span><span class="chevron">&#9660;</span></div>
-    <div class="question-body">The fact table captures <strong>individual events</strong> (e.g., each sale) because this allows maximum flexibility of analysis later. Each row has attributes (price, quantity) and foreign keys to dimension tables. Dimension tables represent the <strong>who, what, where, when, how, and why</strong> of each event (dim_product, dim_store, dim_date, dim_customer). The name "star" comes from the visual: fact table in the middle, dimension tables radiating outward like rays.</div>
+    <div class="question-header"><span><span class="q-num">10</span>Why does the star schema use a fact table with foreign keys rather than denormalizing everything into one giant table?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">The fact table captures <strong>individual events</strong> (each sale, click, or page view) with foreign keys to dimension tables. This design provides maximum flexibility: analysts can slice and dice by any combination of dimensions without the data model constraining them. Denormalizing everything into one table would (1) massively duplicate dimension data (store name, address, etc. repeated billions of times), (2) make updates to dimension data (e.g., renaming a store) require updating billions of fact rows, and (3) make the already-wide fact table even wider (hundreds of columns for every dimension's attributes). The star schema separates "what happened" (facts) from "context about what happened" (dimensions), allowing each to be managed and queried independently.</div>
   </div>
 
   <div class="question-block" onclick="this.classList.toggle('open')">
-    <div class="question-header"><span><span class="q-num">11</span>How does Vertica solve the problem of writing to column-oriented storage?</span><span class="chevron">&#9660;</span></div>
-    <div class="question-body">Column-oriented storage with compression makes update-in-place impossible (inserting a row means rewriting all column files). Vertica uses the <strong>LSM-tree approach</strong>: writes first go to an in-memory store, where they are sorted. When enough writes accumulate, they are merged with the column files on disk in bulk. Queries combine both the on-disk column data and recent writes in memory.</div>
+    <div class="question-header"><span><span class="q-num">11</span>Why do in-memory databases get their speed advantage from avoiding disk-format encoding overhead, NOT from avoiding disk reads?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">This is counterintuitive. A disk-based database with sufficient RAM rarely reads from disk either, because the <strong>operating system caches recently used disk blocks in memory</strong> (page cache). So both in-memory and disk-based databases serve reads from memory. The real advantage of in-memory databases is that they don't need to encode data structures in a format suitable for writing to disk. Disk-based engines must serialize/deserialize data to/from page-aligned, crash-safe formats. In-memory databases can use native data structures (red-black trees, skip lists, hash tables, priority queues) directly, without this encoding overhead. They still write to disk for durability (WAL, snapshots), but reads never touch disk-format data.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">12</span>What is the trade-off of a data cube (materialized OLAP cube), and why do most warehouses keep raw data anyway?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">A data cube precomputes aggregates (SUM, COUNT, AVG) for every combination of dimension values. Queries that match the cube's dimensions are <strong>instant</strong> (just look up the cell). But the cube <strong>loses flexibility</strong>: you can only query along dimensions that were included when the cube was built. "What proportion of sales were items over $100?" can't be answered if price isn't a cube dimension. "Show me sales for a specific customer segment" fails if customer segment isn't a dimension. Rebuilding the cube with new dimensions is expensive. So most warehouses keep all raw fact data and use cubes only as a <strong>performance optimization</strong> for known, frequent queries -- not as a replacement for raw data access.</div>
   </div>
 
 </div>

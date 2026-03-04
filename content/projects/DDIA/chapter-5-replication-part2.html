@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Chapter 5 — Replication Part 2: Replication Lag &amp; Multi-Leader</title>
+<style>
+  :root {
+    --bg: #0a0e17;
+    --surface: #111827;
+    --surface2: #1a2234;
+    --border: #1e293b;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --accent: #3b82f6;
+    --accent2: #8b5cf6;
+    --accent3: #10b981;
+    --red: #ef4444;
+    --orange: #f59e0b;
+    --pink: #ec4899;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+  .container { max-width: 900px; margin: 0 auto; padding: 40px 24px 100px; }
+  h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 48px; border-bottom: 1px solid var(--border); padding-bottom: 24px; }
+  h2 { font-size: 1.5rem; font-weight: 700; margin: 48px 0 16px; color: var(--accent); }
+  h3 { font-size: 1.15rem; font-weight: 600; margin: 32px 0 12px; color: var(--text); }
+  p { margin-bottom: 16px; color: var(--text-muted); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 20px 0; }
+  .card-accent { border-left: 4px solid var(--accent); }
+  .card-green { border-left: 4px solid var(--accent3); }
+  .card-orange { border-left: 4px solid var(--orange); }
+  .card-purple { border-left: 4px solid var(--accent2); }
+  .card-red { border-left: 4px solid var(--red); }
+  .card h4 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+  .card ul { padding-left: 20px; color: var(--text-muted); }
+  .card li { margin-bottom: 6px; }
+  .key-term { color: var(--accent); font-weight: 600; }
+  .diagram { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 32px; margin: 24px 0; overflow-x: auto; }
+  .diagram-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent2); margin-bottom: 20px; }
+  .flow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; }
+  .flow-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; text-align: center; font-size: 0.9rem; min-width: 120px; }
+  .flow-box.primary { border-color: var(--accent); color: var(--accent); }
+  .flow-box.green { border-color: var(--accent3); color: var(--accent3); }
+  .flow-box.purple { border-color: var(--accent2); color: var(--accent2); }
+  .flow-box.orange { border-color: var(--orange); color: var(--orange); }
+  .flow-box.red { border-color: var(--red); color: var(--red); }
+  .flow-box.pink { border-color: var(--pink); color: var(--pink); }
+  .flow-arrow { color: var(--text-muted); font-size: 1.2rem; }
+  .flow-vert { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } .grid3 { grid-template-columns: 1fr; } }
+  .quote { background: var(--surface2); border-left: 3px solid var(--accent2); padding: 16px 20px; margin: 20px 0; border-radius: 0 8px 8px 0; font-style: italic; color: var(--text-muted); }
+  .tag { display: inline-block; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 2px 12px; font-size: 0.8rem; color: var(--text-muted); margin: 2px; }
+  .bar-chart { display: flex; align-items: flex-end; gap: 3px; height: 160px; padding: 0 10px; }
+  .bar { background: var(--accent); border-radius: 3px 3px 0 0; min-width: 6px; flex: 1; transition: all .3s; position: relative; }
+  .bar:hover { background: var(--accent2); }
+  .bar-label { position: absolute; bottom: -22px; left: 50%; transform: translateX(-50%); font-size: 0.65rem; color: var(--text-muted); white-space: nowrap; }
+  .bar.tail { background: var(--red); }
+  .chart-footer { display: flex; justify-content: space-between; margin-top: 28px; font-size: 0.75rem; color: var(--text-muted); }
+  .size-bar-container { margin: 8px 0; }
+  .size-bar-label { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; display: flex; justify-content: space-between; }
+  .size-bar-track { background: var(--surface); border-radius: 6px; height: 24px; overflow: hidden; border: 1px solid var(--border); }
+  .size-bar { height: 100%; border-radius: 6px 0 0 6px; display: flex; align-items: center; padding-left: 8px; font-size: 0.7rem; font-weight: 600; color: white; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  th { color: var(--accent); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
+  td { color: var(--text-muted); }
+  .question-block { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin: 16px 0; overflow: hidden; }
+  .question-header { padding: 16px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 0.95rem; }
+  .question-header:hover { background: var(--surface2); }
+  .question-body { padding: 0 20px 16px; display: none; color: var(--text-muted); border-top: 1px solid var(--border); padding-top: 16px; }
+  .question-block.open .question-body { display: block; }
+  .q-num { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: var(--accent); color: white; border-radius: 50%; font-size: 0.8rem; font-weight: 700; margin-right: 12px; flex-shrink: 0; }
+  .chevron { transition: transform .2s; color: var(--text-muted); }
+  .question-block.open .chevron { transform: rotate(180deg); }
+  .section-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--accent2); font-weight: 700; margin-bottom: 8px; }
+  .fanout-diagram { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  .fanout-row { display: flex; gap: 12px; align-items: center; }
+  .fanout-node { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; }
+  .fanout-node.user { background: var(--accent); color: white; }
+  .fanout-node.cache { background: var(--accent3); color: white; }
+  .fanout-line { width: 2px; height: 20px; background: var(--text-muted); }
+  .arch-box { border: 2px solid var(--border); border-radius: 10px; padding: 16px; margin: 8px; text-align: center; }
+  .arch-box.blue { border-color: var(--accent); background: rgba(59,130,246,0.08); }
+  .arch-box.green { border-color: var(--accent3); background: rgba(16,185,129,0.08); }
+  .arch-box.purple { border-color: var(--accent2); background: rgba(139,92,246,0.08); }
+  .arch-box.orange { border-color: var(--orange); background: rgba(245,158,11,0.08); }
+  .arch-box.red { border-color: var(--red); background: rgba(239,68,68,0.08); }
+  .arch-box.pink { border-color: var(--pink); background: rgba(236,72,153,0.08); }
+  .arch-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .arch-detail { font-size: 0.8rem; color: var(--text-muted); }
+  .timeline { position: relative; padding-left: 32px; margin: 16px 0; }
+  .timeline::before { content: ''; position: absolute; left: 12px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+  .timeline-item { position: relative; margin-bottom: 20px; }
+  .timeline-item::before { content: ''; position: absolute; left: -26px; top: 6px; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: 2px solid var(--surface2); }
+  .timeline-item.green::before { background: var(--accent3); }
+  .timeline-item.orange::before { background: var(--orange); }
+  .timeline-item.red::before { background: var(--red); }
+  .timeline-item.purple::before { background: var(--accent2); }
+  .timeline-title { font-weight: 600; font-size: 0.9rem; color: var(--text); }
+  .timeline-desc { font-size: 0.85rem; color: var(--text-muted); }
+  /* Sequence diagram styles */
+  .seq-diagram { display: flex; flex-direction: column; gap: 0; font-size: 0.82rem; }
+  .seq-header { display: grid; grid-template-columns: 80px 1fr 1fr 1fr; gap: 0; text-align: center; margin-bottom: 8px; }
+  .seq-entity { font-weight: 700; padding: 8px 4px; border-radius: 6px; font-size: 0.8rem; }
+  .seq-row { display: grid; grid-template-columns: 80px 1fr 1fr 1fr; gap: 0; min-height: 36px; align-items: center; position: relative; }
+  .seq-time { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; padding-right: 8px; text-align: right; }
+  .seq-cell { text-align: center; position: relative; font-size: 0.8rem; color: var(--text-muted); padding: 4px 2px; }
+  .seq-cell .seq-line { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: var(--border); transform: translateX(-50%); z-index: 0; }
+  .seq-cell .seq-msg { position: relative; z-index: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; display: inline-block; font-size: 0.78rem; }
+  .seq-cell .seq-msg.write { border-color: var(--accent); color: var(--accent); }
+  .seq-cell .seq-msg.read { border-color: var(--accent3); color: var(--accent3); }
+  .seq-cell .seq-msg.stale { border-color: var(--red); color: var(--red); }
+  .seq-cell .seq-msg.ok { border-color: var(--accent3); color: var(--accent3); }
+  .seq-cell .seq-msg.lag { border-color: var(--orange); color: var(--orange); }
+  .seq-arrow { color: var(--text-muted); font-size: 1rem; }
+  /* Topology node styles */
+  .topo-container { display: flex; justify-content: center; align-items: center; gap: 48px; flex-wrap: wrap; }
+  .topo-group { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .topo-label { font-size: 0.8rem; font-weight: 700; color: var(--accent2); text-transform: uppercase; letter-spacing: 1px; }
+  .topo-visual { position: relative; width: 160px; height: 140px; }
+  .topo-node { position: absolute; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; border: 2px solid; z-index: 2; }
+  .topo-node.n1 { border-color: var(--accent); color: var(--accent); background: rgba(59,130,246,0.15); }
+  .topo-node.n2 { border-color: var(--accent3); color: var(--accent3); background: rgba(16,185,129,0.15); }
+  .topo-node.n3 { border-color: var(--accent2); color: var(--accent2); background: rgba(139,92,246,0.15); }
+  .topo-node.n4 { border-color: var(--orange); color: var(--orange); background: rgba(245,158,11,0.15); }
+  /* Datacenter diagram */
+  .dc-container { display: flex; justify-content: center; gap: 24px; flex-wrap: wrap; }
+  .dc-box { border: 2px solid var(--border); border-radius: 12px; padding: 20px 16px; min-width: 200px; text-align: center; position: relative; }
+  .dc-title { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+  .dc-node { display: inline-block; border: 2px solid; border-radius: 8px; padding: 6px 12px; margin: 4px; font-size: 0.78rem; font-weight: 600; }
+  .dc-node.leader { border-color: var(--accent); color: var(--accent); background: rgba(59,130,246,0.12); }
+  .dc-node.follower { border-color: var(--text-muted); color: var(--text-muted); background: rgba(148,163,184,0.08); }
+  .dc-arrow { display: flex; align-items: center; justify-content: center; color: var(--orange); font-size: 0.8rem; font-weight: 600; gap: 4px; padding: 8px 0; }
+  .dc-link { font-size: 0.75rem; color: var(--orange); text-align: center; padding: 4px 0; }
+  /* Conflict diagram */
+  .conflict-vis { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .conflict-row { display: flex; align-items: center; gap: 16px; width: 100%; justify-content: center; }
+  .conflict-node { border: 2px solid; border-radius: 8px; padding: 8px 16px; font-size: 0.82rem; font-weight: 600; text-align: center; min-width: 100px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<p class="section-label">Chapter 5 &mdash; Part 2 of 3</p>
+<h1>Replication Lag &amp; Multi-Leader</h1>
+<p class="subtitle">Eventual consistency pitfalls, read guarantees, multi-leader architectures, write conflict handling, and replication topologies</p>
+
+<!-- ============================= -->
+<!-- SECTION: Problems with Replication Lag -->
+<!-- ============================= -->
+
+<h2>Problems with Replication Lag</h2>
+
+<p>Leader-based replication with asynchronous followers enables <span class="key-term">read-scaling</span>: distribute reads across many followers while all writes go through the leader. But asynchronous replication introduces a fundamental problem &mdash; <span class="key-term">replication lag</span>.</p>
+
+<div class="card card-orange">
+  <h4>The Eventual Consistency Bargain</h4>
+  <p style="margin-bottom:0">If you read from an asynchronous follower, you may see <strong>outdated information</strong>. The leader and follower may return different results for the same query at the same time. This inconsistency is temporary &mdash; followers will <em>eventually</em> catch up. Hence: <span class="key-term">eventual consistency</span>. But "eventually" is deliberately vague &mdash; lag can range from fractions of a second to <strong>several minutes</strong>.</p>
+</div>
+
+<!-- Diagram 1: Replication Lag Overview -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 1 &mdash; How Replication Lag Creates Stale Reads</div>
+  <div class="flow">
+    <div class="flow-box primary" style="min-width:100px;">Client<br><small>writes data</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-box primary" style="min-width:100px;">Leader<br><small>accepts write</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-vert">
+      <div class="flow-box green" style="min-width:140px;">Follower 1<br><small>lag: 50ms</small></div>
+      <div class="flow-box orange" style="min-width:140px;">Follower 2<br><small>lag: 3 sec</small></div>
+      <div class="flow-box red" style="min-width:140px;">Follower 3<br><small>lag: 2 min</small></div>
+    </div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-box red" style="min-width:120px;">Stale reads<br><small>if client hits lagging follower</small></div>
+  </div>
+  <div class="chart-footer">
+    <span>Normal: sub-second lag</span>
+    <span>Under load / network issues: seconds to minutes</span>
+  </div>
+</div>
+
+<p>Three specific anomalies arise from replication lag, each with its own consistency guarantee to prevent it.</p>
+
+<!-- ============================= -->
+<!-- Read-After-Write Consistency -->
+<!-- ============================= -->
+
+<h3>1. Reading Your Own Writes</h3>
+
+<p>A user submits data (goes to the leader) then immediately views it (routed to a follower). If the follower has not yet received the write, it looks like their data was <strong>lost</strong>. To prevent this, we need <span class="key-term">read-after-write consistency</span> (also called read-your-writes consistency): a guarantee that users always see their own submitted data.</p>
+
+<!-- Diagram 2: Read-After-Write Violation Timeline -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 2 &mdash; Read-After-Write Violation Timeline</div>
+  <div class="timeline">
+    <div class="timeline-item">
+      <div class="timeline-title">t=0 &mdash; User updates profile picture</div>
+      <div class="timeline-desc">Write goes to <strong>Leader</strong>. Leader confirms success.</div>
+    </div>
+    <div class="timeline-item green">
+      <div class="timeline-title">t=0.1s &mdash; Leader begins replicating</div>
+      <div class="timeline-desc">Async replication stream starts sending changes to followers.</div>
+    </div>
+    <div class="timeline-item orange">
+      <div class="timeline-title">t=0.5s &mdash; User reloads profile page</div>
+      <div class="timeline-desc">Read request routed to <strong>Follower 2</strong> (replication lag: 3 seconds).</div>
+    </div>
+    <div class="timeline-item red">
+      <div class="timeline-title">t=0.5s &mdash; Follower returns OLD data</div>
+      <div class="timeline-desc">User sees old profile picture. Appears data was lost!</div>
+    </div>
+    <div class="timeline-item green">
+      <div class="timeline-title">t=3s &mdash; Follower catches up</div>
+      <div class="timeline-desc">Replication completes. But user already left in frustration.</div>
+    </div>
+  </div>
+</div>
+
+<div class="card card-green">
+  <h4>Solutions for Read-After-Write Consistency</h4>
+  <ul>
+    <li><strong>Read from leader for user-modified data:</strong> e.g., always read a user's own profile from the leader, other profiles from followers</li>
+    <li><strong>Time-based leader reads:</strong> For 1 minute after the last update, route all reads to the leader</li>
+    <li><strong>Client-tracked timestamps:</strong> Client remembers timestamp of most recent write; system ensures the serving replica reflects updates at least up to that timestamp (using logical timestamps like log sequence numbers)</li>
+    <li><strong>Cross-device consideration:</strong> When accessing from multiple devices, metadata must be centralized and requests from all devices may need to route to the same datacenter</li>
+  </ul>
+</div>
+
+<!-- ============================= -->
+<!-- Monotonic Reads -->
+<!-- ============================= -->
+
+<h3>2. Monotonic Reads</h3>
+
+<p>A user reads from one follower (fresh data), then reads from a different follower (stale data). They see data <strong>go backward in time</strong> &mdash; e.g., a comment appears and then disappears. <span class="key-term">Monotonic reads</span> guarantees a user will never read older data after having previously read newer data.</p>
+
+<!-- Diagram 3: Monotonic Reads Violation -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 3 &mdash; Monotonic Reads Violation: Time Goes Backward</div>
+  <div style="display:flex;flex-direction:column;gap:8px;">
+    <!-- Header -->
+    <div style="display:grid;grid-template-columns:90px 1fr 1fr 1fr;gap:8px;text-align:center;">
+      <div style="font-size:0.8rem;color:var(--text-muted);font-weight:600;">Time</div>
+      <div class="seq-entity" style="background:rgba(59,130,246,0.12);color:var(--accent);">Leader</div>
+      <div class="seq-entity" style="background:rgba(16,185,129,0.12);color:var(--accent3);">Follower A<br><small>low lag</small></div>
+      <div class="seq-entity" style="background:rgba(239,68,68,0.12);color:var(--red);">Follower B<br><small>high lag</small></div>
+    </div>
+    <!-- Row 1 -->
+    <div style="display:grid;grid-template-columns:90px 1fr 1fr 1fr;gap:8px;text-align:center;align-items:center;min-height:40px;">
+      <div style="font-size:0.78rem;color:var(--text-muted);">t=0</div>
+      <div><span class="seq-msg write" style="display:inline-block;border:1px solid var(--accent);border-radius:6px;padding:4px 8px;font-size:0.78rem;color:var(--accent);">User 1234 adds comment</span></div>
+      <div style="color:var(--text-muted);font-size:0.78rem;">&mdash;</div>
+      <div style="color:var(--text-muted);font-size:0.78rem;">&mdash;</div>
+    </div>
+    <!-- Row 2 -->
+    <div style="display:grid;grid-template-columns:90px 1fr 1fr 1fr;gap:8px;text-align:center;align-items:center;min-height:40px;">
+      <div style="font-size:0.78rem;color:var(--text-muted);">t=1</div>
+      <div style="color:var(--text-muted);font-size:0.78rem;">&mdash;</div>
+      <div><span style="display:inline-block;border:1px solid var(--accent3);border-radius:6px;padding:4px 8px;font-size:0.78rem;color:var(--accent3);">Has comment</span></div>
+      <div style="color:var(--text-muted);font-size:0.78rem;">Still replicating...</div>
+    </div>
+    <!-- Row 3 -->
+    <div style="display:grid;grid-template-columns:90px 1fr 1fr 1fr;gap:8px;text-align:center;align-items:center;min-height:40px;">
+      <div style="font-size:0.78rem;color:var(--accent3);font-weight:600;">t=2</div>
+      <div style="color:var(--text-muted);font-size:0.78rem;">&mdash;</div>
+      <div><span style="display:inline-block;border:1px solid var(--accent3);border-radius:6px;padding:4px 8px;font-size:0.78rem;color:var(--accent3);">User 2345 reads &rarr; sees comment</span></div>
+      <div style="color:var(--text-muted);font-size:0.78rem;">&mdash;</div>
+    </div>
+    <!-- Row 4 -->
+    <div style="display:grid;grid-template-columns:90px 1fr 1fr 1fr;gap:8px;text-align:center;align-items:center;min-height:40px;">
+      <div style="font-size:0.78rem;color:var(--red);font-weight:600;">t=3</div>
+      <div style="color:var(--text-muted);font-size:0.78rem;">&mdash;</div>
+      <div style="color:var(--text-muted);font-size:0.78rem;">&mdash;</div>
+      <div><span style="display:inline-block;border:1px solid var(--red);border-radius:6px;padding:4px 8px;font-size:0.78rem;color:var(--red);">User 2345 reads &rarr; NO comment!</span></div>
+    </div>
+  </div>
+  <p style="text-align:center;font-size:0.82rem;margin-top:16px;color:var(--red);font-weight:600;">Comment appeared then vanished &mdash; time went backward!</p>
+</div>
+
+<div class="card card-accent">
+  <h4>Solution: Sticky Sessions</h4>
+  <p style="margin-bottom:0">Ensure each user always reads from the <strong>same replica</strong>. Choose the replica based on a <strong>hash of the user ID</strong> (not randomly). Different users can read from different replicas. If that replica fails, reroute to another &mdash; but during normal operation, the user sees a consistent timeline. This is stronger than eventual consistency but weaker than strong consistency.</p>
+</div>
+
+<!-- ============================= -->
+<!-- Consistent Prefix Reads -->
+<!-- ============================= -->
+
+<h3>3. Consistent Prefix Reads</h3>
+
+<p>This anomaly violates <strong>causality</strong>. If writes happen in a certain order, readers should see them in the same order. In partitioned databases, different partitions may replicate at different speeds, causing an observer to see effects before their causes.</p>
+
+<!-- Diagram 4: Mr. Poons / Mrs. Cake -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 4 &mdash; The Poons-Cake Causality Violation</div>
+  <div style="display:flex;flex-direction:column;gap:20px;">
+    <!-- Original conversation -->
+    <div style="text-align:center;">
+      <div style="font-size:0.8rem;color:var(--accent2);font-weight:700;margin-bottom:8px;">ACTUAL CONVERSATION (CAUSAL ORDER)</div>
+      <div style="display:flex;justify-content:center;gap:16px;flex-wrap:wrap;">
+        <div class="arch-box blue" style="max-width:280px;">
+          <div class="arch-label" style="color:var(--accent);">Mr. Poons (Partition 1)</div>
+          <div class="arch-detail" style="font-style:italic;">"How far into the future can you see, Mrs. Cake?"</div>
+        </div>
+        <div style="display:flex;align-items:center;color:var(--text-muted);font-size:1.2rem;">&rarr;</div>
+        <div class="arch-box green" style="max-width:280px;">
+          <div class="arch-label" style="color:var(--accent3);">Mrs. Cake (Partition 2)</div>
+          <div class="arch-detail" style="font-style:italic;">"About ten seconds usually, Mr. Poons."</div>
+        </div>
+      </div>
+    </div>
+    <!-- Replication lag -->
+    <div style="text-align:center;">
+      <div style="font-size:0.8rem;color:var(--orange);font-weight:700;margin-bottom:8px;">REPLICATION TO OBSERVER'S FOLLOWERS</div>
+      <div style="display:flex;justify-content:center;gap:32px;flex-wrap:wrap;">
+        <div style="text-align:center;">
+          <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:4px;">Partition 1 follower</div>
+          <div style="display:inline-block;border:2px solid var(--red);border-radius:8px;padding:8px 14px;color:var(--red);font-size:0.82rem;font-weight:600;">Lag: 5 seconds</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:4px;">Partition 2 follower</div>
+          <div style="display:inline-block;border:2px solid var(--accent3);border-radius:8px;padding:8px 14px;color:var(--accent3);font-size:0.82rem;font-weight:600;">Lag: 0.1 seconds</div>
+        </div>
+      </div>
+    </div>
+    <!-- What observer sees -->
+    <div style="text-align:center;">
+      <div style="font-size:0.8rem;color:var(--red);font-weight:700;margin-bottom:8px;">WHAT THE OBSERVER SEES (BROKEN CAUSALITY)</div>
+      <div style="display:flex;justify-content:center;gap:16px;flex-wrap:wrap;">
+        <div class="arch-box green" style="max-width:280px;">
+          <div class="arch-label" style="color:var(--accent3);">Arrives First</div>
+          <div class="arch-detail" style="font-style:italic;">"About ten seconds usually, Mr. Poons."</div>
+        </div>
+        <div style="display:flex;align-items:center;color:var(--text-muted);font-size:1.2rem;">&rarr;</div>
+        <div class="arch-box blue" style="max-width:280px;">
+          <div class="arch-label" style="color:var(--accent);">Arrives Second</div>
+          <div class="arch-detail" style="font-style:italic;">"How far into the future can you see, Mrs. Cake?"</div>
+        </div>
+      </div>
+      <p style="font-size:0.82rem;color:var(--red);margin-top:12px;font-weight:600;">Mrs. Cake appears to answer before the question is asked!</p>
+    </div>
+  </div>
+</div>
+
+<div class="card card-purple">
+  <h4>Consistent Prefix Reads Guarantee</h4>
+  <p>If a sequence of writes happens in a certain order, anyone reading those writes will see them in the same order. Solutions:</p>
+  <ul>
+    <li><strong>Write causally related data to the same partition</strong> &mdash; ensures ordering within a single replication stream</li>
+    <li><strong>Use algorithms that track causal dependencies</strong> &mdash; e.g., version vectors, happens-before tracking</li>
+    <li>This is primarily a problem in <strong>partitioned databases</strong> where different partitions operate independently with no global write ordering</li>
+  </ul>
+</div>
+
+<!-- ============================= -->
+<!-- Solutions for Replication Lag -->
+<!-- ============================= -->
+
+<h3>Solutions for Replication Lag (Overview)</h3>
+
+<!-- Diagram 5: Three Guarantees Compared -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 5 &mdash; Consistency Guarantees Spectrum</div>
+  <div class="flow" style="gap:8px;">
+    <div class="flow-box red" style="min-width:140px;">
+      <strong>Eventual<br>Consistency</strong><br>
+      <small>Weakest &mdash; no ordering guarantees</small>
+    </div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-box orange" style="min-width:140px;">
+      <strong>Monotonic<br>Reads</strong><br>
+      <small>No backward time travel</small>
+    </div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-box purple" style="min-width:140px;">
+      <strong>Consistent<br>Prefix Reads</strong><br>
+      <small>Causal order preserved</small>
+    </div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-box primary" style="min-width:140px;">
+      <strong>Read-After-Write</strong><br>
+      <small>See your own writes</small>
+    </div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-box green" style="min-width:140px;">
+      <strong>Strong<br>Consistency</strong><br>
+      <small>Strongest &mdash; linearizable</small>
+    </div>
+  </div>
+</div>
+
+<div class="card card-accent">
+  <h4>The Case for Transactions</h4>
+  <p style="margin-bottom:0">Dealing with replication lag in application code is complex and error-prone. <span class="key-term">Transactions</span> exist so that databases can provide stronger guarantees and applications can be simpler. The claim that "transactions are too expensive for distributed systems" is overly simplistic. Chapters 7 and 9 will revisit this topic with more nuance.</p>
+</div>
+
+<!-- ============================= -->
+<!-- SECTION: Multi-Leader Replication -->
+<!-- ============================= -->
+
+<h2>Multi-Leader Replication</h2>
+
+<p>Single-leader replication has a major downside: <strong>all writes must go through one node</strong>. If you cannot connect to the leader (network interruption, datacenter failure), you cannot write. <span class="key-term">Multi-leader replication</span> (also called master-master or active/active) allows more than one node to accept writes. Each leader forwards changes to all other leaders, and simultaneously acts as a follower to them.</p>
+
+<div class="card card-orange">
+  <h4>When Multi-Leader Makes Sense</h4>
+  <p style="margin-bottom:0">It rarely makes sense within a single datacenter (complexity outweighs benefits). The primary use cases are: <strong>(1)</strong> Multi-datacenter operation, <strong>(2)</strong> Clients with offline operation, and <strong>(3)</strong> Collaborative editing. The biggest trade-off: you must handle <strong>write conflicts</strong>.</p>
+</div>
+
+<!-- ============================= -->
+<!-- Multi-Datacenter Operation -->
+<!-- ============================= -->
+
+<h3>Multi-Datacenter Operation</h3>
+
+<p>With replicas in several datacenters, single-leader forces all writes through one datacenter. Multi-leader places a leader in <em>each</em> datacenter. Within each datacenter, regular leader-follower replication is used. Between datacenters, leaders replicate asynchronously to each other.</p>
+
+<!-- Diagram 6: Multi-Datacenter Architecture -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 6 &mdash; Multi-Leader Replication Across Datacenters</div>
+  <div class="dc-container">
+    <!-- DC 1 -->
+    <div class="dc-box" style="border-color:var(--accent);">
+      <div class="dc-title" style="color:var(--accent);">Datacenter 1 (US-East)</div>
+      <div>
+        <div class="dc-node leader">Leader 1</div>
+      </div>
+      <div style="margin-top:8px;">
+        <div class="dc-node follower">Follower</div>
+        <div class="dc-node follower">Follower</div>
+      </div>
+      <div style="margin-top:8px;font-size:0.75rem;color:var(--accent3);">Local writes accepted</div>
+    </div>
+    <!-- Arrows between DCs -->
+    <div style="display:flex;flex-direction:column;justify-content:center;gap:8px;align-items:center;">
+      <div style="font-size:0.75rem;color:var(--orange);font-weight:600;">Async replication</div>
+      <div style="font-size:1.4rem;color:var(--orange);">&larr;&rarr;</div>
+      <div style="font-size:0.7rem;color:var(--text-muted);">(Internet link)</div>
+      <div style="font-size:0.7rem;color:var(--red);font-weight:600;">Conflict resolution</div>
+    </div>
+    <!-- DC 2 -->
+    <div class="dc-box" style="border-color:var(--accent3);">
+      <div class="dc-title" style="color:var(--accent3);">Datacenter 2 (EU-West)</div>
+      <div>
+        <div class="dc-node leader" style="border-color:var(--accent3);color:var(--accent3);">Leader 2</div>
+      </div>
+      <div style="margin-top:8px;">
+        <div class="dc-node follower">Follower</div>
+        <div class="dc-node follower">Follower</div>
+      </div>
+      <div style="margin-top:8px;font-size:0.75rem;color:var(--accent3);">Local writes accepted</div>
+    </div>
+    <!-- Arrows to DC 3 -->
+    <div style="display:flex;flex-direction:column;justify-content:center;gap:8px;align-items:center;">
+      <div style="font-size:0.75rem;color:var(--orange);font-weight:600;">Async replication</div>
+      <div style="font-size:1.4rem;color:var(--orange);">&larr;&rarr;</div>
+      <div style="font-size:0.7rem;color:var(--text-muted);">(Internet link)</div>
+    </div>
+    <!-- DC 3 -->
+    <div class="dc-box" style="border-color:var(--accent2);">
+      <div class="dc-title" style="color:var(--accent2);">Datacenter 3 (AP-Tokyo)</div>
+      <div>
+        <div class="dc-node leader" style="border-color:var(--accent2);color:var(--accent2);">Leader 3</div>
+      </div>
+      <div style="margin-top:8px;">
+        <div class="dc-node follower">Follower</div>
+        <div class="dc-node follower">Follower</div>
+      </div>
+      <div style="margin-top:8px;font-size:0.75rem;color:var(--accent3);">Local writes accepted</div>
+    </div>
+  </div>
+  <p style="text-align:center;font-size:0.82rem;margin-top:16px;color:var(--text-muted);">Each datacenter has its own leader. Within each DC: synchronous leader&rarr;follower. Between DCs: asynchronous leader&harr;leader.</p>
+</div>
+
+<!-- Single-Leader vs Multi-Leader Comparison Table -->
+<h3>Single-Leader vs Multi-Leader Comparison</h3>
+
+<div class="card" style="padding:0;overflow:hidden;">
+  <table>
+    <thead>
+      <tr>
+        <th>Dimension</th>
+        <th>Single-Leader</th>
+        <th>Multi-Leader</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Write latency</strong></td>
+        <td style="color:var(--red);">High &mdash; all writes cross internet to leader's DC</td>
+        <td style="color:var(--accent3);">Low &mdash; writes processed at local DC leader</td>
+      </tr>
+      <tr>
+        <td><strong>DC outage tolerance</strong></td>
+        <td style="color:var(--orange);">Must failover &mdash; promote follower in another DC</td>
+        <td style="color:var(--accent3);">Each DC operates independently; catches up later</td>
+      </tr>
+      <tr>
+        <td><strong>Network tolerance</strong></td>
+        <td style="color:var(--red);">Sensitive &mdash; writes are synchronous over inter-DC link</td>
+        <td style="color:var(--accent3);">Tolerant &mdash; async replication survives interruptions</td>
+      </tr>
+      <tr>
+        <td><strong>Write conflicts</strong></td>
+        <td style="color:var(--accent3);">None &mdash; single point of serialization</td>
+        <td style="color:var(--red);">Possible &mdash; concurrent writes on different leaders</td>
+      </tr>
+      <tr>
+        <td><strong>Complexity</strong></td>
+        <td style="color:var(--accent3);">Simple &mdash; well understood</td>
+        <td style="color:var(--red);">Complex &mdash; conflict resolution, autoincrement issues, trigger pitfalls</td>
+      </tr>
+      <tr>
+        <td><strong>Implementations</strong></td>
+        <td>Most databases by default</td>
+        <td>Tungsten (MySQL), BDR (PostgreSQL), GoldenGate (Oracle)</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ============================= -->
+<!-- Offline Clients -->
+<!-- ============================= -->
+
+<h3>Clients with Offline Operation</h3>
+
+<p>Applications that must work <strong>disconnected from the internet</strong> are architecturally equivalent to multi-leader replication taken to the extreme: each device is a "datacenter" with its own local leader, and the network between them is extremely unreliable.</p>
+
+<!-- Diagram 7: Offline Multi-Leader -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 7 &mdash; Calendar App as Multi-Leader Replication</div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:16px;">
+    <div style="display:flex;gap:20px;flex-wrap:wrap;justify-content:center;">
+      <div class="arch-box blue" style="min-width:150px;">
+        <div class="arch-label" style="color:var(--accent);">Phone</div>
+        <div class="arch-detail">Local DB = Leader</div>
+        <div class="arch-detail" style="color:var(--accent3);">Reads + Writes offline</div>
+      </div>
+      <div class="arch-box purple" style="min-width:150px;">
+        <div class="arch-label" style="color:var(--accent2);">Laptop</div>
+        <div class="arch-detail">Local DB = Leader</div>
+        <div class="arch-detail" style="color:var(--accent3);">Reads + Writes offline</div>
+      </div>
+      <div class="arch-box green" style="min-width:150px;">
+        <div class="arch-label" style="color:var(--accent3);">Tablet</div>
+        <div class="arch-detail">Local DB = Leader</div>
+        <div class="arch-detail" style="color:var(--accent3);">Reads + Writes offline</div>
+      </div>
+    </div>
+    <div style="font-size:1.2rem;color:var(--orange);">&darr; &uarr; Sync when online &darr; &uarr;</div>
+    <div class="arch-box orange" style="min-width:200px;">
+      <div class="arch-label" style="color:var(--orange);">Cloud Server</div>
+      <div class="arch-detail">Replication hub &mdash; merges changes</div>
+      <div class="arch-detail" style="color:var(--red);">Replication lag: hours to days</div>
+    </div>
+  </div>
+  <p style="text-align:center;font-size:0.82rem;margin-top:16px;color:var(--text-muted);">CouchDB is designed for this mode. The "rich history of broken calendar sync" demonstrates how tricky multi-leader replication is to get right.</p>
+</div>
+
+<!-- ============================= -->
+<!-- Collaborative Editing -->
+<!-- ============================= -->
+
+<h3>Collaborative Editing</h3>
+
+<p><span class="key-term">Real-time collaborative editing</span> (Etherpad, Google Docs) is conceptually similar to multi-leader replication. Each user's browser/client has a local replica. Changes are instantly applied locally, then asynchronously replicated to the server and other users.</p>
+
+<div class="grid2">
+  <div class="card card-accent">
+    <h4>Lock-Based (Single-Leader)</h4>
+    <ul>
+      <li>Obtain lock on document before editing</li>
+      <li>Other users must wait</li>
+      <li>Equivalent to single-leader with transactions</li>
+      <li>No conflicts, but slow collaboration</li>
+    </ul>
+  </div>
+  <div class="card card-purple">
+    <h4>Fine-Grained (Multi-Leader)</h4>
+    <ul>
+      <li>Unit of change = single keystroke</li>
+      <li>No locking &mdash; multiple users edit simultaneously</li>
+      <li>Requires conflict resolution</li>
+      <li>Fast collaboration, but complex</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============================= -->
+<!-- SECTION: Handling Write Conflicts -->
+<!-- ============================= -->
+
+<h2>Handling Write Conflicts</h2>
+
+<p>The biggest problem with multi-leader replication: two users concurrently modify the same record on different leaders. Each write succeeds locally, but a <strong>conflict is detected</strong> when changes replicate asynchronously.</p>
+
+<!-- Diagram 8: Write Conflict Detection -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 8 &mdash; Write Conflict: Concurrent Updates on Different Leaders</div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:16px;">
+    <div style="display:flex;gap:32px;flex-wrap:wrap;justify-content:center;align-items:flex-start;">
+      <!-- User 1 -->
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+        <div style="border:2px solid var(--accent);border-radius:8px;padding:8px 16px;color:var(--accent);font-size:0.85rem;font-weight:600;">User 1</div>
+        <div style="color:var(--text-muted);font-size:0.8rem;">&darr; title = A &rarr; B</div>
+        <div style="border:2px solid var(--accent);border-radius:8px;padding:10px 20px;color:var(--accent);font-weight:600;">Leader 1</div>
+        <div style="font-size:0.75rem;color:var(--accent3);">Write succeeds</div>
+      </div>
+      <!-- Conflict zone -->
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;padding-top:40px;">
+        <div style="font-size:1.4rem;color:var(--orange);">&larr; async &rarr;</div>
+        <div style="border:2px solid var(--red);border-radius:50%;width:60px;height:60px;display:flex;align-items:center;justify-content:center;color:var(--red);font-size:0.7rem;font-weight:700;text-align:center;">CONFLICT<br>DETECTED</div>
+        <div style="font-size:0.75rem;color:var(--red);font-weight:600;">B &ne; C &mdash; which wins?</div>
+      </div>
+      <!-- User 2 -->
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+        <div style="border:2px solid var(--accent3);border-radius:8px;padding:8px 16px;color:var(--accent3);font-size:0.85rem;font-weight:600;">User 2</div>
+        <div style="color:var(--text-muted);font-size:0.8rem;">&darr; title = A &rarr; C</div>
+        <div style="border:2px solid var(--accent3);border-radius:8px;padding:10px 20px;color:var(--accent3);font-weight:600;">Leader 2</div>
+        <div style="font-size:0.75rem;color:var(--accent3);">Write succeeds</div>
+      </div>
+    </div>
+    <p style="font-size:0.82rem;color:var(--text-muted);text-align:center;">In single-leader, the second write would block or abort. In multi-leader, both succeed &mdash; conflict surfaces later during replication.</p>
+  </div>
+</div>
+
+<h3>Conflict Detection</h3>
+
+<div class="card card-red">
+  <h4>Synchronous vs Asynchronous Detection</h4>
+  <p><strong>Synchronous detection:</strong> Wait for all replicas to confirm before telling user the write succeeded. But this defeats the purpose of multi-leader &mdash; you lose independent writes. Might as well use single-leader.</p>
+  <p style="margin-bottom:0"><strong>Asynchronous detection:</strong> Conflict discovered later during replication. May be too late to ask the user. This is the reality of multi-leader systems.</p>
+</div>
+
+<h3>Conflict Avoidance</h3>
+
+<div class="card card-green">
+  <h4>The Simplest Strategy: Don't Have Conflicts</h4>
+  <p>Route all writes for a particular record through the <strong>same leader</strong>. For example, assign each user a "home" datacenter based on geography. From that user's perspective, it behaves like single-leader.</p>
+  <p style="margin-bottom:0"><strong>Breaks down when:</strong> A datacenter fails and traffic must be rerouted, or a user moves to a different geographic region. Then you must handle concurrent writes on different leaders anyway.</p>
+</div>
+
+<h3>Converging Toward a Consistent State</h3>
+
+<p>In multi-leader, there is no defined write ordering. If Leader 1 sees writes in order B then C, and Leader 2 sees C then B, they must still converge to the <strong>same final value</strong>. The database must resolve conflicts in a <span class="key-term">convergent</span> way.</p>
+
+<h3>Conflict Resolution Strategies</h3>
+
+<div class="card" style="padding:0;overflow:hidden;">
+  <table>
+    <thead>
+      <tr>
+        <th>Strategy</th>
+        <th>How It Works</th>
+        <th>Data Loss?</th>
+        <th>Use Case</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong style="color:var(--accent);">Last Write Wins (LWW)</strong></td>
+        <td>Each write gets a timestamp/UUID. Highest ID wins, others discarded.</td>
+        <td style="color:var(--red);">Yes &mdash; losing writes silently dropped</td>
+        <td>Acceptable when overwrites are fine (e.g., cache updates)</td>
+      </tr>
+      <tr>
+        <td><strong style="color:var(--accent3);">Value Merging</strong></td>
+        <td>Merge conflicting values (e.g., concatenate: "B/C")</td>
+        <td style="color:var(--accent3);">No &mdash; but result may be unexpected</td>
+        <td>Simple fields where concatenation is meaningful</td>
+      </tr>
+      <tr>
+        <td><strong style="color:var(--accent2);">CRDTs</strong></td>
+        <td>Conflict-free replicated data types: sets, maps, counters that auto-resolve. Two-way merge.</td>
+        <td style="color:var(--accent3);">No &mdash; mathematically guaranteed convergence</td>
+        <td>Counters, sets, collaborative data (Riak 2.0)</td>
+      </tr>
+      <tr>
+        <td><strong style="color:var(--orange);">Operational Transform (OT)</strong></td>
+        <td>Transform operations against concurrent operations to preserve intent. Designed for ordered lists (text).</td>
+        <td style="color:var(--accent3);">No &mdash; preserves all user intentions</td>
+        <td>Collaborative text editing (Google Docs, Etherpad)</td>
+      </tr>
+      <tr>
+        <td><strong style="color:var(--pink);">Mergeable Persistent DS</strong></td>
+        <td>Track history explicitly (like Git). Three-way merge function.</td>
+        <td style="color:var(--accent3);">No &mdash; full history preserved</td>
+        <td>Complex data structures needing full audit trail</td>
+      </tr>
+      <tr>
+        <td><strong style="color:var(--text);">Explicit Conflict Storage</strong></td>
+        <td>Store all conflicting versions. Resolve on read (prompt user or auto-resolve).</td>
+        <td style="color:var(--accent3);">No &mdash; all versions preserved</td>
+        <td>CouchDB-style apps, shopping carts</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<h3>Custom Conflict Resolution Logic</h3>
+
+<div class="grid2">
+  <div class="card card-accent">
+    <h4>On Write</h4>
+    <p style="margin-bottom:0">Database calls a <strong>conflict handler</strong> as soon as it detects a conflict in the replication log. Runs in background, must execute quickly, cannot prompt user. Example: Bucardo (Perl snippets).</p>
+  </div>
+  <div class="card card-purple">
+    <h4>On Read</h4>
+    <p style="margin-bottom:0">All conflicting versions are <strong>stored</strong>. Next read returns multiple versions. Application prompts user or auto-resolves, then writes result back. Example: CouchDB.</p>
+  </div>
+</div>
+
+<div class="quote">
+  Amazon shopping cart: conflict resolution preserved items added to cart but not items removed. Customers saw items reappearing after deletion &mdash; a cautionary tale about custom conflict resolution handlers.
+</div>
+
+<!-- ============================= -->
+<!-- SECTION: Multi-Leader Topologies -->
+<!-- ============================= -->
+
+<h2>Multi-Leader Replication Topologies</h2>
+
+<p>A <span class="key-term">replication topology</span> describes how writes propagate between leaders. With two leaders, there is only one option (bidirectional). With three or more, several topologies are possible.</p>
+
+<!-- Diagram 9: Three Topologies -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 9 &mdash; Multi-Leader Replication Topologies</div>
+  <div class="topo-container">
+    <!-- Circular -->
+    <div class="topo-group">
+      <div class="topo-label">Circular</div>
+      <div class="topo-visual">
+        <div class="topo-node n1" style="top:0;left:60px;">L1</div>
+        <div class="topo-node n2" style="bottom:0;left:20px;">L2</div>
+        <div class="topo-node n3" style="bottom:0;right:20px;">L3</div>
+        <!-- SVG arrows -->
+        <svg style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:1;" viewBox="0 0 160 140">
+          <defs><marker id="ah1" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#94a3b8"/></marker></defs>
+          <line x1="70" y1="40" x2="35" y2="90" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#ah1)"/>
+          <line x1="55" y1="118" x2="105" y2="118" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#ah1)"/>
+          <line x1="125" y1="90" x2="90" y2="40" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#ah1)"/>
+        </svg>
+      </div>
+      <div style="font-size:0.75rem;color:var(--text-muted);text-align:center;max-width:160px;">Each node forwards to one neighbor. MySQL default.</div>
+    </div>
+    <!-- Star -->
+    <div class="topo-group">
+      <div class="topo-label">Star / Tree</div>
+      <div class="topo-visual">
+        <div class="topo-node n1" style="top:50px;left:60px;">L1</div>
+        <div class="topo-node n2" style="top:0;left:20px;">L2</div>
+        <div class="topo-node n3" style="top:0;right:20px;">L3</div>
+        <div class="topo-node n4" style="bottom:0;left:60px;">L4</div>
+        <svg style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:1;" viewBox="0 0 160 140">
+          <defs><marker id="ah2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#94a3b8"/></marker></defs>
+          <line x1="65" y1="50" x2="45" y2="35" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#ah2)"/>
+          <line x1="95" y1="50" x2="115" y2="35" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#ah2)"/>
+          <line x1="80" y1="90" x2="80" y2="105" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#ah2)"/>
+        </svg>
+      </div>
+      <div style="font-size:0.75rem;color:var(--text-muted);text-align:center;max-width:160px;">One root forwards to all. Generalizes to tree.</div>
+    </div>
+    <!-- All-to-All -->
+    <div class="topo-group">
+      <div class="topo-label">All-to-All</div>
+      <div class="topo-visual">
+        <div class="topo-node n1" style="top:0;left:60px;">L1</div>
+        <div class="topo-node n2" style="bottom:0;left:20px;">L2</div>
+        <div class="topo-node n3" style="bottom:0;right:20px;">L3</div>
+        <svg style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:1;" viewBox="0 0 160 140">
+          <defs><marker id="ah3" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#3b82f6"/></marker></defs>
+          <!-- Bidirectional arrows (6 lines for 3 nodes) -->
+          <line x1="70" y1="40" x2="35" y2="90" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#ah3)"/>
+          <line x1="45" y1="95" x2="75" y2="42" stroke="#10b981" stroke-width="1.5" marker-end="url(#ah3)" stroke-dasharray="4 2"/>
+          <line x1="55" y1="118" x2="105" y2="118" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#ah3)"/>
+          <line x1="110" y1="112" x2="60" y2="112" stroke="#10b981" stroke-width="1.5" marker-end="url(#ah3)" stroke-dasharray="4 2"/>
+          <line x1="125" y1="90" x2="90" y2="40" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#ah3)"/>
+          <line x1="85" y1="42" x2="118" y2="88" stroke="#10b981" stroke-width="1.5" marker-end="url(#ah3)" stroke-dasharray="4 2"/>
+        </svg>
+      </div>
+      <div style="font-size:0.75rem;color:var(--text-muted);text-align:center;max-width:160px;">Every leader sends to every other. Most general.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Topology Fault Tolerance Comparison -->
+<h3>Topology Fault Tolerance Comparison</h3>
+
+<div class="card" style="padding:0;overflow:hidden;">
+  <table>
+    <thead>
+      <tr>
+        <th>Property</th>
+        <th>Circular</th>
+        <th>Star / Tree</th>
+        <th>All-to-All</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Single node failure</strong></td>
+        <td style="color:var(--red);">Interrupts entire ring</td>
+        <td style="color:var(--red);">Root failure stops propagation</td>
+        <td style="color:var(--accent3);">Messages route around failed node</td>
+      </tr>
+      <tr>
+        <td><strong>Reconfiguration needed?</strong></td>
+        <td style="color:var(--orange);">Yes &mdash; manual in most deployments</td>
+        <td style="color:var(--orange);">Yes &mdash; manual</td>
+        <td style="color:var(--accent3);">No &mdash; inherently fault-tolerant</td>
+      </tr>
+      <tr>
+        <td><strong>Loop prevention</strong></td>
+        <td>Node IDs tagged on writes; ignore own ID</td>
+        <td>Node IDs tagged on writes</td>
+        <td>Not needed (direct delivery)</td>
+      </tr>
+      <tr>
+        <td><strong>Hop count</strong></td>
+        <td style="color:var(--orange);">Up to N-1 hops</td>
+        <td style="color:var(--orange);">Up to depth of tree</td>
+        <td style="color:var(--accent3);">Always 1 hop</td>
+      </tr>
+      <tr>
+        <td><strong>Ordering issue</strong></td>
+        <td>Preserved within ring</td>
+        <td>Preserved within tree</td>
+        <td style="color:var(--red);">Writes can "overtake" each other</td>
+      </tr>
+      <tr>
+        <td><strong>Example</strong></td>
+        <td>MySQL default</td>
+        <td>General multi-leader</td>
+        <td>Most general topology</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Diagram 10: All-to-All Ordering Problem -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 10 &mdash; All-to-All Causality Problem: Writes Overtaking</div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:16px;">
+    <div style="display:flex;gap:24px;flex-wrap:wrap;justify-content:center;">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+        <div style="border:2px solid var(--accent);border-radius:8px;padding:8px 14px;color:var(--accent);font-weight:600;font-size:0.85rem;">Leader 1</div>
+        <div style="font-size:0.78rem;color:var(--accent);">Client A: INSERT row</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+        <div style="border:2px solid var(--accent3);border-radius:8px;padding:8px 14px;color:var(--accent3);font-weight:600;font-size:0.85rem;">Leader 2</div>
+        <div style="font-size:0.78rem;color:var(--red);">Receives UPDATE before INSERT!</div>
+        <div style="font-size:0.75rem;color:var(--text-muted);">(UPDATE references row that doesn't exist yet)</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+        <div style="border:2px solid var(--accent2);border-radius:8px;padding:8px 14px;color:var(--accent2);font-weight:600;font-size:0.85rem;">Leader 3</div>
+        <div style="font-size:0.78rem;color:var(--accent2);">Client B: UPDATE row</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:center;">
+      <div style="border:1px solid var(--orange);border-radius:6px;padding:6px 12px;font-size:0.78rem;color:var(--orange);">INSERT (L1 &rarr; L2): slow link</div>
+      <div style="border:1px solid var(--accent3);border-radius:6px;padding:6px 12px;font-size:0.78rem;color:var(--accent3);">UPDATE (L3 &rarr; L2): fast link</div>
+    </div>
+    <p style="font-size:0.82rem;color:var(--text-muted);text-align:center;">Solution: <strong>version vectors</strong> to track causal dependencies. Timestamps alone are insufficient due to clock skew.</p>
+  </div>
+</div>
+
+<div class="card card-red">
+  <h4>Beware: Poorly Implemented Conflict Detection</h4>
+  <p style="margin-bottom:0">Many multi-leader systems have weak conflict detection. PostgreSQL BDR does not provide causal ordering. Tungsten Replicator for MySQL does not even try to detect conflicts. If using multi-leader replication, <strong>read the documentation carefully and test thoroughly</strong>.</p>
+</div>
+
+<!-- ============================= -->
+<!-- Diagram 11: Decision Flowchart -->
+<!-- ============================= -->
+
+<h2>When to Use What?</h2>
+
+<!-- Diagram 11: Decision Flow -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 11 &mdash; Replication Architecture Decision Guide</div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
+    <div class="flow-box primary" style="min-width:260px;">Do you need writes from multiple locations?</div>
+    <div style="display:flex;gap:48px;flex-wrap:wrap;justify-content:center;">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+        <div style="color:var(--accent3);font-weight:600;font-size:0.85rem;">No</div>
+        <div class="flow-arrow">&darr;</div>
+        <div class="flow-box green" style="min-width:200px;">Single-Leader<br><small>Simple, no conflicts</small></div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+        <div style="color:var(--red);font-weight:600;font-size:0.85rem;">Yes</div>
+        <div class="flow-arrow">&darr;</div>
+        <div class="flow-box orange" style="min-width:260px;">Can you route each record to one leader?</div>
+        <div style="display:flex;gap:32px;margin-top:8px;">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+            <div style="color:var(--accent3);font-size:0.85rem;font-weight:600;">Yes</div>
+            <div class="flow-box green" style="min-width:160px;">Conflict Avoidance<br><small>Best of both worlds</small></div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+            <div style="color:var(--red);font-size:0.85rem;font-weight:600;">No</div>
+            <div class="flow-box red" style="min-width:160px;">Full Multi-Leader<br><small>Need conflict resolution</small></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================= -->
+<!-- Diagram 12: Summary Mind Map -->
+<!-- ============================= -->
+
+<div class="diagram">
+  <div class="diagram-title">Diagram 12 &mdash; Chapter 5 Part 2 Concept Map</div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:20px;">
+    <div class="flow-box purple" style="min-width:260px;font-weight:700;">Replication Lag &amp; Multi-Leader</div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;">
+      <!-- Left branch -->
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+        <div class="flow-arrow">&darr;</div>
+        <div class="flow-box orange" style="min-width:180px;font-weight:600;">Replication Lag</div>
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:center;">
+          <div class="tag">Read-after-write</div>
+          <div class="tag">Monotonic reads</div>
+          <div class="tag">Consistent prefix reads</div>
+          <div class="tag">Transactions as solution</div>
+        </div>
+      </div>
+      <!-- Middle branch -->
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+        <div class="flow-arrow">&darr;</div>
+        <div class="flow-box primary" style="min-width:180px;font-weight:600;">Multi-Leader Use Cases</div>
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:center;">
+          <div class="tag">Multi-datacenter</div>
+          <div class="tag">Offline clients</div>
+          <div class="tag">Collaborative editing</div>
+        </div>
+      </div>
+      <!-- Right branch -->
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+        <div class="flow-arrow">&darr;</div>
+        <div class="flow-box red" style="min-width:180px;font-weight:600;">Write Conflicts</div>
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:center;">
+          <div class="tag">Avoidance</div>
+          <div class="tag">LWW / CRDTs / OT</div>
+          <div class="tag">Topologies</div>
+          <div class="tag">Version vectors</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================= -->
+<!-- FIRST-PRINCIPLES QUESTIONS -->
+<!-- ============================= -->
+
+<h2>First-Principles Questions</h2>
+
+<div class="question-block" onclick="this.classList.toggle('open')">
+  <div class="question-header">
+    <div style="display:flex;align-items:center;">
+      <span class="q-num">1</span>
+      Why can't you simply use timestamps to resolve all write conflicts in a multi-leader system?
+    </div>
+    <span class="chevron">&#9660;</span>
+  </div>
+  <div class="question-body">
+    <p>Timestamps rely on <strong>synchronized clocks</strong>, which are fundamentally unreliable in distributed systems. Different machines have different clock skew (Chapter 8 covers "Unreliable Clocks" in detail). A write with a "later" timestamp on one machine may actually have happened earlier in real time. Using timestamps (Last Write Wins) is simple but <strong>dangerously prone to data loss</strong> &mdash; it silently drops the "losing" write. For causal ordering, you need logical clocks like <strong>version vectors</strong> that track actual happens-before relationships rather than depending on physical time.</p>
+  </div>
+</div>
+
+<div class="question-block" onclick="this.classList.toggle('open')">
+  <div class="question-header">
+    <div style="display:flex;align-items:center;">
+      <span class="q-num">2</span>
+      How is an offline-capable mobile app architecturally identical to multi-datacenter replication?
+    </div>
+    <span class="chevron">&#9660;</span>
+  </div>
+  <div class="question-body">
+    <p>Each device acts as its own "datacenter" with a local leader that independently accepts reads and writes. The network between devices (cellular, WiFi, or none) is like the internet link between datacenters &mdash; except <strong>far more unreliable</strong>. When connectivity returns, the sync process is exactly multi-leader replication: each local leader sends its changes to a central server (or peers), which must merge them, detect conflicts, and converge to a consistent state. The replication lag isn't milliseconds but <strong>hours or days</strong>. This framing explains why calendar sync has such a "rich history" of bugs &mdash; it's one of the hardest multi-leader problems.</p>
+  </div>
+</div>
+
+<div class="question-block" onclick="this.classList.toggle('open')">
+  <div class="question-header">
+    <div style="display:flex;align-items:center;">
+      <span class="q-num">3</span>
+      Why do circular and star topologies have worse fault tolerance than all-to-all, yet all-to-all has its own ordering problem?
+    </div>
+    <span class="chevron">&#9660;</span>
+  </div>
+  <div class="question-body">
+    <p><strong>Circular/star fault tolerance:</strong> Every message must pass through intermediate nodes. If <em>any</em> node on the path fails, downstream nodes stop receiving updates. The topology must be manually reconfigured around the failure. It's a chain &mdash; one broken link severs communication.</p>
+    <p><strong>All-to-all ordering problem:</strong> Every leader sends directly to every other leader, so no single point of failure. But different network links have different speeds. A causally-later write (UPDATE) can arrive at a node <em>before</em> the causally-earlier write (INSERT) it depends on. The node receives an update to a row that doesn't exist yet. This is the <strong>same causality problem</strong> as consistent prefix reads, but at the inter-leader level. Version vectors solve this by encoding causal dependencies, allowing a node to wait for prerequisite writes.</p>
+  </div>
+</div>
+
+<div class="question-block" onclick="this.classList.toggle('open')">
+  <div class="question-header">
+    <div style="display:flex;align-items:center;">
+      <span class="q-num">4</span>
+      Why does Kleppmann argue that transactions are a better solution for replication lag than application-level workarounds?
+    </div>
+    <span class="chevron">&#9660;</span>
+  </div>
+  <div class="question-body">
+    <p>Application-level solutions (read-from-leader for recent writes, timestamp tracking, sticky sessions) are <strong>complex, ad-hoc, and easy to get wrong</strong>. Each consistency guarantee must be hand-implemented per feature. You're essentially reimplementing database guarantees in application code &mdash; a leaky abstraction that creates subtle bugs.</p>
+    <p>Transactions push this complexity into the database layer, providing <strong>declarative guarantees</strong> the application can simply rely on. The claim that "transactions are too expensive for distributed systems" is overly simplistic. While there are real trade-offs (performance, availability), Chapters 7 and 9 develop a more nuanced view, showing that stronger guarantees are possible without sacrificing everything. The alternative &mdash; "pretending that replication is synchronous when it is asynchronous" &mdash; is a recipe for problems.</p>
+  </div>
+</div>
+
+</div>
+</body>
+</html>

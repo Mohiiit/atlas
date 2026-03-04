@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Chapter 11 — Stream Processing Part 1: Event Streams, Messaging, and Logs</title>
+<style>
+  :root {
+    --bg: #0a0e17;
+    --surface: #111827;
+    --surface2: #1a2234;
+    --border: #1e293b;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --accent: #3b82f6;
+    --accent2: #8b5cf6;
+    --accent3: #10b981;
+    --red: #ef4444;
+    --orange: #f59e0b;
+    --pink: #ec4899;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+  .container { max-width: 900px; margin: 0 auto; padding: 40px 24px 100px; }
+  h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 48px; border-bottom: 1px solid var(--border); padding-bottom: 24px; }
+  h2 { font-size: 1.5rem; font-weight: 700; margin: 48px 0 16px; color: var(--accent); }
+  h3 { font-size: 1.15rem; font-weight: 600; margin: 32px 0 12px; color: var(--text); }
+  p { margin-bottom: 16px; color: var(--text-muted); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 20px 0; }
+  .card-accent { border-left: 4px solid var(--accent); }
+  .card-green { border-left: 4px solid var(--accent3); }
+  .card-orange { border-left: 4px solid var(--orange); }
+  .card-purple { border-left: 4px solid var(--accent2); }
+  .card-red { border-left: 4px solid var(--red); }
+  .card h4 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+  .card ul { padding-left: 20px; color: var(--text-muted); }
+  .card li { margin-bottom: 6px; }
+  .key-term { color: var(--accent); font-weight: 600; }
+  .diagram { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 32px; margin: 24px 0; overflow-x: auto; }
+  .diagram-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent2); margin-bottom: 20px; }
+  .flow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; }
+  .flow-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; text-align: center; font-size: 0.9rem; min-width: 120px; }
+  .flow-box.primary { border-color: var(--accent); color: var(--accent); }
+  .flow-box.green { border-color: var(--accent3); color: var(--accent3); }
+  .flow-box.purple { border-color: var(--accent2); color: var(--accent2); }
+  .flow-box.orange { border-color: var(--orange); color: var(--orange); }
+  .flow-box.red { border-color: var(--red); color: var(--red); }
+  .flow-box.pink { border-color: var(--pink); color: var(--pink); }
+  .flow-arrow { color: var(--text-muted); font-size: 1.2rem; }
+  .flow-vert { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } .grid3 { grid-template-columns: 1fr; } }
+  .quote { background: var(--surface2); border-left: 3px solid var(--accent2); padding: 16px 20px; margin: 20px 0; border-radius: 0 8px 8px 0; font-style: italic; color: var(--text-muted); }
+  .tag { display: inline-block; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 2px 12px; font-size: 0.8rem; color: var(--text-muted); margin: 2px; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  th { color: var(--accent); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
+  td { color: var(--text-muted); }
+  .question-block { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin: 16px 0; overflow: hidden; }
+  .question-header { padding: 16px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 0.95rem; }
+  .question-header:hover { background: var(--surface2); }
+  .question-body { padding: 0 20px 16px; display: none; color: var(--text-muted); border-top: 1px solid var(--border); padding-top: 16px; }
+  .question-block.open .question-body { display: block; }
+  .q-num { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: var(--accent); color: white; border-radius: 50%; font-size: 0.8rem; font-weight: 700; margin-right: 12px; flex-shrink: 0; }
+  .chevron { transition: transform .2s; color: var(--text-muted); }
+  .question-block.open .chevron { transform: rotate(180deg); }
+  .section-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--accent2); font-weight: 700; margin-bottom: 8px; }
+  .arch-box { border: 2px solid var(--border); border-radius: 10px; padding: 16px; margin: 8px; text-align: center; }
+  .arch-box.blue { border-color: var(--accent); background: rgba(59,130,246,0.08); }
+  .arch-box.green { border-color: var(--accent3); background: rgba(16,185,129,0.08); }
+  .arch-box.purple { border-color: var(--accent2); background: rgba(139,92,246,0.08); }
+  .arch-box.orange { border-color: var(--orange); background: rgba(245,158,11,0.08); }
+  .arch-box.red { border-color: var(--red); background: rgba(239,68,68,0.08); }
+  .arch-box.pink { border-color: var(--pink); background: rgba(236,72,153,0.08); }
+  .arch-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .arch-detail { font-size: 0.8rem; color: var(--text-muted); }
+  .timeline { position: relative; padding-left: 32px; margin: 16px 0; }
+  .timeline::before { content: ''; position: absolute; left: 12px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+  .timeline-item { position: relative; margin-bottom: 20px; }
+  .timeline-item::before { content: ''; position: absolute; left: -26px; top: 6px; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: 2px solid var(--surface2); }
+  .timeline-item.green::before { background: var(--accent3); }
+  .timeline-item.orange::before { background: var(--orange); }
+  .timeline-item.red::before { background: var(--red); }
+  .timeline-item.purple::before { background: var(--accent2); }
+  .timeline-title { font-weight: 600; font-size: 0.9rem; color: var(--text); }
+  .timeline-desc { font-size: 0.85rem; color: var(--text-muted); }
+
+  /* Kafka-style partition diagram */
+  .partition-row { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
+  .partition-label { font-size: 0.8rem; font-weight: 700; min-width: 90px; }
+  .offset-cell { width: 44px; height: 36px; border: 1px solid var(--border); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600; background: var(--surface); }
+  .offset-cell.filled { background: var(--accent); color: white; border-color: var(--accent); }
+  .offset-cell.filled-green { background: var(--accent3); color: white; border-color: var(--accent3); }
+  .offset-cell.filled-purple { background: var(--accent2); color: white; border-color: var(--accent2); }
+  .offset-cell.filled-orange { background: var(--orange); color: white; border-color: var(--orange); }
+  .offset-cell.empty { background: var(--surface2); border-style: dashed; color: var(--text-muted); }
+  .offset-pointer { font-size: 0.7rem; color: var(--pink); font-weight: 700; margin-left: 8px; }
+
+  /* Sequence diagram */
+  .seq-diagram { display: flex; flex-direction: column; gap: 4px; font-size: 0.82rem; }
+  .seq-row { display: flex; align-items: center; gap: 0; min-height: 32px; }
+  .seq-col { flex: 1; text-align: center; position: relative; }
+  .seq-col.label { font-weight: 700; font-size: 0.78rem; }
+  .seq-line { height: 2px; flex: 1; margin: 0 4px; }
+  .seq-line.blue { background: var(--accent); }
+  .seq-line.green { background: var(--accent3); }
+  .seq-line.red { background: var(--red); }
+  .seq-line.orange { background: var(--orange); }
+  .seq-msg { font-size: 0.75rem; padding: 2px 8px; border-radius: 4px; display: inline-block; }
+  .seq-msg.blue { background: rgba(59,130,246,0.15); color: var(--accent); }
+  .seq-msg.green { background: rgba(16,185,129,0.15); color: var(--accent3); }
+  .seq-msg.red { background: rgba(239,68,68,0.15); color: var(--red); }
+
+  /* Compaction */
+  .compact-row { display: flex; gap: 6px; margin: 6px 0; flex-wrap: wrap; }
+  .compact-cell { padding: 6px 12px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; border: 1px solid var(--border); background: var(--surface); }
+  .compact-cell.stale { opacity: 0.35; text-decoration: line-through; }
+  .compact-cell.kept { border-color: var(--accent3); color: var(--accent3); }
+  .compact-cell.tomb { border-color: var(--red); color: var(--red); background: rgba(239,68,68,0.08); }
+
+  /* Consumer group diagram */
+  .cg-container { display: flex; gap: 24px; align-items: flex-start; justify-content: center; flex-wrap: wrap; }
+  .cg-group { border: 2px dashed var(--border); border-radius: 12px; padding: 16px; min-width: 160px; }
+  .cg-group-title { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; text-align: center; }
+  .cg-node { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; margin: 6px 0; font-size: 0.82rem; text-align: center; }
+
+  /* Connector lines */
+  .connector { display: flex; align-items: center; justify-content: center; }
+  .connector-line { width: 40px; height: 2px; background: var(--text-muted); }
+  .connector-arrow { color: var(--text-muted); font-size: 1rem; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<p class="section-label">Chapter 11 -- Part 1 of 3</p>
+<h1>Stream Processing: Event Streams, Messaging, and Logs</h1>
+<p class="subtitle">From batch to real-time: how event streams replace fixed time slices, the landscape of messaging systems, and why log-based brokers like Kafka changed everything.</p>
+
+<!-- ============================================================ -->
+<!-- SECTION 1: FROM BATCH TO STREAM -->
+<!-- ============================================================ -->
+
+<h2>From Batch Processing to Streams</h2>
+
+<p>In batch processing you collect a day's (or hour's) worth of data and process it all at once. The fundamental limitation: changes in the input are only reflected in the output after the batch completes. To reduce that delay, you can run processing more frequently -- every second, or even <span class="key-term">continuously</span>, processing every event as it happens. That is stream processing.</p>
+
+<div class="card card-accent">
+  <h4>What is an Event?</h4>
+  <p style="margin-bottom:8px">A small, self-contained, immutable object containing the details of something that happened at some point in time. It usually contains a timestamp and can be encoded as JSON, text, or binary.</p>
+  <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">
+    <span class="tag">page view</span>
+    <span class="tag">purchase</span>
+    <span class="tag">temperature reading</span>
+    <span class="tag">CPU metric</span>
+    <span class="tag">log line</span>
+    <span class="tag">database write</span>
+  </div>
+</div>
+
+<!-- DIAGRAM 1: Event Stream Architecture -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 1: Event Stream Architecture</div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:16px">
+    <!-- Producers -->
+    <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
+      <div class="arch-box blue" style="min-width:100px">
+        <div class="arch-label" style="color:var(--accent)">Producer A</div>
+        <div class="arch-detail">Web server</div>
+      </div>
+      <div class="arch-box blue" style="min-width:100px">
+        <div class="arch-label" style="color:var(--accent)">Producer B</div>
+        <div class="arch-detail">IoT sensor</div>
+      </div>
+      <div class="arch-box blue" style="min-width:100px">
+        <div class="arch-label" style="color:var(--accent)">Producer C</div>
+        <div class="arch-detail">Mobile app</div>
+      </div>
+    </div>
+
+    <div style="font-size:1.5rem;color:var(--text-muted)">&#x2193; events &#x2193;</div>
+
+    <!-- Topic -->
+    <div class="arch-box purple" style="min-width:300px;max-width:400px">
+      <div class="arch-label" style="color:var(--accent2)">Topic / Stream</div>
+      <div class="arch-detail">Logical grouping of related events<br>e.g., "user-clicks", "sensor-readings"</div>
+    </div>
+
+    <div style="font-size:1.5rem;color:var(--text-muted)">&#x2193; subscribe &#x2193;</div>
+
+    <!-- Consumers -->
+    <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
+      <div class="arch-box green" style="min-width:100px">
+        <div class="arch-label" style="color:var(--accent3)">Consumer 1</div>
+        <div class="arch-detail">Analytics</div>
+      </div>
+      <div class="arch-box green" style="min-width:100px">
+        <div class="arch-label" style="color:var(--accent3)">Consumer 2</div>
+        <div class="arch-detail">Search index</div>
+      </div>
+      <div class="arch-box green" style="min-width:100px">
+        <div class="arch-label" style="color:var(--accent3)">Consumer 3</div>
+        <div class="arch-detail">Alerting</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p>A <span class="key-term">producer</span> (publisher/sender) generates an event once. Multiple <span class="key-term">consumers</span> (subscribers/recipients) can then process it. Related events are grouped into a <span class="key-term">topic</span> or stream. In principle, a file or database could connect producers to consumers, but polling becomes expensive at low latencies. Instead, specialized messaging systems push notifications to consumers.</p>
+
+<!-- ============================================================ -->
+<!-- SECTION 2: MESSAGING SYSTEMS -->
+<!-- ============================================================ -->
+
+<h2>Messaging Systems</h2>
+
+<p>A messaging system lets a producer send a message containing an event, which is then pushed to consumers. Two critical design questions differentiate all messaging systems:</p>
+
+<div class="grid2">
+  <div class="card card-orange">
+    <h4 style="color:var(--orange)">Q1: What if producers outpace consumers?</h4>
+    <ul>
+      <li><strong>Drop messages</strong> -- accept data loss</li>
+      <li><strong>Buffer in a queue</strong> -- what if queue overflows? Memory? Disk?</li>
+      <li><strong>Backpressure (flow control)</strong> -- block the producer (Unix pipes, TCP)</li>
+    </ul>
+  </div>
+  <div class="card card-red">
+    <h4 style="color:var(--red)">Q2: What if nodes crash?</h4>
+    <ul>
+      <li><strong>Accept message loss</strong> -- higher throughput, lower latency</li>
+      <li><strong>Write to disk</strong> -- durability at cost of speed</li>
+      <li><strong>Replicate</strong> -- durability + availability</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 3: DIRECT MESSAGING -->
+<!-- ============================================================ -->
+
+<h3>Direct Messaging: Producer to Consumer</h3>
+
+<p>Several systems skip intermediate brokers entirely, communicating directly between producers and consumers. Each has distinct tradeoffs:</p>
+
+<!-- DIAGRAM 2: Direct Messaging Approaches -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 2: Direct Messaging Approaches</div>
+  <div style="display:flex;flex-direction:column;gap:16px">
+
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div class="flow-box orange" style="min-width:130px"><strong>UDP Multicast</strong></div>
+      <span class="flow-arrow">--</span>
+      <div style="flex:1;min-width:200px">
+        <div style="font-size:0.85rem;color:var(--text-muted)">Financial feeds (stock market). Low latency. Unreliable at transport layer, but application-level retransmit compensates. Producer must buffer sent packets for retransmit.</div>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div class="flow-box purple" style="min-width:130px"><strong>ZeroMQ / nanomsg</strong></div>
+      <span class="flow-arrow">--</span>
+      <div style="flex:1;min-width:200px">
+        <div style="font-size:0.85rem;color:var(--text-muted)">Brokerless pub/sub over TCP or IP multicast. Libraries embedded in application code. No central server to manage.</div>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div class="flow-box red" style="min-width:130px"><strong>StatsD / Brubeck</strong></div>
+      <span class="flow-arrow">--</span>
+      <div style="flex:1;min-width:200px">
+        <div style="font-size:0.85rem;color:var(--text-muted)">Metrics collection over unreliable UDP. Counters only correct if all messages received -- metrics are approximate at best.</div>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div class="flow-box green" style="min-width:130px"><strong>Webhooks</strong></div>
+      <span class="flow-arrow">--</span>
+      <div style="flex:1;min-width:200px">
+        <div style="font-size:0.85rem;color:var(--text-muted)">Consumer exposes HTTP endpoint; producer makes request on each event. Callback URL registered with the source service. Simple but requires consumer to be online.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="card card-red">
+  <h4 style="color:var(--red)">Limitations of Direct Messaging</h4>
+  <ul>
+    <li>Application code must handle message loss explicitly</li>
+    <li>Generally assumes producers and consumers are <strong>constantly online</strong></li>
+    <li>If consumer is offline, messages sent during that time are lost</li>
+    <li>If producer crashes, its retry buffer is lost</li>
+    <li>Limited fault tolerance compared to broker-based approaches</li>
+  </ul>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 4: MESSAGE BROKERS -->
+<!-- ============================================================ -->
+
+<h2>Message Brokers</h2>
+
+<p>A <span class="key-term">message broker</span> (message queue) is a server that acts as an intermediary. Producers write messages to the broker; consumers read from it. The broker centralizes durability, buffering, and consumer management.</p>
+
+<!-- DIAGRAM 3: Message Broker Architecture -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 3: Message Broker Architecture</div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:20px">
+
+    <!-- Producers row -->
+    <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center">
+      <div class="arch-box blue" style="min-width:90px">
+        <div class="arch-label" style="color:var(--accent)">Producer 1</div>
+      </div>
+      <div class="arch-box blue" style="min-width:90px">
+        <div class="arch-label" style="color:var(--accent)">Producer 2</div>
+      </div>
+      <div class="arch-box blue" style="min-width:90px">
+        <div class="arch-label" style="color:var(--accent)">Producer 3</div>
+      </div>
+    </div>
+
+    <div style="color:var(--text-muted)">&#x2193; send messages &#x2193;</div>
+
+    <!-- Broker -->
+    <div style="border:2px solid var(--orange);border-radius:14px;padding:24px 32px;background:rgba(245,158,11,0.06);text-align:center;min-width:320px">
+      <div style="font-size:0.8rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--orange);margin-bottom:10px">Message Broker</div>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 16px;font-size:0.82rem">
+          <div style="font-weight:700;color:var(--accent)">Queue A</div>
+          <div style="color:var(--text-muted);font-size:0.75rem">orders</div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 16px;font-size:0.82rem">
+          <div style="font-weight:700;color:var(--accent3)">Queue B</div>
+          <div style="color:var(--text-muted);font-size:0.75rem">metrics</div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 16px;font-size:0.82rem">
+          <div style="font-weight:700;color:var(--accent2)">Queue C</div>
+          <div style="color:var(--text-muted);font-size:0.75rem">notifications</div>
+        </div>
+      </div>
+      <div style="margin-top:12px;font-size:0.78rem;color:var(--text-muted)">Buffers messages -- handles durability, acknowledgments, routing</div>
+    </div>
+
+    <div style="color:var(--text-muted)">&#x2193; deliver (async) &#x2193;</div>
+
+    <!-- Consumers row -->
+    <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center">
+      <div class="arch-box green" style="min-width:90px">
+        <div class="arch-label" style="color:var(--accent3)">Consumer A</div>
+      </div>
+      <div class="arch-box green" style="min-width:90px">
+        <div class="arch-label" style="color:var(--accent3)">Consumer B</div>
+      </div>
+      <div class="arch-box green" style="min-width:90px">
+        <div class="arch-label" style="color:var(--accent3)">Consumer C</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p>A key property: consumers are <span class="key-term">asynchronous</span>. When a producer sends a message, it only waits for the broker to confirm buffering, not for consumer processing. Delivery happens at some undetermined future point -- often sub-second, but potentially much later under backlog.</p>
+
+<div class="quote">By centralizing data in the broker, these systems can more easily tolerate clients that come and go (connect, disconnect, and crash), and the question of durability is moved to the broker instead.</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 5: BROKER VS DATABASE -->
+<!-- ============================================================ -->
+
+<h3>Message Brokers vs. Databases</h3>
+
+<!-- DIAGRAM 4: Broker vs Database Comparison Table -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 4: Broker vs. Database Comparison</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Aspect</th>
+        <th style="color:var(--orange)">Message Broker</th>
+        <th style="color:var(--accent)">Database</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Data retention</strong></td>
+        <td>Auto-deletes after delivery</td>
+        <td>Keeps until explicit delete</td>
+      </tr>
+      <tr>
+        <td><strong>Working set</strong></td>
+        <td>Assumes small (short queues)</td>
+        <td>Handles arbitrary data size</td>
+      </tr>
+      <tr>
+        <td><strong>Querying</strong></td>
+        <td>Subscribe to topic patterns</td>
+        <td>Secondary indexes, ad-hoc queries</td>
+      </tr>
+      <tr>
+        <td><strong>Data access pattern</strong></td>
+        <td>Push notifications on new data</td>
+        <td>Point-in-time snapshot queries</td>
+      </tr>
+      <tr>
+        <td><strong>Performance under backlog</strong></td>
+        <td>Degrades when queue grows large (disk spill)</td>
+        <td>Designed for large data volumes</td>
+      </tr>
+      <tr>
+        <td><strong>Transactions</strong></td>
+        <td>Some support XA/JTA (2PC)</td>
+        <td>Full ACID support</td>
+      </tr>
+      <tr>
+        <td><strong>Implementations</strong></td>
+        <td>RabbitMQ, ActiveMQ, IBM MQ, Azure Service Bus</td>
+        <td>PostgreSQL, MySQL, MongoDB, etc.</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 6: MULTIPLE CONSUMERS -->
+<!-- ============================================================ -->
+
+<h2>Multiple Consumers</h2>
+
+<p>When multiple consumers read from the same topic, there are two fundamental patterns:</p>
+
+<!-- DIAGRAM 5: Load Balancing vs Fan-Out -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 5: Load Balancing vs. Fan-Out</div>
+  <div class="grid2">
+
+    <!-- Load Balancing -->
+    <div style="text-align:center">
+      <div style="font-weight:700;color:var(--accent);margin-bottom:16px;font-size:0.95rem">Load Balancing</div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+        <div class="arch-box orange" style="min-width:140px;margin:0">
+          <div class="arch-label" style="color:var(--orange)">Topic</div>
+          <div class="arch-detail">m1, m2, m3, m4</div>
+        </div>
+        <div style="color:var(--text-muted);font-size:1.2rem">&#x2193;</div>
+        <div style="display:flex;gap:8px">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+            <div style="color:var(--text-muted);font-size:0.7rem">m1, m3</div>
+            <div class="arch-box green" style="min-width:70px;margin:0;padding:10px">
+              <div class="arch-detail" style="color:var(--accent3);font-weight:600">C1</div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+            <div style="color:var(--text-muted);font-size:0.7rem">m2, m4</div>
+            <div class="arch-box green" style="min-width:70px;margin:0;padding:10px">
+              <div class="arch-detail" style="color:var(--accent3);font-weight:600">C2</div>
+            </div>
+          </div>
+        </div>
+        <div style="font-size:0.78rem;color:var(--text-muted);margin-top:8px">Each message goes to <strong style="color:var(--accent)">one</strong> consumer.<br>Work is shared / parallelized.</div>
+      </div>
+    </div>
+
+    <!-- Fan-Out -->
+    <div style="text-align:center">
+      <div style="font-weight:700;color:var(--accent2);margin-bottom:16px;font-size:0.95rem">Fan-Out</div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+        <div class="arch-box orange" style="min-width:140px;margin:0">
+          <div class="arch-label" style="color:var(--orange)">Topic</div>
+          <div class="arch-detail">m1, m2, m3, m4</div>
+        </div>
+        <div style="color:var(--text-muted);font-size:1.2rem">&#x2193;</div>
+        <div style="display:flex;gap:8px">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+            <div style="color:var(--text-muted);font-size:0.7rem">m1,m2,m3,m4</div>
+            <div class="arch-box purple" style="min-width:70px;margin:0;padding:10px">
+              <div class="arch-detail" style="color:var(--accent2);font-weight:600">C1</div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+            <div style="color:var(--text-muted);font-size:0.7rem">m1,m2,m3,m4</div>
+            <div class="arch-box purple" style="min-width:70px;margin:0;padding:10px">
+              <div class="arch-detail" style="color:var(--accent2);font-weight:600">C2</div>
+            </div>
+          </div>
+        </div>
+        <div style="font-size:0.78rem;color:var(--text-muted);margin-top:8px">Each message goes to <strong style="color:var(--accent2)">all</strong> consumers.<br>Independent broadcast.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);text-align:center;font-size:0.85rem;color:var(--text-muted)">
+    <strong style="color:var(--pink)">Combined pattern:</strong> Two consumer <em>groups</em> each subscribe to the topic (fan-out between groups). Within each group, messages are load-balanced among members.
+  </div>
+</div>
+
+<div class="grid2">
+  <div class="card card-accent">
+    <h4>Load Balancing (AMQP: shared subscription)</h4>
+    <ul>
+      <li>Each message delivered to <strong>one</strong> consumer</li>
+      <li>Parallelizes expensive processing</li>
+      <li>Add consumers to scale throughput</li>
+      <li>JMS: shared subscription</li>
+    </ul>
+  </div>
+  <div class="card card-purple">
+    <h4>Fan-Out (JMS: topic subscription)</h4>
+    <ul>
+      <li>Each message delivered to <strong>all</strong> consumers</li>
+      <li>Independent consumers "tune in" to broadcast</li>
+      <li>Streaming equivalent of multiple batch jobs reading same file</li>
+      <li>AMQP: exchange bindings</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 7: ACKNOWLEDGMENTS AND REDELIVERY -->
+<!-- ============================================================ -->
+
+<h2>Acknowledgments and Redelivery</h2>
+
+<p>Consumers may crash at any time. To prevent message loss, brokers use <span class="key-term">acknowledgments</span>: a consumer must explicitly tell the broker it has finished processing a message. If the connection closes or times out without an ack, the broker redelivers to another consumer.</p>
+
+<!-- DIAGRAM 6: The Reordering Problem -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 6: The Message Reordering Problem</div>
+  <div style="display:flex;flex-direction:column;gap:6px;font-size:0.82rem">
+
+    <!-- Header -->
+    <div style="display:flex;gap:0;margin-bottom:8px">
+      <div style="width:100px;font-weight:700;color:var(--accent);text-align:center">Producer</div>
+      <div style="flex:1;font-weight:700;color:var(--orange);text-align:center">Broker Queue</div>
+      <div style="width:100px;font-weight:700;color:var(--accent3);text-align:center">Consumer 1</div>
+      <div style="width:100px;font-weight:700;color:var(--accent2);text-align:center">Consumer 2</div>
+    </div>
+
+    <!-- Timeline steps -->
+    <div class="timeline">
+      <div class="timeline-item">
+        <div class="timeline-title">Step 1: Broker delivers m3 to Consumer 2, m4 to Consumer 1</div>
+        <div class="timeline-desc">Both consumers begin processing in parallel</div>
+      </div>
+      <div class="timeline-item red">
+        <div class="timeline-title">Step 2: Consumer 2 crashes while processing m3</div>
+        <div class="timeline-desc">m3 is NOT acknowledged -- broker considers it unprocessed</div>
+      </div>
+      <div class="timeline-item green">
+        <div class="timeline-title">Step 3: Consumer 1 finishes m4, acknowledges it</div>
+        <div class="timeline-desc">m4 is removed from the queue</div>
+      </div>
+      <div class="timeline-item orange">
+        <div class="timeline-title">Step 4: Broker redelivers m3 to Consumer 1</div>
+        <div class="timeline-desc">Consumer 1 now processes m5</div>
+      </div>
+      <div class="timeline-item purple">
+        <div class="timeline-title">Result: Consumer 1 processed m4, then m3, then m5</div>
+        <div class="timeline-desc" style="color:var(--red);font-weight:600">Order violated! m3 and m4 delivered out of original order.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card card-orange">
+  <h4 style="color:var(--orange)">Key Insight: Load Balancing + Redelivery = Reordering</h4>
+  <p style="margin-bottom:8px">Even if the broker tries to preserve message order (as JMS and AMQP standards require), the combination of load balancing with acknowledgment-based redelivery <strong>inevitably</strong> leads to messages being reordered.</p>
+  <p style="margin-bottom:0"><strong>Workarounds:</strong></p>
+  <ul>
+    <li>Use a <strong>separate queue per consumer</strong> (no load balancing)</li>
+    <li>Accept reordering if messages are <strong>completely independent</strong></li>
+    <li>Use <strong>partitioned logs</strong> (Kafka approach) -- discussed next</li>
+  </ul>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 8: PARTITIONED LOGS -->
+<!-- ============================================================ -->
+
+<h2>Partitioned Logs</h2>
+
+<p>Traditional message brokers treat messaging as <span class="key-term">transient</span>: messages are deleted after delivery. But databases treat data as <span class="key-term">durable</span>: kept until explicit deletion. Can we combine durable storage with low-latency notification? That is the idea behind <span class="key-term">log-based message brokers</span>.</p>
+
+<div class="quote">Why can we not have a hybrid, combining the durable storage approach of databases with the low-latency notification facilities of messaging? This is the idea behind log-based message brokers.</div>
+
+<h3>Using Logs for Message Storage</h3>
+
+<p>A log is an append-only sequence of records on disk. A producer appends messages to the end; a consumer reads sequentially. When the consumer reaches the end, it waits for notification of new appends (like <code style="color:var(--pink)">tail -f</code>). To scale throughput, the log is <span class="key-term">partitioned</span> across multiple machines.</p>
+
+<!-- DIAGRAM 7: Kafka Architecture with Partitions and Offsets -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 7: Log-Based Broker -- Partitions and Offsets (Kafka Model)</div>
+
+  <div style="text-align:center;margin-bottom:16px">
+    <div style="font-weight:700;color:var(--accent);font-size:0.95rem;margin-bottom:4px">Topic: "user-events"</div>
+    <div style="font-size:0.78rem;color:var(--text-muted)">A topic is a group of partitions carrying messages of the same type</div>
+  </div>
+
+  <!-- Partition 0 -->
+  <div class="partition-row">
+    <div class="partition-label" style="color:var(--accent)">Partition 0</div>
+    <div class="offset-cell filled">0</div>
+    <div class="offset-cell filled">1</div>
+    <div class="offset-cell filled">2</div>
+    <div class="offset-cell filled">3</div>
+    <div class="offset-cell filled">4</div>
+    <div class="offset-cell filled">5</div>
+    <div class="offset-cell filled">6</div>
+    <div class="offset-cell empty">7</div>
+    <div class="offset-cell empty"></div>
+    <span class="offset-pointer">&#x2190; write head</span>
+  </div>
+
+  <!-- Partition 1 -->
+  <div class="partition-row">
+    <div class="partition-label" style="color:var(--accent3)">Partition 1</div>
+    <div class="offset-cell filled-green">0</div>
+    <div class="offset-cell filled-green">1</div>
+    <div class="offset-cell filled-green">2</div>
+    <div class="offset-cell filled-green">3</div>
+    <div class="offset-cell filled-green">4</div>
+    <div class="offset-cell empty">5</div>
+    <div class="offset-cell empty"></div>
+    <div class="offset-cell empty"></div>
+    <div class="offset-cell empty"></div>
+    <span class="offset-pointer">&#x2190; write head</span>
+  </div>
+
+  <!-- Partition 2 -->
+  <div class="partition-row">
+    <div class="partition-label" style="color:var(--accent2)">Partition 2</div>
+    <div class="offset-cell filled-purple">0</div>
+    <div class="offset-cell filled-purple">1</div>
+    <div class="offset-cell filled-purple">2</div>
+    <div class="offset-cell filled-purple">3</div>
+    <div class="offset-cell filled-purple">4</div>
+    <div class="offset-cell filled-purple">5</div>
+    <div class="offset-cell filled-purple">6</div>
+    <div class="offset-cell filled-purple">7</div>
+    <div class="offset-cell empty">8</div>
+    <span class="offset-pointer">&#x2190; write head</span>
+  </div>
+
+  <div style="margin-top:20px;display:flex;gap:24px;flex-wrap:wrap;justify-content:center;font-size:0.82rem">
+    <div><span style="color:var(--accent)">&#9632;</span> Each cell = one message at an <strong>offset</strong></div>
+    <div><span style="color:var(--text-muted)">&#9633;</span> Empty = not yet written</div>
+    <div>Messages within a partition are <strong style="color:var(--pink)">totally ordered</strong></div>
+    <div>No ordering guarantee <strong>across</strong> partitions</div>
+  </div>
+</div>
+
+<!-- DIAGRAM 8: Consumer Groups -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 8: Consumer Groups and Partition Assignment</div>
+
+  <div style="display:flex;flex-direction:column;align-items:center;gap:20px">
+
+    <!-- Topic partitions -->
+    <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
+      <div class="arch-box blue" style="min-width:80px;margin:4px">
+        <div class="arch-label" style="color:var(--accent)">P0</div>
+      </div>
+      <div class="arch-box green" style="min-width:80px;margin:4px">
+        <div class="arch-label" style="color:var(--accent3)">P1</div>
+      </div>
+      <div class="arch-box purple" style="min-width:80px;margin:4px">
+        <div class="arch-label" style="color:var(--accent2)">P2</div>
+      </div>
+      <div class="arch-box orange" style="min-width:80px;margin:4px">
+        <div class="arch-label" style="color:var(--orange)">P3</div>
+      </div>
+    </div>
+
+    <div style="color:var(--text-muted)">&#x2193; assigned to &#x2193;</div>
+
+    <!-- Consumer groups side by side -->
+    <div class="cg-container">
+      <div class="cg-group" style="border-color:var(--accent)">
+        <div class="cg-group-title" style="color:var(--accent)">Group A (Analytics)</div>
+        <div class="cg-node" style="border-color:var(--accent)">
+          <span style="color:var(--accent);font-weight:600">Consumer A1</span>
+          <div style="font-size:0.72rem;color:var(--text-muted)">reads P0, P1</div>
+        </div>
+        <div class="cg-node" style="border-color:var(--accent)">
+          <span style="color:var(--accent);font-weight:600">Consumer A2</span>
+          <div style="font-size:0.72rem;color:var(--text-muted)">reads P2, P3</div>
+        </div>
+      </div>
+
+      <div class="cg-group" style="border-color:var(--accent3)">
+        <div class="cg-group-title" style="color:var(--accent3)">Group B (Search Index)</div>
+        <div class="cg-node" style="border-color:var(--accent3)">
+          <span style="color:var(--accent3);font-weight:600">Consumer B1</span>
+          <div style="font-size:0.72rem;color:var(--text-muted)">reads P0</div>
+        </div>
+        <div class="cg-node" style="border-color:var(--accent3)">
+          <span style="color:var(--accent3);font-weight:600">Consumer B2</span>
+          <div style="font-size:0.72rem;color:var(--text-muted)">reads P1</div>
+        </div>
+        <div class="cg-node" style="border-color:var(--accent3)">
+          <span style="color:var(--accent3);font-weight:600">Consumer B3</span>
+          <div style="font-size:0.72rem;color:var(--text-muted)">reads P2, P3</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="font-size:0.82rem;color:var(--text-muted);text-align:center;max-width:600px">
+      <strong style="color:var(--pink)">Fan-out between groups</strong>: Both Group A and Group B receive all messages.<br>
+      <strong style="color:var(--accent)">Load balancing within groups</strong>: Each partition is assigned to exactly one consumer in the group.<br>
+      <strong style="color:var(--orange)">Constraint</strong>: Max consumers per group = number of partitions.
+    </div>
+  </div>
+</div>
+
+<div class="card card-green">
+  <h4 style="color:var(--accent3)">Key Properties of Partitioned Logs</h4>
+  <ul>
+    <li><strong>Monotonically increasing offset</strong> per partition -- makes ordering trivial within a partition</li>
+    <li><strong>Append-only</strong> -- messages are immutable once written</li>
+    <li><strong>Consumer reads sequentially</strong> -- single-threaded, straightforward</li>
+    <li><strong>Partitions enable parallelism</strong> -- each partition is an independent log on potentially different machines</li>
+    <li><strong>Fault tolerance via replication</strong> -- each partition is replicated across brokers</li>
+    <li><strong>Implementations:</strong> Apache Kafka, Amazon Kinesis Streams, Twitter DistributedLog</li>
+  </ul>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 9: CONSUMER OFFSETS -->
+<!-- ============================================================ -->
+
+<h2>Consumer Offsets</h2>
+
+<p>Because a consumer reads a partition sequentially, tracking progress is simple: all messages with an offset <strong>less than</strong> the consumer's current offset have been processed; all messages with a <strong>greater</strong> offset have not. The broker only needs to periodically record each consumer's offset -- not track acknowledgments per message.</p>
+
+<!-- DIAGRAM 9: Consumer Offset Tracking -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 9: Consumer Offset Tracking</div>
+
+  <div class="partition-row">
+    <div class="partition-label" style="color:var(--accent)">Partition 0</div>
+    <div class="offset-cell filled" style="opacity:0.4">0</div>
+    <div class="offset-cell filled" style="opacity:0.4">1</div>
+    <div class="offset-cell filled" style="opacity:0.4">2</div>
+    <div class="offset-cell filled" style="opacity:0.5">3</div>
+    <div class="offset-cell filled" style="opacity:0.6">4</div>
+    <div class="offset-cell" style="border:2px solid var(--pink);color:var(--pink);font-weight:700">5</div>
+    <div class="offset-cell filled">6</div>
+    <div class="offset-cell filled">7</div>
+    <div class="offset-cell empty">8</div>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:8px;margin:12px 0 0 100px">
+    <div style="width:16px;height:16px;background:var(--pink);border-radius:50%"></div>
+    <span style="font-size:0.82rem;color:var(--pink);font-weight:600">Current consumer offset = 5</span>
+  </div>
+  <div style="display:flex;gap:24px;margin:10px 0 0 100px;font-size:0.8rem">
+    <div><span style="opacity:0.4;color:var(--accent)">&#9632; &#9632; &#9632;</span> Already processed (offsets 0-4)</div>
+    <div><span style="color:var(--pink)">&#9632;</span> Being processed (offset 5)</div>
+    <div><span style="color:var(--accent)">&#9632;</span> Not yet seen (offsets 6-7)</div>
+  </div>
+
+  <div style="margin-top:20px;padding:16px;background:var(--surface);border-radius:8px;border:1px solid var(--border)">
+    <div style="font-weight:700;font-size:0.85rem;margin-bottom:8px;color:var(--accent3)">Analogy: Database Replication</div>
+    <div style="font-size:0.82rem;color:var(--text-muted)">The consumer offset is very similar to a <strong>log sequence number (LSN)</strong> in database replication. The broker acts like a leader database; the consumer acts like a follower. If a consumer fails, another node in the group takes over its partitions and resumes from the last recorded offset.</div>
+  </div>
+</div>
+
+<div class="card card-accent">
+  <h4>Disk Space and Buffering</h4>
+  <p style="margin-bottom:8px">The log is divided into <strong>segments</strong>. Old segments are deleted or archived to reclaim space. This makes the log a bounded-size buffer (circular/ring buffer on disk). Back-of-envelope: a 6 TB drive at 150 MB/s sequential write = ~11 hours of buffer at max throughput. In practice, logs retain days or weeks of data.</p>
+  <p style="margin-bottom:0"><strong>If a consumer falls behind:</strong> Only that consumer is affected. It does not disrupt other consumers. You can even consume a production log for dev/testing without impacting production services.</p>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 10: LOG COMPACTION -->
+<!-- ============================================================ -->
+
+<h2>Log Compaction</h2>
+
+<p>Instead of keeping all log history or taking periodic snapshots, <span class="key-term">log compaction</span> retains only the most recent value for each key. The storage engine periodically scans for duplicate keys and discards older entries, keeping just the latest update. A special null value (<span class="key-term">tombstone</span>) marks deletions.</p>
+
+<!-- DIAGRAM 10: Log Compaction Before/After -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 10: Log Compaction -- Before and After</div>
+
+  <div style="margin-bottom:20px">
+    <div style="font-weight:700;font-size:0.9rem;color:var(--orange);margin-bottom:10px">Before Compaction</div>
+    <div class="compact-row">
+      <div class="compact-cell stale">user:1 = Alice</div>
+      <div class="compact-cell stale">user:2 = Bob</div>
+      <div class="compact-cell stale">user:1 = Alicia</div>
+      <div class="compact-cell stale">user:3 = Carol</div>
+      <div class="compact-cell stale">user:2 = Bobby</div>
+      <div class="compact-cell" style="border-color:var(--orange);color:var(--orange)">user:1 = Ali</div>
+      <div class="compact-cell" style="border-color:var(--red);color:var(--red)">user:3 = null</div>
+      <div class="compact-cell" style="border-color:var(--orange);color:var(--orange)">user:2 = Robert</div>
+      <div class="compact-cell" style="border-color:var(--accent3);color:var(--accent3)">user:4 = Dave</div>
+    </div>
+    <div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px">9 log entries -- multiple superseded values</div>
+  </div>
+
+  <div style="text-align:center;font-size:1.5rem;color:var(--accent2);margin:12px 0">&#x2193; compaction runs &#x2193;</div>
+
+  <div>
+    <div style="font-weight:700;font-size:0.9rem;color:var(--accent3);margin-bottom:10px">After Compaction</div>
+    <div class="compact-row">
+      <div class="compact-cell kept">user:1 = Ali</div>
+      <div class="compact-cell kept">user:2 = Robert</div>
+      <div class="compact-cell tomb">user:3 = (tombstone)</div>
+      <div class="compact-cell kept">user:4 = Dave</div>
+    </div>
+    <div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px">4 entries -- only latest value per key retained. Tombstone will be removed in next compaction cycle.</div>
+  </div>
+
+  <div style="margin-top:20px;padding:14px;background:var(--surface);border-radius:8px;border:1px solid var(--border);font-size:0.82rem;color:var(--text-muted)">
+    <strong style="color:var(--accent)">Benefit:</strong> A new consumer can start from offset 0 of the compacted topic and get a full copy of the database state without needing a separate snapshot. Disk space depends on current database size, not total write history.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 11: TRADITIONAL VS LOG-BASED COMPARISON -->
+<!-- ============================================================ -->
+
+<h2>Traditional vs. Log-Based Messaging</h2>
+
+<!-- DIAGRAM 11: Full Comparison Table -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 11: Traditional (JMS/AMQP) vs. Log-Based (Kafka) Messaging</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Aspect</th>
+        <th style="color:var(--orange)">Traditional (RabbitMQ, ActiveMQ)</th>
+        <th style="color:var(--accent3)">Log-Based (Kafka, Kinesis)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Message retention</strong></td>
+        <td>Deleted after ack (transient)</td>
+        <td>Retained on disk (durable log)</td>
+      </tr>
+      <tr>
+        <td><strong>Fan-out</strong></td>
+        <td>Topic subscriptions / exchange bindings</td>
+        <td>Trivial: consumers read same log independently</td>
+      </tr>
+      <tr>
+        <td><strong>Load balancing</strong></td>
+        <td>Per-message to arbitrary consumer</td>
+        <td>Per-partition to consumer in group</td>
+      </tr>
+      <tr>
+        <td><strong>Ordering guarantee</strong></td>
+        <td>Broken by redelivery + load balancing</td>
+        <td>Guaranteed within partition</td>
+      </tr>
+      <tr>
+        <td><strong>Parallelism limit</strong></td>
+        <td>Unlimited consumers per queue</td>
+        <td>Max consumers = number of partitions</td>
+      </tr>
+      <tr>
+        <td><strong>Acknowledgment</strong></td>
+        <td>Per-message ack required</td>
+        <td>Periodic offset checkpoint</td>
+      </tr>
+      <tr>
+        <td><strong>Replay / reprocess</strong></td>
+        <td>Not possible (messages deleted)</td>
+        <td>Reset offset to reprocess history</td>
+      </tr>
+      <tr>
+        <td><strong>Slow consumer impact</strong></td>
+        <td>Queue grows, memory pressure, affects other consumers</td>
+        <td>Only that consumer is behind; others unaffected</td>
+      </tr>
+      <tr>
+        <td><strong>New consumer startup</strong></td>
+        <td>Only receives future messages</td>
+        <td>Can start from offset 0 (full history)</td>
+      </tr>
+      <tr>
+        <td><strong>Head-of-line blocking</strong></td>
+        <td>No (messages dispatched independently)</td>
+        <td>Yes (slow message blocks partition)</td>
+      </tr>
+      <tr>
+        <td><strong>Best for</strong></td>
+        <td>Expensive per-message processing, message-level parallelism</td>
+        <td>High throughput, fast processing, ordering matters</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 12: WHEN TO USE WHICH -->
+<!-- ============================================================ -->
+
+<h2>When to Use Which?</h2>
+
+<div class="grid2">
+  <div class="card card-orange">
+    <h4 style="color:var(--orange)">Choose Traditional Broker When...</h4>
+    <ul>
+      <li>Messages are <strong>expensive to process</strong> individually</li>
+      <li>You need <strong>message-level parallelism</strong> (not partition-level)</li>
+      <li>Message <strong>ordering is not critical</strong></li>
+      <li>You need complex <strong>routing patterns</strong> (exchanges, bindings)</li>
+      <li>Messages can be <strong>deleted after processing</strong></li>
+      <li>You need <strong>protocol standards</strong> (AMQP, JMS compliance)</li>
+    </ul>
+  </div>
+  <div class="card card-green">
+    <h4 style="color:var(--accent3)">Choose Log-Based Broker When...</h4>
+    <ul>
+      <li>You need <strong>high throughput</strong> (millions of msgs/sec)</li>
+      <li>Each message is <strong>fast to process</strong></li>
+      <li>Message <strong>ordering matters</strong></li>
+      <li>You need to <strong>replay / reprocess</strong> messages</li>
+      <li>Multiple independent consumers need the <strong>same data</strong></li>
+      <li>You want <strong>durable storage</strong> with notification</li>
+      <li>Building <strong>event sourcing / CDC</strong> pipelines</li>
+    </ul>
+  </div>
+</div>
+
+<!-- DIAGRAM 12: Decision Flowchart -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 12: Choosing a Messaging Approach</div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
+
+    <div class="arch-box purple" style="min-width:260px;margin:0">
+      <div class="arch-detail" style="color:var(--accent2);font-weight:700">Do you need a broker at all?</div>
+    </div>
+    <div style="display:flex;gap:40px;align-items:flex-start">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:10px">
+        <div style="font-size:0.78rem;color:var(--text-muted)">No -- minimal latency, simple topology</div>
+        <div class="arch-box orange" style="margin:0;min-width:180px">
+          <div class="arch-label" style="color:var(--orange)">Direct Messaging</div>
+          <div class="arch-detail">UDP, ZeroMQ, webhooks</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:10px">
+        <div style="font-size:0.78rem;color:var(--text-muted)">Yes -- need durability, decoupling</div>
+        <div class="arch-box blue" style="margin:0;min-width:220px">
+          <div class="arch-detail" style="color:var(--accent);font-weight:700">Need replay / ordering / high throughput?</div>
+        </div>
+        <div style="display:flex;gap:30px">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+            <div style="font-size:0.75rem;color:var(--text-muted)">No</div>
+            <div class="arch-box orange" style="margin:0;min-width:140px">
+              <div class="arch-label" style="color:var(--orange)">Traditional</div>
+              <div class="arch-detail">RabbitMQ, ActiveMQ</div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+            <div style="font-size:0.75rem;color:var(--text-muted)">Yes</div>
+            <div class="arch-box green" style="margin:0;min-width:140px">
+              <div class="arch-label" style="color:var(--accent3)">Log-Based</div>
+              <div class="arch-detail">Kafka, Kinesis</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card card-purple">
+  <h4 style="color:var(--accent2)">Replaying Old Messages</h4>
+  <p style="margin-bottom:8px">With AMQP/JMS brokers, processing and acknowledging is <strong>destructive</strong> -- messages are deleted. With log-based brokers, consuming is <strong>read-only</strong> -- the log is not modified. The consumer offset is under the consumer's control: you can reset it to yesterday's position, reprocess data, and write to a different output. This makes log-based messaging more like batch processing, where derived data is clearly separated from input data through a repeatable transformation.</p>
+</div>
+
+<!-- ============================================================ -->
+<!-- KEY TAKEAWAYS -->
+<!-- ============================================================ -->
+
+<h2>Key Takeaways</h2>
+
+<div class="card card-accent">
+  <h4>Core Concepts Summary</h4>
+  <div class="timeline">
+    <div class="timeline-item">
+      <div class="timeline-title">Events are the atomic unit of stream processing</div>
+      <div class="timeline-desc">Small, immutable, timestamped records -- analogous to records in batch processing</div>
+    </div>
+    <div class="timeline-item green">
+      <div class="timeline-title">Direct messaging trades durability for simplicity</div>
+      <div class="timeline-desc">UDP multicast, ZeroMQ, webhooks -- best when both sides are always online</div>
+    </div>
+    <div class="timeline-item orange">
+      <div class="timeline-title">Traditional brokers centralize but delete on delivery</div>
+      <div class="timeline-desc">RabbitMQ/ActiveMQ -- great for expensive per-message processing, but no replay</div>
+    </div>
+    <div class="timeline-item purple">
+      <div class="timeline-title">Load balancing + redelivery breaks message ordering</div>
+      <div class="timeline-desc">Fundamental tension in traditional brokers between parallelism and ordering</div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-title">Log-based brokers combine database durability with messaging speed</div>
+      <div class="timeline-desc">Kafka, Kinesis -- partitioned append-only logs with consumer offsets</div>
+    </div>
+    <div class="timeline-item green">
+      <div class="timeline-title">Log compaction enables full-state reconstruction without snapshots</div>
+      <div class="timeline-desc">Keep only latest value per key, allowing new consumers to bootstrap from offset 0</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- QUESTIONS -->
+<!-- ============================================================ -->
+
+<h2>Test Your Understanding</h2>
+
+<div class="question-block" onclick="this.classList.toggle('open')">
+  <div class="question-header">
+    <div style="display:flex;align-items:center"><span class="q-num">1</span>Why does polling a database for new events become problematic at low latencies, and how do messaging systems solve this?</div>
+    <span class="chevron">&#x25BC;</span>
+  </div>
+  <div class="question-body">
+    <p>When you poll a database frequently (e.g., every 100ms), most poll requests return no new events. The ratio of useful responses to total requests becomes very low, wasting network, CPU, and database resources. As polling frequency increases, overhead grows proportionally while useful work per poll decreases.</p>
+    <p>Messaging systems solve this with <strong>push-based notification</strong>: instead of consumers repeatedly asking "anything new?", the system proactively pushes events to consumers when they arrive. This eliminates wasted polls and reduces latency since consumers learn about events immediately rather than at the next poll interval. Databases traditionally lacked good notification mechanisms (triggers are limited), which is why specialized messaging tools were developed.</p>
+  </div>
+</div>
+
+<div class="question-block" onclick="this.classList.toggle('open')">
+  <div class="question-header">
+    <div style="display:flex;align-items:center"><span class="q-num">2</span>Explain the message reordering problem with traditional brokers. Why does it not occur with log-based brokers?</div>
+    <span class="chevron">&#x25BC;</span>
+  </div>
+  <div class="question-body">
+    <p>In traditional brokers using load balancing, messages m3 and m4 might be dispatched to consumers C2 and C1 respectively. If C2 crashes before acknowledging m3, the broker redelivers m3 to C1 -- which has already processed m4. So C1 sees m4 before m3, violating the original order.</p>
+    <p>Log-based brokers avoid this because they assign <strong>entire partitions</strong> (not individual messages) to consumers. Within a partition, one consumer reads all messages sequentially. There is no scenario where two consumers handle adjacent messages from the same partition. If a consumer fails, the replacement picks up from the last committed offset and processes messages in the same order. The tradeoff: you cannot have more consumers in a group than partitions.</p>
+  </div>
+</div>
+
+<div class="question-block" onclick="this.classList.toggle('open')">
+  <div class="question-header">
+    <div style="display:flex;align-items:center"><span class="q-num">3</span>A slow consumer in a traditional broker can affect other consumers, but not in Kafka. Why?</div>
+    <span class="chevron">&#x25BC;</span>
+  </div>
+  <div class="question-body">
+    <p>In traditional brokers, a slow consumer causes the queue to grow. Since brokers typically hold messages in memory, a growing queue consumes memory that all consumers share. When the broker runs out of memory and starts spilling to disk, throughput degrades for everyone, not just the slow consumer. Also, undeleted queues from crashed consumers continue accumulating messages.</p>
+    <p>In Kafka, messages are always written to disk regardless (append-only log). A slow consumer simply has a larger gap between its current offset and the log head. This does not consume additional memory or affect other consumers' read performance. Each consumer reads independently from its own position in the log. The worst case is the consumer falling so far behind that its offset points to a deleted segment -- but even then, only that consumer is impacted.</p>
+  </div>
+</div>
+
+<div class="question-block" onclick="this.classList.toggle('open')">
+  <div class="question-header">
+    <div style="display:flex;align-items:center"><span class="q-num">4</span>How does log compaction allow a new consumer to get a full database snapshot without a separate snapshot process?</div>
+    <span class="chevron">&#x25BC;</span>
+  </div>
+  <div class="question-body">
+    <p>Log compaction retains the <strong>most recent value for every key</strong> that has ever been written. Old updates for the same key are garbage collected, and tombstones mark deletions. The compacted log therefore contains exactly one entry per live key -- essentially a snapshot of the current database state.</p>
+    <p>A new consumer starts reading from offset 0 of the compacted topic and sequentially scans all entries. By the time it reaches the head of the log, it has seen the latest value for every key. This is equivalent to a full database copy. The disk space required depends only on the current number of distinct keys, not the total number of writes ever made. This eliminates the need for a separate snapshot process and simplifies bootstrapping new derived data systems (search indexes, caches, etc.).</p>
+  </div>
+</div>
+
+<div class="question-block" onclick="this.classList.toggle('open')">
+  <div class="question-header">
+    <div style="display:flex;align-items:center"><span class="q-num">5</span>Why is log-based messaging described as "more like batch processing" than traditional messaging?</div>
+    <span class="chevron">&#x25BC;</span>
+  </div>
+  <div class="question-body">
+    <p>Three properties make it batch-like:</p>
+    <p><strong>1. Input is not destroyed by reading.</strong> In batch processing, input files are read-only. In log-based messaging, reading a message does not delete it from the log. In traditional messaging, acknowledgment deletes the message.</p>
+    <p><strong>2. Repeatable processing.</strong> You can reset a consumer's offset to reprocess the same data with different processing logic, just like re-running a batch job on the same input file. Traditional brokers cannot do this since messages are gone after ack.</p>
+    <p><strong>3. Derived data separation.</strong> The log (input) is clearly separated from the consumer's output. This allows experimentation, A/B testing of processing logic, and easier recovery from bugs -- the same advantages that made batch processing robust in Chapter 10.</p>
+  </div>
+</div>
+
+<div class="question-block" onclick="this.classList.toggle('open')">
+  <div class="question-header">
+    <div style="display:flex;align-items:center"><span class="q-num">6</span>You have a topic with 3 partitions and a consumer group with 5 consumers. What happens, and how would you fix it?</div>
+    <span class="chevron">&#x25BC;</span>
+  </div>
+  <div class="question-body">
+    <p>Only 3 of the 5 consumers will be assigned partitions. The remaining 2 consumers sit <strong>idle</strong>, consuming no messages. In log-based systems, the maximum useful parallelism within a consumer group equals the number of partitions. Each partition is assigned to exactly one consumer in the group.</p>
+    <p><strong>Fixes:</strong></p>
+    <ul>
+      <li><strong>Increase partitions:</strong> Create 5 or more partitions so all consumers get work. But note: increasing partitions is a one-way operation in Kafka and affects key-based ordering guarantees.</li>
+      <li><strong>Reduce consumers:</strong> Use 3 consumers instead of 5. If processing is the bottleneck, optimize per-message processing time.</li>
+      <li><strong>Rethink the architecture:</strong> If you need message-level parallelism beyond the partition count, consider a traditional broker for that specific workload, or have each consumer use internal thread pools for parallel processing within its assigned partitions.</li>
+    </ul>
+  </div>
+</div>
+
+</div>
+
+<script>
+// Questions are handled by onclick on each .question-block (toggling .open class)
+// No additional JS needed since we used inline onclick handlers above
+</script>
+</body>
+</html>

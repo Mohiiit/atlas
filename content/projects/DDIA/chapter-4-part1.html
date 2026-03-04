@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Ch.4 Part 1 — Encoding Formats</title>
+<style>
+  :root {
+    --bg:#0a0e17; --surface:#111827; --surface2:#1a2234; --border:#1e293b;
+    --text:#e2e8f0; --muted:#94a3b8; --accent:#3b82f6; --purple:#8b5cf6;
+    --green:#10b981; --red:#ef4444; --orange:#f59e0b; --pink:#ec4899; --cyan:#06b6d4;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;}
+  .wrap{max-width:900px;margin:0 auto;padding:40px 24px 100px;}
+  h1{font-size:2rem;font-weight:800;background:linear-gradient(135deg,var(--purple),var(--pink));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px;}
+  .sub{color:var(--muted);font-size:1rem;margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:20px;}
+  .nav{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:40px;}
+  .nav a{color:var(--muted);font-size:0.8rem;text-decoration:none;padding:4px 12px;border:1px solid var(--border);border-radius:20px;}
+  .nav a.cur{color:var(--purple);border-color:var(--purple);}
+  .nav a:hover{color:var(--text);}
+  h2{font-size:1.4rem;font-weight:700;color:var(--accent);margin:44px 0 14px;}
+  h3{font-size:1.1rem;font-weight:600;color:var(--text);margin:28px 0 10px;}
+  p{margin-bottom:14px;color:var(--muted);}
+  strong{color:var(--text);}
+  .label{font-size:0.72rem;text-transform:uppercase;letter-spacing:2px;color:var(--purple);font-weight:700;margin-bottom:6px;}
+  code{background:var(--surface2);padding:2px 7px;border-radius:4px;font-size:0.83rem;color:var(--green);}
+  .key{color:var(--accent);font-weight:600;}
+
+  /* Cards */
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin:18px 0;}
+  .card-blue{border-left:4px solid var(--accent);}
+  .card-purple{border-left:4px solid var(--purple);}
+  .card-green{border-left:4px solid var(--green);}
+  .card-red{border-left:4px solid var(--red);}
+  .card-orange{border-left:4px solid var(--orange);}
+  .card h4{font-size:0.95rem;font-weight:700;margin-bottom:8px;color:var(--text);}
+  .card ul{padding-left:18px;color:var(--muted);}
+  .card li{margin-bottom:5px;}
+
+  /* Diagrams */
+  .diagram{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:28px 24px;margin:22px 0;}
+  .diagram-title{font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--purple);margin-bottom:18px;}
+  .quote{background:var(--surface2);border-left:3px solid var(--purple);padding:14px 18px;border-radius:0 8px 8px 0;font-style:italic;color:var(--muted);margin:18px 0;}
+
+  /* Layout helpers */
+  .g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+  @media(max-width:640px){.g2,.g3{grid-template-columns:1fr;}}
+  .pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:0.73rem;font-weight:600;}
+  .p-green{background:rgba(16,185,129,.15);color:var(--green);}
+  .p-red{background:rgba(239,68,68,.15);color:var(--red);}
+  .p-blue{background:rgba(59,130,246,.15);color:var(--accent);}
+  .p-orange{background:rgba(245,158,11,.15);color:var(--orange);}
+  .p-purple{background:rgba(139,92,246,.15);color:var(--purple);}
+  .vflow{display:flex;flex-direction:column;align-items:center;gap:8px;}
+  .box{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 16px;text-align:center;font-size:0.83rem;}
+  .box-blue{border:2px solid var(--accent);color:var(--accent);}
+  .box-green{border:2px solid var(--green);color:var(--green);}
+  .box-orange{border:2px solid var(--orange);color:var(--orange);}
+  .box-red{border:2px solid var(--red);color:var(--red);}
+  .box-purple{border:2px solid var(--purple);color:var(--purple);}
+  .box-cyan{border:2px solid var(--cyan);color:var(--cyan);}
+  .arrow-d{color:var(--muted);font-size:1.1rem;}
+  .arrow-r{color:var(--muted);font-size:1.3rem;}
+  .row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+
+  /* Byte cells */
+  .byte-row{display:flex;gap:3px;flex-wrap:wrap;margin:8px 0;}
+  .bc{padding:7px 9px;border-radius:4px;font-size:0.71rem;font-family:monospace;text-align:center;color:#fff;font-weight:600;}
+  .bl{font-size:0.68rem;color:var(--muted);text-align:center;margin-top:2px;}
+
+  /* Size bars */
+  .bar-wrap{margin:8px 0;}
+  .bar{height:26px;border-radius:5px;display:flex;align-items:center;padding:0 10px;font-size:0.78rem;font-weight:600;color:#fff;margin:4px 0;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="label">DDIA · Part I: Foundations</div>
+  <h1>Chapter 4: Encoding and Evolution</h1>
+  <p class="sub">Part 1 of 3 — The compatibility problem, why textual formats fall short, and how binary encodings work.</p>
+
+  <div class="nav">
+    <a href="chapter-4-part1.html" class="cur">Part 1: Encoding Formats</a>
+    <a href="chapter-4-part2.html">Part 2: Schema Evolution</a>
+    <a href="chapter-4-part3.html">Part 3: Dataflow &amp; Q&amp;A</a>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 1. THE CORE PROBLEM                        -->
+  <!-- ══════════════════════════════════════════ -->
+  <h2>1. The Compatibility Problem</h2>
+
+  <p>Applications change. Features are added, data models evolve, bugs are fixed. But code cannot change everywhere at once. Server-side apps use <strong>rolling upgrades</strong>: a few nodes at a time, so some nodes run v1 while others run v2. Client-side apps are worse — users may not upgrade for months. This means <strong>old and new code must coexist</strong>, reading and writing the same data.</p>
+
+  <div class="g2">
+    <div class="card card-blue">
+      <h4>Backward Compatibility</h4>
+      <p style="margin:0;font-size:0.88rem;"><strong>Newer code</strong> can read data written by <strong>older code</strong>. Usually easy — you wrote the new code and know the old format.</p>
+    </div>
+    <div class="card card-purple">
+      <h4>Forward Compatibility</h4>
+      <p style="margin:0;font-size:0.88rem;"><strong>Older code</strong> can read data written by <strong>newer code</strong>. Trickier — old code must silently <em>ignore</em> fields it doesn't know about.</p>
+    </div>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 1 — Backward vs Forward Compatibility</div>
+    <div class="g2">
+      <div>
+        <p style="text-align:center;font-weight:700;color:var(--accent);margin-bottom:10px;">Backward Compatibility</p>
+        <div class="vflow">
+          <div class="box box-orange" style="width:100%;max-width:260px;"><strong>Old Code v1</strong><br><span style="font-size:0.75rem;">writes schema v1 data</span></div>
+          <div class="arrow-d">▼</div>
+          <div class="box" style="width:100%;max-width:260px;">Data on disk / in queue</div>
+          <div class="arrow-d">▼</div>
+          <div class="box box-green" style="width:100%;max-width:260px;"><strong>New Code v2</strong><br><span style="font-size:0.75rem;">reads old data ✓</span></div>
+          <span class="pill p-green">Easy — you wrote v2</span>
+        </div>
+      </div>
+      <div>
+        <p style="text-align:center;font-weight:700;color:var(--purple);margin-bottom:10px;">Forward Compatibility</p>
+        <div class="vflow">
+          <div class="box box-green" style="width:100%;max-width:260px;"><strong>New Code v2</strong><br><span style="font-size:0.75rem;">writes schema v2 (new fields)</span></div>
+          <div class="arrow-d">▼</div>
+          <div class="box" style="width:100%;max-width:260px;">Data on disk / in queue</div>
+          <div class="arrow-d">▼</div>
+          <div class="box box-orange" style="width:100%;max-width:260px;"><strong>Old Code v1</strong><br><span style="font-size:0.75rem;">must ignore unknown fields</span></div>
+          <span class="pill p-orange">Tricky — v1 must be tolerant</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 2 — Rolling Upgrade: Mixed Versions at the Same Time</div>
+    <p style="font-size:0.83rem;color:var(--muted);margin-bottom:14px;">During a staged rollout, some nodes run v1 and others v2. Both read from the same database.</p>
+    <div class="vflow" style="gap:12px;">
+      <div class="box box-cyan" style="width:100%;max-width:560px;"><strong>Load Balancer</strong> — routes requests across all nodes</div>
+      <div style="display:flex;gap:6px;color:var(--muted);">▼ ▼ ▼ ▼ ▼</div>
+      <div class="row" style="justify-content:center;">
+        <div class="box box-green" style="min-width:90px;"><strong>Node 1</strong><br><span style="font-size:0.72rem;">v2</span></div>
+        <div class="box box-green" style="min-width:90px;"><strong>Node 2</strong><br><span style="font-size:0.72rem;">v2</span></div>
+        <div class="box box-orange" style="min-width:90px;"><strong>Node 3</strong><br><span style="font-size:0.72rem;">v1</span></div>
+        <div class="box box-orange" style="min-width:90px;"><strong>Node 4</strong><br><span style="font-size:0.72rem;">v1</span></div>
+        <div class="box box-green" style="min-width:90px;"><strong>Node 5</strong><br><span style="font-size:0.72rem;">v2</span></div>
+      </div>
+      <div style="display:flex;gap:6px;color:var(--muted);">▼ ▼ ▼ ▼ ▼</div>
+      <div class="box box-purple" style="width:100%;max-width:560px;"><strong>Shared Database / Message Queue</strong><br><span style="font-size:0.75rem;color:var(--muted);">Contains data written by BOTH v1 and v2 — requires both directions of compat</span></div>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
+      <span class="pill p-green">v2 reading v1 data → backward compat</span>
+      <span class="pill p-orange">v1 reading v2 data → forward compat</span>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 2. ENCODING / DECODING                     -->
+  <!-- ══════════════════════════════════════════ -->
+  <h2>2. Encoding and Decoding</h2>
+
+  <p>Programs work with data in two representations. <strong>In-memory</strong>: objects, structs, hash maps, trees — optimized for CPU access, use pointers. <strong>Byte sequences</strong>: for files and network — self-contained since pointers are meaningless outside a process. The translation from in-memory → bytes is <span class="key">encoding</span> (serialization / marshalling). The reverse is <span class="key">decoding</span> (deserialization / unmarshalling).</p>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 3. LANGUAGE-SPECIFIC FORMATS               -->
+  <!-- ══════════════════════════════════════════ -->
+  <h3>Language-Specific Formats: Never Use Them</h3>
+  <p>Every language has a built-in encoding: Java has <code>java.io.Serializable</code>, Python has <code>pickle</code>, Ruby has <code>Marshal</code>. They are convenient but have four deep problems.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 3 — Why Language-Specific Encoding Is Dangerous</div>
+    <div style="display:flex;flex-direction:column;gap:10px;max-width:700px;">
+      <div class="row">
+        <div class="box box-red" style="min-width:180px;"><strong>Language Lock-in</strong></div>
+        <p style="font-size:0.82rem;margin:0;">Encoding tied to one language. Reading from Python, Go, or Java means you can never switch. Commits you for years.</p>
+      </div>
+      <div style="text-align:center;color:var(--red);">▼</div>
+      <div class="row">
+        <div class="box box-red" style="min-width:180px;"><strong>Security Hole</strong></div>
+        <p style="font-size:0.82rem;margin:0;">Decoding instantiates arbitrary classes. Attacker sends crafted bytes → arbitrary class instantiation → <strong>remote code execution</strong>.</p>
+      </div>
+      <div style="text-align:center;color:var(--red);">▼</div>
+      <div class="row">
+        <div class="box box-red" style="min-width:180px;"><strong>No Versioning</strong></div>
+        <p style="font-size:0.82rem;margin:0;">Forward and backward compatibility are afterthoughts. Schema evolution is poorly supported or ignored entirely.</p>
+      </div>
+      <div style="text-align:center;color:var(--red);">▼</div>
+      <div class="row">
+        <div class="box box-red" style="min-width:180px;"><strong>Bad Performance</strong></div>
+        <p style="font-size:0.82rem;margin:0;">Java's built-in serialization is notorious for poor CPU performance and bloated output size.</p>
+      </div>
+    </div>
+    <div style="margin-top:14px;padding:10px 16px;border:2px dashed var(--red);border-radius:8px;text-align:center;color:var(--red);font-weight:600;font-size:0.88rem;">
+      Rule: Never use language-specific encoding for anything beyond transient in-process purposes.
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 4. JSON / XML / CSV                        -->
+  <!-- ══════════════════════════════════════════ -->
+  <h3>JSON, XML, CSV: Widespread but Subtly Flawed</h3>
+
+  <p>JSON is dominant for web APIs (built into browsers, simple vs XML). XML was the 2000s enterprise standard. CSV is ubiquitous for tabular data. All three are textual and somewhat human-readable. But each has subtle problems that matter at scale.</p>
+
+  <div class="card card-orange">
+    <h4>The Four Subtle Problems</h4>
+    <ul>
+      <li><strong>Number ambiguity</strong>: JSON has no integer/float distinction — both are just "numbers". Integers &gt; 2<sup>53</sup> lose precision in IEEE 754 doubles (JavaScript's type). Twitter includes tweet IDs as both a JSON number <em>and</em> a decimal string to work around this.</li>
+      <li><strong>No binary strings</strong>: JSON and XML only support Unicode text. Binary data must be Base64-encoded, increasing size by 33%.</li>
+      <li><strong>Optional schemas</strong>: JSON Schema and XML Schema are complex and many tools ignore them. Interpretation depends on hardcoded application logic.</li>
+      <li><strong>CSV has no schema</strong>: what if a value contains a comma or newline? Escaping rules exist but aren't consistently implemented.</li>
+    </ul>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 4 — Twitter's 64-bit ID Problem in JSON</div>
+    <p style="font-size:0.83rem;color:var(--muted);margin-bottom:14px;">Tweet IDs are 64-bit integers. JavaScript's <code>Number</code> type (IEEE 754 double) can only represent integers exactly up to 2<sup>53</sup> = ~9 quadrillion.</p>
+    <div class="row" style="align-items:flex-start;gap:20px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:240px;">
+        <p style="font-size:0.8rem;font-weight:700;color:var(--red);margin-bottom:6px;">Broken: ID as JSON number</p>
+        <div style="background:var(--surface);border:2px solid var(--red);border-radius:8px;padding:12px;font-family:monospace;font-size:0.82rem;">
+          <span style="color:var(--muted);">{</span><br>
+          &nbsp;&nbsp;<span style="color:var(--orange);">"id"</span>: <span style="color:var(--red);">1234567890987654321</span><br>
+          <span style="color:var(--muted);">}</span>
+        </div>
+        <p style="font-size:0.78rem;color:var(--red);margin-top:6px;">JS parses as float → last digits corrupted silently.</p>
+      </div>
+      <div style="flex:1;min-width:240px;">
+        <p style="font-size:0.8rem;font-weight:700;color:var(--green);margin-bottom:6px;">Twitter's workaround: both forms</p>
+        <div style="background:var(--surface);border:2px solid var(--green);border-radius:8px;padding:12px;font-family:monospace;font-size:0.82rem;">
+          <span style="color:var(--muted);">{</span><br>
+          &nbsp;&nbsp;<span style="color:var(--orange);">"id"</span>: <span style="color:var(--muted);">1234567890987654321</span>,<br>
+          &nbsp;&nbsp;<span style="color:var(--orange);">"id_str"</span>: <span style="color:var(--green);">"1234567890987654321"</span><br>
+          <span style="color:var(--muted);">}</span>
+        </div>
+        <p style="font-size:0.78rem;color:var(--green);margin-top:6px;">JS clients use the string. Non-JS clients use the number.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="quote">"Despite these flaws, JSON, XML, and CSV are good enough for many purposes, particularly as data interchange formats between organizations. In these situations, the difficulty of agreeing on anything outweighs the advantages of a more efficient format." — Kleppmann, DDIA</div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 5. BINARY ENCODING INTRO                   -->
+  <!-- ══════════════════════════════════════════ -->
+  <h2>3. Binary Encoding Formats</h2>
+
+  <p>For data used <strong>only internally within your organization</strong>, you can choose formats optimized for compactness and speed. JSON is less verbose than XML, but both use far more space than binary formats. The key question: how much can we shrink the same record?</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 5 — Encoding Size Comparison for the Same Record</div>
+    <p style="font-size:0.83rem;color:var(--muted);margin-bottom:6px;">Record: <code>{"userName":"Martin","favoriteNumber":1337,"interests":["daydreaming","hacking"]}</code></p>
+    <p style="font-size:0.78rem;color:var(--muted);margin-bottom:14px;">JSON (minified) = 81 bytes. How much can binary formats save?</p>
+    <div class="bar-wrap">
+      <div class="bar" style="width:100%;background:var(--muted);">JSON (text) — 81 bytes &nbsp;<span style="opacity:0.7;font-size:0.72rem;">[field names as strings in every record]</span></div>
+      <div class="bar" style="width:81%;background:var(--orange);">MessagePack (binary JSON) — 66 bytes &nbsp;<span style="opacity:0.7;font-size:0.72rem;">[still includes field names]</span></div>
+      <div class="bar" style="width:73%;background:var(--red);">Thrift BinaryProtocol — 59 bytes &nbsp;<span style="opacity:0.7;font-size:0.72rem;">[field tags replace names]</span></div>
+      <div class="bar" style="width:42%;background:var(--purple);">Thrift CompactProtocol — 34 bytes &nbsp;<span style="opacity:0.7;font-size:0.72rem;">[packed type+tag, varint integers]</span></div>
+      <div class="bar" style="width:41%;background:var(--accent);">Protocol Buffers — 33 bytes &nbsp;<span style="opacity:0.7;font-size:0.72rem;">[similar to Thrift Compact]</span></div>
+      <div class="bar" style="width:40%;background:var(--green);">Avro — 32 bytes &nbsp;<span style="opacity:0.7;font-size:0.72rem;">[no field tags or names at all]</span></div>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
+      <span class="pill p-orange">Schemaless (JSON/MsgPack): must include field names → large</span>
+      <span class="pill p-green">Schema-driven (Thrift/Protobuf/Avro): use tags or positions → small</span>
+    </div>
+  </div>
+
+  <h3>MessagePack: Binary JSON (Barely Worth It)</h3>
+  <p>MessagePack is a drop-in binary replacement for JSON. It encodes types more compactly in the byte header — <code>0x83</code> means "object with 3 fields", <code>0xa8</code> means "8-byte string". But <strong>field names are still included as strings</strong> in every record because there's no schema. Result: 66 bytes vs 81 — only a 19% saving. The loss of human-readability is not worth it.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 6 — MessagePack Byte Structure (why it's not much smaller than JSON)</div>
+    <p style="font-size:0.83rem;color:var(--muted);margin-bottom:14px;">Even in binary, the field name strings dominate the payload. No schema = no escape from names.</p>
+    <div class="byte-row">
+      <div><div class="bc" style="background:#64748b;">83</div><div class="bl">fixmap<br>3 fields</div></div>
+      <div><div class="bc" style="background:var(--orange);">a8</div><div class="bl">fixstr<br>8 chars</div></div>
+      <div><div class="bc" style="background:var(--orange);">75 73 65 72 4E 61 6D 65</div><div class="bl">"userName"<br>(8 bytes)</div></div>
+      <div><div class="bc" style="background:var(--green);">a6</div><div class="bl">fixstr<br>6 chars</div></div>
+      <div><div class="bc" style="background:var(--green);">4D 61 72 74 69 6E</div><div class="bl">"Martin"<br>(6 bytes)</div></div>
+    </div>
+    <p style="font-size:0.78rem;color:var(--muted);margin-top:10px;">The field name "userName" costs 9 bytes (length prefix + 8 chars). Still included every time. Schema-driven formats replace this entire sequence with a single byte tag number.</p>
+  </div>
+
+  <h3>Thrift and Protocol Buffers: Schema-Driven Binary</h3>
+  <p>Both <strong>Apache Thrift</strong> (Facebook, open-sourced 2007) and <strong>Protocol Buffers</strong> (Google, open-sourced 2008) solve the field-name problem with a schema. You define a schema in an IDL (Interface Definition Language), assign each field a <span class="key">tag number</span> (a small integer), and the encoding uses tag numbers instead of field name strings.</p>
+
+  <div class="g2">
+    <div class="card card-blue">
+      <h4>Thrift IDL</h4>
+      <pre style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:12px;font-size:0.8rem;color:var(--muted);line-height:1.6;overflow-x:auto;"><code>struct Person {
+  1: required string userName,
+  2: optional i64    favoriteNumber,
+  3: optional list&lt;string&gt; interests
+}</code></pre>
+    </div>
+    <div class="card card-green">
+      <h4>Protocol Buffers IDL</h4>
+      <pre style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:12px;font-size:0.8rem;color:var(--muted);line-height:1.6;overflow-x:auto;"><code>message Person {
+  required string user_name       = 1;
+  optional int64  favorite_number = 2;
+  repeated string interests       = 3;
+}</code></pre>
+    </div>
+  </div>
+
+  <p>Both come with code-generation tools that produce language-specific classes. One important note: <code>required</code> vs <code>optional</code> makes <strong>no difference to the encoding</strong> — nothing in the binary data indicates which it is. The difference is only a runtime check (which is why Protocol Buffers deprecated <code>required</code> in proto3).</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 7 — Thrift BinaryProtocol Byte Layout (59 bytes)</div>
+    <p style="font-size:0.83rem;color:var(--muted);margin-bottom:14px;">Each field: type byte (1) + tag (2 bytes) + value. Integers always use full 8 bytes. Field <em>names</em> are absent.</p>
+
+    <p style="font-size:0.8rem;font-weight:700;color:var(--accent);margin-bottom:6px;">Field 1: userName = "Martin" (tag 1, type string)</p>
+    <div class="byte-row">
+      <div><div class="bc" style="background:var(--accent);">0B</div><div class="bl">type:<br>string</div></div>
+      <div><div class="bc" style="background:var(--purple);">00 01</div><div class="bl">tag: 1</div></div>
+      <div><div class="bc" style="background:var(--orange);">00 00 00 06</div><div class="bl">length:<br>6 bytes</div></div>
+      <div><div class="bc" style="background:var(--green);">4D 61 72 74 69 6E</div><div class="bl">"Martin"<br>(ASCII)</div></div>
+    </div>
+
+    <p style="font-size:0.8rem;font-weight:700;color:var(--accent);margin:14px 0 6px;">Field 2: favoriteNumber = 1337 (tag 2, type i64)</p>
+    <div class="byte-row">
+      <div><div class="bc" style="background:var(--accent);">0A</div><div class="bl">type:<br>i64</div></div>
+      <div><div class="bc" style="background:var(--purple);">00 02</div><div class="bl">tag: 2</div></div>
+      <div><div class="bc" style="background:var(--orange);">00 00 00 00 00 00 05 39</div><div class="bl">1337 as 64-bit big-endian<br>(8 bytes even for small numbers)</div></div>
+    </div>
+
+    <p style="font-size:0.8rem;font-weight:700;color:var(--accent);margin:14px 0 6px;">Field 3: interests list (tag 3)</p>
+    <div class="byte-row">
+      <div><div class="bc" style="background:var(--accent);">0F</div><div class="bl">type:<br>list</div></div>
+      <div><div class="bc" style="background:var(--purple);">00 03</div><div class="bl">tag: 3</div></div>
+      <div><div class="bc" style="background:var(--cyan);">0B</div><div class="bl">elem<br>type:str</div></div>
+      <div><div class="bc" style="background:var(--pink);">00 00 00 02</div><div class="bl">list<br>length: 2</div></div>
+      <div><div class="bc" style="background:var(--green);">...</div><div class="bl">string data<br>(with lengths)</div></div>
+    </div>
+    <div class="byte-row"><div><div class="bc" style="background:var(--muted);">00</div><div class="bl">stop</div></div></div>
+    <p style="font-size:0.78rem;color:var(--muted);margin-top:10px;"><strong>Key savings:</strong> no field name strings. <strong>Key waste:</strong> 1337 still uses 8 bytes (fixed i64). Thrift CompactProtocol fixes this with variable-length integers.</p>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 8 — Thrift CompactProtocol vs BinaryProtocol (34 vs 59 bytes)</div>
+    <p style="font-size:0.83rem;color:var(--muted);margin-bottom:14px;">Two optimizations: (1) pack field type + tag delta into <strong>one byte</strong>. (2) Use <strong>variable-length integers</strong> — small numbers use fewer bytes.</p>
+
+    <div class="g2" style="gap:20px;">
+      <div>
+        <p style="font-size:0.8rem;font-weight:700;color:var(--orange);margin-bottom:8px;">BinaryProtocol field encoding</p>
+        <div class="byte-row">
+          <div><div class="bc" style="background:var(--accent);">0A</div><div class="bl">type</div></div>
+          <div><div class="bc" style="background:var(--purple);">00 02</div><div class="bl">tag (2 bytes)</div></div>
+          <div><div class="bc" style="background:var(--orange);">00 00 00 00 00 00 05 39</div><div class="bl">1337 fixed 8 bytes</div></div>
+        </div>
+        <p style="font-size:0.75rem;color:var(--muted);margin-top:6px;">= 11 bytes for one i64 field</p>
+      </div>
+      <div>
+        <p style="font-size:0.8rem;font-weight:700;color:var(--green);margin-bottom:8px;">CompactProtocol field encoding</p>
+        <div class="byte-row">
+          <div><div class="bc" style="background:var(--purple);">16</div><div class="bl">delta=1<br>type=i64<br>(1 byte!)</div></div>
+          <div><div class="bc" style="background:var(--orange);">F2 14</div><div class="bl">1337 as<br>varint<br>(2 bytes!)</div></div>
+        </div>
+        <p style="font-size:0.75rem;color:var(--muted);margin-top:6px;">= 3 bytes for the same field</p>
+      </div>
+    </div>
+
+    <div class="card card-purple" style="margin:14px 0 0;">
+      <h4>How Variable-Length Integers (varint) Work</h4>
+      <p style="font-size:0.85rem;margin:0;">Each byte uses 7 bits for the value and 1 bit as a "continuation" flag. Small numbers fit in 1 byte. Numbers up to 16383 need 2 bytes. Only huge numbers need 8 bytes. Since most integers in practice are small, this saves significant space.</p>
+    </div>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 9 — Protocol Buffers Encoding (33 bytes)</div>
+    <p style="font-size:0.83rem;color:var(--muted);margin-bottom:14px;">Very similar to Thrift Compact. Key difference: <strong>no dedicated list type</strong>. Instead, <code>repeated</code> means the same tag appears multiple times in the encoding.</p>
+
+    <p style="font-size:0.8rem;font-weight:700;color:var(--accent);margin-bottom:6px;">Field 3 (repeated string interests)</p>
+    <div class="byte-row">
+      <div><div class="bc" style="background:var(--accent);">1A</div><div class="bl">tag=3<br>wire=2</div></div>
+      <div><div class="bc" style="background:var(--orange);">0B</div><div class="bl">len:11</div></div>
+      <div><div class="bc" style="background:var(--green);">64 61 79 64 72 65 61 6D 69 6E 67</div><div class="bl">"daydreaming"</div></div>
+      <div><div class="bc" style="background:var(--accent);">1A</div><div class="bl">tag=3<br>again!</div></div>
+      <div><div class="bc" style="background:var(--orange);">07</div><div class="bl">len:7</div></div>
+      <div><div class="bc" style="background:var(--green);">68 61 63 6B 69 6E 67</div><div class="bl">"hacking"</div></div>
+    </div>
+    <p style="font-size:0.78rem;color:var(--muted);margin-top:10px;">Each list element is a separate occurrence of tag 3. This means <code>optional</code> can evolve to <code>repeated</code>: old code reading a repeated field sees only the last element; new code sees all elements.</p>
+
+    <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
+      <span class="pill p-blue">Thrift: dedicated list type with element count</span>
+      <span class="pill p-green">Protobuf: repeated occurrences of same tag</span>
+    </div>
+  </div>
+
+  <div class="card card-blue">
+    <h4>The Core Insight: Field Names vs Field Tags</h4>
+    <p style="margin:0;">The biggest space saving doesn't come from binary encoding of values — it comes from <strong>replacing field name strings with small integer tags</strong>. "userName" costs 8 bytes every record. Tag number 1 costs 1 byte. With a schema, the encoder/decoder uses a lookup table to map between names and tags. Without a schema, names must be included in the data itself.</p>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- NAV FOOTER                                 -->
+  <!-- ══════════════════════════════════════════ -->
+  <div style="margin-top:60px;padding-top:24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;">
+    <a href="chapter-4-part2.html" style="color:var(--accent);font-size:0.9rem;text-decoration:none;display:flex;align-items:center;gap:6px;">Part 2: Schema Evolution (Thrift, Protobuf, Avro) →</a>
+  </div>
+</div>
+</body>
+</html>

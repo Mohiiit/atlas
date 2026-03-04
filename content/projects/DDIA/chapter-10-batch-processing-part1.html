@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Chapter 10 — Batch Processing Part 1: Unix, MapReduce, and HDFS</title>
+<style>
+  :root {
+    --bg: #0a0e17;
+    --surface: #111827;
+    --surface2: #1a2234;
+    --border: #1e293b;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --accent: #3b82f6;
+    --accent2: #8b5cf6;
+    --accent3: #10b981;
+    --red: #ef4444;
+    --orange: #f59e0b;
+    --pink: #ec4899;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+  .container { max-width: 900px; margin: 0 auto; padding: 40px 24px 100px; }
+  h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 48px; border-bottom: 1px solid var(--border); padding-bottom: 24px; }
+  h2 { font-size: 1.5rem; font-weight: 700; margin: 48px 0 16px; color: var(--accent); }
+  h3 { font-size: 1.15rem; font-weight: 600; margin: 32px 0 12px; color: var(--text); }
+  p { margin-bottom: 16px; color: var(--text-muted); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 20px 0; }
+  .card-accent { border-left: 4px solid var(--accent); }
+  .card-green { border-left: 4px solid var(--accent3); }
+  .card-orange { border-left: 4px solid var(--orange); }
+  .card-purple { border-left: 4px solid var(--accent2); }
+  .card-red { border-left: 4px solid var(--red); }
+  .card h4 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+  .card ul { padding-left: 20px; color: var(--text-muted); }
+  .card li { margin-bottom: 6px; }
+  .key-term { color: var(--accent); font-weight: 600; }
+  .diagram { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 32px; margin: 24px 0; overflow-x: auto; }
+  .diagram-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent2); margin-bottom: 20px; }
+  .flow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; }
+  .flow-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; text-align: center; font-size: 0.9rem; min-width: 120px; }
+  .flow-box.primary { border-color: var(--accent); color: var(--accent); }
+  .flow-box.green { border-color: var(--accent3); color: var(--accent3); }
+  .flow-box.purple { border-color: var(--accent2); color: var(--accent2); }
+  .flow-box.orange { border-color: var(--orange); color: var(--orange); }
+  .flow-box.red { border-color: var(--red); color: var(--red); }
+  .flow-box.pink { border-color: var(--pink); color: var(--pink); }
+  .flow-arrow { color: var(--text-muted); font-size: 1.2rem; }
+  .flow-vert { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } .grid3 { grid-template-columns: 1fr; } }
+  .quote { background: var(--surface2); border-left: 3px solid var(--accent2); padding: 16px 20px; margin: 20px 0; border-radius: 0 8px 8px 0; font-style: italic; color: var(--text-muted); }
+  .tag { display: inline-block; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 2px 12px; font-size: 0.8rem; color: var(--text-muted); margin: 2px; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  th { color: var(--accent); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
+  td { color: var(--text-muted); }
+  .question-block { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin: 16px 0; overflow: hidden; }
+  .question-header { padding: 16px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 0.95rem; }
+  .question-header:hover { background: var(--surface2); }
+  .question-body { padding: 0 20px 16px; display: none; color: var(--text-muted); border-top: 1px solid var(--border); padding-top: 16px; }
+  .question-block.open .question-body { display: block; }
+  .q-num { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: var(--accent); color: white; border-radius: 50%; font-size: 0.8rem; font-weight: 700; margin-right: 12px; flex-shrink: 0; }
+  .chevron { transition: transform .2s; color: var(--text-muted); }
+  .question-block.open .chevron { transform: rotate(180deg); }
+  .section-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--accent2); font-weight: 700; margin-bottom: 8px; }
+  .arch-box { border: 2px solid var(--border); border-radius: 10px; padding: 16px; margin: 8px; text-align: center; }
+  .arch-box.blue { border-color: var(--accent); background: rgba(59,130,246,0.08); }
+  .arch-box.green { border-color: var(--accent3); background: rgba(16,185,129,0.08); }
+  .arch-box.purple { border-color: var(--accent2); background: rgba(139,92,246,0.08); }
+  .arch-box.orange { border-color: var(--orange); background: rgba(245,158,11,0.08); }
+  .arch-box.red { border-color: var(--red); background: rgba(239,68,68,0.08); }
+  .arch-box.pink { border-color: var(--pink); background: rgba(236,72,153,0.08); }
+  .arch-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .arch-detail { font-size: 0.8rem; color: var(--text-muted); }
+  code { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; font-size: 0.85rem; color: var(--accent3); font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+  .code-block { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin: 16px 0; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.82rem; color: var(--accent3); overflow-x: auto; white-space: pre; line-height: 1.6; }
+  .node-cluster { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 12px 0; }
+  .node-box { width: 60px; height: 60px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 700; }
+  .node-box.nn { background: rgba(245,158,11,0.15); border: 2px solid var(--orange); color: var(--orange); }
+  .node-box.dn { background: rgba(59,130,246,0.1); border: 2px solid var(--accent); color: var(--accent); }
+  .connector { display: flex; flex-direction: column; align-items: center; }
+  .connector-line { width: 2px; height: 24px; background: var(--text-muted); }
+  .connector-arrow { color: var(--text-muted); font-size: 0.8rem; }
+  .step-grid { display: grid; grid-template-columns: 40px 1fr; gap: 0; margin: 16px 0; }
+  .step-num { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; color: white; margin-top: 2px; }
+  .step-content { padding: 4px 0 20px 16px; border-left: 2px solid var(--border); margin-left: 15px; }
+  .step-content:last-child { border-left: none; }
+  .pipeline-stage { display: inline-flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; font-size: 0.8rem; margin: 3px; }
+  .vs-table td:first-child { font-weight: 600; color: var(--text); width: 140px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Chapter 10: Batch Processing</h1>
+<p class="subtitle">Part 1 -- Unix Pipelines, MapReduce, HDFS, Joins, and Handling Skew</p>
+
+<!-- ===== SECTION 1: THREE SYSTEM TYPES ===== -->
+<h2>Three Types of Systems</h2>
+<p>Not all systems follow the familiar request/response pattern. The book distinguishes three fundamentally different ways that systems process data, each with different performance metrics, latency expectations, and use cases.</p>
+
+<!-- DIAGRAM 1: Three system types comparison -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 1: Three System Types Compared</div>
+  <div class="grid3">
+    <div class="arch-box blue">
+      <div class="arch-label" style="color: var(--accent);">Services (Online)</div>
+      <div style="font-size: 2rem; margin: 8px 0;">&#9889;</div>
+      <div class="arch-detail"><strong>Trigger:</strong> Client request</div>
+      <div class="arch-detail"><strong>Metric:</strong> Response time</div>
+      <div class="arch-detail"><strong>Latency:</strong> ms to seconds</div>
+      <div class="arch-detail"><strong>Example:</strong> Web servers, APIs</div>
+      <div class="arch-detail" style="margin-top:8px; color: var(--accent);">User waiting for response</div>
+    </div>
+    <div class="arch-box orange">
+      <div class="arch-label" style="color: var(--orange);">Batch (Offline)</div>
+      <div style="font-size: 2rem; margin: 8px 0;">&#128230;</div>
+      <div class="arch-detail"><strong>Trigger:</strong> Scheduled / large dataset</div>
+      <div class="arch-detail"><strong>Metric:</strong> Throughput</div>
+      <div class="arch-detail"><strong>Latency:</strong> Minutes to days</div>
+      <div class="arch-detail"><strong>Example:</strong> MapReduce, ETL</div>
+      <div class="arch-detail" style="margin-top:8px; color: var(--orange);">No user waiting</div>
+    </div>
+    <div class="arch-box green">
+      <div class="arch-label" style="color: var(--accent3);">Stream (Near-Real-Time)</div>
+      <div style="font-size: 2rem; margin: 8px 0;">&#127754;</div>
+      <div class="arch-detail"><strong>Trigger:</strong> Events as they arrive</div>
+      <div class="arch-detail"><strong>Metric:</strong> Latency + throughput</div>
+      <div class="arch-detail"><strong>Latency:</strong> Seconds to minutes</div>
+      <div class="arch-detail"><strong>Example:</strong> Kafka, Flink</div>
+      <div class="arch-detail" style="margin-top:8px; color: var(--accent3);">Processes events shortly after</div>
+    </div>
+  </div>
+  <div style="margin-top: 20px; text-align: center;">
+    <div class="flow">
+      <div class="flow-box primary">Online<br><small>request &rarr; response</small></div>
+      <span class="flow-arrow">&larr; lower latency &nbsp;&nbsp;&nbsp;&nbsp; higher throughput &rarr;</span>
+      <div class="flow-box orange">Batch<br><small>input &rarr; output</small></div>
+    </div>
+    <div style="margin-top: 8px; color: var(--accent3); font-size: 0.85rem;">Stream sits between: consumes inputs, produces outputs, but operates on events shortly after they happen</div>
+  </div>
+</div>
+
+<div class="card card-accent">
+  <h4>Key Insight: Batch as Building Block</h4>
+  <p style="margin:0;">MapReduce (published 2004) was called "the algorithm that makes Google so massively scalable." While its importance is declining, it provides a <span class="key-term">clear mental model</span> for understanding why and how batch processing is useful. Stream processing (Chapter 11) builds upon batch processing concepts.</p>
+</div>
+
+<!-- ===== SECTION 2: UNIX BATCH PROCESSING ===== -->
+<h2>Batch Processing with Unix Tools</h2>
+<p>Before diving into distributed batch systems, we examine Unix pipelines -- the original batch processing paradigm. The ideas from Unix carry directly over to large-scale distributed data systems.</p>
+
+<h3>Unix Pipeline: Log Analysis Example</h3>
+<p>Given an nginx log file, find the 5 most popular pages:</p>
+<div class="code-block">cat /var/log/nginx/access.log |
+    awk '{print $7}' |         # Extract URL (7th field)
+    sort |                      # Alphabetical sort
+    uniq -c |                   # Count adjacent duplicates
+    sort -r -n |                # Sort by count descending
+    head -n 5                   # Take top 5</div>
+
+<!-- DIAGRAM 2: Unix pipeline flow -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 2: Unix Pipeline Data Flow</div>
+  <div class="flow">
+    <div class="flow-box primary" style="min-width:90px;">
+      <strong>cat</strong><br><small>Read log file</small>
+    </div>
+    <span class="flow-arrow">&rarr;</span>
+    <div class="flow-box green" style="min-width:90px;">
+      <strong>awk</strong><br><small>Extract URL<br>'{print $7}'</small>
+    </div>
+    <span class="flow-arrow">&rarr;</span>
+    <div class="flow-box purple" style="min-width:90px;">
+      <strong>sort</strong><br><small>Alphabetical<br>sort URLs</small>
+    </div>
+    <span class="flow-arrow">&rarr;</span>
+    <div class="flow-box orange" style="min-width:90px;">
+      <strong>uniq -c</strong><br><small>Count adjacent<br>duplicates</small>
+    </div>
+    <span class="flow-arrow">&rarr;</span>
+    <div class="flow-box red" style="min-width:90px;">
+      <strong>sort -rn</strong><br><small>Sort by count<br>descending</small>
+    </div>
+    <span class="flow-arrow">&rarr;</span>
+    <div class="flow-box pink" style="min-width:90px;">
+      <strong>head -5</strong><br><small>Top 5<br>results</small>
+    </div>
+  </div>
+  <div style="margin-top: 20px; text-align:center;">
+    <div style="display:flex; justify-content:center; gap: 40px; flex-wrap:wrap; font-size:0.8rem; color: var(--text-muted);">
+      <div><strong style="color:var(--accent);">Input:</strong> Raw log lines</div>
+      <div><strong style="color:var(--accent3);">Transform:</strong> /css/typography.css</div>
+      <div><strong style="color:var(--accent2);">Sorted:</strong> /about, /about, /css/...</div>
+      <div><strong style="color:var(--orange);">Counted:</strong> 42 /about</div>
+      <div><strong style="color:var(--red);">Ranked:</strong> 4189 /favicon.ico</div>
+    </div>
+  </div>
+</div>
+
+<div class="card card-orange">
+  <h4>Sorting vs. In-Memory Aggregation</h4>
+  <ul>
+    <li><strong>Ruby/hash-table approach:</strong> Keep an in-memory hash table mapping URL &rarr; count. Working set depends on <em>number of distinct URLs</em>, not total log entries. Works well if it fits in memory.</li>
+    <li><strong>Unix sort approach:</strong> Spills to disk when data exceeds memory. GNU sort automatically handles larger-than-memory datasets and parallelizes across CPU cores. Follows <span class="key-term">sequential I/O</span> patterns (like SSTables).</li>
+    <li><strong>Tradeoff:</strong> Hash table is faster if data fits in RAM; sort approach scales to datasets much larger than memory.</li>
+  </ul>
+</div>
+
+<!-- ===== SECTION 3: UNIX PHILOSOPHY ===== -->
+<h2>The Unix Philosophy</h2>
+
+<div class="quote">"We should have some ways of connecting programs like a garden hose -- screw in another segment when it becomes necessary to massage data in another way." -- Doug McIlroy, 1964 (inventor of Unix pipes)</div>
+
+<!-- DIAGRAM 3: Unix philosophy 4 principles -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 3: The Four Principles of Unix Philosophy</div>
+  <div class="grid2">
+    <div class="card card-accent" style="margin:0;">
+      <h4 style="color: var(--accent);">1. Do One Thing Well</h4>
+      <p style="margin:0; font-size:0.85rem;">To do a new job, build afresh rather than complicating old programs by adding new "features".</p>
+      <div style="margin-top:8px;"><span class="tag">sort</span> <span class="tag">uniq</span> <span class="tag">grep</span> <span class="tag">awk</span></div>
+    </div>
+    <div class="card card-green" style="margin:0;">
+      <h4 style="color: var(--accent3);">2. Expect Composability</h4>
+      <p style="margin:0; font-size:0.85rem;">Expect the output of every program to become the input to another, as yet unknown, program. Don't clutter output with extraneous information.</p>
+    </div>
+    <div class="card card-purple" style="margin:0;">
+      <h4 style="color: var(--accent2);">3. Build Fast, Iterate</h4>
+      <p style="margin:0; font-size:0.85rem;">Design and build software to be tried early, ideally within weeks. Don't hesitate to throw away clumsy parts and rebuild.</p>
+    </div>
+    <div class="card card-orange" style="margin:0;">
+      <h4 style="color: var(--orange);">4. Use Tools Over Manual Labor</h4>
+      <p style="margin:0; font-size:0.85rem;">Use tools in preference to unskilled help to lighten a programming task, even if you have to detour to build the tools.</p>
+    </div>
+  </div>
+  <div style="margin-top: 20px; text-align: center; font-size: 0.85rem; color: var(--text-muted);">
+    This sounds remarkably like <strong style="color:var(--accent);">Agile</strong> and <strong style="color:var(--accent3);">DevOps</strong> -- surprisingly little has changed in four decades.
+  </div>
+</div>
+
+<h3>What Makes Unix Composability Work?</h3>
+
+<div class="grid2">
+  <div class="card card-accent">
+    <h4>Uniform Interface</h4>
+    <ul>
+      <li>Everything is a <span class="key-term">file descriptor</span> (ordered sequence of bytes)</li>
+      <li>Files, sockets, pipes, devices -- all share the same interface</li>
+      <li>Convention: ASCII text with <code>\n</code> as record separator</li>
+      <li>Fields separated by whitespace/tabs/commas</li>
+    </ul>
+  </div>
+  <div class="card card-green">
+    <h4>Separation of Logic and Wiring</h4>
+    <ul>
+      <li>Programs read from <code>stdin</code>, write to <code>stdout</code></li>
+      <li>The <em>shell user</em> wires up I/O, not the program</li>
+      <li>This is a form of <span class="key-term">loose coupling</span> / <span class="key-term">inversion of control</span></li>
+      <li>Limitation: tricky for programs needing multiple inputs/outputs</li>
+    </ul>
+  </div>
+</div>
+
+<div class="card card-purple">
+  <h4>Transparency and Experimentation</h4>
+  <ul>
+    <li><strong>Immutable inputs:</strong> Commands never modify input files -- run as often as you want without damage</li>
+    <li><strong>Inspect anytime:</strong> Pipe intermediate output into <code>less</code> to inspect at any stage</li>
+    <li><strong>Checkpoint stages:</strong> Write intermediate output to a file, restart later stages without re-running everything</li>
+  </ul>
+  <p style="margin-top:8px; margin-bottom:0; color: var(--red);"><strong>Biggest limitation:</strong> Unix tools run on a single machine only. That is where Hadoop comes in.</p>
+</div>
+
+<!-- ===== SECTION 4: HDFS ===== -->
+<h2>HDFS: Hadoop Distributed File System</h2>
+<p>MapReduce reads and writes files on a <span class="key-term">distributed filesystem</span>. HDFS is Hadoop's implementation, an open-source reimplementation of Google File System (GFS). It uses the <strong>shared-nothing</strong> principle: ordinary commodity machines connected by a conventional datacenter network, no special hardware.</p>
+
+<!-- DIAGRAM 4: HDFS Architecture -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 4: HDFS Architecture</div>
+  <div style="display: flex; flex-direction: column; align-items: center; gap: 16px;">
+    <!-- NameNode -->
+    <div class="arch-box orange" style="min-width: 280px;">
+      <div class="arch-label" style="color: var(--orange);">NameNode (Central Server)</div>
+      <div class="arch-detail">Tracks which file blocks are stored on which machine</div>
+      <div class="arch-detail">Maintains filesystem metadata &amp; block mappings</div>
+    </div>
+    <!-- Connection lines -->
+    <div style="display: flex; gap: 60px; color: var(--text-muted);">
+      <span>&darr;</span><span>&darr;</span><span>&darr;</span><span>&darr;</span><span>&darr;</span>
+    </div>
+    <!-- DataNodes -->
+    <div class="node-cluster">
+      <div class="arch-box blue" style="flex: 1; min-width: 140px; max-width: 160px;">
+        <div class="arch-label" style="color: var(--accent); font-size:0.65rem;">DataNode 1</div>
+        <div class="arch-detail">Daemon process</div>
+        <div style="display:flex; gap:4px; justify-content:center; margin-top:6px;">
+          <div style="background:var(--accent); color:white; padding:2px 6px; border-radius:4px; font-size:0.65rem;">Block A</div>
+          <div style="background:var(--accent2); color:white; padding:2px 6px; border-radius:4px; font-size:0.65rem;">Block C</div>
+        </div>
+      </div>
+      <div class="arch-box blue" style="flex: 1; min-width: 140px; max-width: 160px;">
+        <div class="arch-label" style="color: var(--accent); font-size:0.65rem;">DataNode 2</div>
+        <div class="arch-detail">Daemon process</div>
+        <div style="display:flex; gap:4px; justify-content:center; margin-top:6px;">
+          <div style="background:var(--accent); color:white; padding:2px 6px; border-radius:4px; font-size:0.65rem;">Block A</div>
+          <div style="background:var(--accent3); color:white; padding:2px 6px; border-radius:4px; font-size:0.65rem;">Block B</div>
+        </div>
+      </div>
+      <div class="arch-box blue" style="flex: 1; min-width: 140px; max-width: 160px;">
+        <div class="arch-label" style="color: var(--accent); font-size:0.65rem;">DataNode 3</div>
+        <div class="arch-detail">Daemon process</div>
+        <div style="display:flex; gap:4px; justify-content:center; margin-top:6px;">
+          <div style="background:var(--accent3); color:white; padding:2px 6px; border-radius:4px; font-size:0.65rem;">Block B</div>
+          <div style="background:var(--accent2); color:white; padding:2px 6px; border-radius:4px; font-size:0.65rem;">Block C</div>
+        </div>
+      </div>
+      <div class="arch-box blue" style="flex: 1; min-width: 140px; max-width: 160px;">
+        <div class="arch-label" style="color: var(--accent); font-size:0.65rem;">DataNode N</div>
+        <div class="arch-detail">Daemon process</div>
+        <div style="display:flex; gap:4px; justify-content:center; margin-top:6px;">
+          <div style="background:var(--accent); color:white; padding:2px 6px; border-radius:4px; font-size:0.65rem;">Block A</div>
+          <div style="background:var(--accent3); color:white; padding:2px 6px; border-radius:4px; font-size:0.65rem;">Block B</div>
+        </div>
+      </div>
+    </div>
+    <div style="font-size: 0.8rem; color: var(--text-muted); text-align:center; max-width: 600px;">
+      Each block is <strong style="color:var(--accent);">replicated</strong> across multiple DataNodes for fault tolerance. Blocks are typically hundreds of MB. The biggest HDFS deployments run on tens of thousands of machines with hundreds of petabytes of storage.
+    </div>
+  </div>
+</div>
+
+<div class="grid2">
+  <div class="card card-accent">
+    <h4>Shared-Nothing vs. Shared-Disk</h4>
+    <ul>
+      <li><strong>Shared-disk (NAS/SAN):</strong> Centralized storage appliance, custom hardware, Fibre Channel</li>
+      <li><strong>Shared-nothing (HDFS):</strong> Commodity machines, conventional network, no special hardware</li>
+    </ul>
+  </div>
+  <div class="card card-green">
+    <h4>Fault Tolerance</h4>
+    <ul>
+      <li><strong>Replication:</strong> Multiple copies of same data on different machines</li>
+      <li><strong>Erasure coding:</strong> Reed-Solomon codes for lower storage overhead than full replication</li>
+      <li>Similar to RAID but across machines over a network</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ===== SECTION 5: MAPREDUCE EXECUTION ===== -->
+<h2>MapReduce Job Execution</h2>
+<p>MapReduce is a programming framework for processing large datasets in a distributed filesystem. It is comparable to a single Unix process: takes inputs, produces outputs, does not modify input, and has no side effects.</p>
+
+<!-- DIAGRAM 5: MapReduce 4-step execution -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 5: MapReduce Execution -- Four Steps</div>
+  <div style="display: flex; flex-direction: column; gap: 0;">
+    <!-- Step 1 -->
+    <div style="display: flex; gap: 16px; align-items: flex-start; margin-bottom: 16px;">
+      <div class="step-num" style="background: var(--accent);">1</div>
+      <div style="flex:1;">
+        <strong style="color: var(--accent);">Read &amp; Split into Records</strong>
+        <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">Input format parser breaks files into records (e.g., <code>\n</code> separated lines). Each file block is a separate partition processed by a separate map task.</div>
+      </div>
+    </div>
+    <div style="text-align: center; color: var(--text-muted); margin: 4px 0;">&darr;</div>
+    <!-- Step 2 -->
+    <div style="display: flex; gap: 16px; align-items: flex-start; margin-bottom: 16px;">
+      <div class="step-num" style="background: var(--accent3);">2</div>
+      <div style="flex:1;">
+        <strong style="color: var(--accent3);">Map (User Code)</strong>
+        <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">Mapper called once per record. Extracts key-value pairs. May emit any number of pairs (including zero). <em>Stateless</em> -- each record handled independently. Example: <code>awk '{print $7}'</code> extracts URL as key.</div>
+      </div>
+    </div>
+    <div style="text-align: center; color: var(--text-muted); margin: 4px 0;">&darr;</div>
+    <!-- Step 3 -->
+    <div style="display: flex; gap: 16px; align-items: flex-start; margin-bottom: 16px;">
+      <div class="step-num" style="background: var(--accent2);">3</div>
+      <div style="flex:1;">
+        <strong style="color: var(--accent2);">Shuffle &amp; Sort (Framework)</strong>
+        <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">Framework sorts all key-value pairs by key. This step is <em>implicit</em> -- you don't write it. Mapper output is always sorted before being given to the reducer. Hash of key determines which reducer gets each pair.</div>
+      </div>
+    </div>
+    <div style="text-align: center; color: var(--text-muted); margin: 4px 0;">&darr;</div>
+    <!-- Step 4 -->
+    <div style="display: flex; gap: 16px; align-items: flex-start;">
+      <div class="step-num" style="background: var(--orange);">4</div>
+      <div style="flex:1;">
+        <strong style="color: var(--orange);">Reduce (User Code)</strong>
+        <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">Reducer called with iterator over all values for the same key. Adjacent records with same key are easy to combine without keeping much state. Example: <code>uniq -c</code> counts occurrences. Output written to distributed filesystem.</div>
+      </div>
+    </div>
+  </div>
+  <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); text-align:center; font-size: 0.85rem;">
+    <span style="color: var(--accent3);">Map</span> prepares data into a form suitable for sorting &nbsp;&nbsp;|&nbsp;&nbsp; <span style="color: var(--orange);">Reduce</span> processes the sorted data
+  </div>
+</div>
+
+<!-- DIAGRAM 6: Distributed execution across nodes -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 6: Distributed Execution on Multiple Nodes</div>
+  <div style="display: flex; flex-direction: column; gap: 20px;">
+    <!-- Map phase -->
+    <div>
+      <div style="font-size: 0.8rem; font-weight: 700; color: var(--accent3); margin-bottom: 10px;">MAP PHASE (parallelized by input partitions)</div>
+      <div style="display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;">
+        <div class="arch-box green" style="flex:1; min-width:140px; max-width:200px;">
+          <div style="font-size:0.7rem; font-weight:700; color:var(--accent3);">Machine A</div>
+          <div class="arch-detail">Map Task m1</div>
+          <div style="font-size:0.7rem; color:var(--text-muted);">Input: file block 1</div>
+          <div style="font-size:0.7rem; color:var(--accent3); margin-top:4px;">Writes sorted partitions to local disk</div>
+        </div>
+        <div class="arch-box green" style="flex:1; min-width:140px; max-width:200px;">
+          <div style="font-size:0.7rem; font-weight:700; color:var(--accent3);">Machine B</div>
+          <div class="arch-detail">Map Task m2</div>
+          <div style="font-size:0.7rem; color:var(--text-muted);">Input: file block 2</div>
+          <div style="font-size:0.7rem; color:var(--accent3); margin-top:4px;">Writes sorted partitions to local disk</div>
+        </div>
+        <div class="arch-box green" style="flex:1; min-width:140px; max-width:200px;">
+          <div style="font-size:0.7rem; font-weight:700; color:var(--accent3);">Machine C</div>
+          <div class="arch-detail">Map Task m3</div>
+          <div style="font-size:0.7rem; color:var(--text-muted);">Input: file block 3</div>
+          <div style="font-size:0.7rem; color:var(--accent3); margin-top:4px;">Writes sorted partitions to local disk</div>
+        </div>
+      </div>
+    </div>
+    <!-- Shuffle -->
+    <div style="text-align: center;">
+      <div style="font-size: 0.8rem; font-weight: 700; color: var(--accent2); margin-bottom: 6px;">SHUFFLE (Network Transfer)</div>
+      <div style="font-size: 0.8rem; color: var(--text-muted);">Reducers fetch sorted files from all mappers for their partition &darr;</div>
+      <div style="display: flex; justify-content: center; gap: 4px; margin-top: 6px;">
+        <span style="color: var(--accent2);">&darr;</span>
+        <span style="color: var(--accent2);">&darr;</span>
+        <span style="color: var(--accent2);">&darr;</span>
+        <span style="color: var(--accent2);">&darr;</span>
+        <span style="color: var(--accent2);">&darr;</span>
+        <span style="color: var(--accent2);">&darr;</span>
+        <span style="color: var(--accent2);">&darr;</span>
+        <span style="color: var(--accent2);">&darr;</span>
+        <span style="color: var(--accent2);">&darr;</span>
+      </div>
+    </div>
+    <!-- Reduce phase -->
+    <div>
+      <div style="font-size: 0.8rem; font-weight: 700; color: var(--orange); margin-bottom: 10px;">REDUCE PHASE (merge sorted files, then reduce)</div>
+      <div style="display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;">
+        <div class="arch-box orange" style="flex:1; min-width:140px; max-width:200px;">
+          <div style="font-size:0.7rem; font-weight:700; color:var(--orange);">Machine D</div>
+          <div class="arch-detail">Reduce Task r1</div>
+          <div style="font-size:0.7rem; color:var(--text-muted);">Merges files from m1,m2,m3</div>
+          <div style="font-size:0.7rem; color:var(--orange); margin-top:4px;">Output &rarr; HDFS file</div>
+        </div>
+        <div class="arch-box orange" style="flex:1; min-width:140px; max-width:200px;">
+          <div style="font-size:0.7rem; font-weight:700; color:var(--orange);">Machine E</div>
+          <div class="arch-detail">Reduce Task r2</div>
+          <div style="font-size:0.7rem; color:var(--text-muted);">Merges files from m1,m2,m3</div>
+          <div style="font-size:0.7rem; color:var(--orange); margin-top:4px;">Output &rarr; HDFS file</div>
+        </div>
+        <div class="arch-box orange" style="flex:1; min-width:140px; max-width:200px;">
+          <div style="font-size:0.7rem; font-weight:700; color:var(--orange);">Machine F</div>
+          <div class="arch-detail">Reduce Task r3</div>
+          <div style="font-size:0.7rem; color:var(--text-muted);">Merges files from m1,m2,m3</div>
+          <div style="font-size:0.7rem; color:var(--orange); margin-top:4px;">Output &rarr; HDFS file</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 0.8rem; color: var(--text-muted);">
+    <strong style="color:var(--accent);">Data locality:</strong> Scheduler tries to run each mapper on the machine that already stores the input file replica ("putting the computation near the data"), reducing network I/O.
+  </div>
+</div>
+
+<div class="card card-purple">
+  <h4>The Shuffle in Detail</h4>
+  <ol style="padding-left: 20px; color: var(--text-muted);">
+    <li>Each map task <strong>partitions its output by reducer</strong> (hash of key)</li>
+    <li>Each partition is written as a <strong>sorted file on the mapper's local disk</strong> (using SSTable-like technique)</li>
+    <li>When a mapper finishes, the scheduler <strong>notifies reducers</strong></li>
+    <li>Reducers <strong>fetch</strong> (pull) sorted files from all mappers for their partition</li>
+    <li>Reducer <strong>merges</strong> sorted files together, preserving sort order</li>
+    <li>Reducer processes records with <strong>same key adjacent</strong> in merged stream</li>
+  </ol>
+  <p style="margin-top:12px; margin-bottom:0; font-size:0.85rem; color:var(--accent2);">Note: Despite the name "shuffle," there is no randomness -- it is a deterministic sort-based redistribution of data.</p>
+</div>
+
+<!-- ===== SECTION 6: MAPREDUCE WORKFLOWS ===== -->
+<h2>MapReduce Workflows</h2>
+<p>A single MapReduce job is limited in what it can solve (e.g., it can count page views per URL, but not rank them). Real-world jobs are <span class="key-term">chained together into workflows</span> where the output of one job becomes the input to the next.</p>
+
+<!-- DIAGRAM 7: Chained MapReduce workflow -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 7: Chained MapReduce Workflow</div>
+  <div style="display: flex; flex-direction: column; align-items: center; gap: 12px;">
+    <div class="flow">
+      <div class="flow-box primary" style="min-width:160px;">
+        <strong>Job 1: Count</strong><br>
+        <small>Map: extract URL<br>Reduce: count per URL</small>
+      </div>
+      <span class="flow-arrow">&rarr;</span>
+      <div class="flow-box purple" style="min-width:100px; font-size:0.8rem;">
+        <strong>HDFS</strong><br><small>Intermediate<br>directory</small>
+      </div>
+      <span class="flow-arrow">&rarr;</span>
+      <div class="flow-box green" style="min-width:160px;">
+        <strong>Job 2: Rank</strong><br>
+        <small>Map: identity<br>Reduce: sort by count</small>
+      </div>
+      <span class="flow-arrow">&rarr;</span>
+      <div class="flow-box orange" style="min-width:100px; font-size:0.8rem;">
+        <strong>HDFS</strong><br><small>Final output<br>directory</small>
+      </div>
+    </div>
+    <div style="margin-top: 12px; font-size: 0.85rem; color: var(--text-muted); max-width: 650px; text-align: center;">
+      Unlike Unix pipes (small in-memory buffer), chained MR jobs write to <strong>temporary files in HDFS</strong> between stages. The second job only starts when the first has <strong>completed successfully</strong>.
+    </div>
+  </div>
+</div>
+
+<div class="grid2">
+  <div class="card card-accent">
+    <h4>Workflow Schedulers</h4>
+    <ul>
+      <li><strong>Oozie, Azkaban, Luigi, Airflow, Pinball</strong></li>
+      <li>Handle dependencies between job executions</li>
+      <li>Workflows of 50-100 MapReduce jobs are common for recommendation systems</li>
+    </ul>
+  </div>
+  <div class="card card-green">
+    <h4>Higher-Level Tools</h4>
+    <ul>
+      <li><strong>Pig, Hive, Cascading, Crunch, FlumeJava</strong></li>
+      <li>Set up multi-stage MR workflows automatically</li>
+      <li>Abstract away the chaining and wiring of jobs</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ===== SECTION 7: SORT-MERGE JOINS ===== -->
+<h2>Reduce-Side Joins: Sort-Merge Join</h2>
+<p>In batch processing, "join" means resolving <em>all</em> occurrences of an association across an entire dataset simultaneously -- not looking up one record at a time. MapReduce has no indexes; it performs full table scans, which makes sense for analytic queries over large datasets.</p>
+
+<h3>Example: User Activity + User Profile Join</h3>
+<p>You have a log of user activity events (fact table) and a user database (dimension table). You want to correlate activity with user profile info (e.g., which pages are popular with which age groups). Activity events contain only user_id, not full profile info.</p>
+
+<!-- DIAGRAM 8: Sort-merge join step by step -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 8: Sort-Merge Join -- Step by Step</div>
+  <div style="display: flex; flex-direction: column; gap: 16px;">
+    <!-- Step 1: Two inputs -->
+    <div style="display: flex; gap: 24px; justify-content: center; flex-wrap: wrap;">
+      <div class="arch-box blue" style="min-width: 200px;">
+        <div class="arch-label" style="color: var(--accent);">Input: Activity Events</div>
+        <div style="font-size:0.75rem; text-align:left; color:var(--text-muted); font-family:monospace; margin-top:6px;">
+          {user:203, url:/page1}<br>
+          {user:108, url:/page2}<br>
+          {user:203, url:/page3}
+        </div>
+      </div>
+      <div class="arch-box green" style="min-width: 200px;">
+        <div class="arch-label" style="color: var(--accent3);">Input: User Database</div>
+        <div style="font-size:0.75rem; text-align:left; color:var(--text-muted); font-family:monospace; margin-top:6px;">
+          {user:108, dob:1990-05-12}<br>
+          {user:203, dob:1985-03-20}
+        </div>
+      </div>
+    </div>
+    <div style="text-align:center; color:var(--text-muted);">&darr; Mappers extract user_id as key</div>
+    <!-- Step 2: Mapper output -->
+    <div style="display: flex; gap: 24px; justify-content: center; flex-wrap: wrap;">
+      <div class="arch-box blue" style="min-width: 200px;">
+        <div class="arch-label" style="color: var(--accent); font-size:0.65rem;">Mapper A (Events)</div>
+        <div style="font-size:0.75rem; text-align:left; color:var(--text-muted); font-family:monospace; margin-top:6px;">
+          (203, event:/page1)<br>
+          (108, event:/page2)<br>
+          (203, event:/page3)
+        </div>
+      </div>
+      <div class="arch-box green" style="min-width: 200px;">
+        <div class="arch-label" style="color: var(--accent3); font-size:0.65rem;">Mapper B (Users)</div>
+        <div style="font-size:0.75rem; text-align:left; color:var(--text-muted); font-family:monospace; margin-top:6px;">
+          (108, dob:1990-05-12)<br>
+          (203, dob:1985-03-20)
+        </div>
+      </div>
+    </div>
+    <div style="text-align:center; color:var(--accent2);">&darr; Framework: sort by key + secondary sort (user record first)</div>
+    <!-- Step 3: Reducer input (sorted, merged) -->
+    <div class="arch-box purple" style="max-width: 500px; margin: 0 auto;">
+      <div class="arch-label" style="color: var(--accent2);">Reducer Input (sorted &amp; merged)</div>
+      <div style="font-size:0.75rem; text-align:left; color:var(--text-muted); font-family:monospace; margin-top:6px;">
+        <span style="color:var(--accent3);">(108, dob:1990-05-12)</span>  &larr; user record first<br>
+        <span style="color:var(--accent);">(108, event:/page2)</span><br>
+        <span style="color:var(--accent3);">(203, dob:1985-03-20)</span>  &larr; user record first<br>
+        <span style="color:var(--accent);">(203, event:/page1)</span><br>
+        <span style="color:var(--accent);">(203, event:/page3)</span>
+      </div>
+    </div>
+    <div style="text-align:center; color:var(--orange);">&darr; Reducer joins: store DOB in variable, iterate events</div>
+    <!-- Step 4: Output -->
+    <div class="arch-box orange" style="max-width: 500px; margin: 0 auto;">
+      <div class="arch-label" style="color: var(--orange);">Reducer Output</div>
+      <div style="font-size:0.75rem; text-align:left; color:var(--text-muted); font-family:monospace; margin-top:6px;">
+        (/page2, age:35)<br>
+        (/page1, age:40)<br>
+        (/page3, age:40)
+      </div>
+    </div>
+  </div>
+  <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 0.8rem; color: var(--text-muted);">
+    <strong style="color:var(--accent2);">Secondary sort</strong> ensures the user database record arrives <em>before</em> the activity events for each user_id. The reducer only needs to keep <em>one user record</em> in memory at a time.
+  </div>
+</div>
+
+<div class="card card-accent">
+  <h4>Why "Sort-Merge"?</h4>
+  <ul>
+    <li><strong>Sort:</strong> Mapper output is sorted by key</li>
+    <li><strong>Merge:</strong> Reducers merge together the sorted lists from both sides of the join</li>
+    <li>All necessary data for a particular user_id is brought to the <strong>same place</strong> (a single reducer call)</li>
+    <li>No network requests needed during reduce -- all data is <span class="key-term">local</span></li>
+  </ul>
+</div>
+
+<div class="card card-green">
+  <h4>Mappers as Message Senders</h4>
+  <p style="margin-bottom:0;">A useful mental model: mappers "send messages" to reducers. The key acts like a <strong>destination address</strong>. All key-value pairs with the same key are delivered to the same reducer call. This separates physical network communication from application logic -- MapReduce handles all the networking, shielding application code from partial failures.</p>
+</div>
+
+<!-- ===== SECTION 8: HANDLING SKEW ===== -->
+<h2>Handling Skew (Hot Keys)</h2>
+<p>The "bring all records with the same key to the same place" pattern breaks down when a single key has disproportionate data volume. A celebrity with millions of followers creates a <span class="key-term">hot key</span> that overloads one reducer, causing the entire job to wait.</p>
+
+<!-- DIAGRAM 9: Hot key problem and two-stage aggregation -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 9: Hot Key Problem and Two-Stage Aggregation</div>
+  <div style="display: flex; gap: 24px; flex-wrap: wrap; justify-content: center;">
+    <!-- Problem side -->
+    <div style="flex:1; min-width:250px;">
+      <div style="font-size:0.85rem; font-weight:700; color:var(--red); margin-bottom:12px;">Problem: Skewed Reducer</div>
+      <div style="display: flex; align-items: flex-end; gap: 12px; height: 140px; justify-content: center;">
+        <div style="display:flex; flex-direction:column; align-items:center;">
+          <div style="background:var(--accent); width:40px; height:30px; border-radius:4px 4px 0 0;"></div>
+          <div style="font-size:0.65rem; color:var(--text-muted); margin-top:4px;">r1</div>
+        </div>
+        <div style="display:flex; flex-direction:column; align-items:center;">
+          <div style="background:var(--red); width:40px; height:130px; border-radius:4px 4px 0 0;"></div>
+          <div style="font-size:0.65rem; color:var(--red); margin-top:4px;">r2 HOT</div>
+        </div>
+        <div style="display:flex; flex-direction:column; align-items:center;">
+          <div style="background:var(--accent); width:40px; height:25px; border-radius:4px 4px 0 0;"></div>
+          <div style="font-size:0.65rem; color:var(--text-muted); margin-top:4px;">r3</div>
+        </div>
+        <div style="display:flex; flex-direction:column; align-items:center;">
+          <div style="background:var(--accent); width:40px; height:35px; border-radius:4px 4px 0 0;"></div>
+          <div style="font-size:0.65rem; color:var(--text-muted); margin-top:4px;">r4</div>
+        </div>
+      </div>
+      <div style="font-size:0.75rem; color:var(--red); text-align:center; margin-top:8px;">Job blocked until r2 finishes!</div>
+    </div>
+    <!-- Solution side -->
+    <div style="flex:1; min-width:300px;">
+      <div style="font-size:0.85rem; font-weight:700; color:var(--accent3); margin-bottom:12px;">Solution: Two-Stage Aggregation</div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div class="arch-box green" style="margin:0; padding:10px;">
+          <div style="font-size:0.75rem; font-weight:700; color:var(--accent3);">Stage 1: Random Distribute</div>
+          <div style="font-size:0.75rem; color:var(--text-muted);">Send hot key records to <em>random</em> reducers &rarr; partial aggregates</div>
+          <div style="display:flex; gap:4px; justify-content:center; margin-top:4px;">
+            <div style="background:var(--accent3); color:white; padding:2px 8px; border-radius:4px; font-size:0.65rem;">r-a: count=2M</div>
+            <div style="background:var(--accent3); color:white; padding:2px 8px; border-radius:4px; font-size:0.65rem;">r-b: count=1.5M</div>
+            <div style="background:var(--accent3); color:white; padding:2px 8px; border-radius:4px; font-size:0.65rem;">r-c: count=1.5M</div>
+          </div>
+        </div>
+        <div style="text-align:center; color:var(--text-muted);">&darr;</div>
+        <div class="arch-box orange" style="margin:0; padding:10px;">
+          <div style="font-size:0.75rem; font-weight:700; color:var(--orange);">Stage 2: Combine</div>
+          <div style="font-size:0.75rem; color:var(--text-muted);">Second MR job combines partial results &rarr; final total</div>
+          <div style="display:flex; gap:4px; justify-content:center; margin-top:4px;">
+            <div style="background:var(--orange); color:white; padding:2px 8px; border-radius:4px; font-size:0.65rem;">final: count=5M</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card card-red">
+  <h4>Three Approaches to Handling Hot Keys in Joins</h4>
+  <table>
+    <tr>
+      <th>Method</th>
+      <th>How It Works</th>
+      <th>Tool</th>
+    </tr>
+    <tr>
+      <td style="color:var(--accent); font-weight:600;">Skewed Join (Sampling)</td>
+      <td>Run a <strong>sampling job</strong> first to detect hot keys. For hot keys, send records to a <em>random</em> reducer; replicate the other join input to all those reducers.</td>
+      <td>Pig</td>
+    </tr>
+    <tr>
+      <td style="color:var(--accent3); font-weight:600;">Sharded Join (Explicit)</td>
+      <td>Same as above but hot keys are <strong>specified explicitly</strong> by the developer rather than detected by sampling.</td>
+      <td>Crunch</td>
+    </tr>
+    <tr>
+      <td style="color:var(--orange); font-weight:600;">Map-Side Join for Hot Keys</td>
+      <td>Hot keys declared in <strong>table metadata</strong>. Records for hot keys stored in separate files. Join uses a map-side join for hot keys, reduce-side for the rest.</td>
+      <td>Hive</td>
+    </tr>
+  </table>
+</div>
+
+<!-- ===== SECTION 9: MAP-SIDE JOINS ===== -->
+<h2>Map-Side Joins</h2>
+<p>Reduce-side joins are general-purpose but expensive due to all the sorting, copying, and merging. If you can make certain <strong>assumptions about input data</strong>, you can perform joins entirely in the map phase -- no reducers, no sorting.</p>
+
+<!-- DIAGRAM 10: Map-side join types -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 10: Map-Side Join Types -- Decision Tree</div>
+  <div style="display: flex; flex-direction: column; align-items: center; gap: 12px;">
+    <!-- Root question -->
+    <div class="arch-box purple" style="min-width: 300px; margin: 0;">
+      <div class="arch-label" style="color: var(--accent2);">Can you make assumptions about the input data?</div>
+    </div>
+    <div style="display: flex; gap: 60px; flex-wrap: wrap; justify-content: center;">
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+        <div style="color: var(--red);">&darr; No</div>
+        <div class="arch-box red" style="margin:0; min-width:160px;">
+          <div class="arch-label" style="color: var(--red);">Reduce-Side Join</div>
+          <div class="arch-detail">Most general, most expensive</div>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+        <div style="color: var(--accent3);">&darr; Yes</div>
+        <div class="arch-box green" style="margin:0; min-width:200px;">
+          <div class="arch-label" style="color: var(--accent3);">Is one input small enough for memory?</div>
+        </div>
+        <div style="display: flex; gap: 40px; flex-wrap: wrap; justify-content: center;">
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <div style="color: var(--accent);">&darr; Yes</div>
+            <div class="arch-box blue" style="margin:0; min-width:140px;">
+              <div class="arch-label" style="color: var(--accent); font-size:0.6rem;">Broadcast Hash Join</div>
+              <div class="arch-detail">Load small input<br>into hash table</div>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <div style="color: var(--orange);">&darr; No, but same partitioning</div>
+            <div class="arch-box orange" style="margin:0; min-width:160px;">
+              <div class="arch-label" style="color: var(--orange); font-size:0.6rem;">Are inputs also sorted by same key?</div>
+            </div>
+            <div style="display: flex; gap: 30px; flex-wrap: wrap; justify-content: center;">
+              <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                <div style="color: var(--pink);">&darr; No</div>
+                <div class="arch-box pink" style="margin:0; min-width:130px;">
+                  <div class="arch-label" style="color:var(--pink); font-size:0.6rem;">Partitioned Hash Join</div>
+                  <div class="arch-detail">Load one partition<br>into hash table</div>
+                </div>
+              </div>
+              <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                <div style="color: var(--accent3);">&darr; Yes</div>
+                <div class="arch-box green" style="margin:0; min-width:130px;">
+                  <div class="arch-label" style="color:var(--accent3); font-size:0.6rem;">Map-Side Merge Join</div>
+                  <div class="arch-detail">Merge incrementally<br>in ascending key order</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="grid3" style="margin-top: 20px;">
+  <div class="card card-accent">
+    <h4 style="color: var(--accent);">Broadcast Hash Join</h4>
+    <p style="font-size:0.85rem;"><strong>Assumption:</strong> One input is small enough to fit in memory.</p>
+    <ul>
+      <li>Each mapper loads the <em>entire</em> small dataset into an in-memory hash table</li>
+      <li>Scans the large input, looks up each key in the hash table</li>
+      <li>"Broadcast" = small input sent to all map partitions</li>
+      <li>Alternative: store small input as a local read-only index on disk (page cache makes it fast)</li>
+    </ul>
+    <div style="margin-top:8px;"><span class="tag">Pig: replicated join</span> <span class="tag">Hive: MapJoin</span></div>
+  </div>
+  <div class="card card-orange">
+    <h4 style="color: var(--orange);">Partitioned Hash Join</h4>
+    <p style="font-size:0.85rem;"><strong>Assumption:</strong> Both inputs partitioned same way (same key, same hash function, same number of partitions).</p>
+    <ul>
+      <li>Each mapper loads only <em>its partition</em> of the small dataset</li>
+      <li>Only records that could join are in the same partition</li>
+      <li>Much less memory than broadcast join</li>
+    </ul>
+    <div style="margin-top:8px;"><span class="tag">Hive: bucketed map join</span></div>
+  </div>
+  <div class="card card-green">
+    <h4 style="color: var(--accent3);">Map-Side Merge Join</h4>
+    <p style="font-size:0.85rem;"><strong>Assumption:</strong> Both inputs partitioned <em>and sorted</em> by the same key.</p>
+    <ul>
+      <li>Mapper reads both files incrementally in ascending key order</li>
+      <li>Performs the same merge that a reducer would do</li>
+      <li>Works even if inputs don't fit in memory</li>
+      <li>Often possible when prior MR jobs created the sorted layout</li>
+    </ul>
+  </div>
+</div>
+
+<!-- DIAGRAM 11: Map-side join output implications -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 11: Join Output Structure Comparison</div>
+  <table style="margin: 0;">
+    <tr>
+      <th style="width:180px;">Property</th>
+      <th>Reduce-Side Join</th>
+      <th>Map-Side Join</th>
+    </tr>
+    <tr>
+      <td style="color:var(--text); font-weight:600;">Assumptions</td>
+      <td>None -- works with any input</td>
+      <td>Requires knowledge of input size, partitioning, and/or sort order</td>
+    </tr>
+    <tr>
+      <td style="color:var(--text); font-weight:600;">Output partitioning</td>
+      <td>Partitioned and sorted by <strong>join key</strong></td>
+      <td>Partitioned and sorted same as the <strong>large input</strong></td>
+    </tr>
+    <tr>
+      <td style="color:var(--text); font-weight:600;">Performance</td>
+      <td>Expensive (sort + shuffle + merge)</td>
+      <td>Fast (no shuffle, no sort)</td>
+    </tr>
+    <tr>
+      <td style="color:var(--text); font-weight:600;">Reducers needed?</td>
+      <td>Yes</td>
+      <td>No -- map-only job</td>
+    </tr>
+    <tr>
+      <td style="color:var(--text); font-weight:600;">Metadata needed</td>
+      <td>Just encoding + directory name</td>
+      <td>Partition count, partition keys, sort order (e.g., HCatalog/Hive metastore)</td>
+    </tr>
+  </table>
+</div>
+
+<!-- ===== SECTION 10: BATCH OUTPUT PHILOSOPHY ===== -->
+<h2>Philosophy of Batch Process Outputs</h2>
+<p>Batch processing follows the same philosophy as Unix: inputs are <strong>immutable</strong>, outputs completely replace previous outputs, and there are <strong>no side effects</strong>.</p>
+
+<div class="grid2">
+  <div class="card card-accent">
+    <h4>Common Batch Outputs</h4>
+    <ul>
+      <li><strong>Search indexes:</strong> Mappers partition documents, reducers build indexes (Lucene/Solr)</li>
+      <li><strong>Key-value stores:</strong> Build database files in MapReduce, load in bulk (Voldemort, HBase)</li>
+      <li><strong>ML models:</strong> Classifiers, recommendation systems</li>
+      <li><strong>Aggregated reports:</strong> Analytics summaries</li>
+    </ul>
+  </div>
+  <div class="card card-green">
+    <h4>Benefits of Immutable Output</h4>
+    <ul>
+      <li><strong>Rollback:</strong> If buggy code produces bad output, revert and re-run ("human fault tolerance")</li>
+      <li><strong>Retry safety:</strong> Failed tasks are automatically re-run on same immutable input</li>
+      <li><strong>Multiple consumers:</strong> Same files can be input for different jobs, monitoring, etc.</li>
+      <li><strong>Separation of concerns:</strong> Logic separated from wiring (input/output directory config)</li>
+    </ul>
+  </div>
+</div>
+
+<div class="card card-red">
+  <h4>Why NOT Write Directly to a Database from MapReduce?</h4>
+  <ul>
+    <li><strong>Too slow:</strong> Network request per record is orders of magnitude slower than batch throughput</li>
+    <li><strong>Database overwhelmed:</strong> Many parallel map/reduce tasks writing concurrently can kill the DB</li>
+    <li><strong>Breaks atomicity:</strong> MapReduce guarantees all-or-nothing output; external DB writes produce visible side effects from partially completed jobs</li>
+  </ul>
+  <p style="margin-top:12px; margin-bottom:0; color:var(--accent3);"><strong>Better approach:</strong> Build database files as output, then atomically swap them into the serving layer (e.g., Voldemort serves old files while new ones are copied, then atomically switches).</p>
+</div>
+
+<!-- ===== QUESTIONS ===== -->
+<h2>Review Questions</h2>
+
+<div class="question-block">
+  <div class="question-header" onclick="this.parentElement.classList.toggle('open')">
+    <div><span class="q-num">1</span>How does the Unix pipeline approach to log analysis differ from an in-memory hash table approach, and when is each preferable?</div>
+    <span class="chevron">&#9662;</span>
+  </div>
+  <div class="question-body">
+    <p>The Unix pipeline relies on <strong>sorting</strong> -- repeated URLs become adjacent, and <code>uniq -c</code> counts them. The hash table approach (e.g., Ruby script) keeps a counter per URL in memory. The hash table is faster when the working set (distinct URLs) fits in memory. The sort approach is better when data exceeds available memory, because GNU sort automatically spills to disk and parallelizes across CPU cores, following sequential I/O patterns similar to SSTables. The sort approach easily scales to datasets much larger than RAM without running out of memory.</p>
+  </div>
+</div>
+
+<div class="question-block">
+  <div class="question-header" onclick="this.parentElement.classList.toggle('open')">
+    <div><span class="q-num">2</span>What is the "shuffle" phase in MapReduce, and why is the term somewhat misleading?</div>
+    <span class="chevron">&#9662;</span>
+  </div>
+  <div class="question-body">
+    <p>The shuffle is the process of <strong>partitioning mapper output by reducer (based on hash of key), sorting, and copying data partitions from mappers to reducers</strong>. Each map task writes sorted output files partitioned by reducer to local disk. When a mapper finishes, reducers are notified and pull the relevant files. Despite the name "shuffle" (which suggests randomness, like shuffling cards), the process is entirely <strong>deterministic</strong> -- it is a sort-based redistribution of data.</p>
+  </div>
+</div>
+
+<div class="question-block">
+  <div class="question-header" onclick="this.parentElement.classList.toggle('open')">
+    <div><span class="q-num">3</span>Explain how secondary sort enables efficient sort-merge joins. What role does it play?</div>
+    <span class="chevron">&#9662;</span>
+  </div>
+  <div class="question-body">
+    <p>In a sort-merge join between activity events and a user database, both are mapped with user_id as the key. <strong>Secondary sort</strong> ensures that within each user_id group, the user database record appears <em>first</em>, followed by activity events (e.g., in timestamp order). This means the reducer can read the user profile into a local variable, then iterate over all activity events for that user, outputting joined records. The reducer only needs to keep <strong>one user record in memory</strong> at any time and never needs network requests -- all data is local.</p>
+  </div>
+</div>
+
+<div class="question-block">
+  <div class="question-header" onclick="this.parentElement.classList.toggle('open')">
+    <div><span class="q-num">4</span>What are the three types of map-side joins, and what assumptions does each require?</div>
+    <span class="chevron">&#9662;</span>
+  </div>
+  <div class="question-body">
+    <p><strong>1. Broadcast hash join:</strong> Requires one input to be small enough to fit in memory (or a local read-only index). Each mapper loads the entire small input into a hash table and scans the large input. <strong>2. Partitioned hash join:</strong> Requires both inputs to be partitioned the same way (same key, hash function, partition count). Each mapper only loads its corresponding partition of the smaller input. <strong>3. Map-side merge join:</strong> Requires both inputs to be partitioned <em>and sorted</em> by the same key. The mapper reads both files incrementally in ascending key order, performing the merge that a reducer would normally do. Each successive type requires stronger assumptions but uses less memory and can handle larger datasets.</p>
+  </div>
+</div>
+
+<div class="question-block">
+  <div class="question-header" onclick="this.parentElement.classList.toggle('open')">
+    <div><span class="q-num">5</span>Why does MapReduce write intermediate results to HDFS between chained jobs instead of streaming them like Unix pipes?</div>
+    <span class="chevron">&#9662;</span>
+  </div>
+  <div class="question-body">
+    <p>Chained MapReduce jobs write to HDFS (materialized intermediate state) rather than streaming through in-memory buffers because: (1) A batch job's output is only considered valid when the job has <strong>completed successfully</strong> -- MapReduce discards partial output of failed jobs. (2) The next job can only start when the prior job's output is fully written. (3) This enables fault tolerance -- if a job fails, its output is discarded and it can be re-run. The tradeoff is that this materialization is <strong>slower than Unix pipes</strong> (which use small in-memory buffers for direct process-to-process communication), but it provides stronger reliability guarantees for distributed execution.</p>
+  </div>
+</div>
+
+<div class="question-block">
+  <div class="question-header" onclick="this.parentElement.classList.toggle('open')">
+    <div><span class="q-num">6</span>Why is writing MapReduce output directly to a production database a bad idea? What is the recommended alternative?</div>
+    <span class="chevron">&#9662;</span>
+  </div>
+  <div class="question-body">
+    <p>Three reasons: (1) <strong>Network overhead:</strong> Making a network request per record is orders of magnitude slower than normal batch throughput. (2) <strong>Database overload:</strong> Many parallel map/reduce tasks writing concurrently can overwhelm the database and degrade query performance for other users. (3) <strong>Loss of atomicity:</strong> MapReduce normally provides clean all-or-nothing job output, but external DB writes create visible side effects from partially completed or failed jobs. The recommended alternative is to <strong>build immutable database files as MapReduce output</strong> (like Voldemort, ElephantDB, or HBase bulk loading), then atomically swap them into the serving layer. The server continues serving from old files while new ones are copied, then performs an atomic switch.</p>
+  </div>
+</div>
+
+</div>
+
+<script>
+// Keyboard navigation for questions
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.question-block.open').forEach(q => q.classList.remove('open'));
+  }
+});
+</script>
+</body>
+</html>

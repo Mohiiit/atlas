@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Chapter 9 — Consistency and Consensus, Part 2: Distributed Transactions and Consensus</title>
+<style>
+  :root {
+    --bg: #0a0e17;
+    --surface: #111827;
+    --surface2: #1a2234;
+    --border: #1e293b;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --accent: #3b82f6;
+    --accent2: #8b5cf6;
+    --accent3: #10b981;
+    --red: #ef4444;
+    --orange: #f59e0b;
+    --pink: #ec4899;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+  .container { max-width: 900px; margin: 0 auto; padding: 40px 24px 100px; }
+  h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 48px; border-bottom: 1px solid var(--border); padding-bottom: 24px; }
+  h2 { font-size: 1.5rem; font-weight: 700; margin: 48px 0 16px; color: var(--accent); }
+  h3 { font-size: 1.15rem; font-weight: 600; margin: 32px 0 12px; color: var(--text); }
+  p { margin-bottom: 16px; color: var(--text-muted); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 20px 0; }
+  .card-accent { border-left: 4px solid var(--accent); }
+  .card-green { border-left: 4px solid var(--accent3); }
+  .card-orange { border-left: 4px solid var(--orange); }
+  .card-purple { border-left: 4px solid var(--accent2); }
+  .card-red { border-left: 4px solid var(--red); }
+  .card h4 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+  .card ul { padding-left: 20px; color: var(--text-muted); }
+  .card li { margin-bottom: 6px; }
+  .key-term { color: var(--accent); font-weight: 600; }
+  .diagram { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 32px; margin: 24px 0; overflow-x: auto; }
+  .diagram-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent2); margin-bottom: 20px; }
+  .flow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; }
+  .flow-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; text-align: center; font-size: 0.9rem; min-width: 120px; }
+  .flow-box.primary { border-color: var(--accent); color: var(--accent); }
+  .flow-box.green { border-color: var(--accent3); color: var(--accent3); }
+  .flow-box.purple { border-color: var(--accent2); color: var(--accent2); }
+  .flow-box.orange { border-color: var(--orange); color: var(--orange); }
+  .flow-box.red { border-color: var(--red); color: var(--red); }
+  .flow-box.pink { border-color: var(--pink); color: var(--pink); }
+  .flow-arrow { color: var(--text-muted); font-size: 1.2rem; }
+  .flow-vert { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } .grid3 { grid-template-columns: 1fr; } }
+  .quote { background: var(--surface2); border-left: 3px solid var(--accent2); padding: 16px 20px; margin: 20px 0; border-radius: 0 8px 8px 0; font-style: italic; color: var(--text-muted); }
+  .tag { display: inline-block; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 2px 12px; font-size: 0.8rem; color: var(--text-muted); margin: 2px; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  th { color: var(--accent); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
+  td { color: var(--text-muted); }
+  .question-block { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin: 16px 0; overflow: hidden; }
+  .question-header { padding: 16px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 0.95rem; }
+  .question-header:hover { background: var(--surface2); }
+  .question-body { padding: 0 20px 16px; display: none; color: var(--text-muted); border-top: 1px solid var(--border); padding-top: 16px; }
+  .question-block.open .question-body { display: block; }
+  .q-num { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: var(--accent); color: white; border-radius: 50%; font-size: 0.8rem; font-weight: 700; margin-right: 12px; flex-shrink: 0; }
+  .chevron { transition: transform .2s; color: var(--text-muted); }
+  .question-block.open .chevron { transform: rotate(180deg); }
+  .section-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--accent2); font-weight: 700; margin-bottom: 8px; }
+  .timeline { position: relative; padding-left: 32px; margin: 16px 0; }
+  .timeline::before { content: ''; position: absolute; left: 12px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+  .timeline-item { position: relative; margin-bottom: 20px; }
+  .timeline-item::before { content: ''; position: absolute; left: -26px; top: 6px; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: 2px solid var(--surface2); }
+  .timeline-item.green::before { background: var(--accent3); }
+  .timeline-item.orange::before { background: var(--orange); }
+  .timeline-item.red::before { background: var(--red); }
+  .timeline-item.purple::before { background: var(--accent2); }
+  .timeline-title { font-weight: 600; font-size: 0.9rem; color: var(--text); }
+  .timeline-desc { font-size: 0.85rem; color: var(--text-muted); }
+  .concept-map { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .concept-row { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+  .concept-node { background: var(--surface); border: 2px solid var(--border); border-radius: 12px; padding: 10px 16px; text-align: center; font-size: 0.85rem; min-width: 100px; }
+  .concept-node.root { border-color: var(--accent); color: var(--accent); font-weight: 700; font-size: 1rem; padding: 14px 24px; }
+  .concept-connector { color: var(--text-muted); font-size: 1.4rem; }
+  .layer-stack { display: flex; flex-direction: column; gap: 4px; }
+  .layer { padding: 14px 20px; border-radius: 8px; text-align: center; font-size: 0.85rem; font-weight: 600; }
+  .number-badge { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; font-size: 0.85rem; font-weight: 700; margin-right: 8px; }
+  .arch-box { border: 2px solid var(--border); border-radius: 10px; padding: 16px; margin: 8px; text-align: center; }
+  .arch-box.blue { border-color: var(--accent); background: rgba(59,130,246,0.08); }
+  .arch-box.green { border-color: var(--accent3); background: rgba(16,185,129,0.08); }
+  .arch-box.purple { border-color: var(--accent2); background: rgba(139,92,246,0.08); }
+  .arch-box.orange { border-color: var(--orange); background: rgba(245,158,11,0.08); }
+  .arch-box.red { border-color: var(--red); background: rgba(239,68,68,0.08); }
+  .arch-box.pink { border-color: var(--pink); background: rgba(236,72,153,0.08); }
+  .arch-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .arch-detail { font-size: 0.8rem; color: var(--text-muted); }
+  /* Sequence diagram styles */
+  .seq-diagram { font-family: 'Courier New', monospace; font-size: 0.82rem; line-height: 1.5; color: var(--text-muted); white-space: pre; overflow-x: auto; }
+  .seq-diagram .coord { color: var(--accent); font-weight: 700; }
+  .seq-diagram .part { color: var(--accent3); font-weight: 700; }
+  .seq-diagram .msg { color: var(--orange); }
+  .seq-diagram .fail { color: var(--red); font-weight: 700; }
+  .seq-diagram .decision { color: var(--accent2); font-weight: 700; }
+  /* Epoch voting diagram */
+  .epoch-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+  .epoch-cell { width: 60px; height: 36px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600; }
+  .epoch-label { width: 80px; font-size: 0.8rem; color: var(--text-muted); text-align: right; padding-right: 8px; }
+  .epoch-cell.leader { background: var(--accent); color: white; }
+  .epoch-cell.follower { background: var(--surface); border: 1px solid var(--border); color: var(--text-muted); }
+  .epoch-cell.vote-yes { background: rgba(16,185,129,0.2); border: 1px solid var(--accent3); color: var(--accent3); }
+  .epoch-cell.vote-no { background: rgba(239,68,68,0.15); border: 1px solid var(--red); color: var(--red); }
+  .epoch-cell.dead { background: rgba(239,68,68,0.1); border: 1px dashed var(--red); color: var(--red); font-size: 0.7rem; }
+</style>
+</head>
+<body>
+<div class="container">
+  <p class="section-label">DDIA -- Chapter 9: Consistency and Consensus</p>
+  <h1>Part 2: Distributed Transactions and Consensus</h1>
+  <p class="subtitle">Consensus is one of the most important and fundamental problems in distributed computing: getting several nodes to <strong>agree on something</strong>. This part covers atomic commit (2PC), fault-tolerant consensus algorithms (Raft, Paxos, Zab, VSR), and coordination services like ZooKeeper.</p>
+
+  <!-- ===== SECTION: WHY CONSENSUS ===== -->
+  <h2>Why Do We Need Consensus?</h2>
+  <p>There are several situations where nodes must agree on something, and getting it wrong leads to data loss, inconsistency, or system failure.</p>
+
+  <div class="grid2">
+    <div class="card card-accent">
+      <h4>Leader Election</h4>
+      <p>In single-leader replication, all nodes must agree on which node is the leader. A contested leadership (split brain) means two nodes accept writes, leading to divergence and data loss.</p>
+    </div>
+    <div class="card card-purple">
+      <h4>Atomic Commit</h4>
+      <p>In a transaction spanning multiple nodes/partitions, all nodes must agree on the outcome: either <em>all commit</em> or <em>all abort</em>. Partial commitment violates atomicity.</p>
+    </div>
+  </div>
+
+  <div class="card card-orange">
+    <h4>The FLP Impossibility Result</h4>
+    <p>Fischer, Lynch, and Paterson (1985) proved that no algorithm can <em>always</em> reach consensus if there is a risk that a node may crash -- in the <strong>asynchronous system model</strong> (no clocks/timeouts). However, if the algorithm can use timeouts or random numbers, consensus becomes solvable in practice. The FLP result is of great theoretical importance, but distributed systems <em>can</em> usually achieve consensus.</p>
+  </div>
+
+  <!-- ===== SECTION: 2PC ===== -->
+  <h2>Atomic Commit and Two-Phase Commit (2PC)</h2>
+
+  <h3>From Single-Node to Distributed Atomic Commit</h3>
+  <p>On a single node, atomicity is simple: the storage engine writes data to a WAL, then appends a commit record. The <span class="key-term">commit point</span> is the moment the disk finishes writing the commit record -- a single device makes the decision atomic.</p>
+  <p>With multiple nodes, simply sending a commit request to each independently can fail: some nodes may commit while others abort (constraint violation, network loss, crash). Once committed on one node, it cannot be retracted. A node must only commit once it is <em>certain</em> all other nodes will also commit. This requires a protocol: <span class="key-term">Two-Phase Commit (2PC)</span>.</p>
+
+  <div class="card card-orange">
+    <h4>Don't Confuse 2PC and 2PL!</h4>
+    <p><strong>Two-Phase Commit (2PC)</strong> provides atomic commit in a distributed database. <strong>Two-Phase Locking (2PL)</strong> provides serializable isolation. They are entirely separate concepts despite the unfortunate similarity in names.</p>
+  </div>
+
+  <h3>The Full 2PC Sequence</h3>
+  <p>2PC introduces a <span class="key-term">coordinator</span> (transaction manager) that orchestrates the commit across all <span class="key-term">participants</span>. The protocol has two phases -- prepare and commit/abort -- but the full lifecycle has more steps.</p>
+
+  <!-- DIAGRAM 1: Full 2PC 4-Phase Sequence Diagram -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 1: Two-Phase Commit -- Full 4-Phase Sequence</div>
+    <div class="seq-diagram">
+  <span class="coord">Coordinator</span>                <span class="part">Participant A</span>       <span class="part">Participant B</span>
+      |                            |                    |
+      |  <span class="msg">1. Begin (txn_id=42)</span>       |                    |
+      |--------------------------->|                    |
+      |----------------------------------------------->|
+      |                            |                    |
+      |  <span class="msg">App reads/writes via txn 42 on each participant</span>  |
+      |                            |                    |
+  ----+------- <span class="decision">PHASE 1: PREPARE</span> -------+--------------------+----
+      |                            |                    |
+      |  <span class="msg">2. Prepare (txn_id=42)</span>     |                    |
+      |--------------------------->|                    |
+      |----------------------------------------------->|
+      |                            |                    |
+      |      <span class="msg">3a. Vote YES</span>          |                    |
+      |<---------------------------|                    |
+      |      <span class="msg">3b. Vote YES</span>                              |
+      |<-----------------------------------------------|
+      |                            |                    |
+  ----+------ <span class="decision">COMMIT POINT</span> ---------+--------------------+----
+      |                            |                    |
+      |  <span class="decision">Coordinator writes decision</span>  |                    |
+      |  <span class="decision">to transaction log on disk</span>  |                    |
+      |                            |                    |
+  ----+------- <span class="decision">PHASE 2: COMMIT</span> -------+--------------------+----
+      |                            |                    |
+      |  <span class="msg">4. Commit (txn_id=42)</span>      |                    |
+      |--------------------------->|                    |
+      |----------------------------------------------->|
+      |                            |                    |
+      |      <span class="msg">ACK</span>                  |                    |
+      |<---------------------------|                    |
+      |      <span class="msg">ACK</span>                                      |
+      |<-----------------------------------------------|
+      |                            |                    |</div>
+  </div>
+
+  <h3>A System of Promises -- The 6 Steps</h3>
+  <div class="timeline">
+    <div class="timeline-item">
+      <div class="timeline-title">Step 1: Request Transaction ID</div>
+      <div class="timeline-desc">Application requests a globally unique transaction ID from the coordinator.</div>
+    </div>
+    <div class="timeline-item green">
+      <div class="timeline-title">Step 2: Begin Single-Node Transactions</div>
+      <div class="timeline-desc">Application begins a transaction on each participant, attaching the global txn ID. All reads and writes happen here. Any failure at this stage allows coordinator or participant to abort.</div>
+    </div>
+    <div class="timeline-item orange">
+      <div class="timeline-title">Step 3: Coordinator Sends Prepare (Phase 1)</div>
+      <div class="timeline-desc">When ready to commit, coordinator sends a <strong>prepare</strong> request to all participants. If any request fails or times out, coordinator sends abort to all.</div>
+    </div>
+    <div class="timeline-item purple">
+      <div class="timeline-title">Step 4: Participants Vote</div>
+      <div class="timeline-desc">Each participant ensures it can definitely commit (writes data to disk, checks constraints). By voting "yes," the participant <strong>surrenders the right to abort</strong> but has not yet committed. This is a point of no return for the participant.</div>
+    </div>
+    <div class="timeline-item red">
+      <div class="timeline-title">Step 5: Coordinator Decides (Commit Point)</div>
+      <div class="timeline-desc">If all voted "yes," coordinator decides to commit; otherwise abort. The coordinator writes this decision to its <strong>transaction log on disk</strong>. This is the <span class="key-term">commit point</span> -- the second point of no return.</div>
+    </div>
+    <div class="timeline-item green">
+      <div class="timeline-title">Step 6: Coordinator Sends Commit/Abort (Phase 2)</div>
+      <div class="timeline-desc">Commit or abort request sent to all participants. If this fails, the coordinator <strong>retries forever</strong>. There is no going back. If a participant crashed, the transaction will be committed when it recovers.</div>
+    </div>
+  </div>
+
+  <div class="quote">"The protocol contains two crucial 'points of no return': when a participant votes 'yes,' it promises that it will definitely be able to commit later; and once the coordinator decides, that decision is irrevocable."</div>
+
+  <!-- ===== SECTION: COORDINATOR FAILURE ===== -->
+  <h2>Coordinator Failure and the In-Doubt Problem</h2>
+  <p>If the coordinator crashes <em>before</em> sending prepare requests, participants can safely abort. But if it crashes <em>after</em> participants have voted "yes" and <em>before</em> sending the commit/abort decision, participants are stuck: they cannot unilaterally commit (another participant may have aborted) or abort (the coordinator may have decided to commit). This state is called <span class="key-term">in doubt</span> or <span class="key-term">uncertain</span>.</p>
+
+  <!-- DIAGRAM 2: Coordinator Failure / In-Doubt -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 2: Coordinator Crash -- The In-Doubt Problem</div>
+    <div class="seq-diagram">
+  <span class="coord">Coordinator</span>                <span class="part">Database 1</span>          <span class="part">Database 2</span>
+      |                            |                    |
+      |  <span class="msg">Prepare</span>                  |                    |
+      |--------------------------->|                    |
+      |----------------------------------------------->|
+      |                            |                    |
+      |      <span class="msg">Vote YES</span>              |                    |
+      |<---------------------------|                    |
+      |      <span class="msg">Vote YES</span>                                  |
+      |<-----------------------------------------------|
+      |                            |                    |
+      |  <span class="decision">Decision: COMMIT</span>         |                    |
+      |  <span class="decision">(written to disk)</span>         |                    |
+      |                            |                    |
+      |  <span class="msg">Commit</span> -------X <span class="fail">CRASH!</span>    |                    |
+      |                    |       |                    |
+      |                    +------>| <span class="fail">???</span>                |
+      |                            | <span class="fail">IN DOUBT</span>          |
+      |                            | <span class="fail">Cannot commit</span>     |  <span class="msg">Commit received</span>
+      |                            | <span class="fail">Cannot abort</span>      |  <span class="part">COMMITTED</span>
+      |                            | <span class="fail">Must WAIT</span>         |
+      |                            |                    |</div>
+    <p style="margin-top:16px; font-size:0.85rem;">Database 1 is stuck in doubt: it voted "yes" but never received the coordinator's decision. It cannot abort (Database 2 already committed) or commit (what if coordinator had decided abort?). It must wait for the coordinator to recover.</p>
+  </div>
+
+  <div class="card card-red">
+    <h4>Holding Locks While In Doubt</h4>
+    <p>An in-doubt participant <strong>holds all its database locks</strong> (row-level exclusive locks, shared locks for 2PL). These locks cannot be released until the transaction commits or aborts. If the coordinator takes 20 minutes to restart, locks are held for 20 minutes. If the coordinator's log is lost, <strong>locks are held forever</strong> -- or until an administrator manually resolves the situation. Other transactions that need those rows are blocked, potentially causing large parts of the application to become unavailable.</p>
+  </div>
+
+  <div class="card card-accent">
+    <h4>Recovery: The Only Way Out</h4>
+    <ul>
+      <li>The coordinator must write its decision to a <strong>transaction log on disk</strong> before sending commit/abort to participants</li>
+      <li>On recovery, the coordinator reads its log and resolves in-doubt transactions</li>
+      <li>Transactions without a commit record are aborted</li>
+      <li>Orphaned in-doubt transactions (corrupted log, bugs) require <strong>manual administrator intervention</strong></li>
+      <li>The "heuristic decision" escape hatch lets participants unilaterally decide -- but this <em>probably breaks atomicity</em></li>
+    </ul>
+  </div>
+
+  <!-- ===== SECTION: 3PC ===== -->
+  <h2>Three-Phase Commit (3PC)</h2>
+  <p>2PC is a <span class="key-term">blocking</span> atomic commit protocol -- it can get stuck waiting for the coordinator. Three-phase commit (3PC) was proposed as a nonblocking alternative.</p>
+
+  <!-- DIAGRAM 3: 3PC vs 2PC -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 3: Two-Phase Commit vs Three-Phase Commit</div>
+    <div style="display:flex; gap:32px; flex-wrap:wrap;">
+      <div style="flex:1; min-width:200px;">
+        <div style="text-align:center; color:var(--accent); font-weight:700; margin-bottom:12px;">2PC (Blocking)</div>
+        <div class="layer-stack">
+          <div class="layer" style="background:rgba(59,130,246,0.15); color:var(--accent);">Phase 1: Prepare / Vote</div>
+          <div style="text-align:center; color:var(--text-muted);">|</div>
+          <div class="layer" style="background:rgba(59,130,246,0.25); color:var(--accent);">Commit Point (disk write)</div>
+          <div style="text-align:center; color:var(--text-muted);">|</div>
+          <div class="layer" style="background:rgba(59,130,246,0.35); color:var(--accent);">Phase 2: Commit / Abort</div>
+        </div>
+        <p style="font-size:0.8rem; margin-top:8px; color:var(--red);">If coordinator fails after Phase 1: participants BLOCKED</p>
+      </div>
+      <div style="flex:1; min-width:200px;">
+        <div style="text-align:center; color:var(--accent3); font-weight:700; margin-bottom:12px;">3PC (Non-blocking, in theory)</div>
+        <div class="layer-stack">
+          <div class="layer" style="background:rgba(16,185,129,0.15); color:var(--accent3);">Phase 1: CanCommit? / Vote</div>
+          <div style="text-align:center; color:var(--text-muted);">|</div>
+          <div class="layer" style="background:rgba(16,185,129,0.25); color:var(--accent3);">Phase 2: PreCommit (prepare)</div>
+          <div style="text-align:center; color:var(--text-muted);">|</div>
+          <div class="layer" style="background:rgba(16,185,129,0.35); color:var(--accent3);">Phase 3: DoCommit (finalize)</div>
+        </div>
+        <p style="font-size:0.8rem; margin-top:8px; color:var(--orange);">Assumes bounded network delay and bounded response times -- impractical in real systems</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-orange">
+    <h4>Why 3PC Doesn't Work in Practice</h4>
+    <ul>
+      <li>3PC assumes a network with <strong>bounded delay</strong> and nodes with <strong>bounded response times</strong></li>
+      <li>In most practical systems with unbounded network delay and process pauses, 3PC cannot guarantee atomicity</li>
+      <li>Nonblocking atomic commit requires a <strong>perfect failure detector</strong> -- a reliable mechanism for telling whether a node has crashed (timeouts are not reliable in unbounded-delay networks)</li>
+      <li>For this reason, <strong>2PC continues to be used</strong> despite the known coordinator failure problem</li>
+    </ul>
+  </div>
+
+  <!-- ===== SECTION: XA TRANSACTIONS ===== -->
+  <h2>XA Transactions Architecture</h2>
+  <p><span class="key-term">X/Open XA</span> (eXtended Architecture) is the standard for implementing 2PC across heterogeneous technologies. Introduced in 1991, it is supported by PostgreSQL, MySQL, DB2, SQL Server, Oracle, ActiveMQ, HornetQ, MSMQ, and IBM MQ.</p>
+
+  <!-- DIAGRAM 4: XA Architecture -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 4: XA Transaction Architecture</div>
+    <div class="concept-map">
+      <div class="concept-row">
+        <div class="concept-node root" style="border-color:var(--pink); color:var(--pink);">Application Process</div>
+      </div>
+      <div class="concept-connector">|</div>
+      <div class="concept-row">
+        <div class="arch-box purple" style="min-width:280px;">
+          <div class="arch-label" style="color:var(--accent2);">Transaction Coordinator (Library)</div>
+          <div class="arch-detail">Embedded in app process (e.g., Narayana, JOTM, BTM, MSDTC)<br>Tracks participants, collects votes<br><strong>Transaction log on local disk</strong></div>
+        </div>
+      </div>
+      <div class="concept-connector">XA C API / JTA</div>
+      <div style="display:flex; gap:16px; flex-wrap:wrap; justify-content:center;">
+        <div class="arch-box blue" style="min-width:140px;">
+          <div class="arch-label" style="color:var(--accent);">XA Driver</div>
+          <div class="arch-detail">JDBC / JMS</div>
+        </div>
+        <div class="arch-box blue" style="min-width:140px;">
+          <div class="arch-label" style="color:var(--accent);">XA Driver</div>
+          <div class="arch-detail">JDBC / JMS</div>
+        </div>
+        <div class="arch-box blue" style="min-width:140px;">
+          <div class="arch-label" style="color:var(--accent);">XA Driver</div>
+          <div class="arch-detail">JDBC / JMS</div>
+        </div>
+      </div>
+      <div class="concept-connector">Network</div>
+      <div style="display:flex; gap:16px; flex-wrap:wrap; justify-content:center;">
+        <div class="arch-box green" style="min-width:140px;">
+          <div class="arch-label" style="color:var(--accent3);">Database A</div>
+          <div class="arch-detail">PostgreSQL</div>
+        </div>
+        <div class="arch-box green" style="min-width:140px;">
+          <div class="arch-label" style="color:var(--accent3);">Database B</div>
+          <div class="arch-detail">MySQL</div>
+        </div>
+        <div class="arch-box orange" style="min-width:140px;">
+          <div class="arch-label" style="color:var(--orange);">Message Broker</div>
+          <div class="arch-detail">ActiveMQ</div>
+        </div>
+      </div>
+    </div>
+    <p style="margin-top:16px; font-size:0.85rem;">XA is not a network protocol -- it is a C API. The coordinator lives <em>inside</em> the application process. If the application crashes, the coordinator goes with it, leaving participants in doubt until the app is restarted and the coordinator recovers from its local disk log.</p>
+  </div>
+
+  <h3>Two Types of Distributed Transactions</h3>
+  <div class="grid2">
+    <div class="card card-green">
+      <h4>Database-Internal</h4>
+      <ul>
+        <li>All participants run the <strong>same database software</strong></li>
+        <li>Can use any internal protocol with optimizations</li>
+        <li>VoltDB, MySQL Cluster NDB</li>
+        <li>Can work quite well (e.g., distributed SSI possible)</li>
+      </ul>
+    </div>
+    <div class="card card-red">
+      <h4>Heterogeneous (XA)</h4>
+      <ul>
+        <li>Participants are <strong>different technologies</strong> (different DBs, message brokers)</li>
+        <li>Must use lowest common denominator protocol</li>
+        <li>Cannot detect cross-system deadlocks</li>
+        <li>Cannot work with SSI across systems</li>
+        <li>Much more challenging operationally</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Limitations of Distributed Transactions</h3>
+  <div class="card card-red">
+    <h4>Major Operational Problems</h4>
+    <ul>
+      <li><strong>Coordinator is a single point of failure</strong> -- if not replicated, its failure blocks the entire system</li>
+      <li><strong>Breaks stateless application model</strong> -- coordinator logs become critical durable state that must survive crashes</li>
+      <li><strong>Lowest common denominator</strong> -- no cross-system deadlock detection, no SSI across systems</li>
+      <li><strong>All participants must respond</strong> -- any broken part fails the entire transaction</li>
+      <li><strong>Amplifies failures</strong> -- runs counter to fault-tolerance goals</li>
+      <li><strong>Heavy performance penalty</strong> -- MySQL distributed transactions are 10x slower than single-node due to extra fsync and network round-trips</li>
+    </ul>
+  </div>
+
+  <!-- ===== SECTION: FAULT-TOLERANT CONSENSUS ===== -->
+  <h2>Fault-Tolerant Consensus</h2>
+  <p>Consensus means getting several nodes to agree on something. One or more nodes may <em>propose</em> values, and the consensus algorithm <em>decides</em> on one of those values.</p>
+
+  <!-- DIAGRAM 5: 4 Properties of Consensus -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 5: The Four Properties of Fault-Tolerant Consensus</div>
+    <div class="grid2">
+      <div class="card card-accent" style="margin:0;">
+        <h4 style="color:var(--accent);">1. Uniform Agreement</h4>
+        <p style="margin:0;">No two nodes decide differently.</p>
+        <span class="tag">Safety Property</span>
+      </div>
+      <div class="card card-green" style="margin:0;">
+        <h4 style="color:var(--accent3);">2. Integrity</h4>
+        <p style="margin:0;">No node decides twice.</p>
+        <span class="tag">Safety Property</span>
+      </div>
+      <div class="card card-purple" style="margin:0;">
+        <h4 style="color:var(--accent2);">3. Validity</h4>
+        <p style="margin:0;">If a node decides value v, then v was proposed by some node.</p>
+        <span class="tag">Safety Property</span>
+      </div>
+      <div class="card card-orange" style="margin:0;">
+        <h4 style="color:var(--orange);">4. Termination</h4>
+        <p style="margin:0;">Every node that does not crash eventually decides some value.</p>
+        <span class="tag">Liveness Property</span>
+      </div>
+    </div>
+    <div style="margin-top:16px;">
+      <p style="font-size:0.85rem;">Agreement + Integrity = core idea of consensus (everyone agrees, decisions are final). Validity rules out trivial solutions (always deciding null). Termination = fault tolerance (the algorithm must make progress). Safety properties are always met, even during majority failure. Termination requires that fewer than half of nodes are crashed.</p>
+    </div>
+  </div>
+
+  <div class="quote">"If you don't care about fault tolerance, then satisfying the first three properties is easy: just hardcode one node to be the 'dictator.' This is, in fact, what happens in 2PC: if the coordinator fails, in-doubt participants cannot decide whether to commit or abort."</div>
+
+  <!-- ===== SECTION: CONSENSUS ALGORITHMS ===== -->
+  <h2>Consensus Algorithms: Raft, Paxos, Zab, VSR</h2>
+  <p>The best-known fault-tolerant consensus algorithms are <span class="key-term">Viewstamped Replication (VSR)</span>, <span class="key-term">Paxos</span>, <span class="key-term">Raft</span>, and <span class="key-term">Zab</span>. They share high-level ideas but differ in details. Most actually implement <span class="key-term">total order broadcast</span> (a sequence of decisions), not single-value consensus.</p>
+
+  <!-- DIAGRAM 6: Consensus Algorithm Family -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 6: Consensus Algorithm Family Tree</div>
+    <div class="concept-map">
+      <div class="concept-row">
+        <div class="concept-node root">Fault-Tolerant Consensus</div>
+      </div>
+      <div class="concept-connector">implements</div>
+      <div class="concept-row">
+        <div class="concept-node" style="border-color:var(--accent2); color:var(--accent2);">Total Order Broadcast</div>
+      </div>
+      <div class="concept-connector">algorithms</div>
+      <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center;">
+        <div class="arch-box blue" style="min-width:160px;">
+          <div class="arch-label" style="color:var(--accent);">Paxos (1989)</div>
+          <div class="arch-detail">Lamport<br>Multi-Paxos for sequences<br>Notoriously difficult</div>
+        </div>
+        <div class="arch-box green" style="min-width:160px;">
+          <div class="arch-label" style="color:var(--accent3);">VSR (1988)</div>
+          <div class="arch-detail">Viewstamped Replication<br>Oki & Liskov<br>View numbers</div>
+        </div>
+        <div class="arch-box orange" style="min-width:160px;">
+          <div class="arch-label" style="color:var(--orange);">Zab</div>
+          <div class="arch-detail">ZooKeeper Atomic Broadcast<br>Used by ZooKeeper<br>Primary-backup model</div>
+        </div>
+        <div class="arch-box purple" style="min-width:160px;">
+          <div class="arch-label" style="color:var(--accent2);">Raft (2014)</div>
+          <div class="arch-detail">Ongaro & Ousterhout<br>Used by etcd, Consul<br>"Understandable" consensus</div>
+        </div>
+      </div>
+      <div class="concept-connector">all use</div>
+      <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center;">
+        <div class="concept-node" style="border-color:var(--accent3); color:var(--accent3);">Leader-based</div>
+        <div class="concept-node" style="border-color:var(--orange); color:var(--orange);">Epoch Numbering</div>
+        <div class="concept-node" style="border-color:var(--accent); color:var(--accent);">Quorum Voting</div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Consensus = Total Order Broadcast</h3>
+  <p>Total order broadcast requires messages to be delivered exactly once, in the same order, to all nodes. This is equivalent to performing <strong>repeated rounds of consensus</strong>: in each round, nodes propose the next message to deliver, and decide on the order.</p>
+
+  <div class="card card-accent">
+    <h4>Mapping Consensus Properties to Total Order Broadcast</h4>
+    <ul>
+      <li><strong>Agreement</strong> -- all nodes deliver the same messages in the same order</li>
+      <li><strong>Integrity</strong> -- messages are not duplicated</li>
+      <li><strong>Validity</strong> -- messages are not corrupted or fabricated out of thin air</li>
+      <li><strong>Termination</strong> -- messages are not lost</li>
+    </ul>
+  </div>
+
+  <!-- ===== SECTION: EPOCH NUMBERING & QUORUM VOTING ===== -->
+  <h2>Epoch Numbering and Quorum Voting</h2>
+  <p>All consensus protocols use a leader internally, but they don't guarantee the leader is unique globally. Instead, they define an <span class="key-term">epoch number</span> (ballot number in Paxos, view number in VSR, term number in Raft) and guarantee that within each epoch, the leader is unique.</p>
+
+  <!-- DIAGRAM 7: Epoch Numbering and Quorum Voting -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 7: Epoch Numbering and Quorum Voting</div>
+    <div style="margin-bottom:16px;">
+      <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:12px;">Nodes: A, B, C, D, E (majority quorum = 3)</div>
+      <div class="epoch-row">
+        <div class="epoch-label">Epoch 1</div>
+        <div class="epoch-cell leader">A*</div>
+        <div class="epoch-cell follower">B</div>
+        <div class="epoch-cell follower">C</div>
+        <div class="epoch-cell follower">D</div>
+        <div class="epoch-cell follower">E</div>
+        <div style="font-size:0.8rem; color:var(--text-muted); margin-left:8px;">A is leader</div>
+      </div>
+      <div style="text-align:center; color:var(--red); font-size:0.8rem; padding:4px;">A appears to fail (network partition)</div>
+      <div class="epoch-row">
+        <div class="epoch-label">Election</div>
+        <div class="epoch-cell dead">A?</div>
+        <div class="epoch-cell vote-yes">B:yes</div>
+        <div class="epoch-cell vote-yes">C:yes</div>
+        <div class="epoch-cell vote-yes">D:yes</div>
+        <div class="epoch-cell vote-no">E:no</div>
+        <div style="font-size:0.8rem; color:var(--accent3); margin-left:8px;">B wins (3/5 votes)</div>
+      </div>
+      <div class="epoch-row">
+        <div class="epoch-label">Epoch 2</div>
+        <div class="epoch-cell follower">A</div>
+        <div class="epoch-cell leader">B*</div>
+        <div class="epoch-cell follower">C</div>
+        <div class="epoch-cell follower">D</div>
+        <div class="epoch-cell follower">E</div>
+        <div style="font-size:0.8rem; color:var(--text-muted); margin-left:8px;">B is leader</div>
+      </div>
+      <div style="margin-top:16px; padding:12px; background:var(--surface); border-radius:8px; border:1px solid var(--border);">
+        <div style="font-size:0.85rem; color:var(--text);">Two rounds of quorum voting:</div>
+        <div style="display:flex; gap:24px; margin-top:8px; flex-wrap:wrap;">
+          <div style="flex:1; min-width:180px;">
+            <div style="font-size:0.8rem; color:var(--orange); font-weight:600;">Vote 1: Leader Election</div>
+            <div style="font-size:0.8rem; color:var(--text-muted);">Majority must agree on new leader with higher epoch number</div>
+          </div>
+          <div style="flex:1; min-width:180px;">
+            <div style="font-size:0.8rem; color:var(--accent3); font-weight:600;">Vote 2: Leader's Proposal</div>
+            <div style="font-size:0.8rem; color:var(--text-muted);">Majority must approve each value proposed by the leader. A node votes "yes" only if it knows no higher epoch.</div>
+          </div>
+        </div>
+        <div style="font-size:0.85rem; color:var(--accent2); margin-top:12px; font-weight:600;">Key insight: The quorums for these two votes MUST overlap. At least one node in the proposal vote also participated in the leader election, ensuring no higher-epoch leader was elected without this leader knowing.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SECTION: 2PC vs CONSENSUS ===== -->
+  <h2>2PC vs Consensus: A Critical Comparison</h2>
+
+  <!-- DIAGRAM 8: 2PC vs Consensus Table -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 8: 2PC vs Fault-Tolerant Consensus</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Property</th>
+          <th style="color:var(--orange);">2PC</th>
+          <th style="color:var(--accent3);">Consensus (Raft/Paxos/Zab)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Coordinator/Leader</strong></td>
+          <td>Fixed coordinator, not elected</td>
+          <td>Leader elected by vote, can change</td>
+        </tr>
+        <tr>
+          <td><strong>Voting requirement</strong></td>
+          <td>"Yes" from <strong>every</strong> participant</td>
+          <td>Majority quorum sufficient</td>
+        </tr>
+        <tr>
+          <td><strong>Coordinator/Leader failure</strong></td>
+          <td>System <strong>blocks</strong> until recovery</td>
+          <td>New leader elected, system <strong>progresses</strong></td>
+        </tr>
+        <tr>
+          <td><strong>Termination property</strong></td>
+          <td>NOT satisfied (can block forever)</td>
+          <td>Satisfied (with majority alive)</td>
+        </tr>
+        <tr>
+          <td><strong>Safety properties</strong></td>
+          <td>Agreement + Integrity (when it works)</td>
+          <td>Agreement + Integrity + Validity (always)</td>
+        </tr>
+        <tr>
+          <td><strong>Recovery process</strong></td>
+          <td>Read coordinator's disk log</td>
+          <td>Defined protocol for consistent state after election</td>
+        </tr>
+        <tr>
+          <td><strong>Fault model</strong></td>
+          <td>Cannot tolerate coordinator failure</td>
+          <td>Tolerates up to (n-1)/2 node failures</td>
+        </tr>
+        <tr>
+          <td><strong>Use case</strong></td>
+          <td>Atomic commit across heterogeneous systems</td>
+          <td>Total order broadcast, leader election, coordination</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="quote">"The voting process looks superficially similar to two-phase commit. The biggest differences are that in 2PC the coordinator is not elected, and that fault-tolerant consensus algorithms only require votes from a majority of nodes, whereas 2PC requires a 'yes' vote from every participant."</div>
+
+  <!-- ===== SECTION: LIMITATIONS OF CONSENSUS ===== -->
+  <h2>Limitations of Consensus</h2>
+  <p>Consensus algorithms are a huge breakthrough -- concrete safety properties in uncertain environments that remain fault-tolerant. But they come at a cost.</p>
+
+  <!-- DIAGRAM 9: Limitations Radar -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 9: Five Limitations of Consensus</div>
+    <div class="layer-stack" style="gap:8px;">
+      <div style="display:flex; gap:8px; align-items:center;">
+        <span class="number-badge" style="background:var(--accent); color:white;">1</span>
+        <div class="layer" style="background:rgba(59,130,246,0.12); color:var(--accent); text-align:left; flex:1;">
+          <strong>Synchronous replication overhead</strong>
+          <div style="font-size:0.8rem; color:var(--text-muted);">Voting before decisions = synchronous replication. Many databases prefer async replication for performance, accepting data loss on failover.</div>
+        </div>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <span class="number-badge" style="background:var(--accent3); color:white;">2</span>
+        <div class="layer" style="background:rgba(16,185,129,0.12); color:var(--accent3); text-align:left; flex:1;">
+          <strong>Strict majority required</strong>
+          <div style="font-size:0.8rem; color:var(--text-muted);">Need 3 nodes to tolerate 1 failure, 5 nodes for 2 failures. Network partitions block the minority side completely.</div>
+        </div>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <span class="number-badge" style="background:var(--orange); color:white;">3</span>
+        <div class="layer" style="background:rgba(245,158,11,0.12); color:var(--orange); text-align:left; flex:1;">
+          <strong>Fixed membership assumption</strong>
+          <div style="font-size:0.8rem; color:var(--text-muted);">Most algorithms assume a fixed set of voting nodes. Dynamic membership extensions exist but are much less well understood.</div>
+        </div>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <span class="number-badge" style="background:var(--accent2); color:white;">4</span>
+        <div class="layer" style="background:rgba(139,92,246,0.12); color:var(--accent2); text-align:left; flex:1;">
+          <strong>Timeout-based failure detection</strong>
+          <div style="font-size:0.8rem; color:var(--text-muted);">In geo-distributed systems with variable delays, nodes may falsely believe the leader is dead. Frequent spurious elections destroy performance.</div>
+        </div>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <span class="number-badge" style="background:var(--red); color:white;">5</span>
+        <div class="layer" style="background:rgba(239,68,68,0.12); color:var(--red); text-align:left; flex:1;">
+          <strong>Network sensitivity</strong>
+          <div style="font-size:0.8rem; color:var(--text-muted);">Raft can thrash leadership between two nodes on a flaky link, effectively never making progress. Designing algorithms robust to unreliable networks remains an open research problem.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SECTION: ZOOKEEPER ===== -->
+  <h2>Membership and Coordination Services: ZooKeeper</h2>
+  <p>ZooKeeper, etcd, and Consul look like key-value stores but implement consensus internally. They hold <strong>small amounts of data</strong> (fits in memory, written to disk for durability) replicated via fault-tolerant total order broadcast. ZooKeeper is modeled after Google's Chubby lock service.</p>
+
+  <!-- DIAGRAM 10: ZooKeeper 4 Features Architecture -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 10: ZooKeeper -- Four Key Features</div>
+    <div class="grid2">
+      <div class="arch-box blue">
+        <div class="arch-label" style="color:var(--accent);">1. Linearizable Atomic Operations</div>
+        <div class="arch-detail">Atomic compare-and-set for distributed locks. Implemented as <strong>leases</strong> with expiry times (released if client fails). Only feature that truly requires consensus.</div>
+      </div>
+      <div class="arch-box green">
+        <div class="arch-label" style="color:var(--accent3);">2. Total Ordering of Operations</div>
+        <div class="arch-detail">Monotonically increasing <strong>zxid</strong> (transaction ID) and <strong>cversion</strong> (version number) for fencing tokens. Prevents conflicts from process pauses.</div>
+      </div>
+      <div class="arch-box orange">
+        <div class="arch-label" style="color:var(--orange);">3. Failure Detection</div>
+        <div class="arch-detail">Long-lived sessions with periodic heartbeats. Session survives temporary disconnects. After timeout, session declared dead. Locks auto-released via <strong>ephemeral nodes</strong>.</div>
+      </div>
+      <div class="arch-box purple">
+        <div class="arch-label" style="color:var(--accent2);">4. Change Notifications</div>
+        <div class="arch-detail">Clients <strong>watch</strong> keys/locks for changes. Get notified when another client joins (writes to ZK), fails (ephemeral nodes disappear), etc. No polling required.</div>
+      </div>
+    </div>
+    <p style="margin-top:16px; font-size:0.85rem;">It is the <em>combination</em> of these features that makes ZooKeeper so useful. Individually, only linearizable operations require consensus. Together, they enable leader election, work allocation, partition assignment, and automatic fault recovery.</p>
+  </div>
+
+  <h3>How ZooKeeper Is Used</h3>
+  <div class="grid2">
+    <div class="card card-accent">
+      <h4>Leader Election / Work Allocation</h4>
+      <p>Multiple instances of a service need to choose a leader. Using atomic operations + ephemeral nodes + notifications: when the leader fails, its ephemeral node disappears, other nodes are notified, and a new leader is elected automatically. Used by HBase, Hadoop YARN, OpenStack Nova, Kafka.</p>
+    </div>
+    <div class="card card-green">
+      <h4>Partition Assignment</h4>
+      <p>When partitioned resources (DB, message streams, files) need to be assigned to nodes: as nodes join/leave/fail, ZooKeeper coordinates rebalancing. The application can automatically recover from faults without human intervention.</p>
+    </div>
+  </div>
+
+  <h3>Service Discovery</h3>
+  <div class="card card-purple">
+    <h4>Service Discovery vs Consensus</h4>
+    <p>ZooKeeper, etcd, and Consul are often used for <span class="key-term">service discovery</span> -- finding which IP address to connect to for a service. Services register their endpoints when they start up. However, service discovery does not strictly require consensus -- DNS works fine with caching and stale reads. What <em>does</em> require consensus is <strong>leader election</strong>. Since the consensus system already knows who the leader is, it makes sense to also serve that information for discovery. Some consensus systems support <strong>read-only caching replicas</strong> that asynchronously receive the log but don't vote, enabling scalable non-linearizable reads.</p>
+  </div>
+
+  <h3>Membership Services</h3>
+  <div class="card card-orange">
+    <h4>What Is a Membership Service?</h4>
+    <p>A <span class="key-term">membership service</span> determines which nodes are currently active and live members of a cluster. Due to unbounded network delays, you cannot reliably detect node failure. But coupling failure detection with consensus lets nodes <strong>agree</strong> on which nodes should be considered alive or dead. A node may be incorrectly declared dead, but the system has agreement -- and that agreement enables choosing a leader (e.g., lowest-numbered living member) consistently across all nodes.</p>
+  </div>
+
+  <!-- DIAGRAM 11: Grand Unification Diagram -->
+  <h2>The Grand Unification: Consistency, Algorithms, and Implementations</h2>
+  <p>A remarkable insight from this chapter: linearizable compare-and-set, atomic commit, total order broadcast, locks/leases, membership services, and uniqueness constraints are all <strong>reducible to consensus</strong>. If you can solve one, you can solve them all.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 11: Grand Unification -- Consistency to Algorithms to Implementations</div>
+    <div class="concept-map">
+      <!-- Layer 1: Problems requiring consensus -->
+      <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:2px; color:var(--red); font-weight:700;">Problems (All Equivalent / Reducible to Consensus)</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
+        <div class="concept-node" style="border-color:var(--red); color:var(--red); font-size:0.78rem;">Linearizable CAS Register</div>
+        <div class="concept-node" style="border-color:var(--red); color:var(--red); font-size:0.78rem;">Atomic Transaction Commit</div>
+        <div class="concept-node" style="border-color:var(--red); color:var(--red); font-size:0.78rem;">Total Order Broadcast</div>
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
+        <div class="concept-node" style="border-color:var(--red); color:var(--red); font-size:0.78rem;">Locks and Leases</div>
+        <div class="concept-node" style="border-color:var(--red); color:var(--red); font-size:0.78rem;">Membership / Coordination</div>
+        <div class="concept-node" style="border-color:var(--red); color:var(--red); font-size:0.78rem;">Uniqueness Constraints</div>
+      </div>
+
+      <div class="concept-connector" style="font-size:1.6rem;">||</div>
+
+      <!-- Layer 2: Algorithms -->
+      <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:2px; color:var(--accent2); font-weight:700;">Algorithms</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
+        <div class="concept-node" style="border-color:var(--accent2); color:var(--accent2);">Paxos</div>
+        <div class="concept-node" style="border-color:var(--accent2); color:var(--accent2);">Raft</div>
+        <div class="concept-node" style="border-color:var(--accent2); color:var(--accent2);">Zab</div>
+        <div class="concept-node" style="border-color:var(--accent2); color:var(--accent2);">VSR</div>
+      </div>
+
+      <div class="concept-connector" style="font-size:1.6rem;">||</div>
+
+      <!-- Layer 3: Implementations -->
+      <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:2px; color:var(--accent3); font-weight:700;">Implementations ("Outsourced" Consensus)</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
+        <div class="concept-node" style="border-color:var(--accent3); color:var(--accent3);">ZooKeeper (Zab)</div>
+        <div class="concept-node" style="border-color:var(--accent3); color:var(--accent3);">etcd (Raft)</div>
+        <div class="concept-node" style="border-color:var(--accent3); color:var(--accent3);">Consul (Raft)</div>
+        <div class="concept-node" style="border-color:var(--accent3); color:var(--accent3);">Google Chubby</div>
+      </div>
+
+      <div class="concept-connector" style="font-size:1.6rem;">||</div>
+
+      <!-- Layer 4: Three approaches -->
+      <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:2px; color:var(--orange); font-weight:700;">Three Ways to Handle Leader Failure</div>
+      <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center;">
+        <div class="arch-box red" style="min-width:180px;">
+          <div class="arch-label" style="color:var(--red);">1. Wait for Recovery</div>
+          <div class="arch-detail">XA/JTA coordinators. Blocks until leader returns. Does NOT satisfy termination.</div>
+        </div>
+        <div class="arch-box orange" style="min-width:180px;">
+          <div class="arch-label" style="color:var(--orange);">2. Manual Failover</div>
+          <div class="arch-detail">Human operator chooses new leader. "Consensus by act of God." Limited by human speed.</div>
+        </div>
+        <div class="arch-box green" style="min-width:180px;">
+          <div class="arch-label" style="color:var(--accent3);">3. Automatic Election</div>
+          <div class="arch-detail">Use a consensus algorithm. The recommended approach. Handles adverse network conditions.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="quote">"Having a leader only 'kicks the can down the road': consensus is still required, only in a different place, and less frequently. The good news is that fault-tolerant algorithms and systems for consensus exist."</div>
+
+  <!-- DIAGRAM 12: The Chicken-and-Egg Problem -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 12: The Chicken-and-Egg Problem of Consensus</div>
+    <div style="display:flex; flex-direction:column; align-items:center; gap:12px;">
+      <div class="flow">
+        <div class="flow-box primary">Consensus Algorithm</div>
+        <div class="flow-arrow">implements</div>
+        <div class="flow-box purple">Total Order Broadcast</div>
+      </div>
+      <div class="concept-connector">which is like</div>
+      <div class="flow">
+        <div class="flow-box green">Single-Leader Replication</div>
+        <div class="flow-arrow">requires</div>
+        <div class="flow-box orange">A Leader</div>
+      </div>
+      <div class="concept-connector">but choosing a leader requires</div>
+      <div class="flow">
+        <div class="flow-box primary">Consensus!</div>
+      </div>
+      <div style="margin-top:16px; padding:16px; background:var(--surface); border:1px solid var(--border); border-radius:8px; max-width:600px;">
+        <p style="font-size:0.85rem; margin:0; color:var(--accent2);"><strong>Resolution: Epoch numbering + quorum overlap.</strong> The protocols don't guarantee a globally unique leader. They guarantee uniqueness <em>within each epoch</em>. The key insight: quorums for leader election and quorums for proposal voting must overlap -- at least one node in both, ensuring no conflicting decisions.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SECTION: NOT EVERYTHING NEEDS CONSENSUS ===== -->
+  <h2>Not Everything Needs Consensus</h2>
+  <div class="card card-green">
+    <h4>When Consensus Is Not Required</h4>
+    <p>Leaderless and multi-leader replication systems typically do <strong>not</strong> use global consensus. The conflicts that occur in these systems are a consequence of not having consensus, but that may be acceptable. Sometimes we simply need to cope without linearizability and learn to work with data that has branching and merging version histories. Alternative methods (explored in Chapters 11 and 12) can achieve cross-system consistency without the pain of heterogeneous distributed transactions.</p>
+  </div>
+
+  <!-- ===== SECTION: QUESTIONS ===== -->
+  <h2>Test Your Understanding</h2>
+
+  <div class="question-block">
+    <div class="question-header" onclick="this.parentElement.classList.toggle('open')">
+      <span><span class="q-num">1</span>Why does 2PC block when the coordinator crashes, while Raft/Paxos do not?</span>
+      <span class="chevron">&#9660;</span>
+    </div>
+    <div class="question-body">
+      <p>In 2PC, the coordinator is a fixed, non-elected role, and the protocol requires a "yes" vote from <strong>every</strong> participant. If the coordinator crashes after participants vote "yes" but before sending the decision, participants are stuck in doubt because they cannot unilaterally decide (aborting might conflict with a committed participant, committing might conflict with an aborted one). They must wait for the coordinator to recover and read its transaction log.</p>
+      <p>In Raft/Paxos, the leader is elected and can be replaced. Decisions require only a <strong>majority quorum</strong>, not unanimity. If the leader fails, a new leader is elected via a higher epoch number, and the protocol has a defined recovery process to bring nodes into a consistent state. This satisfies the <strong>termination</strong> property that 2PC lacks.</p>
+    </div>
+  </div>
+
+  <div class="question-block">
+    <div class="question-header" onclick="this.parentElement.classList.toggle('open')">
+      <span><span class="q-num">2</span>What is the "commit point" in 2PC, and why is it a single-node atomic operation?</span>
+      <span class="chevron">&#9660;</span>
+    </div>
+    <div class="question-body">
+      <p>The commit point is the moment when the coordinator writes its commit (or abort) decision to its <strong>transaction log on disk</strong>. Before this moment, the transaction can still be aborted. After this moment, the decision is irrevocable and must be enforced even if retries are needed.</p>
+      <p>This is a single-node atomic operation because it comes down to writing a single commit record on one disk on one machine -- exactly like a single-node transaction commit. The entire complexity of 2PC ultimately reduces to this single-device atomic write on the coordinator. This is also why coordinator failure is so problematic: if that one disk's log is lost, the in-doubt transactions cannot be resolved.</p>
+    </div>
+  </div>
+
+  <div class="question-block">
+    <div class="question-header" onclick="this.parentElement.classList.toggle('open')">
+      <span><span class="q-num">3</span>Why does 3PC not work in practice, and what would it need to work?</span>
+      <span class="chevron">&#9660;</span>
+    </div>
+    <div class="question-body">
+      <p>3PC was designed to be a nonblocking alternative to 2PC by adding an intermediate "pre-commit" phase. However, it assumes a network with <strong>bounded delay</strong> and nodes with <strong>bounded response times</strong>. In real-world systems, network delays and process pauses are unbounded (as discussed in Chapter 8), so 3PC cannot guarantee atomicity.</p>
+      <p>For nonblocking atomic commit to work, you would need a <strong>perfect failure detector</strong> -- a reliable mechanism for determining whether a node has truly crashed. In networks with unbounded delay, a timeout is not a reliable failure detector because a request might time out due to network congestion, not a crash. This is why 2PC continues to be used despite its blocking problem.</p>
+    </div>
+  </div>
+
+  <div class="question-block">
+    <div class="question-header" onclick="this.parentElement.classList.toggle('open')">
+      <span><span class="q-num">4</span>Explain the "chicken-and-egg" problem of consensus and how epoch numbering resolves it.</span>
+      <span class="chevron">&#9660;</span>
+    </div>
+    <div class="question-body">
+      <p>Consensus algorithms implement total order broadcast, which is equivalent to single-leader replication. But single-leader replication requires a leader. Electing a leader requires consensus. So to solve consensus, we seemingly need to first solve consensus -- a circular dependency.</p>
+      <p>The resolution is <strong>epoch numbering</strong>. The protocols don't guarantee a globally unique leader -- they guarantee a unique leader <em>within each epoch</em>. When a leader appears to fail, a new election with a higher epoch number occurs. If two leaders exist in different epochs, the one with the higher epoch prevails. Before making any decision, a leader must collect votes from a quorum. The <strong>key insight</strong> is that the quorum for leader election and the quorum for proposal voting must overlap: at least one node participated in both, ensuring that no higher-epoch leader was elected without the current leader detecting it.</p>
+    </div>
+  </div>
+
+  <div class="question-block">
+    <div class="question-header" onclick="this.parentElement.classList.toggle('open')">
+      <span><span class="q-num">5</span>Why does ZooKeeper run on a small fixed number of nodes even when the application has thousands of nodes?</span>
+      <span class="chevron">&#9660;</span>
+    </div>
+    <div class="question-body">
+      <p>Performing majority votes over thousands of nodes would be <strong>terribly inefficient</strong>. Instead, ZooKeeper runs on a fixed number of nodes (usually 3 or 5) and performs majority votes among those few nodes. It then supports a potentially large number of <strong>clients</strong> that connect to the ZooKeeper cluster. This "outsources" consensus, operation ordering, and failure detection to the small ZooKeeper ensemble, while the application nodes just use the results.</p>
+      <p>The data managed by ZooKeeper is slow-changing (which node is the leader for a partition, cluster membership) -- on the timescale of minutes or hours. Runtime application state changing thousands of times per second should use other tools (like Apache BookKeeper).</p>
+    </div>
+  </div>
+
+  <div class="question-block">
+    <div class="question-header" onclick="this.parentElement.classList.toggle('open')">
+      <span><span class="q-num">6</span>What are the six problems that are all "equivalent to consensus," and what does equivalence mean here?</span>
+      <span class="chevron">&#9660;</span>
+    </div>
+    <div class="question-body">
+      <p>The six equivalent problems are:</p>
+      <ol style="padding-left:20px; margin:8px 0;">
+        <li><strong>Linearizable compare-and-set registers</strong> -- atomically deciding whether to set a value based on its current value</li>
+        <li><strong>Atomic transaction commit</strong> -- all nodes agreeing to commit or abort a distributed transaction</li>
+        <li><strong>Total order broadcast</strong> -- all nodes agreeing on the order of message delivery</li>
+        <li><strong>Locks and leases</strong> -- deciding which client successfully acquired a lock</li>
+        <li><strong>Membership/coordination service</strong> -- agreeing which nodes are alive or dead</li>
+        <li><strong>Uniqueness constraints</strong> -- deciding which conflicting record to allow when multiple transactions try to create records with the same key</li>
+      </ol>
+      <p>"Equivalent" means that if you have a solution for any one of these problems, you can <strong>transform it into a solution for any of the others</strong>. For example, total order broadcast and linearizable compare-and-set are both equivalent to consensus -- as proved by Herlihy (1991). This is a profound insight: these seemingly different problems are all the same problem in disguise.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // Keyboard accessibility for question blocks
+  document.querySelectorAll('.question-header').forEach(h => {
+    h.setAttribute('tabindex', '0');
+    h.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); h.click(); } });
+  });
+</script>
+</body>
+</html>

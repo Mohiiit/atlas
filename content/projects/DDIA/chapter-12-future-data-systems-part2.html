@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Chapter 12 Part 2 — Correctness, Integrity, and Ethics</title>
+<style>
+  :root {
+    --bg: #0a0e17;
+    --surface: #111827;
+    --surface2: #1a2234;
+    --border: #1e293b;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --accent: #3b82f6;
+    --accent2: #8b5cf6;
+    --accent3: #10b981;
+    --red: #ef4444;
+    --orange: #f59e0b;
+    --pink: #ec4899;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+  .container { max-width: 900px; margin: 0 auto; padding: 40px 24px 100px; }
+  h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 48px; border-bottom: 1px solid var(--border); padding-bottom: 24px; }
+  h2 { font-size: 1.5rem; font-weight: 700; margin: 48px 0 16px; color: var(--accent); }
+  h3 { font-size: 1.15rem; font-weight: 600; margin: 32px 0 12px; color: var(--text); }
+  p { margin-bottom: 16px; color: var(--text-muted); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 20px 0; }
+  .card-accent { border-left: 4px solid var(--accent); }
+  .card-green { border-left: 4px solid var(--accent3); }
+  .card-orange { border-left: 4px solid var(--orange); }
+  .card-purple { border-left: 4px solid var(--accent2); }
+  .card-red { border-left: 4px solid var(--red); }
+  .card h4 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+  .card ul { padding-left: 20px; color: var(--text-muted); }
+  .card li { margin-bottom: 6px; }
+  .key-term { color: var(--accent); font-weight: 600; }
+  .diagram { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 32px; margin: 24px 0; overflow-x: auto; }
+  .diagram-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent2); margin-bottom: 20px; }
+  .flow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; }
+  .flow-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; text-align: center; font-size: 0.9rem; min-width: 120px; }
+  .flow-box.primary { border-color: var(--accent); color: var(--accent); }
+  .flow-box.green { border-color: var(--accent3); color: var(--accent3); }
+  .flow-box.purple { border-color: var(--accent2); color: var(--accent2); }
+  .flow-box.orange { border-color: var(--orange); color: var(--orange); }
+  .flow-box.red { border-color: var(--red); color: var(--red); }
+  .flow-box.pink { border-color: var(--pink); color: var(--pink); }
+  .flow-arrow { color: var(--text-muted); font-size: 1.2rem; }
+  .flow-vert { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } .grid3 { grid-template-columns: 1fr; } }
+  .quote { background: var(--surface2); border-left: 3px solid var(--accent2); padding: 16px 20px; margin: 20px 0; border-radius: 0 8px 8px 0; font-style: italic; color: var(--text-muted); }
+  .tag { display: inline-block; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 2px 12px; font-size: 0.8rem; color: var(--text-muted); margin: 2px; }
+  .layer-stack { display: flex; flex-direction: column; gap: 0; align-items: center; width: 100%; }
+  .layer { width: 90%; max-width: 500px; padding: 14px 20px; text-align: center; font-size: 0.9rem; font-weight: 600; border: 1px solid; position: relative; }
+  .layer:first-child { border-radius: 10px 10px 0 0; }
+  .layer:last-child { border-radius: 0 0 10px 10px; }
+  .layer-gap { font-size: 0.75rem; color: var(--text-muted); padding: 4px 0; }
+  .compare-table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  .compare-table th, .compare-table td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  .compare-table th { color: var(--accent); font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; }
+  .compare-table td { color: var(--text-muted); }
+  .compare-table tr:last-child td { border-bottom: none; }
+  .question-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin: 12px 0; }
+  .question-card .q { font-weight: 700; color: var(--text); margin-bottom: 8px; }
+  .question-card .a { color: var(--text-muted); font-size: 0.95rem; display: none; }
+  .question-card:hover .a { display: block; }
+  .question-card .hint { font-size: 0.8rem; color: var(--accent2); margin-top: 4px; }
+  .ethics-box { background: linear-gradient(135deg, rgba(139,92,246,0.08), rgba(236,72,153,0.08)); border: 1px solid rgba(139,92,246,0.3); border-radius: 12px; padding: 24px; margin: 20px 0; }
+  .ethics-box h4 { color: var(--pink); }
+  code { background: var(--surface2); padding: 2px 6px; border-radius: 4px; font-size: 0.88rem; color: var(--accent3); }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Chapter 12: The Future of Data Systems</h1>
+<p class="subtitle">Part 2 -- Correctness, Integrity, and Ethics &mdash; Designing applications that are not only reliable and performant, but also correct and responsible</p>
+
+<!-- ============================================ -->
+<!-- SECTION: Aiming for Correctness              -->
+<!-- ============================================ -->
+
+<h2>Aiming for Correctness</h2>
+
+<p>Stateless services are forgiving: fix a bug, restart, and everything returns to normal. <span class="key-term">Stateful systems</span> like databases remember things forever, so errors can have permanent consequences. For roughly four decades, ACID transactions have been the tool of choice, but their foundations are weaker than they appear -- witness the confusion around weak isolation levels, and Kyle Kingsbury's Jepsen experiments exposing gaps between claimed and actual safety guarantees.</p>
+
+<div class="card card-orange">
+  <h4>The Core Problem</h4>
+  <p>If your application can tolerate occasionally corrupting or losing data, life is simple. If you need stronger assurances, serializability and atomic commit are established approaches -- but they typically work only in a single datacenter, limiting scale and fault tolerance. We need new abstractions for application-specific end-to-end correctness in distributed environments.</p>
+</div>
+
+<!-- ============================================ -->
+<!-- SECTION: End-to-End Argument for Databases   -->
+<!-- ============================================ -->
+
+<h2>The End-to-End Argument for Databases</h2>
+
+<p>Just because an application uses a data system with strong safety properties (e.g., serializable transactions) does <strong>not</strong> guarantee freedom from data loss or corruption. If the application has a bug that writes incorrect data, transactions will not save you. Immutability helps recovery, but it is not a cure-all.</p>
+
+<h3>Exactly-Once Execution of an Operation</h3>
+
+<p>When something goes wrong while processing a message, you can drop it (data loss) or retry it (risk of double processing). Processing twice is a form of data corruption -- charging a customer twice or double-incrementing a counter. <span class="key-term">Exactly-once semantics</span> means arranging computation so the final effect is the same as if no faults occurred, even if the operation was retried.</p>
+
+<p>The most effective approach is to make operations <span class="key-term">idempotent</span>: ensuring an operation has the same effect whether executed once or multiple times. This requires maintaining additional metadata (e.g., the set of operation IDs that have updated a value) and ensuring proper fencing during failover.</p>
+
+<!-- DIAGRAM 1: Exactly-Once Execution Flow -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 1: Exactly-Once Execution via Idempotency</div>
+  <div class="flow">
+    <div class="flow-box primary">Client sends<br>request + UUID</div>
+    <span class="flow-arrow">&rarr;</span>
+    <div class="flow-box orange">Server receives<br>request</div>
+    <span class="flow-arrow">&rarr;</span>
+    <div class="flow-vert">
+      <div class="flow-box green">Check: UUID<br>seen before?</div>
+      <div style="display:flex; gap:24px;">
+        <div class="flow-vert">
+          <span style="color:var(--accent3); font-size:0.8rem;">NO</span>
+          <div class="flow-box green">Execute &amp;<br>record UUID</div>
+        </div>
+        <div class="flow-vert">
+          <span style="color:var(--red); font-size:0.8rem;">YES</span>
+          <div class="flow-box red">Return cached<br>response</div>
+        </div>
+      </div>
+    </div>
+    <span class="flow-arrow">&rarr;</span>
+    <div class="flow-box purple">Return result<br>to client</div>
+  </div>
+</div>
+
+<h3>Duplicate Suppression</h3>
+
+<p>TCP uses sequence numbers to suppress duplicate packets -- but only within a single TCP connection. Consider a money transfer: if the client's connection drops after sending <code>COMMIT</code> but before hearing back, it does not know whether the transaction committed. Reconnecting and retrying creates a <em>new</em> TCP connection, outside the scope of TCP's dedup. The transfer could execute twice ($22 instead of $11).</p>
+
+<p>Even two-phase commit does not fully solve this. And the problem extends beyond the database: if the end user is on a weak cellular connection and their HTTP POST succeeds but the response is lost, the browser shows "Are you sure you want to submit this form again?" -- and the user says yes.</p>
+
+<!-- DIAGRAM 2: Layered Duplicate Suppression -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 2: Where Duplicate Suppression Fails -- Layered View</div>
+  <div class="layer-stack">
+    <div class="layer" style="background: rgba(239,68,68,0.1); border-color: var(--red); color: var(--red);">
+      End User (Browser / Mobile App)<br>
+      <span style="font-size:0.75rem; font-weight:400;">No dedup -- user manually retries on timeout</span>
+    </div>
+    <div class="layer-gap">&darr; HTTP POST (no built-in dedup) &darr;</div>
+    <div class="layer" style="background: rgba(245,158,11,0.1); border-color: var(--orange); color: var(--orange);">
+      Application Server<br>
+      <span style="font-size:0.75rem; font-weight:400;">Sees retry as a new request</span>
+    </div>
+    <div class="layer-gap">&darr; New TCP connection &darr;</div>
+    <div class="layer" style="background: rgba(59,130,246,0.1); border-color: var(--accent); color: var(--accent);">
+      Database (TCP Dedup)<br>
+      <span style="font-size:0.75rem; font-weight:400;">TCP dedup only within same connection -- fails on reconnect</span>
+    </div>
+    <div class="layer-gap">&darr; fsync &darr;</div>
+    <div class="layer" style="background: rgba(16,185,129,0.1); border-color: var(--accent3); color: var(--accent3);">
+      Disk / Storage<br>
+      <span style="font-size:0.75rem; font-weight:400;">No awareness of duplicates at this level</span>
+    </div>
+  </div>
+  <p style="text-align:center; margin-top:16px; font-size:0.85rem; color:var(--red);">Each layer's dedup only covers its own scope. Only end-to-end dedup (from client to database) can prevent all duplicates.</p>
+</div>
+
+<!-- ============================================ -->
+<!-- SECTION: Operation Identifiers               -->
+<!-- ============================================ -->
+
+<h2>Operation Identifiers</h2>
+
+<p>To make an operation idempotent through several hops of network communication, you need to consider the <span class="key-term">end-to-end flow</span>. Generate a unique operation ID (e.g., a UUID) at the client, include it as a hidden form field, and pass it all the way through to the database.</p>
+
+<div class="card card-green">
+  <h4>The Idempotent Transfer Pattern</h4>
+  <ul>
+    <li><code>ALTER TABLE requests ADD UNIQUE (request_id);</code></li>
+    <li>Within the transaction: <code>INSERT INTO requests (request_id, from_account, to_account, amount) VALUES (...)</code></li>
+    <li>If the UUID already exists, the INSERT fails and the transaction aborts</li>
+    <li>The <code>requests</code> table also serves as an event log, hinting toward event sourcing</li>
+    <li>Balance updates can be derived from the request event in a downstream consumer</li>
+  </ul>
+</div>
+
+<!-- DIAGRAM 3: Operation ID Flow -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 3: Idempotent Write Flow with Operation Identifiers</div>
+  <div class="flow">
+    <div class="flow-box pink">User clicks<br>"Transfer $11"</div>
+    <span class="flow-arrow">&rarr;</span>
+    <div class="flow-box primary">Browser generates<br>UUID: <code style="font-size:0.7rem;">0286FDB8...</code></div>
+    <span class="flow-arrow">&rarr;</span>
+    <div class="flow-box orange">App server<br>forwards UUID</div>
+    <span class="flow-arrow">&rarr;</span>
+    <div class="flow-box green">DB: INSERT with<br>UNIQUE(request_id)</div>
+  </div>
+  <div style="margin-top:16px; text-align:center;">
+    <div style="display:inline-flex; gap:32px; flex-wrap:wrap; justify-content:center;">
+      <div class="flow-vert">
+        <span style="color:var(--accent3); font-weight:600;">First attempt</span>
+        <div class="flow-box green">INSERT succeeds<br>Transfer executes</div>
+      </div>
+      <div class="flow-vert">
+        <span style="color:var(--red); font-weight:600;">Retry (same UUID)</span>
+        <div class="flow-box red">INSERT fails<br>(duplicate key)<br>Transaction aborted</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3>The End-to-End Argument</h3>
+
+<div class="quote">
+  "The function in question can completely and correctly be implemented only with the knowledge and help of the application standing at the endpoints of the communication system. Therefore, providing that questioned function as a feature of the communication system itself is not possible." -- Saltzer, Reed, and Clark, 1984
+</div>
+
+<p>The end-to-end argument applies beyond duplicate suppression: checksums in Ethernet, TCP, and TLS detect network corruption but not bugs in software or corruption on disk. WiFi encryption protects against local snooping but not attackers elsewhere. Only <span class="key-term">end-to-end</span> mechanisms (checksums, encryption, dedup IDs) can address all sources of failure. Low-level mechanisms remain useful as performance optimizations, reducing problems that reach higher levels.</p>
+
+<!-- DIAGRAM 4: End-to-End Argument Across Domains -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 4: End-to-End Argument Applied Across Three Domains</div>
+  <div style="display:flex; flex-direction:column; gap:20px;">
+    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+      <div class="flow-box primary" style="min-width:140px;">Duplicate<br>Suppression</div>
+      <span class="flow-arrow">&rarr;</span>
+      <div class="flow-box" style="flex:1; min-width:200px;">TCP dedup handles packets <span style="color:var(--orange);">but not</span> retried transactions across connections. Need: <span style="color:var(--accent3);">end-to-end request ID</span></div>
+    </div>
+    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+      <div class="flow-box orange" style="min-width:140px;">Integrity<br>Checking</div>
+      <span class="flow-arrow">&rarr;</span>
+      <div class="flow-box" style="flex:1; min-width:200px;">Ethernet/TCP checksums catch network corruption <span style="color:var(--orange);">but not</span> software bugs or disk rot. Need: <span style="color:var(--accent3);">end-to-end checksums</span></div>
+    </div>
+    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+      <div class="flow-box purple" style="min-width:140px;">Encryption</div>
+      <span class="flow-arrow">&rarr;</span>
+      <div class="flow-box" style="flex:1; min-width:200px;">WiFi/TLS protect hops <span style="color:var(--orange);">but not</span> compromised servers. Need: <span style="color:var(--accent3);">end-to-end encryption</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- SECTION: Uniqueness Constraints and the Log  -->
+<!-- ============================================ -->
+
+<h2>Uniqueness Constraints and the Log</h2>
+
+<p>Enforcing a uniqueness constraint in a distributed setting requires <span class="key-term">consensus</span>. The most common approach is single-leader coordination, with partitioning by the unique value for scale-out. Asynchronous multi-master replication is ruled out because different masters may concurrently accept conflicting writes.</p>
+
+<h3>Uniqueness in Log-Based Messaging</h3>
+
+<p>In the unbundled database approach, a log ensures total order broadcast (equivalent to consensus). A stream processor consumes messages sequentially on a single thread per partition, deterministically deciding which of several conflicting operations came first.</p>
+
+<!-- DIAGRAM 5: Uniqueness via Log -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 5: Enforcing Uniqueness via Partitioned Log</div>
+  <div class="flow" style="flex-direction: column; gap: 16px;">
+    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:center;">
+      <div class="flow-box pink">User A requests<br>username "alice"</div>
+      <div class="flow-box pink">User B requests<br>username "alice"</div>
+    </div>
+    <span class="flow-arrow" style="font-size:1.5rem;">&darr;</span>
+    <div class="flow-box primary" style="width:80%; max-width:400px;">Log Partition (by hash of "alice")<br><span style="font-size:0.8rem; color:var(--text-muted);">Messages ordered: A first, then B</span></div>
+    <span class="flow-arrow" style="font-size:1.5rem;">&darr;</span>
+    <div class="flow-box purple" style="width:80%; max-width:400px;">Stream Processor (sequential reader)<br><span style="font-size:0.8rem; color:var(--text-muted);">Local DB tracks taken usernames</span></div>
+    <span class="flow-arrow" style="font-size:1.5rem;">&darr;</span>
+    <div style="display:flex; gap:24px; flex-wrap:wrap; justify-content:center;">
+      <div class="flow-box green">User A &rarr; SUCCESS<br>"alice" is yours</div>
+      <div class="flow-box red">User B &rarr; REJECTED<br>"alice" already taken</div>
+    </div>
+  </div>
+</div>
+
+<h3>Multi-Partition Request Processing</h3>
+
+<p>A money transfer touches potentially three partitions: request ID, payee account, and payer account. Instead of an atomic commit across all three, we can use partitioned logs with end-to-end request IDs:</p>
+
+<div class="card card-accent">
+  <h4>Three-Step Coordination-Free Transfer</h4>
+  <ul>
+    <li><strong>Step 1:</strong> Client assigns a unique request ID. Request is appended to a log partition (by request ID).</li>
+    <li><strong>Step 2:</strong> A stream processor reads the request log and emits: a debit instruction (partitioned by payer A) and a credit instruction (partitioned by payee B), both tagged with the request ID.</li>
+    <li><strong>Step 3:</strong> Downstream processors consume debit/credit streams, deduplicate by request ID, and apply balance changes.</li>
+  </ul>
+  <p style="margin-top:12px;">If the step-2 processor crashes and replays, it produces the same deterministic instructions. Step-3 deduplicates. No distributed transaction needed.</p>
+</div>
+
+<!-- ============================================ -->
+<!-- SECTION: Timeliness vs. Integrity            -->
+<!-- ============================================ -->
+
+<h2>Timeliness vs. Integrity</h2>
+
+<p>Kleppmann argues that the term "consistency" conflates two distinct requirements that should be considered separately. ACID transactions bundle both, but event-based dataflow systems can <em>decouple</em> them.</p>
+
+<!-- DIAGRAM 6: Timeliness vs. Integrity Comparison -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 6: Timeliness vs. Integrity -- Two Dimensions of Correctness</div>
+  <table class="compare-table">
+    <tr>
+      <th>Dimension</th>
+      <th>Timeliness</th>
+      <th>Integrity</th>
+    </tr>
+    <tr>
+      <td><strong>Definition</strong></td>
+      <td>Users observe the system in an up-to-date state</td>
+      <td>No data loss, no corruption, no contradictory data</td>
+    </tr>
+    <tr>
+      <td><strong>Violation type</strong></td>
+      <td>"Eventual consistency" -- temporary</td>
+      <td>"Perpetual inconsistency" -- permanent</td>
+    </tr>
+    <tr>
+      <td><strong>Recovery</strong></td>
+      <td>Wait and retry -- resolves itself</td>
+      <td>Requires explicit checking and repair</td>
+    </tr>
+    <tr>
+      <td><strong>ACID mapping</strong></td>
+      <td>Linearizability (strong), read-after-write (weak)</td>
+      <td>Atomicity, durability, application constraints</td>
+    </tr>
+    <tr>
+      <td><strong>Example</strong></td>
+      <td>Credit card charge not yet visible (24h lag)</td>
+      <td>Statement balance does not equal sum of transactions</td>
+    </tr>
+    <tr>
+      <td><strong>Importance</strong></td>
+      <td>Annoying and confusing when violated</td>
+      <td style="color:var(--red);">Catastrophic when violated</td>
+    </tr>
+    <tr>
+      <td><strong>Dataflow approach</strong></td>
+      <td>No guarantee unless consumers explicitly wait</td>
+      <td>Central to streaming systems via exactly-once semantics</td>
+    </tr>
+  </table>
+</div>
+
+<div class="quote">"Violations of timeliness are 'eventual consistency,' whereas violations of integrity are 'perpetual inconsistency.'"</div>
+
+<h3>Correctness of Dataflow Systems</h3>
+
+<p>Reliable stream processing can preserve integrity <strong>without</strong> distributed transactions through four mechanisms:</p>
+
+<div class="grid2">
+  <div class="card card-green">
+    <h4>1. Atomic Single Message</h4>
+    <p>Represent the write operation as a single message that can be written atomically (fits event sourcing).</p>
+  </div>
+  <div class="card card-accent">
+    <h4>2. Deterministic Derivation</h4>
+    <p>Derive all state updates from that single message using deterministic functions (like stored procedures).</p>
+  </div>
+  <div class="card card-purple">
+    <h4>3. End-to-End Request ID</h4>
+    <p>Pass a client-generated request ID through all processing levels for duplicate suppression and idempotence.</p>
+  </div>
+  <div class="card card-orange">
+    <h4>4. Immutable + Reprocessable</h4>
+    <p>Keep messages immutable and allow derived data to be reprocessed from time to time to recover from bugs.</p>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- SECTION: Coordination-Avoiding Data Systems  -->
+<!-- ============================================ -->
+
+<h2>Coordination-Avoiding Data Systems</h2>
+
+<p>Many real applications can get away with <span class="key-term">loosely interpreted constraints</span>. If two people book the same seat, you apologize and offer alternatives. If stock is oversold, you order more and offer a discount. Banks charge overdraft fees rather than blocking all withdrawals with linearizable locks. Airlines deliberately overbook flights.</p>
+
+<div class="card card-purple">
+  <h4>The Apology Workflow</h4>
+  <p>Whether the cost of an apology (refund, rebooking, discount) is acceptable is a <strong>business decision</strong>. If it is acceptable, the traditional model of checking all constraints before writing data is unnecessarily restrictive. You can write optimistically and check constraints after the fact -- ensuring validation before <em>expensive</em> irreversible actions, but not before every single write.</p>
+</div>
+
+<!-- DIAGRAM 7: Coordination vs. No Coordination -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 7: Coordination-Avoiding Architecture</div>
+  <div style="display:flex; gap:24px; flex-wrap:wrap; justify-content:center;">
+    <div style="flex:1; min-width:280px;">
+      <div style="text-align:center; color:var(--red); font-weight:700; margin-bottom:12px;">Traditional (Coordinated)</div>
+      <div class="flow-vert" style="gap:8px;">
+        <div class="flow-box red" style="width:100%;">Synchronous cross-partition coordination</div>
+        <div class="flow-box" style="width:100%;">Atomic commit (2PC/XA)</div>
+        <div class="flow-box" style="width:100%;">Linearizable constraint check</div>
+        <div class="flow-box" style="width:100%;">Single datacenter only</div>
+        <div class="flow-box red" style="width:100%;">Limited scale &amp; fault tolerance</div>
+      </div>
+    </div>
+    <div style="flex:1; min-width:280px;">
+      <div style="text-align:center; color:var(--accent3); font-weight:700; margin-bottom:12px;">Coordination-Avoiding (Dataflow)</div>
+      <div class="flow-vert" style="gap:8px;">
+        <div class="flow-box green" style="width:100%;">Asynchronous event processing</div>
+        <div class="flow-box" style="width:100%;">Single-message atomicity + dedup</div>
+        <div class="flow-box" style="width:100%;">Loose constraints + apology workflow</div>
+        <div class="flow-box" style="width:100%;">Multi-datacenter, multi-leader</div>
+        <div class="flow-box green" style="width:100%;">Better performance &amp; fault tolerance</div>
+      </div>
+    </div>
+  </div>
+  <p style="text-align:center; margin-top:16px; font-size:0.85rem; color:var(--text-muted);">Coordination reduces apologies for inconsistencies but may increase apologies for outages. The sweet spot depends on business requirements.</p>
+</div>
+
+<p>Two key observations combine powerfully: (1) Dataflow systems can maintain integrity without atomic commit, linearizability, or synchronous cross-partition coordination. (2) Many applications are fine with loose constraints that may be temporarily violated and fixed later, as long as integrity is preserved. Together, these mean <span class="key-term">coordination-avoiding data systems</span> can achieve better performance and fault tolerance while maintaining strong integrity guarantees -- even across multiple datacenters with asynchronous replication.</p>
+
+<!-- ============================================ -->
+<!-- SECTION: Trust, but Verify                   -->
+<!-- ============================================ -->
+
+<h2>Trust, but Verify</h2>
+
+<p>Our system models assume certain things work correctly: fsync persists data, memory is not corrupted, CPU multiplication returns correct results. These assumptions hold <em>most</em> of the time, but not always. Data can corrupt silently on disk. Network corruption can evade TCP checksums. Random bit-flips from hardware faults or even the <span class="key-term">rowhammer</span> attack can flip bits in memory.</p>
+
+<h3>Maintaining Integrity in the Face of Software Bugs</h3>
+
+<p>Even widely-used databases have bugs: MySQL failing to maintain uniqueness constraints, PostgreSQL exhibiting write skew under serializable isolation. Application code has far more bugs. The ACID notion of "consistency" assumes transactions are bug-free -- but they are not.</p>
+
+<div class="card card-red">
+  <h4>Don't Just Blindly Trust</h4>
+  <p>Checking data integrity is known as <span class="key-term">auditing</span>. HDFS and Amazon S3 run background processes that continually read back files, compare them to replicas, and move data between disks. If you want to be sure your data is still there, you have to actually read it and check. You must periodically test restoring from backups -- otherwise you may discover your backup is broken only when you have already lost data.</p>
+</div>
+
+<h3>Designing for Auditability</h3>
+
+<p>Traditional transaction logs (insertions, updates, deletions across tables) do not clearly capture <em>why</em> mutations were performed. Event-based systems do better: user input is represented as a single immutable event, and all resulting state is derived deterministically. This makes provenance clear and integrity checking feasible.</p>
+
+<!-- DIAGRAM 8: Audit and Cryptographic Integrity Pipeline -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 8: Audit and Cryptographic Integrity Pipeline</div>
+  <div class="flow" style="flex-direction:column; gap:12px;">
+    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:center;">
+      <div class="flow-box primary">Immutable<br>Event Log</div>
+      <span class="flow-arrow">&rarr;</span>
+      <div class="flow-box purple">Hash each event<br>(Merkle tree)</div>
+      <span class="flow-arrow">&rarr;</span>
+      <div class="flow-box green">Deterministic<br>Derivation</div>
+      <span class="flow-arrow">&rarr;</span>
+      <div class="flow-box orange">Derived State<br>(indexes, views)</div>
+    </div>
+    <div style="border:1px dashed var(--accent2); border-radius:8px; padding:12px; width:100%; text-align:center;">
+      <span style="color:var(--accent2); font-weight:600;">Continuous End-to-End Verification</span><br>
+      <span style="color:var(--text-muted); font-size:0.85rem;">
+        Rerun derivation on full event log &rarr; compare output with current derived state<br>
+        Check Merkle tree roots to detect any tampering or corruption in the log<br>
+        Run redundant parallel derivations for cross-checking
+      </span>
+    </div>
+  </div>
+</div>
+
+<h3>Tools for Auditable Data Systems</h3>
+
+<p><span class="key-term">Cryptographic auditing</span> relies on Merkle trees -- trees of hashes that efficiently prove a record appears in a dataset. Certificate transparency uses Merkle trees to validate TLS/SSL certificates. Blockchain and distributed ledger technologies explore this space: distributed databases where mutually untrusting replicas continually check each other's integrity using consensus protocols. While Kleppmann is skeptical of proof-of-work and Byzantine fault tolerance, the integrity-checking aspects are interesting and may become more widely used in data systems.</p>
+
+<!-- ============================================ -->
+<!-- SECTION: Doing the Right Thing (Ethics)      -->
+<!-- ============================================ -->
+
+<h2>Doing the Right Thing</h2>
+
+<p>Every system is built for a purpose, and every action has both intended and unintended consequences. Many datasets are about people -- their behavior, interests, and identity. We must treat such data with humanity and respect. A technology is not good or bad in itself; what matters is how it is used and how it affects people.</p>
+
+<div class="ethics-box">
+  <h4>The Engineer's Responsibility</h4>
+  <p style="color:var(--text-muted);">Software development increasingly involves important ethical choices. The ACM's Software Engineering Code of Ethics exists but is rarely discussed or enforced. It is not sufficient for engineers to focus exclusively on technology and ignore its consequences. Reasoning about ethics is difficult, but it is too important to ignore.</p>
+</div>
+
+<h3>Predictive Analytics and Privacy</h3>
+
+<p>Using data to predict weather or disease spread is one thing. Predicting whether a convict will reoffend, a loan applicant will default, or an insurance customer will make expensive claims directly affects individual lives. Organizations naturally want to be cautious and say "no" when in doubt. But when algorithmic decision-making becomes widespread, someone labeled as "risky" faces a cascade of rejections.</p>
+
+<div class="card card-red">
+  <h4>Algorithmic Prisons</h4>
+  <p>Systematically being excluded from jobs, air travel, insurance, housing, and financial services -- without proof of guilt and with little chance of appeal -- has been called an <span class="key-term">"algorithmic prison."</span> In countries that respect human rights, the criminal justice system presumes innocence until proven guilty. Automated systems can bypass this principle entirely.</p>
+</div>
+
+<h3>Bias and Discrimination</h3>
+
+<p>If there is systematic bias in the input data, the system will learn and amplify that bias in its output. In racially segregated neighborhoods, a postal code or IP address is a strong predictor of race. Anti-discrimination laws prohibit using protected traits, but correlated features serve as proxies.</p>
+
+<div class="quote">"Machine learning is like money laundering for bias." -- Maciej Ceglowski</div>
+
+<p>Predictive analytics extrapolate from the past: if the past is discriminatory, they codify that discrimination. A credit score summarizes "how did <em>you</em> behave?" while predictive analytics asks "who is similar to you, and how did <em>they</em> behave?" -- implying stereotyping. If we want the future to be better than the past, <span class="key-term">moral imagination</span> is required, and only humans can provide it. Data and models should be our tools, not our masters.</p>
+
+<!-- DIAGRAM 9: Feedback Loop of Algorithmic Harm -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 9: Self-Reinforcing Feedback Loop</div>
+  <div style="display:flex; justify-content:center;">
+    <div style="position:relative; width:360px; height:300px;">
+      <div class="flow-box red" style="position:absolute; top:0; left:50%; transform:translateX(-50%); min-width:160px;">Financial<br>misfortune</div>
+      <div style="position:absolute; top:55px; right:0; color:var(--text-muted); font-size:1.2rem;">&darr;</div>
+      <div class="flow-box orange" style="position:absolute; top:80px; right:0; min-width:140px;">Missed<br>payments</div>
+      <div style="position:absolute; top:145px; right:30px; color:var(--text-muted); font-size:1.2rem;">&darr;</div>
+      <div class="flow-box red" style="position:absolute; top:170px; left:50%; transform:translateX(-50%); min-width:160px;">Lower credit<br>score</div>
+      <div style="position:absolute; top:145px; left:30px; color:var(--text-muted); font-size:1.2rem;">&uarr;</div>
+      <div class="flow-box orange" style="position:absolute; top:80px; left:0; min-width:140px;">Can't find<br>employment</div>
+      <div style="position:absolute; top:55px; left:30px; color:var(--text-muted); font-size:1.2rem;">&uarr;</div>
+      <div class="flow-box pink" style="position:absolute; bottom:0; left:50%; transform:translateX(-50%); min-width:200px;">Poverty deepens<br><span style="font-size:0.75rem;">"downward spiral due to poisonous<br>assumptions, hidden behind a camouflage<br>of mathematical rigor"</span></div>
+    </div>
+  </div>
+</div>
+
+<h3>Feedback Loops and Accountability</h3>
+
+<p>When services predict what content users want to see, they may show only opinions users already agree with, creating <span class="key-term">echo chambers</span> that breed stereotypes, misinformation, and polarization. When predictive analytics affect people's lives, self-reinforcing feedback loops emerge: bad credit leads to joblessness, which worsens credit further.</p>
+
+<p>Automated decision-making raises questions of <span class="key-term">responsibility and accountability</span>. If a human makes a mistake, they can be held accountable and decisions can be appealed. But who is accountable when an algorithm goes wrong? If a self-driving car causes an accident? If a scoring algorithm systematically discriminates? Can you explain to a judge how the algorithm made its decision?</p>
+
+<div class="card card-purple">
+  <h4>Systems Thinking</h4>
+  <p>We cannot always predict feedback loops, but many consequences can be predicted by analyzing the entire system -- not just the computerized parts, but also the people interacting with it. Does the system reinforce existing differences (making the rich richer or poor poorer), or does it combat injustice?</p>
+</div>
+
+<h3>Privacy, Surveillance, and Consent</h3>
+
+<p>When a user's activity is tracked as a side effect of other actions, the service takes on interests of its own. If the service is funded by advertising, users' interests take second place. The tracking can be appropriately described as <span class="key-term">surveillance</span>.</p>
+
+<div class="quote">"In our surveillance-driven organization we collect real-time surveillance streams and store them in our surveillance warehouse. Our surveillance scientists use advanced analytics and surveillance processing in order to derive new insights." -- Try replacing "data" with "surveillance" and see if it still sounds good.</div>
+
+<p><strong>Privacy</strong> does not mean keeping everything secret. It means having the freedom to choose which things to reveal to whom. It is a decision right, an aspect of autonomy. When data is extracted through surveillance, this right is transferred from individuals to corporations. Companies keep the surveillance outcomes secret because revealing them would be perceived as creepy.</p>
+
+<p><strong>Consent</strong> is problematic: users have little knowledge of what data they feed into systems or how it is processed. Many privacy policies obscure rather than illuminate. When a service becomes so popular that it is "regarded by most people as essential for basic social participation," opting out is not a realistic choice -- surveillance becomes inescapable.</p>
+
+<!-- DIAGRAM 10: Privacy Rights Transfer -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 10: Transfer of Privacy Decision Rights</div>
+  <div class="flow">
+    <div class="flow-vert" style="min-width:180px;">
+      <div class="flow-box green" style="width:100%;">Individual</div>
+      <div style="font-size:0.8rem; color:var(--text-muted); text-align:center;">Has the right to decide<br>what to reveal, to whom,<br>and what to keep secret</div>
+    </div>
+    <span class="flow-arrow" style="font-size:1.5rem;">&#x27A1;</span>
+    <div class="flow-vert" style="min-width:160px;">
+      <div class="flow-box orange" style="width:100%;">Surveillance<br>Infrastructure</div>
+      <div style="font-size:0.8rem; color:var(--text-muted); text-align:center;">"Agree to terms of service"<br>(one-way, asymmetric,<br>no real negotiation)</div>
+    </div>
+    <span class="flow-arrow" style="font-size:1.5rem;">&#x27A1;</span>
+    <div class="flow-vert" style="min-width:180px;">
+      <div class="flow-box red" style="width:100%;">Corporation</div>
+      <div style="font-size:0.8rem; color:var(--text-muted); text-align:center;">Now exercises the privacy<br>right with the goal of<br>maximizing profit</div>
+    </div>
+  </div>
+  <p style="text-align:center; margin-top:12px; font-size:0.85rem; color:var(--pink);">Data is not just an asset -- it is a "toxic asset." It attracts thieves, governments, and unscrupulous future management.</p>
+</div>
+
+<h3>Data as a Pollution Problem</h3>
+
+<div class="quote">"Data is the pollution problem of the information age, and protecting privacy is the environmental challenge. Almost all computers produce information. It stays around, festering. How we deal with it -- how we contain it and how we dispose of it -- is central to the health of our information economy." -- Bruce Schneier</div>
+
+<p>Just as the Industrial Revolution brought prosperity alongside pollution, child labor, and exploitation -- requiring decades of regulation to remedy -- the information age requires us to confront the harms of unchecked data collection. We need a culture shift: stop regarding users as metrics to be optimized, self-regulate data practices, educate end users, and allow individuals to maintain control over their own data.</p>
+
+<!-- ============================================ -->
+<!-- SECTION: Chapter & Book Summary              -->
+<!-- ============================================ -->
+
+<h2>Chapter and Book Summary</h2>
+
+<div class="card card-accent">
+  <h4>Data Integration</h4>
+  <p>No single tool serves all use cases. Applications compose multiple systems, using batch processing and event streams for data integration. Systems of record feed derived data (indexes, materialized views, ML models) through asynchronous, loosely coupled transformations. Problems in one area don't spread to unrelated parts.</p>
+</div>
+
+<div class="card card-green">
+  <h4>Correctness Without Coordination</h4>
+  <p>Strong integrity guarantees can be implemented scalably with asynchronous event processing, end-to-end operation identifiers for idempotence, and asynchronous constraint checking. Clients can wait for validation or proceed optimistically. This is much more scalable and robust than distributed transactions.</p>
+</div>
+
+<div class="card card-purple">
+  <h4>Trust and Auditing</h4>
+  <p>Dataflow architectures enable auditability: immutable events, deterministic derivation, Merkle trees for cryptographic integrity. We should build self-verifying systems that continually check their own integrity rather than relying on blind trust.</p>
+</div>
+
+<div class="card card-red">
+  <h4>Ethics and Responsibility</h4>
+  <p>Data can be used for good but also causes significant harm: unjust automated decisions, discrimination, surveillance, exploitation, and data breaches. Engineers carry a responsibility to consider consequences, build systems that treat people with humanity and respect, and work toward a world that preserves human dignity and autonomy.</p>
+</div>
+
+<div class="quote">"As software and data are having such a large impact on the world, we engineers must remember that we carry a responsibility to work toward the kind of world that we want to live in: a world that treats people with humanity and respect. I hope that we can work together toward that goal."</div>
+
+<!-- ============================================ -->
+<!-- SECTION: Review Questions                    -->
+<!-- ============================================ -->
+
+<h2>Review Questions</h2>
+
+<div class="question-card">
+  <div class="q">1. Why is TCP's duplicate suppression insufficient for preventing double-execution of a database transaction? What is the end-to-end solution?</div>
+  <div class="hint">Hover to reveal answer</div>
+  <div class="a">TCP dedup only works within a single connection. If the client's connection drops after sending COMMIT but before receiving the response, a retry creates a new TCP connection -- outside TCP's dedup scope. The end-to-end solution is a client-generated unique operation ID (e.g., UUID) that is passed all the way from the user's device through the application server to the database, where a uniqueness constraint on the ID prevents double execution.</div>
+</div>
+
+<div class="question-card">
+  <div class="q">2. What is the difference between timeliness and integrity? Which is more important and why?</div>
+  <div class="hint">Hover to reveal answer</div>
+  <div class="a">Timeliness means users see an up-to-date state (violation = "eventual consistency," temporary, self-resolving). Integrity means no data loss or corruption (violation = "perpetual inconsistency," permanent, requires explicit repair). Integrity is generally more important: a credit card statement showing a 24-hour lag is annoying but tolerable; a statement where the balance does not equal the sum of transactions is catastrophic.</div>
+</div>
+
+<div class="question-card">
+  <div class="q">3. How can a coordination-avoiding data system enforce a money transfer across multiple partitions without using distributed transactions?</div>
+  <div class="hint">Hover to reveal answer</div>
+  <div class="a">Step 1: Append the transfer request (with unique ID) to a log partition based on request ID. Step 2: A stream processor reads the request and emits a debit instruction (partitioned by payer) and a credit instruction (partitioned by payee), both tagged with the request ID. Step 3: Downstream processors consume these streams, deduplicate by request ID, and apply balance changes. If step 2 crashes and replays, it deterministically produces the same instructions, and step 3 deduplicates them. No atomic commit protocol needed.</div>
+</div>
+
+<div class="question-card">
+  <div class="q">4. What is the "apology workflow" and when is it an acceptable alternative to linearizable constraints?</div>
+  <div class="hint">Hover to reveal answer</div>
+  <div class="a">The apology workflow handles constraint violations after the fact (e.g., refunding a double charge, rebooking an overbooked passenger, offering discounts for oversold stock). It is acceptable when the business cost of the apology is lower than the performance/availability cost of enforcing strict linearizable constraints. Many real businesses (airlines overbooking, banks allowing overdrafts) already operate this way. The key requirement is integrity (no lost data) even if timeliness is relaxed.</div>
+</div>
+
+<div class="question-card">
+  <div class="q">5. What does "trust, but verify" mean in the context of data systems? What tools support this approach?</div>
+  <div class="hint">Hover to reveal answer</div>
+  <div class="a">It means we should not blindly assume that hardware and software are always correct. Instead, we should continuously audit data integrity. Tools include: end-to-end checksums (beyond just TCP/Ethernet), periodic backup restoration tests, background processes that read back and compare replicas (as HDFS and S3 do), Merkle trees for cryptographic proof of record existence, deterministic event log derivations that can be replayed to verify derived state, and certificate transparency-style integrity checking.</div>
+</div>
+
+<div class="question-card">
+  <div class="q">6. How do self-reinforcing feedback loops in predictive analytics cause harm? Give an example and explain what "systems thinking" means in this context.</div>
+  <div class="hint">Hover to reveal answer</div>
+  <div class="a">Example: A person suffers a financial misfortune, misses payments, their credit score drops, employers using credit scores reject them, unemployment deepens poverty, which further worsens credit -- a downward spiral hidden behind mathematical rigor. "Systems thinking" means analyzing the entire system including people, not just the software. It asks: does the system reinforce existing differences (rich get richer, poor get poorer) or combat injustice? Many consequences can be predicted this way, though not all.</div>
+</div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Chapter 8 — Trouble with Distributed Systems (Part 1): Unreliable Networks & Clocks</title>
+<style>
+  :root {
+    --bg: #0a0e17;
+    --surface: #111827;
+    --surface2: #1a2234;
+    --border: #1e293b;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --accent: #3b82f6;
+    --accent2: #8b5cf6;
+    --accent3: #10b981;
+    --red: #ef4444;
+    --orange: #f59e0b;
+    --pink: #ec4899;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+  .container { max-width: 900px; margin: 0 auto; padding: 40px 24px 100px; }
+  h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 48px; border-bottom: 1px solid var(--border); padding-bottom: 24px; }
+  h2 { font-size: 1.5rem; font-weight: 700; margin: 48px 0 16px; color: var(--accent); }
+  h3 { font-size: 1.15rem; font-weight: 600; margin: 32px 0 12px; color: var(--text); }
+  p { margin-bottom: 16px; color: var(--text-muted); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 20px 0; }
+  .card-accent { border-left: 4px solid var(--accent); }
+  .card-green { border-left: 4px solid var(--accent3); }
+  .card-orange { border-left: 4px solid var(--orange); }
+  .card-purple { border-left: 4px solid var(--accent2); }
+  .card-red { border-left: 4px solid var(--red); }
+  .card h4 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+  .card ul { padding-left: 20px; color: var(--text-muted); }
+  .card li { margin-bottom: 6px; }
+  .key-term { color: var(--accent); font-weight: 600; }
+  .diagram { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 32px; margin: 24px 0; overflow-x: auto; }
+  .diagram-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent2); margin-bottom: 20px; }
+  .flow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; }
+  .flow-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; text-align: center; font-size: 0.9rem; min-width: 120px; }
+  .flow-box.primary { border-color: var(--accent); color: var(--accent); }
+  .flow-box.green { border-color: var(--accent3); color: var(--accent3); }
+  .flow-box.purple { border-color: var(--accent2); color: var(--accent2); }
+  .flow-box.orange { border-color: var(--orange); color: var(--orange); }
+  .flow-box.red { border-color: var(--red); color: var(--red); }
+  .flow-box.pink { border-color: var(--pink); color: var(--pink); }
+  .flow-arrow { color: var(--text-muted); font-size: 1.2rem; }
+  .flow-vert { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } .grid3 { grid-template-columns: 1fr; } }
+  .quote { background: var(--surface2); border-left: 3px solid var(--accent2); padding: 16px 20px; margin: 20px 0; border-radius: 0 8px 8px 0; font-style: italic; color: var(--text-muted); }
+  .tag { display: inline-block; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 2px 12px; font-size: 0.8rem; color: var(--text-muted); margin: 2px; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  th { color: var(--accent); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
+  td { color: var(--text-muted); }
+  .question-block { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin: 16px 0; overflow: hidden; }
+  .question-header { padding: 16px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 0.95rem; }
+  .question-header:hover { background: var(--surface2); }
+  .question-body { padding: 0 20px 16px; display: none; color: var(--text-muted); border-top: 1px solid var(--border); padding-top: 16px; }
+  .question-block.open .question-body { display: block; }
+  .q-num { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: var(--accent); color: white; border-radius: 50%; font-size: 0.8rem; font-weight: 700; margin-right: 12px; flex-shrink: 0; }
+  .chevron { transition: transform .2s; color: var(--text-muted); }
+  .question-block.open .chevron { transform: rotate(180deg); }
+  .section-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--accent2); font-weight: 700; margin-bottom: 8px; }
+  .timeline { position: relative; padding-left: 32px; margin: 16px 0; }
+  .timeline::before { content: ''; position: absolute; left: 12px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+  .timeline-item { position: relative; margin-bottom: 20px; }
+  .timeline-item::before { content: ''; position: absolute; left: -26px; top: 6px; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: 2px solid var(--surface2); }
+  .timeline-item.green::before { background: var(--accent3); }
+  .timeline-item.orange::before { background: var(--orange); }
+  .timeline-item.red::before { background: var(--red); }
+  .timeline-item.purple::before { background: var(--accent2); }
+  .timeline-title { font-weight: 600; font-size: 0.9rem; color: var(--text); }
+  .timeline-desc { font-size: 0.85rem; color: var(--text-muted); }
+  .concept-map { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .concept-row { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+  .concept-node { background: var(--surface); border: 2px solid var(--border); border-radius: 12px; padding: 10px 16px; text-align: center; font-size: 0.85rem; min-width: 100px; }
+  .concept-node.root { border-color: var(--accent); color: var(--accent); font-weight: 700; font-size: 1rem; padding: 14px 24px; }
+  .concept-connector { color: var(--text-muted); font-size: 1.4rem; }
+  .layer-stack { display: flex; flex-direction: column; gap: 4px; }
+  .layer { padding: 14px 20px; border-radius: 8px; text-align: center; font-size: 0.85rem; font-weight: 600; }
+  .number-badge { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; font-size: 0.85rem; font-weight: 700; margin-right: 8px; }
+  .arch-box { border: 2px solid var(--border); border-radius: 10px; padding: 16px; margin: 8px; text-align: center; }
+  .arch-box.blue { border-color: var(--accent); background: rgba(59,130,246,0.08); }
+  .arch-box.green { border-color: var(--accent3); background: rgba(16,185,129,0.08); }
+  .arch-box.purple { border-color: var(--accent2); background: rgba(139,92,246,0.08); }
+  .arch-box.orange { border-color: var(--orange); background: rgba(245,158,11,0.08); }
+  .arch-box.red { border-color: var(--red); background: rgba(239,68,68,0.08); }
+  .arch-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .arch-detail { font-size: 0.8rem; color: var(--text-muted); }
+  /* Specific styles for this chapter */
+  .net-scenario { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .net-scenario:last-child { border-bottom: none; }
+  .net-num { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; flex-shrink: 0; }
+  .confidence-bar { position: relative; height: 40px; margin: 16px 0; border-radius: 8px; overflow: hidden; }
+  .confidence-range { position: absolute; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; border-radius: 8px; }
+  .swim-lane { display: grid; grid-template-columns: 80px 1fr; gap: 0; margin: 8px 0; }
+  .swim-label { font-size: 0.8rem; font-weight: 600; padding: 10px 8px; display: flex; align-items: center; }
+  .swim-track { position: relative; height: 44px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .swim-event { position: absolute; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 600; border-radius: 4px; padding: 0 6px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <p class="section-label">DDIA -- Part II: Distributed Data</p>
+  <h1>Chapter 8: The Trouble with Distributed Systems</h1>
+  <p class="subtitle">Part 1 -- Unreliable Networks and Unreliable Clocks. Distributed systems introduce <strong>partial failures</strong> that are nondeterministic, making them fundamentally harder to reason about than single-node programs. This part explores how networks lie, clocks drift, and why we cannot trust either.</p>
+
+  <div class="quote">"Hey I just met you / The network's laggy / But here's my data / So store it maybe" -- Kyle Kingsbury, <em>Carly Rae Jepsen and the Perils of Network Partitions</em> (2013)</div>
+
+  <!-- ===== DIAGRAM 1: CHAPTER CONCEPT MAP ===== -->
+  <div class="diagram">
+    <div class="diagram-title">Chapter 8 Part 1 -- Concept Map</div>
+    <div class="concept-map">
+      <div class="concept-node root">The Trouble with Distributed Systems</div>
+      <div class="concept-connector">&#9475;<br>Two fundamental sources of unreliability</div>
+      <div class="concept-row">
+        <div class="concept-node" style="border-color:var(--accent); color:var(--accent);">Unreliable Networks<br><span style="font-size:0.75rem; color:var(--text-muted);">Packets lost, delayed, reordered</span></div>
+        <div class="concept-node" style="border-color:var(--orange); color:var(--orange);">Unreliable Clocks<br><span style="font-size:0.75rem; color:var(--text-muted);">Drift, jumps, skew between nodes</span></div>
+      </div>
+      <div class="concept-connector">&#9475;</div>
+      <div class="concept-row">
+        <div class="concept-node" style="border-color:var(--accent3); color:var(--accent3);">Detecting Faults<br><span style="font-size:0.75rem; color:var(--text-muted);">Timeouts & feedback</span></div>
+        <div class="concept-node" style="border-color:var(--accent2); color:var(--accent2);">Clock Confidence<br><span style="font-size:0.75rem; color:var(--text-muted);">TrueTime / Spanner</span></div>
+        <div class="concept-node" style="border-color:var(--red); color:var(--red);">Ordering Events<br><span style="font-size:0.75rem; color:var(--text-muted);">LWW pitfalls & causality</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== FAULTS AND PARTIAL FAILURES ===== -->
+  <h2>Faults and Partial Failures</h2>
+
+  <p>On a single computer, things are <span class="key-term">deterministic</span>: the same operation always produces the same result. Hardware faults cause total system failure (kernel panic, blue screen). Computers are designed to hide the fuzzy physical reality and present an idealized model of mathematical perfection.</p>
+
+  <p>In a distributed system, we are no longer in this idealized world. A <span class="key-term">partial failure</span> means some parts of the system are broken in unpredictable ways, while other parts work fine. Partial failures are <strong>nondeterministic</strong> -- you may not even know whether something succeeded or not.</p>
+
+  <div class="card card-red">
+    <h4 style="color:var(--red);">Real-World War Story</h4>
+    <p style="margin-bottom:0;">"In my limited experience I've dealt with long-lived network partitions in a single data center, PDU failures, switch failures, accidental power cycles of whole racks, whole-DC backbone failures, whole-DC power failures, and a hypoglycemic driver smashing his Ford pickup truck into a DC's HVAC system. And I'm not even an ops guy." -- <strong>Coda Hale</strong></p>
+  </div>
+
+  <!-- ===== DIAGRAM 2: SINGLE NODE vs DISTRIBUTED ===== -->
+  <div class="diagram">
+    <div class="diagram-title">Single Node vs. Distributed System Failure Modes</div>
+    <div class="grid2">
+      <div class="arch-box blue">
+        <div class="arch-label" style="color:var(--accent);">Single Computer</div>
+        <div class="arch-detail">
+          <strong style="color:var(--text);">Deterministic</strong><br>
+          Works correctly OR crashes completely<br><br>
+          <span style="color:var(--accent3);">&#10003; Same input = same output</span><br>
+          <span style="color:var(--accent3);">&#10003; Faults cause total failure</span><br>
+          <span style="color:var(--accent3);">&#10003; Easy to reason about</span><br>
+          <span style="color:var(--accent3);">&#10003; Idealized system model</span>
+        </div>
+      </div>
+      <div class="arch-box red">
+        <div class="arch-label" style="color:var(--red);">Distributed System</div>
+        <div class="arch-detail">
+          <strong style="color:var(--text);">Nondeterministic</strong><br>
+          Partial failures everywhere<br><br>
+          <span style="color:var(--red);">&#10007; May work sometimes, fail other times</span><br>
+          <span style="color:var(--red);">&#10007; Parts fail independently</span><br>
+          <span style="color:var(--red);">&#10007; Hard to know what succeeded</span><br>
+          <span style="color:var(--red);">&#10007; Must confront messy physical reality</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== CLOUD vs HPC vs ENTERPRISE ===== -->
+  <h2>Cloud Computing vs. HPC vs. Enterprise</h2>
+
+  <p>There is a <span class="key-term">spectrum of philosophies</span> on building large-scale computing systems. At one end, high-performance computing (HPC) treats faults like a single-node system: checkpoint and restart. At the other end, cloud computing must tolerate partial failures gracefully because internet services must be always online.</p>
+
+  <!-- ===== DIAGRAM 3: SPECTRUM ===== -->
+  <div class="diagram">
+    <div class="diagram-title">The Computing Philosophy Spectrum</div>
+    <div style="position:relative; height:60px; background: linear-gradient(to right, var(--accent), var(--accent2), var(--orange)); border-radius: 30px; margin: 20px 0; display:flex; align-items:center; justify-content:space-between; padding: 0 24px;">
+      <div style="text-align:center;">
+        <div style="font-weight:700; font-size:0.9rem; color:white;">HPC</div>
+        <div style="font-size:0.7rem; color:rgba(255,255,255,0.8);">Total failure model</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-weight:700; font-size:0.9rem; color:white;">Enterprise</div>
+        <div style="font-size:0.7rem; color:rgba(255,255,255,0.8);">In between</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-weight:700; font-size:0.9rem; color:white;">Cloud / Internet</div>
+        <div style="font-size:0.7rem; color:rgba(255,255,255,0.8);">Partial failure model</div>
+      </div>
+    </div>
+    <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-muted); padding: 0 16px;">
+      <span>&#8592; Crash &amp; restart on any fault</span>
+      <span>Tolerate &amp; keep serving &#8594;</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <table>
+      <thead>
+        <tr><th>Dimension</th><th>HPC / Supercomputer</th><th>Enterprise Datacenter</th><th>Cloud Computing</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Fault strategy</strong></td><td>Checkpoint + total restart</td><td>Redundancy, some tolerance</td><td>Tolerate partial failure, keep serving</td></tr>
+        <tr><td><strong>Hardware</strong></td><td>Specialized, reliable nodes</td><td>Mix of commodity &amp; specialized</td><td>Commodity machines, high failure rate</td></tr>
+        <tr><td><strong>Network</strong></td><td>Specialized topology (torus, mesh)</td><td>Private, managed Ethernet</td><td>IP/Ethernet, Clos topology, shared</td></tr>
+        <tr><td><strong>Availability</strong></td><td>Offline (batch) jobs OK</td><td>High availability expected</td><td>Must be always online (24/7)</td></tr>
+        <tr><td><strong>Geo-distribution</strong></td><td>Nodes co-located in one site</td><td>Single or few datacenters</td><td>Multi-datacenter, global</td></tr>
+        <tr><td><strong>Node failure impact</strong></td><td>Stop everything, repair, restart</td><td>Failover to redundant nodes</td><td>Kill &amp; replace (rolling upgrades)</td></tr>
+        <tr><td><strong>Communication</strong></td><td>Shared memory, RDMA</td><td>LAN, low latency</td><td>Internet, variable latency</td></tr>
+        <tr><td><strong>Multi-tenancy</strong></td><td>Dedicated resources</td><td>Mostly dedicated</td><td>Shared, noisy neighbors</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card card-green">
+    <h4 style="color:var(--accent3);">Building Reliable Systems from Unreliable Components</h4>
+    <p>This is not as paradoxical as it sounds. Just like TCP provides reliable delivery over unreliable IP, and error-correcting codes provide accurate data over noisy channels, we can build a system more reliable than its parts. But there are always limits -- TCP cannot hide network delays, and ECC cannot handle total signal interference.</p>
+  </div>
+
+  <!-- ===== UNRELIABLE NETWORKS ===== -->
+  <h2>Unreliable Networks</h2>
+
+  <p>The systems in this book are <span class="key-term">shared-nothing systems</span>: machines connected only by a network. The internet and most datacenter networks are <span class="key-term">asynchronous packet networks</span> -- they give no guarantees about when (or whether) a message arrives.</p>
+
+  <h3>Six Things That Can Go Wrong</h3>
+  <p>When you send a request and expect a response, any of these can happen:</p>
+
+  <!-- ===== DIAGRAM 4: 6 FAILURE SCENARIOS ===== -->
+  <div class="diagram">
+    <div class="diagram-title">What Can Go Wrong When Sending a Request (Figure 8-1)</div>
+    <div style="display: flex; flex-direction: column; gap: 6px;">
+
+      <div class="net-scenario">
+        <div class="net-num" style="background:var(--red); color:white;">1</div>
+        <div style="flex:1;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div class="flow-box primary" style="min-width:90px; padding:8px 12px;">Client</div>
+            <div style="flex:1; border-top:2px dashed var(--red); position:relative; height:2px;">
+              <span style="position:absolute; top:-18px; left:50%; transform:translateX(-50%); font-size:0.7rem; color:var(--red);">Request LOST &#10007;</span>
+            </div>
+            <div class="flow-box" style="min-width:90px; padding:8px 12px; opacity:0.5;">Server</div>
+          </div>
+          <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">Request lost in the network (unplugged cable, faulty switch)</div>
+        </div>
+      </div>
+
+      <div class="net-scenario">
+        <div class="net-num" style="background:var(--orange); color:white;">2</div>
+        <div style="flex:1;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div class="flow-box primary" style="min-width:90px; padding:8px 12px;">Client</div>
+            <div style="flex:1; border-top:2px solid var(--orange); position:relative; height:2px;">
+              <span style="position:absolute; top:-18px; left:50%; transform:translateX(-50%); font-size:0.7rem; color:var(--orange);">Queued... waiting</span>
+            </div>
+            <div class="flow-box orange" style="min-width:90px; padding:8px 12px;">Queue</div>
+          </div>
+          <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">Request sitting in a queue (network or recipient overloaded)</div>
+        </div>
+      </div>
+
+      <div class="net-scenario">
+        <div class="net-num" style="background:var(--accent2); color:white;">3</div>
+        <div style="flex:1;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div class="flow-box primary" style="min-width:90px; padding:8px 12px;">Client</div>
+            <div style="flex:1; border-top:2px solid var(--text-muted); position:relative; height:2px;">
+              <span style="position:absolute; top:-18px; left:50%; transform:translateX(-50%); font-size:0.7rem; color:var(--text-muted);">Request arrives but...</span>
+            </div>
+            <div class="flow-box red" style="min-width:90px; padding:8px 12px;">Server DEAD</div>
+          </div>
+          <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">Remote node has crashed or been powered down</div>
+        </div>
+      </div>
+
+      <div class="net-scenario">
+        <div class="net-num" style="background:var(--pink); color:white;">4</div>
+        <div style="flex:1;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div class="flow-box primary" style="min-width:90px; padding:8px 12px;">Client</div>
+            <div style="flex:1; border-top:2px solid var(--text-muted); position:relative; height:2px;">
+              <span style="position:absolute; top:-18px; left:50%; transform:translateX(-50%); font-size:0.7rem; color:var(--pink);">GC pause / unresponsive</span>
+            </div>
+            <div class="flow-box pink" style="min-width:90px; padding:8px 12px;">Server PAUSED</div>
+          </div>
+          <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">Node temporarily stopped (GC pause), will respond later</div>
+        </div>
+      </div>
+
+      <div class="net-scenario">
+        <div class="net-num" style="background:var(--accent3); color:white;">5</div>
+        <div style="flex:1;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div class="flow-box primary" style="min-width:90px; padding:8px 12px;">Client</div>
+            <div style="flex:1; position:relative;">
+              <div style="border-top:2px solid var(--accent3); height:2px;"></div>
+              <span style="position:absolute; top:-18px; left:30%; font-size:0.7rem; color:var(--accent3);">Req OK &#10003;</span>
+            </div>
+            <div class="flow-box green" style="min-width:90px; padding:8px 12px;">Server OK</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; margin-top:4px;">
+            <div style="width:90px;"></div>
+            <div style="flex:1; border-top:2px dashed var(--red); position:relative; height:2px;">
+              <span style="position:absolute; top:-18px; left:50%; transform:translateX(-50%); font-size:0.7rem; color:var(--red);">Response LOST &#10007;</span>
+            </div>
+            <div style="width:90px;"></div>
+          </div>
+          <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">Server processed request, but the response was lost on the network</div>
+        </div>
+      </div>
+
+      <div class="net-scenario">
+        <div class="net-num" style="background:var(--accent); color:white;">6</div>
+        <div style="flex:1;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div class="flow-box primary" style="min-width:90px; padding:8px 12px;">Client</div>
+            <div style="flex:1; position:relative;">
+              <div style="border-top:2px solid var(--accent3); height:2px;"></div>
+              <span style="position:absolute; top:-18px; left:30%; font-size:0.7rem; color:var(--accent3);">Req OK &#10003;</span>
+            </div>
+            <div class="flow-box green" style="min-width:90px; padding:8px 12px;">Server OK</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; margin-top:4px;">
+            <div style="width:90px;"></div>
+            <div style="flex:1; border-top:2px solid var(--orange); position:relative; height:2px;">
+              <span style="position:absolute; top:-18px; left:50%; transform:translateX(-50%); font-size:0.7rem; color:var(--orange);">Response DELAYED &#9202;</span>
+            </div>
+            <div style="width:90px;"></div>
+          </div>
+          <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">Server processed request, response queued and delayed (network/machine overloaded)</div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:16px; padding:12px; background:var(--surface); border-radius:8px; border:1px solid var(--border);">
+      <p style="margin:0; font-size:0.85rem;"><strong style="color:var(--red);">Key insight:</strong> All six scenarios look the same from the client's perspective -- <em>you just don't get a response</em>. The sender cannot distinguish between them. The only option is a <span class="key-term">timeout</span>.</p>
+    </div>
+  </div>
+
+  <!-- ===== DETECTING FAULTS ===== -->
+  <h3>Detecting Faults</h3>
+  <p>Many systems need to automatically detect faulty nodes (load balancers removing dead nodes, databases promoting followers). The network's uncertainty makes this hard, but some feedback mechanisms exist:</p>
+
+  <div class="grid2">
+    <div class="card card-accent">
+      <h4 style="color:var(--accent);">Explicit Signals (Sometimes Available)</h4>
+      <ul>
+        <li><strong>TCP RST/FIN:</strong> OS refuses connection if no process is listening</li>
+        <li><strong>Process crash notification:</strong> Script notifies peers (e.g., HBase)</li>
+        <li><strong>Switch management interface:</strong> Query hardware for link failures</li>
+        <li><strong>ICMP Unreachable:</strong> Router reports destination unreachable</li>
+      </ul>
+    </div>
+    <div class="card card-red">
+      <h4 style="color:var(--red);">Why You Can't Rely on Them</h4>
+      <ul>
+        <li>Node may crash <em>after</em> TCP ACK but <em>before</em> processing request</li>
+        <li>No access to switches in shared/cloud datacenters</li>
+        <li>Routers have the same limitations as other network participants</li>
+        <li>Asymmetric failures: one direction works, other doesn't</li>
+      </ul>
+    </div>
+  </div>
+
+  <p>In general, you must assume you will get <strong>no response at all</strong>. Retry a few times, wait for a timeout, then eventually declare the node dead.</p>
+
+  <!-- ===== TIMEOUTS AND UNBOUNDED DELAYS ===== -->
+  <h3>Timeouts and Unbounded Delays</h3>
+
+  <p>If timeouts are the only sure way to detect faults, how long should they be?</p>
+
+  <!-- ===== DIAGRAM 5: TIMEOUT TRADEOFF ===== -->
+  <div class="diagram">
+    <div class="diagram-title">The Timeout Tradeoff</div>
+    <div style="display:flex; align-items:stretch; gap:0; margin: 16px 0;">
+      <div style="flex:1; background: linear-gradient(to right, rgba(59,130,246,0.15), rgba(239,68,68,0.15)); border-radius:12px; padding:20px; position:relative;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:16px;">
+          <div style="text-align:center;">
+            <div style="font-weight:700; color:var(--accent); font-size:0.95rem;">Long Timeout</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-weight:700; color:var(--red); font-size:0.95rem;">Short Timeout</div>
+          </div>
+        </div>
+        <div style="height:8px; background: linear-gradient(to right, var(--accent), var(--red)); border-radius:4px; margin-bottom:16px;"></div>
+        <div style="display:flex; justify-content:space-between;">
+          <div style="font-size:0.8rem; color:var(--text-muted); max-width:45%;">
+            <span style="color:var(--accent3);">&#10003;</span> Fewer false positives<br>
+            <span style="color:var(--red);">&#10007;</span> Long wait for fault detection<br>
+            <span style="color:var(--red);">&#10007;</span> Users see errors or delays
+          </div>
+          <div style="font-size:0.8rem; color:var(--text-muted); max-width:45%; text-align:right;">
+            <span style="color:var(--accent3);">&#10003;</span> Fast fault detection<br>
+            <span style="color:var(--red);">&#10007;</span> Risk of false positives<br>
+            <span style="color:var(--red);">&#10007;</span> Cascading failures from premature declarations
+          </div>
+        </div>
+      </div>
+    </div>
+    <p style="font-size:0.85rem; margin-top:12px;">In a fictitious world with maximum network delay <strong>d</strong> and maximum processing time <strong>r</strong>, the ideal timeout would be <strong style="color:var(--accent);">2d + r</strong>. But in asynchronous networks, neither d nor r has an upper bound.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h4 style="color:var(--orange);">Cascading Failure Risk</h4>
+    <p style="margin-bottom:0;">If a node is not dead but merely slow due to overload, prematurely declaring it dead transfers its load to other nodes, which can cause <em>them</em> to become overloaded and also be declared dead. In the extreme case, all nodes declare each other dead and everything stops working.</p>
+  </div>
+
+  <!-- ===== NETWORK CONGESTION & QUEUEING ===== -->
+  <h3>Network Congestion and Queueing</h3>
+
+  <p>Just like road traffic, the variability of packet delays is most often due to <span class="key-term">queueing</span>. A packet can be delayed at any of several stages on its journey.</p>
+
+  <!-- ===== DIAGRAM 6: 5-STAGE QUEUEING ===== -->
+  <div class="diagram">
+    <div class="diagram-title">5-Stage Queueing -- Where Packets Get Delayed</div>
+    <div class="layer-stack">
+      <div class="layer" style="background: rgba(59,130,246,0.15); color:var(--accent); border: 1px solid rgba(59,130,246,0.3);">
+        <span class="number-badge" style="background:var(--accent); color:white;">1</span>
+        <strong>Network Switch Queue</strong>
+        <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">Multiple nodes send to the same destination simultaneously. Switch queues packets and feeds them one by one. If the queue fills up, packets are <strong style="color:var(--red);">dropped</strong>.</div>
+      </div>
+      <div class="layer" style="background: rgba(139,92,246,0.15); color:var(--accent2); border: 1px solid rgba(139,92,246,0.3);">
+        <span class="number-badge" style="background:var(--accent2); color:white;">2</span>
+        <strong>OS Incoming Queue</strong>
+        <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">Packet arrives at destination, but all CPU cores are busy. OS queues the request until the application is ready. Wait time can be <strong style="color:var(--orange);">arbitrary</strong>.</div>
+      </div>
+      <div class="layer" style="background: rgba(245,158,11,0.15); color:var(--orange); border: 1px solid rgba(245,158,11,0.3);">
+        <span class="number-badge" style="background:var(--orange); color:white;">3</span>
+        <strong>VM Monitor Buffer (Virtualized Environments)</strong>
+        <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">VM is paused for tens of ms while another VM uses the CPU. Incoming data is buffered by the hypervisor, adding more delay variability.</div>
+      </div>
+      <div class="layer" style="background: rgba(16,185,129,0.15); color:var(--accent3); border: 1px solid rgba(16,185,129,0.3);">
+        <span class="number-badge" style="background:var(--accent3); color:white;">4</span>
+        <strong>TCP Flow Control (Sender-Side)</strong>
+        <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">TCP limits sending rate to avoid overloading network or receiver (congestion avoidance / backpressure). Data queues <em>at the sender</em> before entering the network.</div>
+      </div>
+      <div class="layer" style="background: rgba(239,68,68,0.15); color:var(--red); border: 1px solid rgba(239,68,68,0.3);">
+        <span class="number-badge" style="background:var(--red); color:white;">5</span>
+        <strong>TCP Retransmission</strong>
+        <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">If a packet is not ACKed within a timeout, TCP retransmits it. The application sees the delay (waiting for timeout + retransmission + new ACK) but not the loss itself.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== DIAGRAM 7: SWITCH QUEUE VISUALIZATION ===== -->
+  <div class="diagram">
+    <div class="diagram-title">Network Switch Queueing (Figure 8-2)</div>
+    <div style="display:flex; flex-direction:column; align-items:center; gap:16px;">
+      <div style="display:flex; gap:24px; align-items:flex-end;">
+        <div style="text-align:center;">
+          <div class="flow-box primary" style="min-width:70px;">Port 1</div>
+          <div style="font-size:0.7rem; color:var(--text-muted);">sending</div>
+        </div>
+        <div style="text-align:center;">
+          <div class="flow-box primary" style="min-width:70px;">Port 2</div>
+          <div style="font-size:0.7rem; color:var(--text-muted);">sending</div>
+        </div>
+        <div style="text-align:center;">
+          <div class="flow-box" style="min-width:70px; opacity:0.4;">Port 3</div>
+          <div style="font-size:0.7rem; color:var(--text-muted);">receiving</div>
+        </div>
+        <div style="text-align:center;">
+          <div class="flow-box primary" style="min-width:70px;">Port 4</div>
+          <div style="font-size:0.7rem; color:var(--text-muted);">sending</div>
+        </div>
+      </div>
+      <div style="font-size:1.4rem; color:var(--text-muted);">&#9660; &#9660; &nbsp;&nbsp; &#9660;</div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <div style="display:flex; gap:3px;">
+          <div style="width:28px; height:28px; background:var(--accent); border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:0.6rem; color:white;">P1</div>
+          <div style="width:28px; height:28px; background:var(--accent); border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:0.6rem; color:white;">P2</div>
+          <div style="width:28px; height:28px; background:var(--accent); border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:0.6rem; color:white;">P4</div>
+          <div style="width:28px; height:28px; background:var(--border); border-radius:4px; border:1px dashed var(--text-muted);"></div>
+          <div style="width:28px; height:28px; background:var(--border); border-radius:4px; border:1px dashed var(--text-muted);"></div>
+        </div>
+        <div style="font-size:0.8rem; color:var(--text-muted);">&#8592; Switch queue for Port 3</div>
+      </div>
+      <div style="font-size:1.4rem; color:var(--text-muted);">&#9660;</div>
+      <div class="flow-box green" style="min-width:120px;">Port 3 (destination)</div>
+      <div style="font-size:0.8rem; color:var(--text-muted); text-align:center;">Packets fed one-by-one. If queue fills up, packets are dropped and must be retransmitted.</div>
+    </div>
+  </div>
+
+  <div class="card card-purple">
+    <h4 style="color:var(--accent2);">TCP vs. UDP: A Latency Tradeoff</h4>
+    <p>Latency-sensitive applications (VoIP, video calls) use <strong>UDP</strong> to avoid flow control and retransmission delays. If a packet is lost, the application fills the gap with silence rather than waiting. "Could you repeat that please? The sound just cut out for a moment." -- the retry happens at the human layer.</p>
+    <p style="margin-bottom:0;"><strong>TCP</strong> hides packet loss but adds variable delays. <strong>UDP</strong> exposes packet loss but keeps latency predictable.</p>
+  </div>
+
+  <div class="card card-accent">
+    <h4 style="color:var(--accent);">Adaptive Timeouts</h4>
+    <p style="margin-bottom:0;">Rather than hard-coded constant timeouts, systems can continually measure response times and <span class="key-term">jitter</span>, automatically adjusting timeouts based on the observed distribution. The <strong>Phi Accrual failure detector</strong> (used in Akka and Cassandra) does exactly this. TCP retransmission timeouts work similarly.</p>
+  </div>
+
+  <!-- ===== SYNCHRONOUS vs ASYNCHRONOUS NETWORKS ===== -->
+  <h2>Synchronous vs. Asynchronous Networks</h2>
+
+  <p>Why can't we just make the network reliable at the hardware level? Telephone networks do it -- why can't computer networks?</p>
+
+  <!-- ===== DIAGRAM 8: CIRCUIT vs PACKET SWITCHING ===== -->
+  <div class="diagram">
+    <div class="diagram-title">Circuit-Switched (Telephone) vs. Packet-Switched (Internet)</div>
+    <div class="grid2">
+      <div style="background: var(--surface); border: 2px solid var(--accent3); border-radius:12px; padding:20px;">
+        <div style="font-weight:700; color:var(--accent3); margin-bottom:12px; text-align:center;">Circuit-Switched Network</div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div style="width:50px; height:50px; border-radius:50%; background:rgba(16,185,129,0.2); border:2px solid var(--accent3); display:flex; align-items:center; justify-content:center; font-size:0.7rem; font-weight:700; color:var(--accent3);">Call A</div>
+            <div style="flex:1; display:flex; flex-direction:column; gap:2px;">
+              <div style="height:6px; background:var(--accent3); border-radius:3px; width:100%;"></div>
+              <div style="font-size:0.65rem; color:var(--text-muted); text-align:center;">Dedicated 16-bit slot reserved</div>
+            </div>
+            <div style="width:50px; height:50px; border-radius:50%; background:rgba(16,185,129,0.2); border:2px solid var(--accent3); display:flex; align-items:center; justify-content:center; font-size:0.7rem; font-weight:700; color:var(--accent3);">Call A</div>
+          </div>
+          <div style="font-size:0.8rem; color:var(--text-muted); text-align:center; margin-top:8px;">
+            <span style="color:var(--accent3);">&#10003;</span> Fixed bandwidth per call<br>
+            <span style="color:var(--accent3);">&#10003;</span> No queueing = bounded delay<br>
+            <span style="color:var(--accent3);">&#10003;</span> Predictable latency<br>
+            <span style="color:var(--red);">&#10007;</span> Wastes capacity when idle<br>
+            <span style="color:var(--red);">&#10007;</span> Bad for bursty traffic
+          </div>
+        </div>
+      </div>
+      <div style="background: var(--surface); border: 2px solid var(--accent); border-radius:12px; padding:20px;">
+        <div style="font-weight:700; color:var(--accent); margin-bottom:12px; text-align:center;">Packet-Switched Network</div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div style="width:50px; height:50px; border-radius:50%; background:rgba(59,130,246,0.2); border:2px solid var(--accent); display:flex; align-items:center; justify-content:center; font-size:0.7rem; font-weight:700; color:var(--accent);">Pkt</div>
+            <div style="flex:1; display:flex; flex-direction:column; gap:2px;">
+              <div style="display:flex; gap:4px;">
+                <div style="height:6px; background:var(--accent); border-radius:3px; flex:2;"></div>
+                <div style="height:6px; background:var(--accent2); border-radius:3px; flex:1;"></div>
+                <div style="height:6px; background:var(--orange); border-radius:3px; flex:3;"></div>
+              </div>
+              <div style="font-size:0.65rem; color:var(--text-muted); text-align:center;">Shared bandwidth, opportunistic</div>
+            </div>
+            <div style="width:50px; height:50px; border-radius:50%; background:rgba(59,130,246,0.2); border:2px solid var(--accent); display:flex; align-items:center; justify-content:center; font-size:0.7rem; font-weight:700; color:var(--accent);">Pkt</div>
+          </div>
+          <div style="font-size:0.8rem; color:var(--text-muted); text-align:center; margin-top:8px;">
+            <span style="color:var(--accent3);">&#10003;</span> Maximizes wire utilization<br>
+            <span style="color:var(--accent3);">&#10003;</span> Great for bursty traffic (web, email)<br>
+            <span style="color:var(--accent3);">&#10003;</span> TCP adapts to available capacity<br>
+            <span style="color:var(--red);">&#10007;</span> Queueing = unbounded delays<br>
+            <span style="color:var(--red);">&#10007;</span> No latency guarantees
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:20px; padding:12px 16px; background:var(--surface); border-radius:8px; border:1px solid var(--border);">
+      <p style="margin:0; font-size:0.85rem;"><strong style="color:var(--accent2);">Why packet switching wins for data:</strong> Internet traffic is <em>bursty</em>. A circuit wastes capacity when idle. If you guess bandwidth too low, the transfer is unnecessarily slow. Too high, and the circuit cannot be established. TCP dynamically adapts to available capacity, making packet switching far more efficient for data transfer.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h4>Latency and Resource Utilization</h4>
+    <p>Variable delays are a consequence of <span class="key-term">dynamic resource partitioning</span>. A telephone wire with 10,000 circuit slots allocates them statically -- even if 9,999 are unused, your call gets the same fixed bandwidth. The internet shares bandwidth dynamically: senders jostle for access, causing queueing but maximizing utilization.</p>
+    <p style="margin-bottom:0;"><strong>The fundamental tradeoff:</strong> Static partitioning (circuits) = predictable latency but waste. Dynamic partitioning (packets) = efficient utilization but variable delays. Variable delays in networks are not a law of nature, but the result of a <strong>cost/benefit tradeoff</strong>.</p>
+  </div>
+
+  <!-- ===== UNRELIABLE CLOCKS ===== -->
+  <h2>Unreliable Clocks</h2>
+
+  <p>Clocks answer two different kinds of questions: <strong>durations</strong> (how long did something take?) and <strong>points in time</strong> (when did something happen?). In a distributed system, both are tricky because communication is not instantaneous and each machine has its own clock -- a quartz crystal oscillator that drifts independently.</p>
+
+  <p>Clocks can be synchronized via <span class="key-term">NTP (Network Time Protocol)</span>, which adjusts the computer clock according to a group of time servers. But NTP itself depends on the network, which, as we just discussed, is unreliable.</p>
+
+  <h3>Monotonic vs. Time-of-Day Clocks</h3>
+
+  <!-- ===== DIAGRAM 9: TWO TYPES OF CLOCKS ===== -->
+  <div class="diagram">
+    <div class="diagram-title">Two Types of Clocks in Every Computer</div>
+    <div class="grid2">
+      <div style="background: var(--surface); border: 2px solid var(--orange); border-radius:12px; padding:20px;">
+        <div style="font-weight:700; color:var(--orange); margin-bottom:8px; font-size:1.05rem;">Time-of-Day Clock</div>
+        <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:12px; font-family:monospace; background:var(--surface2); padding:6px 10px; border-radius:6px;">
+          clock_gettime(CLOCK_REALTIME)<br>
+          System.currentTimeMillis()
+        </div>
+        <table style="margin:0;">
+          <tr><td style="font-size:0.8rem; padding:4px 8px;"><strong>Returns</strong></td><td style="font-size:0.8rem; padding:4px 8px;">Seconds/ms since Unix epoch (Jan 1, 1970)</td></tr>
+          <tr><td style="font-size:0.8rem; padding:4px 8px;"><strong>Synchronized</strong></td><td style="font-size:0.8rem; padding:4px 8px;">Yes, via NTP</td></tr>
+          <tr><td style="font-size:0.8rem; padding:4px 8px;"><strong>Can jump?</strong></td><td style="font-size:0.8rem; padding:4px 8px;"><span style="color:var(--red);">Yes!</span> Forward or backward on NTP reset</td></tr>
+          <tr><td style="font-size:0.8rem; padding:4px 8px;"><strong>Cross-node?</strong></td><td style="font-size:0.8rem; padding:4px 8px;">Ideally comparable (same epoch), but skew exists</td></tr>
+          <tr><td style="font-size:0.8rem; padding:4px 8px;"><strong>Leap seconds</strong></td><td style="font-size:0.8rem; padding:4px 8px;"><span style="color:var(--red);">Often ignored</span>, causing chaos</td></tr>
+          <tr><td style="font-size:0.8rem; padding:4px 8px;"><strong>Good for</strong></td><td style="font-size:0.8rem; padding:4px 8px;">Timestamps, calendar events</td></tr>
+          <tr><td style="font-size:0.8rem; padding:4px 8px; border:none;"><strong>Bad for</strong></td><td style="font-size:0.8rem; padding:4px 8px; border:none;"><span style="color:var(--red);">Measuring elapsed time!</span></td></tr>
+        </table>
+      </div>
+      <div style="background: var(--surface); border: 2px solid var(--accent3); border-radius:12px; padding:20px;">
+        <div style="font-weight:700; color:var(--accent3); margin-bottom:8px; font-size:1.05rem;">Monotonic Clock</div>
+        <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:12px; font-family:monospace; background:var(--surface2); padding:6px 10px; border-radius:6px;">
+          clock_gettime(CLOCK_MONOTONIC)<br>
+          System.nanoTime()
+        </div>
+        <table style="margin:0;">
+          <tr><td style="font-size:0.8rem; padding:4px 8px;"><strong>Returns</strong></td><td style="font-size:0.8rem; padding:4px 8px;">Arbitrary value (e.g., ns since boot)</td></tr>
+          <tr><td style="font-size:0.8rem; padding:4px 8px;"><strong>Synchronized</strong></td><td style="font-size:0.8rem; padding:4px 8px;">No (only rate-adjusted via NTP slewing)</td></tr>
+          <tr><td style="font-size:0.8rem; padding:4px 8px;"><strong>Can jump?</strong></td><td style="font-size:0.8rem; padding:4px 8px;"><span style="color:var(--accent3);">Never backward</span> (guaranteed monotonic)</td></tr>
+          <tr><td style="font-size:0.8rem; padding:4px 8px;"><strong>Cross-node?</strong></td><td style="font-size:0.8rem; padding:4px 8px;"><span style="color:var(--red);">Not comparable</span> between machines</td></tr>
+          <tr><td style="font-size:0.8rem; padding:4px 8px;"><strong>Resolution</strong></td><td style="font-size:0.8rem; padding:4px 8px;">Microseconds or less</td></tr>
+          <tr><td style="font-size:0.8rem; padding:4px 8px;"><strong>Good for</strong></td><td style="font-size:0.8rem; padding:4px 8px;">Timeouts, measuring durations</td></tr>
+          <tr><td style="font-size:0.8rem; padding:4px 8px; border:none;"><strong>Bad for</strong></td><td style="font-size:0.8rem; padding:4px 8px; border:none;"><span style="color:var(--red);">Timestamps across nodes!</span></td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== NTP SYNC ERROR SOURCES ===== -->
+  <h3>Clock Synchronization and Accuracy</h3>
+  <p>Monotonic clocks don't need synchronization. But time-of-day clocks must be set via NTP or other external source -- and this process is surprisingly unreliable.</p>
+
+  <!-- ===== DIAGRAM 10: NTP ERROR SOURCES ===== -->
+  <div class="diagram">
+    <div class="diagram-title">Sources of Clock Error in NTP Synchronization</div>
+    <div style="display:flex; flex-direction:column; gap:6px;">
+
+      <div style="display:flex; align-items:center; gap:12px; padding:10px; background:var(--surface); border-radius:8px; border-left:3px solid var(--red);">
+        <div class="number-badge" style="background:var(--red); color:white; flex-shrink:0;">1</div>
+        <div>
+          <div style="font-weight:600; color:var(--text); font-size:0.9rem;">Quartz Crystal Drift</div>
+          <div style="font-size:0.8rem; color:var(--text-muted);">Google assumes 200 ppm drift = <strong>6 ms</strong> per 30s sync interval, or <strong>17 seconds</strong> per day without sync. Temperature-dependent.</div>
+        </div>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:12px; padding:10px; background:var(--surface); border-radius:8px; border-left:3px solid var(--orange);">
+        <div class="number-badge" style="background:var(--orange); color:white; flex-shrink:0;">2</div>
+        <div>
+          <div style="font-weight:600; color:var(--text); font-size:0.9rem;">Forced Clock Reset</div>
+          <div style="font-size:0.8rem; color:var(--text-muted);">If clock differs too much from NTP, it may jump forward or backward. Applications see time go backward.</div>
+        </div>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:12px; padding:10px; background:var(--surface); border-radius:8px; border-left:3px solid var(--accent2);">
+        <div class="number-badge" style="background:var(--accent2); color:white; flex-shrink:0;">3</div>
+        <div>
+          <div style="font-weight:600; color:var(--text); font-size:0.9rem;">Firewall Blocking NTP</div>
+          <div style="font-size:0.8rem; color:var(--text-muted);">Node accidentally firewalled from NTP servers. The misconfiguration can go unnoticed for a long time.</div>
+        </div>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:12px; padding:10px; background:var(--surface); border-radius:8px; border-left:3px solid var(--accent);">
+        <div class="number-badge" style="background:var(--accent); color:white; flex-shrink:0;">4</div>
+        <div>
+          <div style="font-weight:600; color:var(--text); font-size:0.9rem;">Network Delay</div>
+          <div style="font-size:0.8rem; color:var(--text-muted);">NTP accuracy is limited by network round-trip time. Minimum <strong>35 ms</strong> error over internet. Spikes up to <strong>1 second</strong>.</div>
+        </div>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:12px; padding:10px; background:var(--surface); border-radius:8px; border-left:3px solid var(--pink);">
+        <div class="number-badge" style="background:var(--pink); color:white; flex-shrink:0;">5</div>
+        <div>
+          <div style="font-weight:600; color:var(--text); font-size:0.9rem;">Wrong/Misconfigured NTP Servers</div>
+          <div style="font-size:0.8rem; color:var(--text-muted);">Some NTP servers report time off by hours. Clients query multiple servers and ignore outliers, but it's still risky.</div>
+        </div>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:12px; padding:10px; background:var(--surface); border-radius:8px; border-left:3px solid var(--accent3);">
+        <div class="number-badge" style="background:var(--accent3); color:white; flex-shrink:0;">6</div>
+        <div>
+          <div style="font-weight:600; color:var(--text); font-size:0.9rem;">Leap Seconds</div>
+          <div style="font-size:0.8rem; color:var(--text-muted);">A minute with 59 or 61 seconds. Has crashed many large systems. Best mitigation: "smearing" the adjustment over a day.</div>
+        </div>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:12px; padding:10px; background:var(--surface); border-radius:8px; border-left:3px solid var(--border);">
+        <div class="number-badge" style="background:var(--border); color:var(--text); flex-shrink:0;">7</div>
+        <div>
+          <div style="font-weight:600; color:var(--text); font-size:0.9rem;">Virtualized Hardware Clocks</div>
+          <div style="font-size:0.8rem; color:var(--text-muted);">VM paused while other VMs run. Clock appears to jump forward by tens of ms when VM resumes.</div>
+        </div>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:12px; padding:10px; background:var(--surface); border-radius:8px; border-left:3px solid var(--border);">
+        <div class="number-badge" style="background:var(--border); color:var(--text); flex-shrink:0;">8</div>
+        <div>
+          <div style="font-weight:600; color:var(--text); font-size:0.9rem;">Untrusted User Devices</div>
+          <div style="font-size:0.8rem; color:var(--text-muted);">Users can deliberately set wrong time (e.g., to cheat games). Clock may be wildly in the past or future.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TIMESTAMPS FOR ORDERING: LWW FAILURE ===== -->
+  <h3>Timestamps for Ordering Events</h3>
+  <p>It is tempting but <strong>dangerous</strong> to use time-of-day clocks to order events across nodes. The classic failure case involves <span class="key-term">Last Write Wins (LWW)</span>.</p>
+
+  <!-- ===== DIAGRAM 11: LWW FAILURE TIMELINE ===== -->
+  <div class="diagram">
+    <div class="diagram-title">LWW Failure Timeline (Figure 8-3) -- Clock Skew Causes Data Loss</div>
+
+    <div style="margin-bottom:16px; padding:10px 14px; background:var(--surface); border-radius:8px; border:1px solid var(--border); font-size:0.8rem; color:var(--text-muted);">
+      <strong style="color:var(--text);">Setup:</strong> Multi-leader replication. Node 1 and Node 3 accept writes. Node 2 receives replicated writes and resolves conflicts using LWW (higher timestamp wins). Node 3's clock is <strong style="color:var(--red);">slightly behind</strong> Node 1's (by ~3 ms).
+    </div>
+
+    <!-- Swim-lane timeline -->
+    <div style="display:flex; flex-direction:column; gap:2px; position:relative;">
+      <!-- Time axis -->
+      <div style="display:grid; grid-template-columns: 80px 1fr; margin-bottom:8px;">
+        <div></div>
+        <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:var(--text-muted); padding:0 4px;">
+          <span>t=42.000s</span>
+          <span>t=42.003s</span>
+          <span>t=42.004s</span>
+          <span>t=42.006s</span>
+        </div>
+      </div>
+
+      <!-- Node 1 -->
+      <div class="swim-lane">
+        <div class="swim-label" style="color:var(--accent);">Node 1</div>
+        <div class="swim-track">
+          <div class="swim-event" style="left:30%; width:20%; background:rgba(59,130,246,0.3); border:1px solid var(--accent); color:var(--accent);">
+            x=1 @42.004
+          </div>
+        </div>
+      </div>
+
+      <!-- Client A -->
+      <div class="swim-lane">
+        <div class="swim-label" style="color:var(--accent3); font-size:0.75rem;">Client A</div>
+        <div class="swim-track" style="background:transparent; border:none;">
+          <div style="position:absolute; left:28%; top:50%; font-size:0.7rem; color:var(--accent3);">&#9650; writes x=1</div>
+        </div>
+      </div>
+
+      <!-- Node 3 -->
+      <div class="swim-lane">
+        <div class="swim-label" style="color:var(--orange);">Node 3</div>
+        <div class="swim-track">
+          <div class="swim-event" style="left:10%; width:15%; background:rgba(59,130,246,0.15); border:1px dashed var(--accent); color:var(--accent); font-size:0.65rem;">
+            x=1 (repl)
+          </div>
+          <div class="swim-event" style="left:35%; width:22%; background:rgba(245,158,11,0.3); border:1px solid var(--orange); color:var(--orange);">
+            x=2 @42.003
+          </div>
+        </div>
+      </div>
+
+      <!-- Client B -->
+      <div class="swim-lane">
+        <div class="swim-label" style="color:var(--pink); font-size:0.75rem;">Client B</div>
+        <div class="swim-track" style="background:transparent; border:none;">
+          <div style="position:absolute; left:33%; top:50%; font-size:0.7rem; color:var(--pink);">&#9650; increments x to 2 (after seeing x=1)</div>
+        </div>
+      </div>
+
+      <!-- Node 2 -->
+      <div class="swim-lane">
+        <div class="swim-label" style="color:var(--red);">Node 2</div>
+        <div class="swim-track">
+          <div class="swim-event" style="left:60%; width:35%; background:rgba(239,68,68,0.3); border:1px solid var(--red); color:var(--red);">
+            Receives both: keeps x=1 (42.004 > 42.003)
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:16px; padding:12px; background:rgba(239,68,68,0.1); border:1px solid var(--red); border-radius:8px;">
+      <p style="margin:0; font-size:0.85rem; color:var(--text);">
+        <strong style="color:var(--red);">Result: Client B's write (x=2) is SILENTLY DROPPED</strong><br>
+        <span style="color:var(--text-muted);">Node 2 sees x=1 with timestamp 42.004 and x=2 with timestamp 42.003. Since 42.004 > 42.003, LWW keeps x=1. But x=2 was causally <em>later</em> (Client B read x=1 before incrementing). The 3ms clock skew between Node 1 and Node 3 reversed the causal order.</span>
+      </p>
+    </div>
+  </div>
+
+  <div class="card card-red">
+    <h4 style="color:var(--red);">Three Problems with LWW</h4>
+    <ul>
+      <li><strong>Silent data loss:</strong> A node with a lagging clock cannot overwrite values from a node with a fast clock until the skew has elapsed. Arbitrary amounts of data can be silently dropped.</li>
+      <li><strong>Cannot distinguish sequential from concurrent:</strong> LWW does not know if two writes were causally related or truly concurrent. Version vectors are needed for causality tracking.</li>
+      <li><strong>Timestamp ties:</strong> Two nodes can generate the same millisecond timestamp. Tiebreakers (random numbers) can also violate causality.</li>
+    </ul>
+    <p style="margin-bottom:0;"><strong>Alternative:</strong> <span class="key-term">Logical clocks</span> (incrementing counters) are a safer alternative. They don't measure wall-clock time -- only the relative ordering of events.</p>
+  </div>
+
+  <!-- ===== CLOCK CONFIDENCE INTERVALS ===== -->
+  <h3>Clock Readings Have a Confidence Interval</h3>
+
+  <p>Even if your clock reads with microsecond resolution, that doesn't mean the value is accurate to that precision. A clock reading is not a point in time -- it's a <span class="key-term">range of times</span> within a confidence interval. If you only know the time +/- 100 ms, the microsecond digits are meaningless.</p>
+
+  <!-- ===== DIAGRAM 12: CONFIDENCE INTERVALS / TRUETIME ===== -->
+  <div class="diagram">
+    <div class="diagram-title">Clock Confidence Intervals -- From NTP to TrueTime</div>
+
+    <p style="font-size:0.85rem; margin-bottom:16px;">Most systems return a single timestamp, hiding the uncertainty. Google's TrueTime API in Spanner is a notable exception: it returns <strong>[earliest, latest]</strong>.</p>
+
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <!-- NTP over internet -->
+      <div>
+        <div style="font-size:0.8rem; font-weight:600; color:var(--text); margin-bottom:4px;">NTP over Internet</div>
+        <div class="confidence-bar" style="background:var(--surface);">
+          <div class="confidence-range" style="left:10%; width:80%; background:rgba(239,68,68,0.25); border:1px solid var(--red); color:var(--red);">
+            +/- 35ms to 1000ms
+          </div>
+        </div>
+      </div>
+
+      <!-- NTP on LAN -->
+      <div>
+        <div style="font-size:0.8rem; font-weight:600; color:var(--text); margin-bottom:4px;">NTP on Local Network</div>
+        <div class="confidence-bar" style="background:var(--surface);">
+          <div class="confidence-range" style="left:25%; width:50%; background:rgba(245,158,11,0.25); border:1px solid var(--orange); color:var(--orange);">
+            +/- 1ms to 35ms
+          </div>
+        </div>
+      </div>
+
+      <!-- GPS / PTP -->
+      <div>
+        <div style="font-size:0.8rem; font-weight:600; color:var(--text); margin-bottom:4px;">GPS / Precision Time Protocol</div>
+        <div class="confidence-bar" style="background:var(--surface);">
+          <div class="confidence-range" style="left:38%; width:24%; background:rgba(16,185,129,0.25); border:1px solid var(--accent3); color:var(--accent3);">
+            +/- 100us
+          </div>
+        </div>
+      </div>
+
+      <!-- Google TrueTime -->
+      <div>
+        <div style="font-size:0.8rem; font-weight:600; color:var(--text); margin-bottom:4px;">Google TrueTime (GPS + Atomic Clock per DC)</div>
+        <div class="confidence-bar" style="background:var(--surface);">
+          <div class="confidence-range" style="left:42%; width:16%; background:rgba(59,130,246,0.25); border:1px solid var(--accent); color:var(--accent);">
+            ~7ms
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:space-between; margin-top:8px; font-size:0.7rem; color:var(--text-muted);">
+      <span>Wide uncertainty</span>
+      <span style="text-align:center;">&#8592; Actual time is somewhere in the interval &#8594;</span>
+      <span>Narrow uncertainty</span>
+    </div>
+  </div>
+
+  <!-- ===== DIAGRAM 13: SPANNER'S TRUETIME APPROACH ===== -->
+  <div class="diagram">
+    <div class="diagram-title">How Spanner Uses TrueTime for Global Snapshots</div>
+
+    <div style="display:flex; flex-direction:column; gap:16px; align-items:center;">
+      <div style="display:flex; gap:24px; align-items:center;">
+        <div class="arch-box blue" style="padding:12px 16px;">
+          <div class="arch-label" style="color:var(--accent);">Transaction A</div>
+          <div style="font-size:0.8rem; color:var(--text-muted);">Interval: [A<sub>earliest</sub>, A<sub>latest</sub>]</div>
+        </div>
+        <div style="font-size:0.8rem; color:var(--text-muted);">then</div>
+        <div class="arch-box purple" style="padding:12px 16px;">
+          <div class="arch-label" style="color:var(--accent2);">Transaction B</div>
+          <div style="font-size:0.8rem; color:var(--text-muted);">Interval: [B<sub>earliest</sub>, B<sub>latest</sub>]</div>
+        </div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:8px; width:100%;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div style="width:80px; font-size:0.8rem; font-weight:600; color:var(--accent3);">Safe:</div>
+          <div style="flex:1; position:relative; height:30px; background:var(--surface); border-radius:6px;">
+            <div style="position:absolute; left:10%; width:25%; height:100%; background:rgba(59,130,246,0.2); border:1px solid var(--accent); border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:0.7rem; color:var(--accent);">A</div>
+            <div style="position:absolute; left:55%; width:25%; height:100%; background:rgba(139,92,246,0.2); border:1px solid var(--accent2); border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:0.7rem; color:var(--accent2);">B</div>
+          </div>
+          <div style="font-size:0.75rem; color:var(--accent3);">No overlap -- B after A</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div style="width:80px; font-size:0.8rem; font-weight:600; color:var(--red);">Unsafe:</div>
+          <div style="flex:1; position:relative; height:30px; background:var(--surface); border-radius:6px;">
+            <div style="position:absolute; left:15%; width:30%; height:100%; background:rgba(59,130,246,0.2); border:1px solid var(--accent); border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:0.7rem; color:var(--accent);">A</div>
+            <div style="position:absolute; left:30%; width:30%; height:100%; background:rgba(139,92,246,0.2); border:1px solid var(--accent2); border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:0.7rem; color:var(--accent2);">B</div>
+          </div>
+          <div style="font-size:0.75rem; color:var(--red);">Overlap -- order unclear</div>
+        </div>
+      </div>
+
+      <div style="padding:12px; background:var(--surface); border-radius:8px; border:1px solid var(--border); width:100%;">
+        <p style="margin:0; font-size:0.85rem;">
+          <strong style="color:var(--accent);">Spanner's solution:</strong> Before committing a read-write transaction, deliberately <strong>wait for the length of the confidence interval</strong>. This ensures any subsequent transaction's interval will not overlap, guaranteeing correct causal ordering. To minimize wait time, Google deploys <strong>GPS receivers or atomic clocks in each datacenter</strong>, keeping uncertainty to ~7 ms.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-green">
+    <h4 style="color:var(--accent3);">Key Takeaways for Part 1</h4>
+    <ul>
+      <li><strong>Partial failures are nondeterministic</strong> -- you may not know if something succeeded or not</li>
+      <li><strong>Networks are unreliable:</strong> packets can be lost, delayed, duplicated, or reordered. The only option is timeouts, and there is no "correct" timeout value.</li>
+      <li><strong>Queueing causes variable delays</strong> at 5 different stages (switch, OS, VM, TCP sender, TCP retransmission).</li>
+      <li><strong>Packet switching trades latency guarantees for efficiency</strong> -- variable delays are a cost/benefit tradeoff, not a law of nature.</li>
+      <li><strong>Time-of-day clocks can jump</strong>, making them unsafe for measuring durations. Monotonic clocks are safe for durations but not comparable across nodes.</li>
+      <li><strong>NTP has at least 8 sources of error.</strong> Clock readings are confidence intervals, not points in time.</li>
+      <li><strong>LWW with wall-clock timestamps causes silent data loss</strong> due to clock skew. Use logical clocks or version vectors instead.</li>
+      <li><strong>Google's TrueTime/Spanner</strong> solves ordering by exposing clock uncertainty and waiting for intervals to separate.</li>
+    </ul>
+  </div>
+
+  <!-- ===== QUESTIONS ===== -->
+  <h2>Test Your Understanding</h2>
+
+  <div class="question-block">
+    <div class="question-header" onclick="this.parentElement.classList.toggle('open')">
+      <div><span class="q-num">1</span>Why is a distributed system fundamentally different from a single-node system in terms of failure modes?</div>
+      <span class="chevron">&#9660;</span>
+    </div>
+    <div class="question-body">
+      <p>A single computer is <strong>deterministic</strong>: it either works correctly or crashes completely. Hardware faults lead to total system failure (kernel panic). A distributed system experiences <strong>partial failures</strong> that are <strong>nondeterministic</strong> -- some parts may be broken in unpredictable ways while other parts work fine. You may not even know whether an operation succeeded or not, because the network can lose both the request and the response. This nondeterminism makes distributed systems fundamentally harder to reason about.</p>
+    </div>
+  </div>
+
+  <div class="question-block">
+    <div class="question-header" onclick="this.parentElement.classList.toggle('open')">
+      <div><span class="q-num">2</span>If you send a request over the network and don't get a response, what are the possible explanations, and why can't you distinguish between them?</div>
+      <span class="chevron">&#9660;</span>
+    </div>
+    <div class="question-body">
+      <p>Six things could have happened: (1) the request was lost, (2) the request is queued, (3) the remote node is dead, (4) the remote node is temporarily paused (e.g., GC), (5) the server processed the request but the response was lost, (6) the response is delayed. From the sender's perspective, all six look identical: you simply don't have a response. In an asynchronous network, the only information you have is the <em>absence</em> of a response. The only recourse is a timeout, but even after a timeout, you still don't know which scenario occurred -- and if the request is queued somewhere, it may still be delivered later.</p>
+    </div>
+  </div>
+
+  <div class="question-block">
+    <div class="question-header" onclick="this.parentElement.classList.toggle('open')">
+      <div><span class="q-num">3</span>Why can setting timeouts too short be worse than setting them too long? Describe the cascading failure scenario.</div>
+      <span class="chevron">&#9660;</span>
+    </div>
+    <div class="question-body">
+      <p>A short timeout detects faults faster but risks <strong>false positives</strong> -- declaring a node dead when it's merely slow. If a node is just overloaded (not dead), declaring it dead triggers transferring its responsibilities to other nodes, putting <em>more</em> load on them. Those nodes may then become slow, get declared dead themselves, and their load shifts again. In the extreme case, all nodes declare each other dead and the entire system stops working. Additionally, if a "dead" node was actually processing a request (e.g., sending an email), another node may take over and perform the action a second time. A long timeout causes users to wait but avoids this cascading collapse.</p>
+    </div>
+  </div>
+
+  <div class="question-block">
+    <div class="question-header" onclick="this.parentElement.classList.toggle('open')">
+      <div><span class="q-num">4</span>Why do computer networks use packet switching instead of circuit switching, even though circuit switching provides bounded delays?</div>
+      <span class="chevron">&#9660;</span>
+    </div>
+    <div class="question-body">
+      <p>Internet traffic is <strong>bursty</strong>: a web page request, email, or file transfer needs high bandwidth briefly, then nothing. Circuit switching allocates a fixed bandwidth slot that stays reserved even when idle -- wasteful for bursty traffic. If you guess the allocation too low, the transfer is unnecessarily slow; too high, and the circuit cannot be established. Packet switching shares bandwidth dynamically: TCP adapts the data rate to available capacity, maximizing utilization. The tradeoff is queueing (unbounded delays) in exchange for much better utilization of the wire. Variable delays are not a law of nature, but the result of choosing efficiency over predictability.</p>
+    </div>
+  </div>
+
+  <div class="question-block">
+    <div class="question-header" onclick="this.parentElement.classList.toggle('open')">
+      <div><span class="q-num">5</span>Why is Last Write Wins (LWW) dangerous when using wall-clock timestamps, even with "good" NTP synchronization? What should you use instead?</div>
+      <span class="chevron">&#9660;</span>
+    </div>
+    <div class="question-body">
+      <p>Even with NTP synchronization within a few ms, clock skew between nodes can reverse causal ordering. In the textbook example, Client B reads x=1 and increments to x=2 (causally <em>after</em> the write of x=1), but because Node 3's clock is ~3ms behind Node 1, the x=2 write gets a <em>lower</em> timestamp than x=1. Node 2, using LWW, keeps x=1 and silently drops x=2. This is <strong>silent data loss with no error reported</strong>. The problems are: (a) nodes with lagging clocks cannot overwrite fast-clock values, (b) LWW cannot distinguish sequential from concurrent writes, (c) timestamp ties need arbitrary tiebreakers that can also violate causality. Instead of physical timestamps, use <strong>logical clocks</strong> (incrementing counters like Lamport timestamps or vector clocks) that track only the relative ordering of events, not wall-clock time.</p>
+    </div>
+  </div>
+
+  <div class="question-block">
+    <div class="question-header" onclick="this.parentElement.classList.toggle('open')">
+      <div><span class="q-num">6</span>How does Google Spanner's TrueTime API solve the problem of ordering distributed transactions using clocks? What is the key insight?</div>
+      <span class="chevron">&#9660;</span>
+    </div>
+    <div class="question-body">
+      <p>Most systems report a single timestamp, hiding the uncertainty. TrueTime reports a <strong>confidence interval</strong> [earliest, latest] representing the range within which the actual time lies. The key insight: if two transactions' intervals <strong>do not overlap</strong> (A<sub>latest</sub> < B<sub>earliest</sub>), then B definitely happened after A. If they overlap, the order is uncertain. To guarantee correct ordering, Spanner <strong>deliberately waits for the length of the confidence interval</strong> before committing a read-write transaction. This ensures any subsequent transaction's interval will start after the current one ends, making the causal order unambiguous. To minimize wait time, Google deploys <strong>GPS receivers or atomic clocks in each datacenter</strong>, keeping uncertainty to ~7 ms. This is an active area of research but not yet implemented in mainstream databases outside Google.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// Questions toggle is handled by inline onclick
+</script>
+</body>
+</html>

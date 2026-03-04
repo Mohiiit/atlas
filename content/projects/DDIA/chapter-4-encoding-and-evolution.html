@@ -49,6 +49,8 @@
   .question-block.open .chevron { transform: rotate(180deg); }
   .section-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--accent2); font-weight: 700; margin-bottom: 8px; }
   code { background: var(--surface2); padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; color: var(--accent3); }
+  pre { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; overflow-x: auto; margin: 12px 0; font-size: 0.82rem; line-height: 1.6; color: var(--text-muted); }
+  pre code { background: none; padding: 0; }
   .flow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; }
   .flow-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; text-align: center; font-size: 0.85rem; min-width: 100px; }
   .flow-box.primary { border-color: var(--accent); color: var(--accent); }
@@ -56,271 +58,1160 @@
   .flow-box.purple { border-color: var(--accent2); color: var(--accent2); }
   .flow-box.orange { border-color: var(--orange); color: var(--orange); }
   .flow-box.red { border-color: var(--red); color: var(--red); }
+  .flow-box.cyan { border-color: var(--cyan); color: var(--cyan); }
   .flow-arrow { color: var(--text-muted); font-size: 1.2rem; }
+  .flow-arrow-down { color: var(--text-muted); font-size: 1.2rem; text-align: center; }
   .size-bar { height: 28px; border-radius: 6px; display: flex; align-items: center; padding: 0 12px; font-size: 0.8rem; font-weight: 600; margin: 6px 0; color: white; }
+  .byte-row { display: flex; gap: 2px; flex-wrap: wrap; margin: 8px 0; }
+  .byte-cell { padding: 6px 8px; border-radius: 4px; font-size: 0.72rem; font-family: monospace; text-align: center; min-width: 40px; color: white; font-weight: 600; }
+  .byte-label { font-size: 0.7rem; color: var(--text-muted); text-align: center; margin-top: 2px; }
+  .vert-flow { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .vert-flow .flow-box { width: 100%; max-width: 340px; }
+  .split-diagram { display: grid; grid-template-columns: 1fr 40px 1fr; gap: 0; align-items: start; }
+  .split-col { display: flex; flex-direction: column; gap: 8px; }
+  .split-middle { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding-top: 30px; }
+  .connector { color: var(--text-muted); font-size: 1.1rem; }
+  .pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+  .pill-green { background: rgba(16,185,129,0.15); color: var(--accent3); }
+  .pill-red { background: rgba(239,68,68,0.15); color: var(--red); }
+  .pill-blue { background: rgba(59,130,246,0.15); color: var(--accent); }
+  .pill-purple { background: rgba(139,92,246,0.15); color: var(--accent2); }
+  .pill-orange { background: rgba(245,158,11,0.15); color: var(--orange); }
+  .highlight-box { border: 2px dashed var(--border); border-radius: 8px; padding: 16px; margin: 8px 0; }
+  .arch-row { display: flex; align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap; margin: 12px 0; }
+  .arch-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; text-align: center; font-size: 0.82rem; }
+  .arch-box-accent { background: var(--surface); border: 2px solid var(--accent); border-radius: 8px; padding: 10px 16px; text-align: center; font-size: 0.82rem; color: var(--accent); }
+  .arch-box-green { background: var(--surface); border: 2px solid var(--accent3); border-radius: 8px; padding: 10px 16px; text-align: center; font-size: 0.82rem; color: var(--accent3); }
+  .arch-box-purple { background: var(--surface); border: 2px solid var(--accent2); border-radius: 8px; padding: 10px 16px; text-align: center; font-size: 0.82rem; color: var(--accent2); }
+  .arch-box-orange { background: var(--surface); border: 2px solid var(--orange); border-radius: 8px; padding: 10px 16px; text-align: center; font-size: 0.82rem; color: var(--orange); }
+  .arch-box-red { background: var(--surface); border: 2px solid var(--red); border-radius: 8px; padding: 10px 16px; text-align: center; font-size: 0.82rem; color: var(--red); }
+  .arch-box-cyan { background: var(--surface); border: 2px solid var(--cyan); border-radius: 8px; padding: 10px 16px; text-align: center; font-size: 0.82rem; color: var(--cyan); }
+  .wide-arrow { color: var(--text-muted); font-size: 1.5rem; }
+  .schema-field { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 0.82rem; font-family: monospace; }
+  .schema-field .tag { color: var(--orange); font-weight: 700; min-width: 24px; }
+  .schema-field .type { color: var(--accent); }
+  .schema-field .name { color: var(--text); }
+  .schema-field .meta { color: var(--text-muted); font-size: 0.75rem; }
 </style>
 </head>
 <body>
 <div class="container">
   <p class="section-label">DDIA — Part I: Foundations of Data Systems</p>
   <h1>Chapter 4: Encoding and Evolution</h1>
-  <p class="subtitle">"Everything changes and nothing stands still." — Heraclitus. Applications change over time. Old and new code, old and new data formats, must coexist. This chapter is about how to make that work.</p>
+  <p class="subtitle">"Everything changes and nothing stands still." — Heraclitus of Ephesus, as quoted by Plato in Cratylus (360 BCE). Applications change over time. Old and new code, old and new data formats, must coexist. This chapter is about the formats and mechanisms that make that work — encoding data for storage and transmission, evolving schemas without breaking things, and the many ways data flows between processes.</p>
 
-  <!-- CORE PROBLEM -->
-  <h2>The Core Problem: Compatibility</h2>
-  <p>During <span class="key-term">rolling upgrades</span>, different nodes run different code versions simultaneously. Old and new data formats coexist. We need two kinds of compatibility:</p>
+  <!-- ============================================================ -->
+  <!-- SECTION 1: THE CORE PROBLEM -->
+  <!-- ============================================================ -->
+  <h2>The Core Problem: Compatibility During Change</h2>
+  <p>Applications inevitably change over time. Features are added or modified as new products are launched, user requirements become better understood, or business circumstances change. A change to application features usually requires a change to the data it stores — perhaps a new field or record type, or existing data presented in a new way.</p>
+
+  <p>However, in a large application, code changes cannot happen instantaneously. With <span class="key-term">server-side applications</span>, you perform a <span class="key-term">rolling upgrade</span> (staged rollout), deploying new versions to a few nodes at a time. With <span class="key-term">client-side applications</span>, users may not install the update for weeks or months. This means old and new versions of code, and old and new data formats, coexist simultaneously.</p>
 
   <div class="grid2">
     <div class="card card-accent">
       <h4>Backward Compatibility</h4>
       <p><strong>Newer code</strong> can read data written by <strong>older code</strong>.</p>
-      <p style="font-size:0.85rem; margin:0;">Usually easy — you wrote the new code, you know the old format.</p>
+      <p style="font-size:0.85rem; margin:0;">Usually not hard to achieve: as the author of the newer code, you know the format of data written by older code, and you can explicitly handle it.</p>
     </div>
     <div class="card card-purple">
       <h4>Forward Compatibility</h4>
       <p><strong>Older code</strong> can read data written by <strong>newer code</strong>.</p>
-      <p style="font-size:0.85rem; margin:0;">Trickier — requires old code to <em>ignore</em> additions made by newer versions.</p>
+      <p style="font-size:0.85rem; margin:0;">Trickier — requires old code to gracefully <em>ignore</em> additions made by newer versions of the code it doesn't know about.</p>
     </div>
   </div>
 
-  <!-- ENCODING FORMATS -->
+  <!-- DIAGRAM 1: Backward vs Forward Compatibility Flow -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 1: Backward vs Forward Compatibility</div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:32px;">
+      <!-- Backward Compat -->
+      <div>
+        <p style="text-align:center; font-weight:700; color:var(--accent); margin-bottom:12px;">Backward Compatibility</p>
+        <div class="vert-flow">
+          <div class="flow-box orange" style="width:100%;max-width:280px;"><strong>Old Code (v1)</strong><br><span style="font-size:0.75rem;">Writes data with schema v1</span></div>
+          <div class="flow-arrow-down">&#9660;</div>
+          <div class="flow-box" style="width:100%;max-width:280px; border-color:var(--text-muted);"><strong>Data</strong><br><span style="font-size:0.75rem;">Encoded with old schema</span></div>
+          <div class="flow-arrow-down">&#9660;</div>
+          <div class="flow-box green" style="width:100%;max-width:280px;"><strong>New Code (v2)</strong><br><span style="font-size:0.75rem;">Reads old data successfully</span></div>
+          <div><span class="pill pill-green">EASY — you wrote the new code</span></div>
+        </div>
+      </div>
+      <!-- Forward Compat -->
+      <div>
+        <p style="text-align:center; font-weight:700; color:var(--accent2); margin-bottom:12px;">Forward Compatibility</p>
+        <div class="vert-flow">
+          <div class="flow-box green" style="width:100%;max-width:280px;"><strong>New Code (v2)</strong><br><span style="font-size:0.75rem;">Writes data with schema v2 (new fields)</span></div>
+          <div class="flow-arrow-down">&#9660;</div>
+          <div class="flow-box" style="width:100%;max-width:280px; border-color:var(--text-muted);"><strong>Data</strong><br><span style="font-size:0.75rem;">Encoded with new schema</span></div>
+          <div class="flow-arrow-down">&#9660;</div>
+          <div class="flow-box orange" style="width:100%;max-width:280px;"><strong>Old Code (v1)</strong><br><span style="font-size:0.75rem;">Must ignore unknown fields</span></div>
+          <div><span class="pill pill-orange">TRICKY — old code must be tolerant</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DIAGRAM 2: Rolling Upgrade Architecture -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 2: Rolling Upgrade Architecture</div>
+    <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:16px;">During a staged rollout, some nodes run v1 while others have been upgraded to v2. Both versions must handle each other's data.</p>
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div style="font-size:0.8rem; font-weight:600; color:var(--text-muted); min-width:90px;">Load Balancer</div>
+        <div class="arch-box-cyan" style="flex:1; max-width:600px; padding:8px 16px;">
+          <strong>Load Balancer / Router</strong> &mdash; distributes requests across all nodes
+        </div>
+      </div>
+      <div style="display:flex; justify-content:center; color:var(--text-muted);">&#9660; &nbsp; &#9660; &nbsp; &#9660; &nbsp; &#9660; &nbsp; &#9660;</div>
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:center;">
+        <div class="arch-box-green" style="min-width:100px;"><strong>Node 1</strong><br><span style="font-size:0.72rem;">v2 (new)</span></div>
+        <div class="arch-box-green" style="min-width:100px;"><strong>Node 2</strong><br><span style="font-size:0.72rem;">v2 (new)</span></div>
+        <div class="arch-box-orange" style="min-width:100px;"><strong>Node 3</strong><br><span style="font-size:0.72rem;">v1 (old)</span></div>
+        <div class="arch-box-orange" style="min-width:100px;"><strong>Node 4</strong><br><span style="font-size:0.72rem;">v1 (old)</span></div>
+        <div class="arch-box-green" style="min-width:100px;"><strong>Node 5</strong><br><span style="font-size:0.72rem;">v2 (new)</span></div>
+      </div>
+      <div style="display:flex; justify-content:center; color:var(--text-muted);">&#9660; &nbsp; &#9660; &nbsp; &#9660; &nbsp; &#9660; &nbsp; &#9660;</div>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:center;">
+        <div class="arch-box" style="flex:1; max-width:600px; border:2px solid var(--accent2); color:var(--accent2); padding:8px 16px;">
+          <strong>Shared Database / Message Queue</strong><br>
+          <span style="font-size:0.75rem; color:var(--text-muted);">Contains data written by BOTH v1 and v2 &mdash; need backward + forward compat</span>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:16px; display:flex; gap:16px; flex-wrap:wrap; justify-content:center;">
+      <span class="pill pill-green">v2 reading v1 data = backward compat</span>
+      <span class="pill pill-orange">v1 reading v2 data = forward compat</span>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 2: ENCODING FORMATS -->
+  <!-- ============================================================ -->
   <h2>Formats for Encoding Data</h2>
-  <p>Programs work with data in two representations: <strong>in-memory</strong> (objects, structs, trees with pointers) and <strong>byte sequences</strong> (for files/network). Translation = <span class="key-term">encoding</span> (serialization/marshalling). Reverse = <span class="key-term">decoding</span> (parsing/deserialization).</p>
+  <p>Programs work with data in two representations: <strong>in-memory</strong> (objects, structs, hash tables, trees with pointers — optimized for CPU access and manipulation) and <strong>byte sequences</strong> (for files or network — a self-contained sequence since pointers are meaningless to other processes). The translation from in-memory to bytes is called <span class="key-term">encoding</span> (also serialization or marshalling). The reverse is <span class="key-term">decoding</span> (parsing, deserialization, unmarshalling).</p>
+
+  <div class="quote">"Serialization" is unfortunately also used in the context of transactions (Chapter 7) with a completely different meaning. To avoid overloading the word, the book sticks with "encoding."</div>
 
   <h3>Language-Specific Formats: Avoid Them</h3>
-  <div class="card card-red">
-    <h4>Java Serializable, Python pickle, Ruby Marshal</h4>
-    <ul>
-      <li>Tied to one language — can't read in other languages</li>
-      <li><strong>Security risk</strong>: decoding can instantiate arbitrary classes &rarr; remote code execution</li>
-      <li>Versioning is an afterthought (poor compatibility)</li>
-      <li>Often terrible performance (Java serialization is notorious)</li>
-    </ul>
-    <p style="margin:0;"><strong>Rule:</strong> Never use language-specific encoding for anything beyond transient purposes.</p>
+  <p>Many languages have built-in encoding: Java has <code>java.io.Serializable</code>, Ruby has <code>Marshal</code>, Python has <code>pickle</code>, plus third-party libraries like Kryo for Java. They are convenient but deeply problematic.</p>
+
+  <!-- DIAGRAM 3: Language-Specific Encoding Dangers -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 3: Language-Specific Encoding — Chain of Problems</div>
+    <div style="display:flex; flex-direction:column; gap:12px; max-width:700px; margin:0 auto;">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <div class="arch-box-red" style="min-width:200px;"><strong>Language Lock-in</strong></div>
+        <div style="flex:1; font-size:0.82rem; color:var(--text-muted);">Encoding tied to Java/Python/Ruby. Can't read from other languages. Commits you to one language for potentially years.</div>
+      </div>
+      <div style="text-align:center; color:var(--red);">&#9660;</div>
+      <div style="display:flex; align-items:center; gap:12px;">
+        <div class="arch-box-red" style="min-width:200px;"><strong>Security Vulnerability</strong></div>
+        <div style="flex:1; font-size:0.82rem; color:var(--text-muted);">Decoding instantiates arbitrary classes. Attacker sends crafted byte sequence &rarr; arbitrary class instantiation &rarr; <strong>remote code execution</strong>.</div>
+      </div>
+      <div style="text-align:center; color:var(--red);">&#9660;</div>
+      <div style="display:flex; align-items:center; gap:12px;">
+        <div class="arch-box-red" style="min-width:200px;"><strong>No Versioning</strong></div>
+        <div style="flex:1; font-size:0.82rem; color:var(--text-muted);">Forward and backward compatibility are an afterthought. Schema evolution is poorly supported or not supported at all.</div>
+      </div>
+      <div style="text-align:center; color:var(--red);">&#9660;</div>
+      <div style="display:flex; align-items:center; gap:12px;">
+        <div class="arch-box-red" style="min-width:200px;"><strong>Terrible Performance</strong></div>
+        <div style="flex:1; font-size:0.82rem; color:var(--text-muted);">Java's built-in serialization is notorious for bad performance and bloated encoding size. CPU and space inefficient.</div>
+      </div>
+    </div>
+    <div style="margin-top:16px; padding:12px; border:2px dashed var(--red); border-radius:8px; text-align:center; color:var(--red); font-weight:600;">
+      Rule: Never use language-specific encoding for anything beyond transient in-process purposes.
+    </div>
   </div>
 
   <h3>JSON, XML, CSV: Widespread but Flawed</h3>
+  <p>JSON and XML are the obvious contenders for standardized, language-independent encoding. JSON's popularity stems from its built-in support in web browsers (being a subset of JavaScript) and simplicity relative to XML. CSV is another popular format, albeit less powerful. All three are textual and somewhat human-readable, but have subtle problems.</p>
+
   <div class="card card-orange">
-    <h4>Subtle Problems</h4>
+    <h4>Subtle Problems with Textual Formats</h4>
     <ul>
-      <li><strong>Number ambiguity</strong>: JSON can't distinguish int vs float; integers &gt; 2<sup>53</sup> lose precision in JavaScript. Twitter includes tweet IDs twice (number + string) as a workaround.</li>
-      <li><strong>No binary strings</strong>: Must Base64-encode binary data (+33% size).</li>
-      <li><strong>Schema optional</strong>: Without schema, interpretation of numbers/binary depends on app-level convention.</li>
-      <li><strong>CSV</strong>: No schema at all, vague format (comma in value? newline?), not all parsers handle escaping correctly.</li>
+      <li><strong>Number ambiguity</strong>: XML and CSV cannot distinguish between a number and a string of digits (without an external schema). JSON distinguishes strings from numbers but <strong>doesn't distinguish integers from floats</strong> and doesn't specify precision. Integers &gt; 2<sup>53</sup> cannot be exactly represented in IEEE 754 double-precision floating point (which JavaScript uses). Twitter includes tweet IDs twice — as a JSON number and as a decimal string — as a workaround.</li>
+      <li><strong>No binary strings</strong>: JSON and XML support Unicode text but not binary data. Must Base64-encode binary data, increasing size by 33%. Schema indicates the value should be interpreted as Base64.</li>
+      <li><strong>Schema optional</strong>: XML Schema and JSON Schema are powerful but complicated. Many JSON tools don't bother using schemas, so correct interpretation of numbers and binary depends on hardcoded application logic.</li>
+      <li><strong>CSV</strong>: No schema at all. Vague format (what if a value contains a comma or newline?). Escaping rules are formally specified but not all parsers implement them correctly.</li>
     </ul>
-    <p style="margin:0;">Good enough for interchange between organizations. For internal use, binary formats are better.</p>
+    <p style="margin:0;">Despite these flaws, JSON/XML/CSV are good enough for many purposes — especially as <strong>interchange formats between organizations</strong>. The difficulty of getting different organizations to agree on anything outweighs format concerns.</p>
   </div>
 
-  <!-- BINARY ENCODING FORMATS -->
-  <h2>Binary Schema-Driven Formats</h2>
-  <p>The key insight: if you have a schema, you don't need to include field names in every record. Use <strong>field tags</strong> (numbers) instead &rarr; much more compact.</p>
+  <!-- ============================================================ -->
+  <!-- SECTION 3: BINARY ENCODING -->
+  <!-- ============================================================ -->
+  <h2>Binary Encoding Formats</h2>
+  <p>For data used only <strong>internally within your organization</strong>, you can choose more compact and faster formats. JSON is less verbose than XML, but both use far more space than binary formats. This led to binary encodings for JSON (MessagePack, BSON, BJSON, UBJSON, BISON, Smile) and XML (WBXML, Fast Infoset). These keep the JSON/XML data model unchanged and since they don't prescribe a schema, they include all field names in the encoded data.</p>
 
+  <!-- DIAGRAM 4: JSON/XML/Binary Size Comparison -->
   <div class="diagram">
-    <div class="diagram-title">Encoding the same record — Size Comparison</div>
-    <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:16px;"><code>{"userName":"Martin","favoriteNumber":1337,"interests":["daydreaming","hacking"]}</code></p>
-    <div class="size-bar" style="width:100%; background:var(--text-muted);">JSON (text) — 81 bytes</div>
-    <div class="size-bar" style="width:81%; background:var(--orange);">MessagePack (binary JSON) — 66 bytes</div>
-    <div class="size-bar" style="width:73%; background:var(--red);">Thrift BinaryProtocol — 59 bytes</div>
-    <div class="size-bar" style="width:42%; background:var(--accent2);">Thrift CompactProtocol — 34 bytes</div>
-    <div class="size-bar" style="width:41%; background:var(--accent);">Protocol Buffers — 33 bytes</div>
-    <div class="size-bar" style="width:40%; background:var(--accent3);">Avro — 32 bytes</div>
+    <div class="diagram-title">Diagram 4: Encoding Size Comparison — Same Record in All Formats</div>
+    <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:8px;">Record: <code>{"userName":"Martin","favoriteNumber":1337,"interests":["daydreaming","hacking"]}</code></p>
+    <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:16px;">JSON text with whitespace removed = 81 bytes. How small can we go?</p>
+    <div class="size-bar" style="width:100%; background:var(--text-muted);">JSON (text) — 81 bytes &nbsp; <span style="font-size:0.7rem; opacity:0.7;">[field names + values as text]</span></div>
+    <div class="size-bar" style="width:81%; background:var(--orange);">MessagePack (binary JSON) — 66 bytes &nbsp; <span style="font-size:0.7rem; opacity:0.7;">[still includes field names]</span></div>
+    <div class="size-bar" style="width:73%; background:var(--red);">Thrift BinaryProtocol — 59 bytes &nbsp; <span style="font-size:0.7rem; opacity:0.7;">[field tags instead of names]</span></div>
+    <div class="size-bar" style="width:42%; background:var(--accent2);">Thrift CompactProtocol — 34 bytes &nbsp; <span style="font-size:0.7rem; opacity:0.7;">[packed type+tag, varint]</span></div>
+    <div class="size-bar" style="width:41%; background:var(--accent);">Protocol Buffers — 33 bytes &nbsp; <span style="font-size:0.7rem; opacity:0.7;">[similar to Thrift Compact]</span></div>
+    <div class="size-bar" style="width:40%; background:var(--accent3);">Avro — 32 bytes &nbsp; <span style="font-size:0.7rem; opacity:0.7;">[no field tags or names at all]</span></div>
+    <div style="margin-top:16px; display:flex; gap:16px; flex-wrap:wrap;">
+      <span class="pill pill-orange">Schemaless: include field names = larger</span>
+      <span class="pill pill-green">Schema-driven: field tags/position = smallest</span>
+    </div>
   </div>
 
-  <div class="grid3">
+  <p>The key insight: if you have a <strong>schema</strong>, you don't need to include field names in every record. Use <span class="key-term">field tags</span> (small numbers) instead of field name strings. This is what Thrift, Protocol Buffers, and Avro do.</p>
+
+  <h3>MessagePack: Binary JSON (Not Much Better)</h3>
+  <p>MessagePack is a binary encoding for JSON. The first byte <code>0x83</code> indicates an object (top 4 bits = <code>0x80</code>) with 3 fields (bottom 4 bits = <code>0x03</code>). Next byte <code>0xa8</code> indicates a string (top 4 bits = <code>0xa0</code>) that is 8 bytes long (bottom 4 bits = <code>0x08</code>). Then 8 bytes for "userName" in ASCII. The result: 66 bytes — only a little less than the 81-byte textual JSON. <strong>Not worth the loss of human-readability</strong>.</p>
+
+  <h3>Thrift (Facebook) and Protocol Buffers (Google)</h3>
+  <p>Both Thrift (originally Facebook, open-sourced 2007) and Protocol Buffers (originally Google, open-sourced 2008) are binary encoding libraries based on the same principle: define a schema with numbered field tags, generate code for your programming language, encode data using tag numbers instead of field names.</p>
+
+  <div class="grid2">
     <div class="card card-accent">
-      <h4>Thrift (Facebook)</h4>
-      <p style="font-size:0.85rem;">Schema with numbered field tags. BinaryProtocol (verbose) and CompactProtocol (packs type + tag into one byte, variable-length ints). Dedicated list datatype.</p>
+      <h4>Thrift IDL Schema</h4>
+      <pre><code>struct Person {
+  1: required string userName,
+  2: optional i64    favoriteNumber,
+  3: optional list&lt;string&gt; interests
+}</code></pre>
     </div>
     <div class="card card-green">
-      <h4>Protocol Buffers (Google)</h4>
-      <p style="font-size:0.85rem;">Very similar to Thrift. One binary format. Uses <code>repeated</code> instead of list type — so optional can evolve to repeated. Variable-length ints.</p>
+      <h4>Protocol Buffers Schema</h4>
+      <pre><code>message Person {
+  required string user_name       = 1;
+  optional int64  favorite_number = 2;
+  repeated string interests       = 3;
+}</code></pre>
+    </div>
+  </div>
+
+  <p>Both come with code generation tools that produce classes implementing the schema in various programming languages. An important note: <code>required</code> vs <code>optional</code> makes no difference to encoding — nothing in the binary data indicates which it is. The difference is purely a runtime check that fails if a required field is not set.</p>
+
+  <!-- DIAGRAM 5: Thrift BinaryProtocol Byte-Level Breakdown -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 5: Thrift BinaryProtocol Encoding — Byte-Level Breakdown (59 bytes)</div>
+    <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:16px;">Each field has: type byte (1 byte) + field tag (2 bytes) + value. Strings include length prefix. Field names are NOT in the data — just tag numbers.</p>
+
+    <p style="font-size:0.8rem; font-weight:600; color:var(--accent); margin-bottom:8px;">Field 1: userName = "Martin" (tag 1, type string)</p>
+    <div class="byte-row">
+      <div><div class="byte-cell" style="background:var(--accent);">0B</div><div class="byte-label">type:<br>string</div></div>
+      <div><div class="byte-cell" style="background:var(--accent2);">00 01</div><div class="byte-label">field<br>tag: 1</div></div>
+      <div><div class="byte-cell" style="background:var(--orange);">00 00 00 06</div><div class="byte-label">string<br>length: 6</div></div>
+      <div><div class="byte-cell" style="background:var(--accent3);">4D 61 72 74 69 6E</div><div class="byte-label">"Martin"<br>(ASCII)</div></div>
+    </div>
+
+    <p style="font-size:0.8rem; font-weight:600; color:var(--accent); margin:16px 0 8px;">Field 2: favoriteNumber = 1337 (tag 2, type i64)</p>
+    <div class="byte-row">
+      <div><div class="byte-cell" style="background:var(--accent);">0A</div><div class="byte-label">type:<br>i64</div></div>
+      <div><div class="byte-cell" style="background:var(--accent2);">00 02</div><div class="byte-label">field<br>tag: 2</div></div>
+      <div><div class="byte-cell" style="background:var(--orange);">00 00 00 00 00 00 05 39</div><div class="byte-label">1337 as 64-bit big-endian<br>(full 8 bytes always used)</div></div>
+    </div>
+
+    <p style="font-size:0.8rem; font-weight:600; color:var(--accent); margin:16px 0 8px;">Field 3: interests = ["daydreaming","hacking"] (tag 3, type list&lt;string&gt;)</p>
+    <div class="byte-row">
+      <div><div class="byte-cell" style="background:var(--accent);">0F</div><div class="byte-label">type:<br>list</div></div>
+      <div><div class="byte-cell" style="background:var(--accent2);">00 03</div><div class="byte-label">field<br>tag: 3</div></div>
+      <div><div class="byte-cell" style="background:var(--cyan);">0B</div><div class="byte-label">elem<br>type:str</div></div>
+      <div><div class="byte-cell" style="background:var(--pink);">00 00 00 02</div><div class="byte-label">list<br>length: 2</div></div>
+      <div><div class="byte-cell" style="background:var(--accent3);">...</div><div class="byte-label">"daydreaming"<br>+ "hacking"</div></div>
+    </div>
+    <div class="byte-row" style="margin-top:8px;">
+      <div><div class="byte-cell" style="background:var(--text-muted);">00</div><div class="byte-label">stop<br>field</div></div>
+    </div>
+    <p style="font-size:0.78rem; color:var(--text-muted); margin-top:12px;">Key point: field names "userName", "favoriteNumber", "interests" appear <strong>nowhere</strong> in the binary. Only tag numbers 1, 2, 3. But integers always use full 8 bytes.</p>
+  </div>
+
+  <!-- DIAGRAM 6: Thrift CompactProtocol Byte-Level Breakdown -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 6: Thrift CompactProtocol Encoding — Byte-Level Breakdown (34 bytes)</div>
+    <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:16px;">Two optimizations vs BinaryProtocol: (1) Pack field type + tag delta into a <strong>single byte</strong>. (2) Use <strong>variable-length integers</strong> (varint) — numbers -64..63 in 1 byte, -8192..8191 in 2 bytes, etc.</p>
+
+    <p style="font-size:0.8rem; font-weight:600; color:var(--accent2); margin-bottom:8px;">Field 1: userName = "Martin"</p>
+    <div class="byte-row">
+      <div><div class="byte-cell" style="background:var(--accent2);">18</div><div class="byte-label">tag delta=1<br>type=string<br>(packed!)</div></div>
+      <div><div class="byte-cell" style="background:var(--orange);">06</div><div class="byte-label">string<br>len: 6<br>(varint)</div></div>
+      <div><div class="byte-cell" style="background:var(--accent3);">4D 61 72 74 69 6E</div><div class="byte-label">"Martin"<br>(ASCII)</div></div>
+    </div>
+
+    <p style="font-size:0.8rem; font-weight:600; color:var(--accent2); margin:16px 0 8px;">Field 2: favoriteNumber = 1337</p>
+    <div class="byte-row">
+      <div><div class="byte-cell" style="background:var(--accent2);">16</div><div class="byte-label">tag delta=1<br>type=i64<br>(packed!)</div></div>
+      <div><div class="byte-cell" style="background:var(--orange);">F2 14</div><div class="byte-label">1337 as<br>varint<br>(2 bytes!)</div></div>
+    </div>
+
+    <p style="font-size:0.8rem; font-weight:600; color:var(--accent2); margin:16px 0 8px;">Field 3: interests = ["daydreaming","hacking"]</p>
+    <div class="byte-row">
+      <div><div class="byte-cell" style="background:var(--accent2);">19</div><div class="byte-label">tag delta=1<br>type=list<br>(packed!)</div></div>
+      <div><div class="byte-cell" style="background:var(--pink);">28</div><div class="byte-label">len=2,<br>elem=str<br>(packed!)</div></div>
+      <div><div class="byte-cell" style="background:var(--accent3);">...</div><div class="byte-label">string data<br>(varint len +<br>UTF-8 bytes)</div></div>
+    </div>
+    <div class="byte-row" style="margin-top:8px;">
+      <div><div class="byte-cell" style="background:var(--text-muted);">00</div><div class="byte-label">stop</div></div>
+    </div>
+    <p style="font-size:0.78rem; color:var(--text-muted); margin-top:12px;">Result: 34 bytes vs 59 bytes. The key savings: 1337 uses 2 bytes (not 8), and type+tag are merged into single bytes.</p>
+  </div>
+
+  <!-- DIAGRAM 7: Protocol Buffers Byte-Level Breakdown -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 7: Protocol Buffers Encoding — Byte-Level Breakdown (33 bytes)</div>
+    <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:16px;">Very similar to Thrift CompactProtocol. Bit packing is slightly different. One key difference: no dedicated list type — uses <code>repeated</code> marker (same tag appears multiple times).</p>
+
+    <p style="font-size:0.8rem; font-weight:600; color:var(--accent); margin-bottom:8px;">Field 1: user_name = "Martin" (tag 1, wire type 2 = length-delimited)</p>
+    <div class="byte-row">
+      <div><div class="byte-cell" style="background:var(--accent);">0A</div><div class="byte-label">tag=1<br>wire=2<br>(packed)</div></div>
+      <div><div class="byte-cell" style="background:var(--orange);">06</div><div class="byte-label">length<br>6 bytes</div></div>
+      <div><div class="byte-cell" style="background:var(--accent3);">4D 61 72 74 69 6E</div><div class="byte-label">"Martin" (UTF-8)</div></div>
+    </div>
+
+    <p style="font-size:0.8rem; font-weight:600; color:var(--accent); margin:16px 0 8px;">Field 2: favorite_number = 1337 (tag 2, wire type 0 = varint)</p>
+    <div class="byte-row">
+      <div><div class="byte-cell" style="background:var(--accent);">10</div><div class="byte-label">tag=2<br>wire=0<br>(packed)</div></div>
+      <div><div class="byte-cell" style="background:var(--orange);">B9 0A</div><div class="byte-label">1337<br>(varint,<br>2 bytes)</div></div>
+    </div>
+
+    <p style="font-size:0.8rem; font-weight:600; color:var(--accent); margin:16px 0 8px;">Field 3: interests (tag 3, wire type 2, repeated)</p>
+    <div class="byte-row">
+      <div><div class="byte-cell" style="background:var(--accent);">1A</div><div class="byte-label">tag=3<br>wire=2</div></div>
+      <div><div class="byte-cell" style="background:var(--orange);">0B</div><div class="byte-label">len: 11</div></div>
+      <div><div class="byte-cell" style="background:var(--accent3);">64 61 79 64 72 ...</div><div class="byte-label">"daydreaming"</div></div>
+      <div><div class="byte-cell" style="background:var(--accent);">1A</div><div class="byte-label">tag=3<br>again!</div></div>
+      <div><div class="byte-cell" style="background:var(--orange);">07</div><div class="byte-label">len: 7</div></div>
+      <div><div class="byte-cell" style="background:var(--accent3);">68 61 63 6B ...</div><div class="byte-label">"hacking"</div></div>
+    </div>
+    <p style="font-size:0.78rem; color:var(--text-muted); margin-top:12px;">Key difference from Thrift: no list wrapper. Each repeated element is a separate field occurrence with the same tag. This means <code>optional</code> can evolve to <code>repeated</code> — old code sees only the last element; new code sees the whole list.</p>
+  </div>
+
+  <div class="card card-cyan">
+    <h4>Thrift vs Protobuf: Key Difference in List Handling</h4>
+    <div class="grid2" style="margin-top:8px;">
+      <div>
+        <p style="font-size:0.85rem;"><strong>Thrift</strong>: Dedicated <code>list</code> datatype, parameterized with element type. Supports nested lists. But cannot evolve single-valued to multi-valued.</p>
+      </div>
+      <div>
+        <p style="font-size:0.85rem;"><strong>Protobuf</strong>: Uses <code>repeated</code> marker — same tag appears multiple times. Can evolve <code>optional</code> &rarr; <code>repeated</code>. Old code reading new multi-valued field sees only last element. But no nested lists.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 4: SCHEMA EVOLUTION -->
+  <!-- ============================================================ -->
+  <h2>Schema Evolution: The Rules</h2>
+  <p>Schemas inevitably change over time. We call this <span class="key-term">schema evolution</span>. The question is: how do Thrift, Protocol Buffers, and Avro handle schema changes while keeping backward and forward compatibility?</p>
+
+  <h3>Thrift &amp; Protocol Buffers: Field Tags Are Sacred</h3>
+
+  <!-- DIAGRAM 8: Field Tag Evolution Rules -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 8: Field Tag Evolution — Adding and Removing Fields</div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:20px;">
+      <div>
+        <p style="font-weight:700; color:var(--accent3); margin-bottom:8px;">Adding a New Field</p>
+        <div style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px;">
+          <p style="font-size:0.82rem; margin-bottom:8px;">Schema v1:</p>
+          <div class="schema-field"><span class="tag">1:</span> <span class="type">string</span> <span class="name">userName</span></div>
+          <div class="schema-field"><span class="tag">2:</span> <span class="type">i64</span> <span class="name">favoriteNumber</span></div>
+        </div>
+        <div style="text-align:center; color:var(--accent3); padding:4px;">&#9660; add field</div>
+        <div style="background:var(--surface); border:2px solid var(--accent3); border-radius:8px; padding:12px;">
+          <p style="font-size:0.82rem; margin-bottom:8px;">Schema v2:</p>
+          <div class="schema-field"><span class="tag">1:</span> <span class="type">string</span> <span class="name">userName</span></div>
+          <div class="schema-field"><span class="tag">2:</span> <span class="type">i64</span> <span class="name">favoriteNumber</span></div>
+          <div class="schema-field"><span class="tag">3:</span> <span class="type">string</span> <span class="name">email</span> <span class="meta">(optional, NEW)</span></div>
+        </div>
+        <div style="margin-top:8px;">
+          <p style="font-size:0.78rem; color:var(--accent3);"><strong>Forward compat</strong>: Old code sees tag 3, doesn't recognize it &rarr; skips it. OK.</p>
+          <p style="font-size:0.78rem; color:var(--accent3);"><strong>Backward compat</strong>: New code reads old data. Tag 3 missing &rarr; uses default. OK <em>only if new field is optional or has default</em>.</p>
+        </div>
+      </div>
+      <div>
+        <p style="font-weight:700; color:var(--red); margin-bottom:8px;">Removing a Field</p>
+        <div style="background:var(--surface); border:2px solid var(--red); border-radius:8px; padding:12px;">
+          <p style="font-size:0.82rem; margin-bottom:8px;">Schema v1:</p>
+          <div class="schema-field"><span class="tag">1:</span> <span class="type">string</span> <span class="name">userName</span></div>
+          <div class="schema-field"><span class="tag">2:</span> <span class="type">i64</span> <span class="name">favoriteNumber</span></div>
+          <div class="schema-field"><span class="tag">3:</span> <span class="type">string</span> <span class="name">email</span> <span class="meta">(optional)</span></div>
+        </div>
+        <div style="text-align:center; color:var(--red); padding:4px;">&#9660; remove field</div>
+        <div style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px;">
+          <p style="font-size:0.82rem; margin-bottom:8px;">Schema v2:</p>
+          <div class="schema-field"><span class="tag">1:</span> <span class="type">string</span> <span class="name">userName</span></div>
+          <div class="schema-field"><span class="tag">2:</span> <span class="type">i64</span> <span class="name">favoriteNumber</span></div>
+          <div class="schema-field"><span class="meta" style="color:var(--red);">Tag 3: RETIRED (never reuse!)</span></div>
+        </div>
+        <div style="margin-top:8px;">
+          <p style="font-size:0.78rem; color:var(--red);">Can only remove <strong>optional</strong> fields (never required).</p>
+          <p style="font-size:0.78rem; color:var(--red);">Must <strong>never reuse the tag number</strong> — old data with tag 3 would be misinterpreted.</p>
+        </div>
+      </div>
+    </div>
+
+    <div style="border-top:1px solid var(--border); padding-top:16px;">
+      <p style="font-size:0.85rem; font-weight:600; color:var(--text); margin-bottom:8px;">The Cardinal Rules:</p>
+      <div style="display:flex; flex-wrap:wrap; gap:8px;">
+        <span class="pill pill-green">Change field names freely (not in encoded data)</span>
+        <span class="pill pill-red">NEVER change a field's tag number</span>
+        <span class="pill pill-red">NEVER reuse a removed tag number</span>
+        <span class="pill pill-orange">New fields must be optional or have defaults</span>
+        <span class="pill pill-blue">Datatype changes: possible but risky (truncation)</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-orange">
+    <h4>Datatypes and Schema Evolution</h4>
+    <p>Changing a field's datatype is possible but risky. Example: change 32-bit integer to 64-bit. New code easily reads old data (fills missing bits with zeros). But <strong>old code reading new data truncates</strong> — a 64-bit value won't fit in a 32-bit variable, and large values are silently corrupted.</p>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 5: AVRO -->
+  <!-- ============================================================ -->
+  <h2>Avro: A Fundamentally Different Approach</h2>
+  <p>Apache Avro was started in 2009 as a subproject of Hadoop, because Thrift wasn't a good fit for Hadoop's use cases. Avro is interestingly different from Protocol Buffers and Thrift in a fundamental way: <strong>there are no tag numbers in the schema</strong>.</p>
+
+  <div class="grid2">
+    <div class="card card-purple">
+      <h4>Avro IDL (Human-Editable)</h4>
+      <pre><code>record Person {
+  string              userName;
+  union {null, long}  favoriteNumber = null;
+  array&lt;string&gt;       interests;
+}</code></pre>
     </div>
     <div class="card card-purple">
-      <h4>Avro (Hadoop)</h4>
-      <p style="font-size:0.85rem;">No tag numbers at all. Fields matched by <strong>name</strong> between writer's schema and reader's schema. Most compact. Great for dynamically generated schemas.</p>
+      <h4>Avro JSON Schema (Machine-Readable)</h4>
+      <pre><code>{
+  "type": "record",
+  "name": "Person",
+  "fields": [
+    {"name":"userName","type":"string"},
+    {"name":"favoriteNumber",
+     "type":["null","long"],
+     "default":null},
+    {"name":"interests",
+     "type":{"type":"array",
+             "items":"string"}}
+  ]
+}</code></pre>
     </div>
   </div>
 
-  <!-- SCHEMA EVOLUTION -->
-  <h2>Schema Evolution: The Rules</h2>
+  <p>Notice: <strong>no tag numbers</strong>. The Avro binary encoding is just 32 bytes — the most compact of all. The encoding consists of values concatenated together with nothing to identify fields or their datatypes. A string is just a length prefix followed by UTF-8 bytes. An integer uses variable-length encoding. To parse the binary data, you go through fields in schema order and use the schema to determine each field's datatype. <strong>The binary can only be decoded correctly if the reader uses the exact same schema as the writer</strong> — or a compatible one.</p>
 
-  <h3>Thrift &amp; Protocol Buffers</h3>
-  <div class="card card-accent">
-    <h4>Field Tags Are Sacred</h4>
-    <ul>
-      <li>You can change field <strong>names</strong> freely (encoded data uses tag numbers, not names)</li>
-      <li>You can <strong>never change a field's tag number</strong> — would invalidate all existing data</li>
-      <li><strong>Adding fields</strong>: give new tag number. Old code ignores unknown tags (forward compatible). New fields must be optional or have defaults (backward compatible)</li>
-      <li><strong>Removing fields</strong>: can only remove optional fields. Never reuse the tag number</li>
-      <li><strong>Changing datatypes</strong>: possible but risky (e.g., 32-bit &rarr; 64-bit: old code truncates large values)</li>
-    </ul>
-  </div>
-
-  <h3>Avro</h3>
-  <div class="card card-purple">
-    <h4>Writer's Schema vs. Reader's Schema</h4>
-    <p>Key idea: the writer's and reader's schemas don't have to be the same — they just need to be <strong>compatible</strong>. The Avro library resolves differences by matching fields by name.</p>
-    <ul>
-      <li>Field in writer but not reader &rarr; ignored</li>
-      <li>Field in reader but not writer &rarr; filled with default value</li>
-      <li>You may only add/remove fields that have a <strong>default value</strong></li>
-      <li>No tag numbers &rarr; great for dynamically generated schemas (e.g., dump a relational DB: column names become field names, generate new schema on every export)</li>
-    </ul>
-  </div>
-
-  <div class="card">
-    <h4>How Does the Reader Know the Writer's Schema?</h4>
-    <ul>
-      <li><strong>Large file (Hadoop)</strong>: writer's schema included once at the beginning of the file</li>
-      <li><strong>Database records</strong>: version number per record &rarr; look up schema in a schema registry</li>
-      <li><strong>Network connection</strong>: negotiate schema on connection setup</li>
-    </ul>
-  </div>
-
-  <!-- MERITS OF SCHEMAS -->
-  <div class="card card-green">
-    <h4>The Merits of Schemas (Over Schemaless JSON)</h4>
-    <ul>
-      <li>Much more <strong>compact</strong> — omit field names from encoded data</li>
-      <li>Schema = <strong>living documentation</strong> (required for decoding, so always up to date)</li>
-      <li>Schema registry enables <strong>compatibility checks</strong> before deployment</li>
-      <li><strong>Code generation</strong> for statically typed languages &rarr; compile-time type checking</li>
-      <li>Schema evolution gives the <strong>same flexibility</strong> as schemaless, with better guarantees</li>
-    </ul>
-  </div>
-
-  <!-- MODES OF DATAFLOW -->
-  <h2>Modes of Dataflow</h2>
-  <p>Three main ways data flows between processes, each with different compatibility implications:</p>
-
+  <!-- DIAGRAM 9: Avro Writer's Schema vs Reader's Schema Resolution -->
   <div class="diagram">
-    <div class="diagram-title">Three Modes of Dataflow</div>
-    <div style="display:flex; flex-direction:column; gap:20px;">
-      <!-- Databases -->
-      <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
-        <div class="flow-box primary" style="min-width:140px;"><strong>1. Databases</strong></div>
-        <div style="flex:1; min-width:200px;">
-          <p style="font-size:0.85rem; margin:0;">Writer encodes &rarr; Reader decodes. "Sending a message to your future self." Need <strong>both</strong> backward + forward compatibility. Beware: old code reading new data, updating, writing back &rarr; may lose unknown fields.</p>
-          <p style="font-size:0.85rem; margin:4px 0 0; color:var(--orange);"><strong>"Data outlives code"</strong> — 5-year-old data still in original encoding unless migrated.</p>
+    <div class="diagram-title">Diagram 9: Avro Schema Resolution — Writer's Schema vs Reader's Schema</div>
+    <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:16px;">The key idea: the writer's and reader's schemas don't have to be identical — they just need to be <strong>compatible</strong>. The Avro library resolves differences by matching fields <strong>by name</strong>.</p>
+
+    <div style="display:grid; grid-template-columns:1fr 60px 1fr; gap:0; align-items:start;">
+      <!-- Writer's Schema -->
+      <div>
+        <p style="text-align:center; font-weight:700; color:var(--orange); margin-bottom:12px;">Writer's Schema (v2)</p>
+        <div style="background:var(--surface); border:2px solid var(--orange); border-radius:8px; padding:16px;">
+          <div class="schema-field"><span class="name">userName</span>: <span class="type">string</span></div>
+          <div class="schema-field"><span class="name">favoriteNumber</span>: <span class="type">union{null,long}</span></div>
+          <div class="schema-field"><span class="name">interests</span>: <span class="type">array&lt;string&gt;</span></div>
+          <div class="schema-field" style="color:var(--accent3);"><span class="name">email</span>: <span class="type">string</span> <span class="meta">(NEW)</span></div>
         </div>
+      </div>
+      <!-- Arrows -->
+      <div style="display:flex; flex-direction:column; align-items:center; padding-top:50px; gap:24px;">
+        <span style="color:var(--accent3);">&larr;&rarr;</span>
+        <span style="color:var(--accent3);">&larr;&rarr;</span>
+        <span style="color:var(--accent3);">&larr;&rarr;</span>
+        <span style="color:var(--red);">&#10007;</span>
+      </div>
+      <!-- Reader's Schema -->
+      <div>
+        <p style="text-align:center; font-weight:700; color:var(--accent); margin-bottom:12px;">Reader's Schema (v1)</p>
+        <div style="background:var(--surface); border:2px solid var(--accent); border-radius:8px; padding:16px;">
+          <div class="schema-field"><span class="name">userName</span>: <span class="type">string</span></div>
+          <div class="schema-field"><span class="name">favoriteNumber</span>: <span class="type">union{null,long}</span></div>
+          <div class="schema-field"><span class="name">interests</span>: <span class="type">array&lt;string&gt;</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:20px; display:flex; flex-direction:column; gap:8px;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span class="pill pill-green">Match</span>
+        <span style="font-size:0.82rem; color:var(--text-muted);">Field in writer AND reader with same name &rarr; resolve type (may convert)</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span class="pill pill-orange">Ignore</span>
+        <span style="font-size:0.82rem; color:var(--text-muted);">Field in writer but NOT in reader (e.g., "email") &rarr; ignored by reader</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span class="pill pill-blue">Default</span>
+        <span style="font-size:0.82rem; color:var(--text-muted);">Field in reader but NOT in writer &rarr; filled with default value from reader's schema</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- DIAGRAM 10: Avro Schema Evolution Flow -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 10: Avro Schema Evolution Rules</div>
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+        <div class="card card-green" style="margin:0;">
+          <h4 style="color:var(--accent3);">Allowed</h4>
+          <ul style="font-size:0.85rem;">
+            <li>Add a field <strong>with a default value</strong></li>
+            <li>Remove a field <strong>that has a default value</strong></li>
+            <li>Change datatype (if Avro can convert)</li>
+            <li>Change field name using aliases (backward compat only)</li>
+            <li>Reorder fields (matched by name, not position)</li>
+          </ul>
+        </div>
+        <div class="card card-red" style="margin:0;">
+          <h4 style="color:var(--red);">Not Allowed / Dangerous</h4>
+          <ul style="font-size:0.85rem;">
+            <li>Add field <strong>without</strong> default &rarr; breaks backward compat</li>
+            <li>Remove field <strong>without</strong> default &rarr; breaks forward compat</li>
+            <li>Change field name without alias &rarr; breaks backward compat</li>
+            <li>Adding a union branch &rarr; backward compat only (not forward)</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card card-purple" style="margin:0;">
+        <h4>Avro's Null Handling (Different from Protobuf/Thrift)</h4>
+        <p style="font-size:0.85rem;">Avro doesn't have <code>optional</code>/<code>required</code> markers. Instead, use <strong>union types</strong>. To allow null, declare <code>union {null, long}</code>. You can only use null as a default if null is one of the union branches. This is more verbose but prevents bugs by being explicit about nullability.</p>
+      </div>
+    </div>
+  </div>
+
+  <h3>How Does the Reader Know the Writer's Schema?</h3>
+  <p>You can't include the entire schema with every record (it would be larger than the data itself). The answer depends on context:</p>
+
+  <!-- DIAGRAM 11: Schema Registry Architecture -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 11: Schema Registry Architecture — How Readers Find Writer's Schemas</div>
+    <div style="display:flex; flex-direction:column; gap:24px;">
+
+      <!-- Scenario 1: Large file -->
+      <div style="border:1px solid var(--border); border-radius:8px; padding:16px;">
+        <p style="font-weight:600; color:var(--accent3); margin-bottom:8px;">Scenario 1: Large File (Hadoop)</p>
+        <div class="arch-row">
+          <div class="arch-box-green">Writer's Schema<br><span style="font-size:0.72rem;">(included ONCE at<br>beginning of file)</span></div>
+          <div class="wide-arrow">&rarr;</div>
+          <div class="arch-box" style="border:1px solid var(--border); flex:1; max-width:300px;">
+            <strong>Avro Object Container File</strong><br>
+            <span style="font-size:0.72rem; color:var(--text-muted);">[schema header] [record] [record] [record] ... millions of records</span>
+          </div>
+          <div class="wide-arrow">&rarr;</div>
+          <div class="arch-box-accent">Reader<br><span style="font-size:0.72rem;">reads schema from<br>file header</span></div>
+        </div>
+      </div>
+
+      <!-- Scenario 2: Database -->
+      <div style="border:1px solid var(--border); border-radius:8px; padding:16px;">
+        <p style="font-weight:600; color:var(--accent); margin-bottom:8px;">Scenario 2: Database with Individually Written Records</p>
+        <div class="arch-row">
+          <div class="arch-box-accent">Record<br><span style="font-size:0.72rem;">includes version<br>number (e.g., v3)</span></div>
+          <div class="wide-arrow">&rarr;</div>
+          <div class="arch-box-purple" style="min-width:180px;">
+            <strong>Schema Registry</strong><br>
+            <span style="font-size:0.72rem;">v1 &rarr; schema_v1<br>v2 &rarr; schema_v2<br>v3 &rarr; schema_v3</span>
+          </div>
+          <div class="wide-arrow">&rarr;</div>
+          <div class="arch-box-accent">Reader<br><span style="font-size:0.72rem;">extracts version,<br>fetches schema</span></div>
+        </div>
+      </div>
+
+      <!-- Scenario 3: Network -->
+      <div style="border:1px solid var(--border); border-radius:8px; padding:16px;">
+        <p style="font-weight:600; color:var(--accent2); margin-bottom:8px;">Scenario 3: Network Connection (Avro RPC)</p>
+        <div class="arch-row">
+          <div class="arch-box-purple">Process A</div>
+          <div style="display:flex; flex-direction:column; align-items:center;">
+            <span style="font-size:0.72rem; color:var(--accent2);">negotiate schema</span>
+            <span style="color:var(--accent2);">&larr;&rarr;</span>
+            <span style="font-size:0.72rem; color:var(--text-muted);">on connection setup</span>
+          </div>
+          <div class="arch-box-purple">Process B</div>
+        </div>
+        <p style="font-size:0.78rem; color:var(--text-muted); margin-top:8px; text-align:center;">Use agreed schema for the lifetime of the connection.</p>
+      </div>
+    </div>
+    <p style="font-size:0.82rem; color:var(--text-muted); margin-top:16px;">A schema registry is useful in any case — it acts as <strong>living documentation</strong> and enables compatibility checks before deployment. Version numbers can be simple incrementing integers or hashes of the schema.</p>
+  </div>
+
+  <h3>Dynamically Generated Schemas: Avro's Killer Feature</h3>
+  <p>Why does it matter that Avro has no tag numbers? Because Avro is friendlier to <span class="key-term">dynamically generated schemas</span>. Example: you have a relational database whose contents you want to dump to a binary file. With Avro, generate a record schema for each table — each column becomes a field, column names map directly to field names. If the database schema changes (column added/removed), just generate a new Avro schema. The data export process doesn't need to care about schema changes.</p>
+
+  <p>With Thrift or Protocol Buffers, field tags would have to be assigned by hand. Every time the database schema changes, an administrator would have to manually update the mapping from column names to field tags. This kind of dynamically generated schema simply wasn't a design goal of Thrift or Protobuf, whereas it was for Avro.</p>
+
+  <h3>Code Generation and Dynamically Typed Languages</h3>
+  <p>Thrift and Protocol Buffers rely on <strong>code generation</strong>: define a schema, generate classes for your language. This is useful in statically typed languages (Java, C++, C#) for efficient in-memory structures, type checking, and IDE autocompletion. In dynamically typed languages (JavaScript, Ruby, Python), code generation is less useful since there's no compile-time type checker.</p>
+
+  <p>Avro provides optional code generation but can work without it. An Avro object container file embeds the writer's schema and is self-describing — you can open it and inspect the data like a JSON file. This is especially useful with data processing tools like Apache Pig, which can open Avro files and start analyzing them without thinking about schemas.</p>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 6: MERITS OF SCHEMAS -->
+  <!-- ============================================================ -->
+  <h2>The Merits of Schemas</h2>
+
+  <!-- DIAGRAM 12: Encoding Format Comparison Table -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 12: Encoding Format Comparison Table</div>
+    <div style="overflow-x:auto;">
+    <table>
+      <tr>
+        <th>Dimension</th>
+        <th>JSON</th>
+        <th>XML</th>
+        <th>CSV</th>
+        <th>MessagePack</th>
+        <th>Thrift</th>
+        <th>Protobuf</th>
+        <th>Avro</th>
+      </tr>
+      <tr>
+        <td><strong>Schema</strong></td>
+        <td>Optional (JSON Schema)</td>
+        <td>Optional (XSD)</td>
+        <td>None</td>
+        <td>None</td>
+        <td>Required (IDL)</td>
+        <td>Required (IDL)</td>
+        <td>Required (IDL/JSON)</td>
+      </tr>
+      <tr>
+        <td><strong>Field Identity</strong></td>
+        <td>Name strings</td>
+        <td>Name strings</td>
+        <td>Column position</td>
+        <td>Name strings</td>
+        <td>Tag numbers</td>
+        <td>Tag numbers</td>
+        <td>Name (resolved by schema)</td>
+      </tr>
+      <tr>
+        <td><strong>Human Readable</strong></td>
+        <td style="color:var(--accent3);">Yes</td>
+        <td style="color:var(--accent3);">Yes (verbose)</td>
+        <td style="color:var(--accent3);">Yes</td>
+        <td style="color:var(--red);">No</td>
+        <td style="color:var(--red);">No</td>
+        <td style="color:var(--red);">No</td>
+        <td style="color:var(--red);">No</td>
+      </tr>
+      <tr>
+        <td><strong>Compactness</strong></td>
+        <td style="color:var(--red);">Poor (81B)</td>
+        <td style="color:var(--red);">Worst</td>
+        <td style="color:var(--orange);">Moderate</td>
+        <td style="color:var(--orange);">Slightly better (66B)</td>
+        <td style="color:var(--accent3);">Good (34B compact)</td>
+        <td style="color:var(--accent3);">Good (33B)</td>
+        <td style="color:var(--accent3);">Best (32B)</td>
+      </tr>
+      <tr>
+        <td><strong>Backward Compat</strong></td>
+        <td>Ad-hoc</td>
+        <td>Ad-hoc</td>
+        <td>Ad-hoc</td>
+        <td>Ad-hoc</td>
+        <td style="color:var(--accent3);">Built-in (tags)</td>
+        <td style="color:var(--accent3);">Built-in (tags)</td>
+        <td style="color:var(--accent3);">Built-in (names)</td>
+      </tr>
+      <tr>
+        <td><strong>Forward Compat</strong></td>
+        <td>Ad-hoc</td>
+        <td>Ad-hoc</td>
+        <td>Ad-hoc</td>
+        <td>Ad-hoc</td>
+        <td style="color:var(--accent3);">Built-in (skip unknown)</td>
+        <td style="color:var(--accent3);">Built-in (skip unknown)</td>
+        <td style="color:var(--accent3);">Built-in (ignore unknown)</td>
+      </tr>
+      <tr>
+        <td><strong>Code Generation</strong></td>
+        <td>Optional</td>
+        <td>Optional (JAXB)</td>
+        <td>No</td>
+        <td>No</td>
+        <td style="color:var(--accent3);">Yes</td>
+        <td style="color:var(--accent3);">Yes</td>
+        <td style="color:var(--accent3);">Optional</td>
+      </tr>
+      <tr>
+        <td><strong>Dynamic Schemas</strong></td>
+        <td>Easy</td>
+        <td>Hard</td>
+        <td>N/A</td>
+        <td>Easy</td>
+        <td style="color:var(--red);">Hard (manual tags)</td>
+        <td style="color:var(--red);">Hard (manual tags)</td>
+        <td style="color:var(--accent3);">Excellent (no tags)</td>
+      </tr>
+      <tr>
+        <td><strong>Number Handling</strong></td>
+        <td style="color:var(--red);">No int/float distinction</td>
+        <td style="color:var(--red);">All text</td>
+        <td style="color:var(--red);">All text</td>
+        <td style="color:var(--accent3);">Typed</td>
+        <td style="color:var(--accent3);">Typed (i32/i64)</td>
+        <td style="color:var(--accent3);">Typed (int32/int64)</td>
+        <td style="color:var(--accent3);">Typed (int/long)</td>
+      </tr>
+      <tr>
+        <td><strong>Binary Data</strong></td>
+        <td style="color:var(--red);">Base64 (+33%)</td>
+        <td style="color:var(--red);">Base64 (+33%)</td>
+        <td style="color:var(--red);">Base64</td>
+        <td style="color:var(--accent3);">Native</td>
+        <td style="color:var(--accent3);">Native</td>
+        <td style="color:var(--accent3);">Native (bytes)</td>
+        <td style="color:var(--accent3);">Native (bytes)</td>
+      </tr>
+      <tr>
+        <td><strong>Best Use Case</strong></td>
+        <td>Public APIs, web</td>
+        <td>Enterprise (declining)</td>
+        <td>Data import/export</td>
+        <td>Niche binary JSON</td>
+        <td>Internal services</td>
+        <td>Internal services, gRPC</td>
+        <td>Hadoop, data pipelines</td>
+      </tr>
+    </table>
+    </div>
+  </div>
+
+  <div class="card card-green">
+    <h4>Why Schema-Driven Formats Win for Internal Use</h4>
+    <ul>
+      <li>Much more <strong>compact</strong> — omit field names from encoded data (32 bytes vs 81 bytes for the same record)</li>
+      <li>Schema is a <strong>valuable form of documentation</strong> — required for decoding, so always up to date (unlike manually maintained docs that diverge from reality)</li>
+      <li>Schema registry enables <strong>compatibility checks before deployment</strong> — catch breaking changes before they hit production</li>
+      <li><strong>Code generation</strong> for statically typed languages enables compile-time type checking and IDE autocompletion</li>
+      <li>Schema evolution provides the <strong>same flexibility</strong> as schemaless/schema-on-read JSON databases, with better guarantees about your data and better tooling</li>
+    </ul>
+    <p style="margin:0; font-size:0.85rem;">Historical note: these ideas are not new. ASN.1, standardized in 1984, uses tag numbers similar to Protobuf/Thrift. Its binary encoding (DER) is still used for SSL certificates (X.509).</p>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 7: MODES OF DATAFLOW -->
+  <!-- ============================================================ -->
+  <h2>Modes of Dataflow</h2>
+  <p>Encoding is only half the story. Who encodes the data, and who decodes it? There are three main ways data flows between processes, each with different compatibility implications.</p>
+
+  <!-- DIAGRAM 13: Three Modes of Dataflow Overview -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 13: Three Modes of Dataflow</div>
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;">
+      <!-- Databases -->
+      <div style="border:2px solid var(--accent); border-radius:12px; padding:20px; text-align:center;">
+        <div style="font-size:2rem; margin-bottom:8px;">&#128451;</div>
+        <p style="font-weight:700; color:var(--accent); margin-bottom:8px;">1. Through Databases</p>
+        <p style="font-size:0.8rem; margin:0;">Writer encodes &rarr; Database stores &rarr; Reader decodes</p>
+        <p style="font-size:0.78rem; margin-top:8px; color:var(--orange);">"Sending a message to your future self"</p>
+        <p style="font-size:0.75rem; margin-top:4px;">Need <strong>both</strong> backward + forward compat</p>
       </div>
       <!-- Services -->
-      <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
-        <div class="flow-box green" style="min-width:140px;"><strong>2. Services (REST/RPC)</strong></div>
-        <div style="flex:1; min-width:200px;">
-          <p style="font-size:0.85rem; margin:0;">Client encodes request &rarr; Server decodes &rarr; Server encodes response &rarr; Client decodes. Servers updated first, clients second. Need backward compat on requests, forward compat on responses.</p>
-        </div>
+      <div style="border:2px solid var(--accent3); border-radius:12px; padding:20px; text-align:center;">
+        <div style="font-size:2rem; margin-bottom:8px;">&#127760;</div>
+        <p style="font-weight:700; color:var(--accent3); margin-bottom:8px;">2. Through Services</p>
+        <p style="font-size:0.8rem; margin:0;">Client &rarr; Server (request) Server &rarr; Client (response)</p>
+        <p style="font-size:0.78rem; margin-top:8px; color:var(--accent3);">REST, RPC, SOAP</p>
+        <p style="font-size:0.75rem; margin-top:4px;">Servers updated first, clients second</p>
       </div>
       <!-- Message Passing -->
-      <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
-        <div class="flow-box purple" style="min-width:140px;"><strong>3. Message Passing</strong></div>
-        <div style="flex:1; min-width:200px;">
-          <p style="font-size:0.85rem; margin:0;">Sender &rarr; Message Broker &rarr; Receiver. Asynchronous, one-way. Broker buffers if recipient unavailable, redelivers on crash. Sender doesn't know/care who consumes. Loosely coupled.</p>
-        </div>
+      <div style="border:2px solid var(--accent2); border-radius:12px; padding:20px; text-align:center;">
+        <div style="font-size:2rem; margin-bottom:8px;">&#128232;</div>
+        <p style="font-weight:700; color:var(--accent2); margin-bottom:8px;">3. Async Message Passing</p>
+        <p style="font-size:0.8rem; margin:0;">Sender &rarr; Broker &rarr; Receiver(s)</p>
+        <p style="font-size:0.78rem; margin-top:8px; color:var(--accent2);">One-way, asynchronous</p>
+        <p style="font-size:0.75rem; margin-top:4px;">Loosely coupled, buffered delivery</p>
       </div>
     </div>
   </div>
 
-  <h3>REST vs. SOAP vs. RPC</h3>
-  <table>
-    <tr><th>Aspect</th><th>REST</th><th>SOAP</th><th>RPC (gRPC, Thrift)</th></tr>
-    <tr><td><strong>Philosophy</strong></td><td>Embrace HTTP, simple formats, URLs as resources</td><td>XML-based, avoids HTTP features, WS-* standards</td><td>Make remote call look like local function (location transparency)</td></tr>
-    <tr><td><strong>Schema</strong></td><td>OpenAPI/Swagger (optional)</td><td>WSDL (XML, complex)</td><td>IDL-defined (Thrift/Protobuf schemas)</td></tr>
-    <tr><td><strong>Best for</strong></td><td>Public APIs, cross-organization</td><td>Large enterprises (declining)</td><td>Internal microservices, same datacenter</td></tr>
-    <tr><td><strong>Debugging</strong></td><td>Easy (curl, browser)</td><td>Hard (tool-dependent)</td><td>Moderate (binary format)</td></tr>
-  </table>
+  <!-- ============================================================ -->
+  <!-- SECTION 8: DATAFLOW THROUGH DATABASES -->
+  <!-- ============================================================ -->
+  <h3>Dataflow Through Databases</h3>
+  <p>In a database, the process that writes encodes the data, and the process that reads decodes it. This may be a single process (the reader is a later version of yourself) or different processes accessing the database concurrently. Either way, it's like <strong>"sending a message to your future self."</strong></p>
+
+  <!-- DIAGRAM 14: Dataflow Through Databases -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 14: Dataflow Through Databases — The Rewrite Danger</div>
+    <div style="display:flex; flex-direction:column; gap:16px; max-width:700px; margin:0 auto;">
+      <div class="arch-row">
+        <div class="arch-box-green" style="min-width:140px;"><strong>App v2 (new)</strong><br><span style="font-size:0.72rem;">Writes record with<br>new field "email"</span></div>
+        <div class="wide-arrow">&rarr;</div>
+        <div class="arch-box-purple" style="min-width:140px;"><strong>Database</strong><br><span style="font-size:0.72rem;">Stores encoded<br>record with email</span></div>
+        <div class="wide-arrow">&rarr;</div>
+        <div class="arch-box-orange" style="min-width:140px;"><strong>App v1 (old)</strong><br><span style="font-size:0.72rem;">Reads record,<br>ignores "email"</span></div>
+      </div>
+
+      <div style="text-align:center; color:var(--red); font-weight:600;">DANGER: What happens when old code writes back?</div>
+
+      <div class="arch-row">
+        <div class="arch-box-orange" style="min-width:140px;"><strong>App v1 (old)</strong><br><span style="font-size:0.72rem;">Updates record,<br>rewrites without<br>"email" field!</span></div>
+        <div class="wide-arrow" style="color:var(--red);">&rarr;</div>
+        <div class="arch-box-red" style="min-width:140px;"><strong>Database</strong><br><span style="font-size:0.72rem; color:var(--red);">email field LOST!<br>Data corruption!</span></div>
+      </div>
+
+      <div style="border:2px dashed var(--accent3); border-radius:8px; padding:12px; text-align:center;">
+        <p style="font-size:0.85rem; margin:0; color:var(--accent3);"><strong>Solution:</strong> Application code must preserve unknown fields when reading and re-writing a record. Encoding libraries like Avro can handle this automatically.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-orange">
+    <h4>"Data Outlives Code"</h4>
+    <p>You can replace all running code with a new version in minutes (rolling upgrade). But database contents stay in their <strong>original encoding</strong> unless explicitly migrated — data written 5 years ago is still there in the old format. A single database may contain a mix of data encoded with many different historical schema versions.</p>
+    <p style="margin:0;">Schema evolution allows the entire database to appear as if encoded with a single schema (the latest), even though underlying records use many different historical versions. <strong>Schema migrations</strong> (e.g., <code>ALTER TABLE</code>) are possible but expensive on large tables. Most relational databases allow simple additions (adding a nullable column) without rewriting existing data — old rows read with <code>null</code> for the new column.</p>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 9: SERVICES REST AND RPC -->
+  <!-- ============================================================ -->
+  <h3>Dataflow Through Services: REST and RPC</h3>
+  <p>When processes communicate over a network, the most common arrangement is <strong>clients and servers</strong>. The server exposes an API (a <span class="key-term">service</span>), and the client connects and makes requests. The API consists of a standardized set of protocols and data formats. The web works this way: browsers (clients) make requests to web servers.</p>
+
+  <p>A server can itself be a client to another service. This is the <span class="key-term">service-oriented architecture</span> (SOA), more recently rebranded as <span class="key-term">microservices architecture</span>. The key idea: make services independently deployable and evolvable. Expect old and new versions of servers and clients to be running simultaneously, so encoding must be compatible across versions.</p>
+
+  <!-- DIAGRAM 15: Service-Oriented / Microservices Architecture -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 15: Microservices Architecture — Services as Clients of Other Services</div>
+    <div style="display:flex; flex-direction:column; gap:16px; align-items:center;">
+      <div class="arch-row">
+        <div class="arch-box" style="border:2px solid var(--text-muted);">
+          <strong>Mobile App</strong><br><span style="font-size:0.72rem;">Client</span>
+        </div>
+        <div class="arch-box" style="border:2px solid var(--text-muted);">
+          <strong>Web Browser</strong><br><span style="font-size:0.72rem;">Client</span>
+        </div>
+      </div>
+      <div style="color:var(--text-muted);">&#9660; &nbsp; &#9660;</div>
+      <div class="arch-box-accent" style="min-width:280px;">
+        <strong>API Gateway / Load Balancer</strong>
+      </div>
+      <div style="color:var(--text-muted);">&#9660; &nbsp; &#9660; &nbsp; &#9660;</div>
+      <div class="arch-row">
+        <div class="arch-box-green" style="min-width:130px;">
+          <strong>User Service</strong><br><span style="font-size:0.72rem;">v2</span>
+        </div>
+        <div class="arch-box-orange" style="min-width:130px;">
+          <strong>Order Service</strong><br><span style="font-size:0.72rem;">v3</span>
+        </div>
+        <div class="arch-box-purple" style="min-width:130px;">
+          <strong>Payment Service</strong><br><span style="font-size:0.72rem;">v1</span>
+        </div>
+      </div>
+      <div style="display:flex; gap:40px; color:var(--text-muted); font-size:0.8rem;">
+        <span>&darr; calls &darr;</span>
+        <span>&darr; calls &darr;</span>
+      </div>
+      <div class="arch-row">
+        <div class="arch-box-cyan" style="min-width:130px;">
+          <strong>Auth Service</strong><br><span style="font-size:0.72rem;">v4</span>
+        </div>
+        <div class="arch-box-cyan" style="min-width:130px;">
+          <strong>Inventory Svc</strong><br><span style="font-size:0.72rem;">v2</span>
+        </div>
+      </div>
+    </div>
+    <p style="font-size:0.82rem; color:var(--text-muted); margin-top:16px; text-align:center;">Every service is at a different version. Each service is both a server (to its callers) and a client (to services it depends on). Encoding compatibility is essential at every boundary.</p>
+  </div>
+
+  <!-- DIAGRAM 16: REST vs RPC Comparison -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 16: REST vs SOAP vs RPC Comparison</div>
+    <table>
+      <tr><th>Aspect</th><th>REST</th><th>SOAP</th><th>Modern RPC (gRPC, Thrift, Avro)</th></tr>
+      <tr><td><strong>Philosophy</strong></td><td>Embrace HTTP. URLs identify resources. Use HTTP verbs (GET, PUT, POST, DELETE). Simple data formats (JSON).</td><td>XML-based protocol. Avoids HTTP features. Complex WS-* standards. WSDL for schema.</td><td>Make remote call look like local function. Binary encoding. IDL-defined schemas.</td></tr>
+      <tr><td><strong>Schema/Contract</strong></td><td>OpenAPI/Swagger (optional)</td><td>WSDL (XML, complex, tool-dependent)</td><td>IDL files (Protobuf .proto, Thrift .thrift)</td></tr>
+      <tr><td><strong>Data Format</strong></td><td>JSON (usually), XML</td><td>XML only</td><td>Binary (compact, fast)</td></tr>
+      <tr><td><strong>Debugging</strong></td><td style="color:var(--accent3);">Easy (curl, browser, human-readable)</td><td style="color:var(--red);">Hard (XML, tool-dependent)</td><td style="color:var(--orange);">Moderate (binary, need tools)</td></tr>
+      <tr><td><strong>Performance</strong></td><td>Moderate (text parsing)</td><td>Poor (verbose XML)</td><td style="color:var(--accent3);">Excellent (compact binary)</td></tr>
+      <tr><td><strong>Cross-org Use</strong></td><td style="color:var(--accent3);">Excellent (lingua franca of the web)</td><td>Declining</td><td style="color:var(--red);">Rare (both sides need same IDL)</td></tr>
+      <tr><td><strong>Best For</strong></td><td>Public APIs, cross-organization, web</td><td>Legacy enterprise (declining)</td><td>Internal microservices, same datacenter</td></tr>
+    </table>
+  </div>
 
   <div class="card card-red">
-    <h4>Why RPC Is Fundamentally Flawed (as a Concept)</h4>
-    <p>A network request is NOT like a local function call:</p>
+    <h4>Why "Location Transparency" in RPC Is Fundamentally Flawed</h4>
+    <p>RPC frameworks try to make a remote call look like a local function call. This is a leaky abstraction. A network request is NOT like a local function call:</p>
     <ul>
-      <li>Network is <strong>unpredictable</strong> — requests/responses can be lost</li>
-      <li>Timeouts: you don't know if request got through or not</li>
-      <li>Retries may cause <strong>duplicate execution</strong> (need idempotence)</li>
-      <li>Latency is wildly variable (ms to seconds)</li>
-      <li>Parameters must be serialized (can't pass pointers)</li>
-      <li>Client and server may use different languages (type mismatch)</li>
+      <li><strong>Unpredictable network</strong>: requests and responses can be lost, delayed, or duplicated</li>
+      <li><strong>Timeouts</strong>: a local call either returns or throws an exception. A network call might just hang — you don't know if the request got through</li>
+      <li><strong>Retries may duplicate</strong>: if a timeout occurs, the request may have been executed. Retrying may execute it again. Need <strong>idempotence</strong></li>
+      <li><strong>Wildly variable latency</strong>: local call is nanoseconds. Network call is milliseconds to seconds. Fundamentally different performance model</li>
+      <li><strong>Parameters must be serialized</strong>: can't pass pointers, references, or complex in-memory objects. Everything must be encoded to bytes</li>
+      <li><strong>Cross-language type mismatch</strong>: client and server may use different languages with different type systems. A JavaScript number, a Java long, and a Go int64 are not the same thing</li>
     </ul>
-    <p style="margin:0;">Modern RPC frameworks (gRPC, Finagle) acknowledge this: they use futures/promises, streams, and don't pretend remote = local.</p>
+    <p style="margin:0;">Modern RPC frameworks (gRPC, Finagle, Rest.li) acknowledge this reality: they use <strong>futures/promises</strong>, <strong>streams</strong>, and service discovery. They don't pretend that remote = local. The distinction between local and remote is an important part of the API design.</p>
   </div>
 
-  <h3>Message Brokers &amp; Actors</h3>
-  <div class="grid2">
-    <div class="card card-green">
-      <h4>Message Broker Advantages</h4>
-      <ul>
-        <li>Buffer if recipient unavailable</li>
-        <li>Auto-redeliver on crash</li>
-        <li>Sender doesn't need recipient's address</li>
-        <li>One message &rarr; many recipients</li>
-        <li>Decouples sender from receiver</li>
-      </ul>
-      <p style="font-size:0.85rem;">Examples: RabbitMQ, ActiveMQ, NATS, Apache Kafka</p>
+  <div class="card card-accent">
+    <h4>RPC Compatibility: Custom Approaches</h4>
+    <p style="font-size:0.85rem;">RPC compatibility depends on the encoding format used:</p>
+    <ul style="font-size:0.85rem;">
+      <li><strong>Thrift/gRPC/Avro RPC</strong>: inherit schema evolution rules from their respective encoding formats</li>
+      <li><strong>SOAP</strong>: requests and responses are XML, schema managed through WSDL</li>
+      <li><strong>RESTful APIs</strong>: use JSON, commonly managed through API versioning (URL paths like <code>/api/v1/</code>, or HTTP headers)</li>
+    </ul>
+    <p style="font-size:0.85rem; margin:0;">For RESTful APIs, it is reasonable to expect all servers to be updated first, then clients. Thus you only need backward compatibility on requests (new server handles old client requests) and forward compatibility on responses (old client handles new server responses).</p>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 10: MESSAGE-PASSING DATAFLOW -->
+  <!-- ============================================================ -->
+  <h3>Message-Passing Dataflow</h3>
+  <p>Asynchronous message passing is between direct RPC (one process sends request, expects response) and databases (one process writes, another reads later). A <span class="key-term">message broker</span> (message queue) is an intermediary: the sender sends a message to a named queue or topic, the broker delivers it to one or more consumers/subscribers.</p>
+
+  <!-- DIAGRAM 17: Message Broker Architecture -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 17: Message Broker Architecture</div>
+    <div style="display:flex; flex-direction:column; gap:16px; align-items:center;">
+      <!-- Producers -->
+      <div class="arch-row">
+        <div class="arch-box-green" style="min-width:120px;"><strong>Producer A</strong><br><span style="font-size:0.72rem;">Order Service v3</span></div>
+        <div class="arch-box-green" style="min-width:120px;"><strong>Producer B</strong><br><span style="font-size:0.72rem;">User Service v2</span></div>
+        <div class="arch-box-green" style="min-width:120px;"><strong>Producer C</strong><br><span style="font-size:0.72rem;">Payment Svc v1</span></div>
+      </div>
+      <div style="color:var(--text-muted);">&#9660; encode + send &nbsp; &#9660; &nbsp; &#9660;</div>
+
+      <!-- Broker -->
+      <div style="border:2px solid var(--accent2); border-radius:12px; padding:20px; min-width:500px; max-width:600px;">
+        <p style="text-align:center; font-weight:700; color:var(--accent2); margin-bottom:12px;">Message Broker (RabbitMQ / Kafka / ActiveMQ / NATS)</p>
+        <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+          <div class="arch-box" style="min-width:120px; border-color:var(--orange);">
+            <span style="color:var(--orange); font-weight:600;">Topic: orders</span><br>
+            <span style="font-size:0.72rem; color:var(--text-muted);">msg msg msg</span>
+          </div>
+          <div class="arch-box" style="min-width:120px; border-color:var(--cyan);">
+            <span style="color:var(--cyan); font-weight:600;">Topic: users</span><br>
+            <span style="font-size:0.72rem; color:var(--text-muted);">msg msg</span>
+          </div>
+          <div class="arch-box" style="min-width:120px; border-color:var(--pink);">
+            <span style="color:var(--pink); font-weight:600;">Queue: payments</span><br>
+            <span style="font-size:0.72rem; color:var(--text-muted);">msg msg msg msg</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="color:var(--text-muted);">&#9660; deliver + decode &nbsp; &#9660; &nbsp; &#9660;</div>
+
+      <!-- Consumers -->
+      <div class="arch-row">
+        <div class="arch-box-accent" style="min-width:120px;"><strong>Consumer X</strong><br><span style="font-size:0.72rem;">Analytics v1</span></div>
+        <div class="arch-box-accent" style="min-width:120px;"><strong>Consumer Y</strong><br><span style="font-size:0.72rem;">Email Svc v2</span></div>
+        <div class="arch-box-accent" style="min-width:120px;"><strong>Consumer Z</strong><br><span style="font-size:0.72rem;">Audit Log v1</span></div>
+      </div>
     </div>
-    <div class="card card-purple">
-      <h4>Actor Model</h4>
-      <ul>
-        <li>Concurrency model: logic in actors, not threads</li>
-        <li>Each actor has local state, communicates via async messages</li>
-        <li><strong>Distributed actors</strong>: same model across nodes (Akka, Orleans, Erlang OTP)</li>
-        <li>Location transparency works better here than RPC (actors already assume messages may be lost)</li>
-        <li>Still need forward/backward compatibility for rolling upgrades</li>
-      </ul>
+
+    <div style="margin-top:20px; border-top:1px solid var(--border); padding-top:16px;">
+      <p style="font-weight:600; font-size:0.9rem; margin-bottom:8px;">Key Properties:</p>
+      <div style="display:flex; flex-wrap:wrap; gap:8px;">
+        <span class="pill pill-purple">One-way: sender doesn't wait for response</span>
+        <span class="pill pill-green">Buffering: broker holds msgs if consumer is down</span>
+        <span class="pill pill-blue">Fan-out: one msg to many consumers</span>
+        <span class="pill pill-orange">Decoupled: sender doesn't know who consumes</span>
+      </div>
     </div>
   </div>
 
+  <div class="card card-green">
+    <h4>Message Broker Advantages Over Direct RPC</h4>
+    <ul>
+      <li><strong>Buffer if recipient unavailable</strong>: acts as a queue, improving system reliability. If the consumer crashes, messages wait</li>
+      <li><strong>Auto-redeliver on crash</strong>: prevents messages from being lost</li>
+      <li><strong>Sender doesn't need recipient's address</strong>: useful in cloud environments with dynamically created/destroyed VMs</li>
+      <li><strong>One message &rarr; many recipients</strong>: a single message published to a topic can be consumed by multiple subscribers</li>
+      <li><strong>Logical decoupling</strong>: sender publishes without knowing or caring who consumes. This makes it easy to add new consumers without modifying the sender</li>
+    </ul>
+    <p style="margin:0; font-size:0.85rem;">The communication is <strong>one-way and asynchronous</strong>: the sender fires and forgets. If a response is needed, it's done via a separate message on a different channel (the "reply queue" pattern). Typically the sender doesn't wait for the message to be consumed.</p>
+  </div>
+
+  <p>Message brokers typically don't enforce any particular data model — a message is just a sequence of bytes with some metadata. You can use any encoding format. If the encoding is forward and backward compatible, you have the flexibility to independently change publishers and consumers, deploying them in any order.</p>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 11: DISTRIBUTED ACTOR FRAMEWORKS -->
+  <!-- ============================================================ -->
+  <h3>Distributed Actor Frameworks</h3>
+  <p>The <span class="key-term">actor model</span> is a programming model for concurrency in a single process. Rather than dealing with threads directly, logic is encapsulated in <strong>actors</strong>. Each actor has its own local state and communicates with other actors by sending and receiving asynchronous messages. Message delivery is not guaranteed — even within a single process, messages may be lost.</p>
+
+  <!-- DIAGRAM 18: Actor Model -->
+  <div class="diagram">
+    <div class="diagram-title">Diagram 18: Distributed Actor Model</div>
+    <div style="display:flex; flex-direction:column; gap:20px;">
+
+      <!-- Single Node -->
+      <div style="border:1px solid var(--border); border-radius:8px; padding:16px;">
+        <p style="font-weight:600; color:var(--accent3); margin-bottom:8px;">Single-Node Actors (e.g., within one JVM)</p>
+        <div class="arch-row">
+          <div style="border:2px solid var(--accent3); border-radius:8px; padding:12px; text-align:center; min-width:100px;">
+            <strong style="color:var(--accent3);">Actor A</strong><br>
+            <span style="font-size:0.72rem; color:var(--text-muted);">local state</span>
+          </div>
+          <div style="display:flex; flex-direction:column; align-items:center;">
+            <span style="font-size:0.72rem; color:var(--text-muted);">async msg</span>
+            <span style="color:var(--accent3);">&rarr;</span>
+          </div>
+          <div style="border:2px solid var(--accent3); border-radius:8px; padding:12px; text-align:center; min-width:100px;">
+            <strong style="color:var(--accent3);">Actor B</strong><br>
+            <span style="font-size:0.72rem; color:var(--text-muted);">local state</span>
+          </div>
+          <div style="display:flex; flex-direction:column; align-items:center;">
+            <span style="font-size:0.72rem; color:var(--text-muted);">async msg</span>
+            <span style="color:var(--accent3);">&rarr;</span>
+          </div>
+          <div style="border:2px solid var(--accent3); border-radius:8px; padding:12px; text-align:center; min-width:100px;">
+            <strong style="color:var(--accent3);">Actor C</strong><br>
+            <span style="font-size:0.72rem; color:var(--text-muted);">local state</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Distributed -->
+      <div style="border:1px solid var(--accent2); border-radius:8px; padding:16px;">
+        <p style="font-weight:600; color:var(--accent2); margin-bottom:8px;">Distributed Actors (across nodes)</p>
+        <div style="display:grid; grid-template-columns:1fr 60px 1fr; gap:0; align-items:center;">
+          <div style="border:2px solid var(--accent); border-radius:8px; padding:12px; text-align:center;">
+            <strong style="color:var(--accent);">Node 1 (v2)</strong><br>
+            <span style="font-size:0.75rem; color:var(--text-muted);">Actor A &bull; Actor B</span>
+          </div>
+          <div style="text-align:center;">
+            <span style="font-size:0.72rem; color:var(--text-muted);">network<br>msgs</span><br>
+            <span style="color:var(--accent2);">&larr;&rarr;</span>
+          </div>
+          <div style="border:2px solid var(--orange); border-radius:8px; padding:12px; text-align:center;">
+            <strong style="color:var(--orange);">Node 2 (v1)</strong><br>
+            <span style="font-size:0.75rem; color:var(--text-muted);">Actor C &bull; Actor D</span>
+          </div>
+        </div>
+        <p style="font-size:0.78rem; color:var(--text-muted); margin-top:8px; text-align:center;">Messages between actors on different nodes are encoded, sent over the network, and decoded. Need forward + backward compatibility for rolling upgrades.</p>
+      </div>
+    </div>
+
+    <div style="margin-top:16px; border-top:1px solid var(--border); padding-top:12px;">
+      <p style="font-weight:600; font-size:0.85rem; margin-bottom:8px;">Distributed Actor Frameworks:</p>
+      <div style="display:flex; flex-wrap:wrap; gap:8px;">
+        <span class="pill pill-green">Akka (JVM) — uses Java serialization by default, can use Protobuf</span>
+        <span class="pill pill-blue">Orleans (Microsoft .NET) — custom encoding, supports versioning</span>
+        <span class="pill pill-purple">Erlang OTP — changes to record schemas must be carefully planned for rolling upgrades</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-purple">
+    <h4>Why Actors Handle Distribution Better Than RPC</h4>
+    <p>The actor model already assumes messages <strong>may be lost</strong>, even within a single process. When you extend it across nodes (distributed actors), there is <strong>less of a fundamental mismatch</strong> between local and remote communication. RPC tries to pretend remote calls are like local calls ("location transparency"), which fails because the network introduces unpredictability that local calls don't have. The actor model embraces this reality from the start — it was designed for unreliable message delivery.</p>
+    <p style="margin:0; font-size:0.85rem;">However, there's a caveat: if you do a rolling upgrade of your actor system, you still need forward and backward compatibility. Akka's default of using Java serialization is a known pain point — many teams switch to Protocol Buffers or a custom serializer for production use.</p>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 12: SUMMARY DIAGRAM -->
+  <!-- ============================================================ -->
+  <h2>Chapter Summary: The Big Picture</h2>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 19: Chapter 4 Concept Map — How Everything Connects</div>
+    <div style="display:flex; flex-direction:column; gap:16px; align-items:center;">
+
+      <div class="arch-box-purple" style="min-width:340px; padding:16px;">
+        <strong>Core Requirement: Evolvability</strong><br>
+        <span style="font-size:0.8rem; color:var(--text-muted);">Rolling upgrades require backward + forward compatibility</span>
+      </div>
+      <div style="color:var(--text-muted);">&#9660;</div>
+
+      <div style="display:flex; gap:16px; flex-wrap:wrap; justify-content:center;">
+        <div class="arch-box-red" style="min-width:140px;"><strong>Avoid</strong><br><span style="font-size:0.72rem;">Language-specific<br>encoding</span></div>
+        <div class="arch-box-orange" style="min-width:140px;"><strong>OK for External</strong><br><span style="font-size:0.72rem;">JSON / XML / CSV<br>(but flawed)</span></div>
+        <div class="arch-box-green" style="min-width:140px;"><strong>Best for Internal</strong><br><span style="font-size:0.72rem;">Thrift / Protobuf /<br>Avro (schema-driven)</span></div>
+      </div>
+      <div style="color:var(--text-muted);">&#9660;</div>
+
+      <div class="arch-box-accent" style="min-width:340px; padding:16px;">
+        <strong>Schema Evolution</strong><br>
+        <span style="font-size:0.8rem; color:var(--text-muted);">Field tags (Thrift/Protobuf) or name matching (Avro) enable safe schema changes</span>
+      </div>
+      <div style="color:var(--text-muted);">&#9660;</div>
+
+      <div style="display:flex; gap:16px; flex-wrap:wrap; justify-content:center;">
+        <div class="arch-box-accent" style="min-width:140px;"><strong>Databases</strong><br><span style="font-size:0.72rem;">Data outlives code<br>Both directions</span></div>
+        <div class="arch-box-green" style="min-width:140px;"><strong>Services</strong><br><span style="font-size:0.72rem;">REST / RPC<br>Server-first upgrade</span></div>
+        <div class="arch-box-purple" style="min-width:140px;"><strong>Message Passing</strong><br><span style="font-size:0.72rem;">Broker / Actors<br>Async, decoupled</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
   <!-- FIRST PRINCIPLES QUESTIONS -->
+  <!-- ============================================================ -->
   <h2 style="color: var(--pink);">First-Principles Questions</h2>
-  <p>Test your understanding. Click to reveal the answer.</p>
+  <p>Test your deep understanding. Click to reveal the answer.</p>
 
   <div class="question-block" onclick="this.classList.toggle('open')">
-    <div class="question-header"><span><span class="q-num">1</span>Why do we need both backward and forward compatibility?</span><span class="chevron">&#9660;</span></div>
-    <div class="question-body">During <strong>rolling upgrades</strong>, some nodes run new code while others still run old code. New code must read old data (backward compatibility). Old code must be able to handle data from new code without breaking (forward compatibility). Without both, you can't do rolling upgrades — you'd have to update all nodes simultaneously, which means downtime.</div>
+    <div class="question-header"><span><span class="q-num">1</span>Why do we need BOTH backward and forward compatibility? Why isn't one sufficient?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">During <strong>rolling upgrades</strong>, some nodes run new code while others still run old code. New code must read old data (<strong>backward compatibility</strong>) — this is relatively easy because you wrote the new code and know the old format. Old code must handle data from new code without breaking (<strong>forward compatibility</strong>) — this is trickier because old code must gracefully ignore additions. Without <strong>both</strong>, you cannot do rolling upgrades. You'd have to update all nodes simultaneously, which means downtime. For client-side applications, it's even worse: you have no control over when users upgrade, so you may have many versions in the wild simultaneously.</div>
   </div>
 
   <div class="question-block" onclick="this.classList.toggle('open')">
-    <div class="question-header"><span><span class="q-num">2</span>Why are language-specific serialization formats (Java Serializable, Python pickle) dangerous?</span><span class="chevron">&#9660;</span></div>
-    <div class="question-body">Four problems: (1) Tied to one language — can't read in other languages. (2) <strong>Security</strong>: decoding can instantiate arbitrary classes, enabling remote code execution attacks. (3) Versioning/compatibility is an afterthought. (4) Often terrible performance and bloated encoding (Java serialization is notorious). Never use for anything beyond transient in-process purposes.</div>
+    <div class="question-header"><span><span class="q-num">2</span>Why are language-specific serialization formats (Java Serializable, Python pickle) dangerous for anything beyond transient purposes?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Four deep problems: (1) <strong>Language lock-in</strong>: encoding is tied to one language. If you store data this way, you're committed to that language potentially forever, precluding integration with systems in other languages. (2) <strong>Security</strong>: decoding requires instantiating arbitrary classes. An attacker who can feed your application a crafted byte sequence can instantiate arbitrary classes, leading to remote code execution. (3) <strong>No versioning</strong>: forward and backward compatibility are afterthoughts, making schema evolution painful or impossible. (4) <strong>Performance</strong>: Java's built-in serialization is notorious for bad performance and bloated output. These aren't minor issues — they're fundamental architectural risks.</div>
   </div>
 
   <div class="question-block" onclick="this.classList.toggle('open')">
-    <div class="question-header"><span><span class="q-num">3</span>How do Thrift/Protocol Buffers achieve forward compatibility?</span><span class="chevron">&#9660;</span></div>
-    <div class="question-body">Fields are identified by <strong>tag numbers</strong> (not names) in the encoded data. When old code encounters a field with a tag number it doesn't recognize, the datatype annotation tells the parser how many bytes to <strong>skip</strong>. The unknown field is simply ignored. This means old code can read records written by new code without breaking.</div>
+    <div class="question-header"><span><span class="q-num">3</span>Why is MessagePack (binary JSON) only marginally smaller than textual JSON, while Protobuf is dramatically smaller?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">MessagePack keeps the <strong>JSON data model unchanged</strong>: it still includes all field names ("userName", "favoriteNumber", "interests") as strings in the encoded data, because it has no schema. It just encodes them more efficiently as binary. The field names dominate the payload. Protocol Buffers uses a <strong>schema with numbered field tags</strong>, so field names never appear in the encoded data — only small tag numbers (1, 2, 3). Additionally, Protobuf uses variable-length integer encoding (small numbers use fewer bytes), while MessagePack must encode field name strings in full. The lesson: the biggest savings come from <strong>omitting field names</strong>, not from encoding values in binary.</div>
   </div>
 
   <div class="question-block" onclick="this.classList.toggle('open')">
-    <div class="question-header"><span><span class="q-num">4</span>Why can you never change a field's tag number in Thrift/Protobuf, and never reuse a removed field's tag?</span><span class="chevron">&#9660;</span></div>
-    <div class="question-body">The tag number is the <strong>identity</strong> of the field in encoded data. Changing it would make all existing encoded data unreadable (the parser would interpret the old tag as a different field). Reusing a removed tag is equally dangerous: old data in the wild may still contain records with that tag number, and the parser would misinterpret them as the new field.</div>
+    <div class="question-header"><span><span class="q-num">4</span>How do Thrift/Protocol Buffers achieve forward compatibility (old code reads new data)?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Fields are identified by <strong>tag numbers</strong> (not names) in the encoded data. Each field also has a datatype annotation. When old code encounters a field with a tag number it doesn't recognize (a new field added by newer code), the datatype annotation tells the parser how many bytes to <strong>skip</strong>. The unknown field is simply ignored. This is why old code can safely read records written by new code — it just ignores the fields it doesn't understand. The same mechanism is why new fields must be <strong>optional or have defaults</strong>: if new code reads old data, the new field simply won't be present, and the code must handle that gracefully.</div>
   </div>
 
   <div class="question-block" onclick="this.classList.toggle('open')">
-    <div class="question-header"><span><span class="q-num">5</span>How is Avro's approach to schema evolution fundamentally different from Thrift/Protobuf?</span><span class="chevron">&#9660;</span></div>
-    <div class="question-body">Avro has <strong>no tag numbers</strong>. Fields are matched by <strong>name</strong> between the writer's schema and reader's schema. The Avro library resolves differences: fields in writer but not reader are ignored; fields expected by reader but missing from writer are filled with defaults. This makes Avro ideal for <strong>dynamically generated schemas</strong> (e.g., auto-generating from a database schema where column names map directly to field names).</div>
+    <div class="question-header"><span><span class="q-num">5</span>Why can you never change a field's tag number in Protobuf/Thrift, and why can you never reuse a removed field's tag?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">The tag number is the <strong>identity</strong> of the field in encoded data. Changing it would make all existing encoded data unreadable — the parser would interpret the old tag as a different field, causing data corruption. Reusing a removed tag is equally dangerous: old data in the wild (in databases, log files, message queues) may still contain records with that tag number. The parser would silently misinterpret the old field as the new field, causing subtle data corruption. These rules are absolute because <strong>encoded data can persist for years</strong> — much longer than any code version.</div>
   </div>
 
   <div class="question-block" onclick="this.classList.toggle('open')">
-    <div class="question-header"><span><span class="q-num">6</span>What does "data outlives code" mean, and what problem does it create?</span><span class="chevron">&#9660;</span></div>
-    <div class="question-body">You can replace all running code with a new version in minutes (rolling upgrade). But database contents stay in their <strong>original encoding</strong> unless explicitly migrated — data written 5 years ago is still there in the old format. This means a database may contain a mix of data encoded with many different historical schema versions, and schema evolution must handle all of them. The database needs to appear as if all data conforms to one schema.</div>
+    <div class="question-header"><span><span class="q-num">6</span>How is Avro's approach to schema evolution fundamentally different from Thrift/Protobuf, and what use case does this enable?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Avro has <strong>no tag numbers</strong> at all. Fields are matched by <strong>name</strong> between the writer's schema and reader's schema. The Avro library resolves differences: fields in writer but not reader are ignored; fields expected by reader but missing from writer are filled with defaults. This enables <strong>dynamically generated schemas</strong>. Example: you want to dump a relational database to a binary file. With Avro, you auto-generate a schema from the database schema (column names become field names), export the data, and when the database schema changes, just generate a new Avro schema. With Thrift/Protobuf, you'd need to manually assign tag numbers every time a column is added — you'd have to track which tags were previously used. Avro was specifically designed for this Hadoop use case.</div>
   </div>
 
   <div class="question-block" onclick="this.classList.toggle('open')">
-    <div class="question-header"><span><span class="q-num">7</span>Why is a network request fundamentally different from a local function call?</span><span class="chevron">&#9660;</span></div>
-    <div class="question-body">Six key differences from the book: (1) Network is <strong>unpredictable</strong> — requests/responses can be lost. (2) Timeouts: no way to know if request succeeded. (3) Retries may execute the action multiple times (need idempotence). (4) Latency is <strong>wildly variable</strong>. (5) Parameters must be serialized to bytes (can't pass pointers). (6) Client and server may use different languages with different type systems. This is why the RPC model of "location transparency" is fundamentally flawed.</div>
+    <div class="question-header"><span><span class="q-num">7</span>What does "data outlives code" mean, and what specific danger does it create when old code writes to a database?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">You can replace all running code in minutes (rolling upgrade). But database contents stay in their <strong>original encoding</strong> unless explicitly migrated — data written 5 years ago is still in the old format. This creates a specific danger: during a rolling upgrade, an old application instance may read a record written by new code (which includes a new field like "email"), update some other field, and <strong>write the record back without the unknown "email" field</strong> — silently losing data. The solution: application code (or the encoding library) must preserve unknown fields when reading and re-writing records. Not all encoding libraries handle this correctly.</div>
   </div>
 
   <div class="question-block" onclick="this.classList.toggle('open')">
-    <div class="question-header"><span><span class="q-num">8</span>What are the advantages of a message broker over direct RPC?</span><span class="chevron">&#9660;</span></div>
-    <div class="question-body">Five advantages: (1) Acts as a <strong>buffer</strong> if recipient is unavailable/overloaded. (2) <strong>Auto-redelivery</strong> to crashed processes. (3) Sender doesn't need to know recipient's IP/port (useful in cloud with dynamic VMs). (4) One message can be sent to <strong>multiple recipients</strong>. (5) <strong>Logical decoupling</strong> — sender publishes and doesn't care who consumes. The trade-off: communication is one-way and asynchronous (sender doesn't get a direct response).</div>
+    <div class="question-header"><span><span class="q-num">8</span>Why is the RPC concept of "location transparency" fundamentally flawed?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Location transparency tries to make remote calls look identical to local function calls. This is a leaky abstraction because of six fundamental differences: (1) Network is <strong>unpredictable</strong> — requests/responses can be lost. (2) <strong>Timeouts</strong>: no way to know if the request succeeded, partially succeeded, or never arrived. (3) Retries may execute the action <strong>multiple times</strong> (need idempotence). (4) Latency is <strong>wildly variable</strong> (nanoseconds for local vs milliseconds-to-seconds for network). (5) Parameters must be <strong>serialized to bytes</strong> (can't pass pointers or complex objects). (6) Client and server may use <strong>different languages</strong> with different type systems. Hiding these differences behind a function call interface leads to brittle, poorly-designed systems. Modern RPC frameworks (gRPC) embrace the difference by exposing futures/streams/error handling explicitly.</div>
   </div>
 
   <div class="question-block" onclick="this.classList.toggle('open')">
-    <div class="question-header"><span><span class="q-num">9</span>Why does the book say JSON's handling of numbers is problematic?</span><span class="chevron">&#9660;</span></div>
-    <div class="question-body">JSON distinguishes strings from numbers but <strong>doesn't distinguish integers from floats</strong> and doesn't specify precision. Integers greater than 2<sup>53</sup> cannot be exactly represented in IEEE 754 double-precision floating point (which JavaScript uses). Twitter hit this: tweet IDs are 64-bit numbers that get corrupted when parsed as JavaScript numbers. Their API includes each tweet ID twice — once as a JSON number and once as a string.</div>
+    <div class="question-header"><span><span class="q-num">9</span>What are the five advantages of a message broker over direct RPC, and what is the fundamental trade-off?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">Five advantages: (1) Acts as a <strong>buffer</strong> if recipient is unavailable or overloaded — messages wait in the queue. (2) <strong>Auto-redelivery</strong>: if a consumer crashes after receiving a message, the broker can redeliver to another consumer. (3) Sender <strong>doesn't need to know recipient's IP/port</strong> — useful in cloud environments with dynamically created VMs. (4) One message can be delivered to <strong>multiple recipients</strong> via topics/subscriptions. (5) <strong>Logical decoupling</strong>: sender publishes without knowing who consumes, making it easy to add new consumers. The fundamental trade-off: communication is <strong>one-way and asynchronous</strong>. The sender doesn't get a direct response. If request-response is needed, you need a separate reply queue pattern, adding complexity.</div>
   </div>
 
   <div class="question-block" onclick="this.classList.toggle('open')">
     <div class="question-header"><span><span class="q-num">10</span>Why does the actor model handle distribution better than traditional RPC?</span><span class="chevron">&#9660;</span></div>
-    <div class="question-body">The actor model already assumes that messages <strong>may be lost</strong>, even within a single process. So when you extend it across nodes (distributed actors), there is <strong>less of a fundamental mismatch</strong> between local and remote communication. RPC tries to pretend remote calls are like local calls (location transparency), which fails because network introduces unpredictability that local calls don't have. The actor model embraces this reality from the start.</div>
+    <div class="question-body">The actor model already assumes that messages <strong>may be lost</strong>, even within a single process. Communication between actors is always <strong>asynchronous and one-way</strong> — an actor sends a message and doesn't wait for a response. When you extend this across nodes (distributed actors), there is <strong>less of a fundamental mismatch</strong> between local and remote communication. RPC tries to pretend remote calls are like local calls, which fails because network introduces unpredictability. The actor model embraces unreliable delivery from the start. That said, there are still differences: network latency is higher and message loss is more common across nodes. And for rolling upgrades, you still need encoding compatibility.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">11</span>Why does JSON's number handling cause real-world bugs, and why did Twitter have to work around it?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">JSON distinguishes strings from numbers but <strong>doesn't distinguish integers from floating-point numbers</strong> and doesn't specify precision. Most JSON parsers (especially JavaScript's) parse numbers as IEEE 754 double-precision floating point. Integers greater than 2<sup>53</sup> (about 9 quadrillion) cannot be exactly represented in this format — they lose precision. Twitter hit this: tweet IDs are 64-bit integers, which can exceed 2<sup>53</sup>. When a JavaScript application parses a tweet ID as a JSON number, it gets <strong>silently corrupted</strong> — the last few digits change. Twitter's workaround: their API includes each tweet ID twice — once as a JSON number (for non-JS consumers) and once as a decimal string (for JavaScript consumers). This is a fundamental limitation of JSON for large numeric identifiers.</div>
+  </div>
+
+  <div class="question-block" onclick="this.classList.toggle('open')">
+    <div class="question-header"><span><span class="q-num">12</span>In a microservices architecture, which compatibility direction matters for requests vs responses, and why?</span><span class="chevron">&#9660;</span></div>
+    <div class="question-body">In practice, servers are updated before clients. This means: for <strong>requests</strong>, you need <strong>backward compatibility</strong> — the new server must understand requests from old clients (which use the old request schema). For <strong>responses</strong>, you need <strong>forward compatibility</strong> — old clients must be able to handle responses from the new server (which may include new fields). Think of it this way: the server is always "newer" than the client. The server receives old-format requests (backward compat) and sends new-format responses that old clients must tolerate (forward compat). This is why API versioning (<code>/api/v1/</code>) exists — it lets the server know which request/response format the client expects.</div>
   </div>
 
 </div>

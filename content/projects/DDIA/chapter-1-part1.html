@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Ch.1 Part 1 — Reliability</title>
+<style>
+  :root {
+    --bg:#0a0e17; --surface:#111827; --surface2:#1a2234; --border:#1e293b;
+    --text:#e2e8f0; --muted:#94a3b8; --accent:#3b82f6; --purple:#8b5cf6;
+    --green:#10b981; --red:#ef4444; --orange:#f59e0b; --pink:#ec4899; --cyan:#06b6d4;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;}
+  .wrap{max-width:900px;margin:0 auto;padding:40px 24px 100px;}
+  h1{font-size:2rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px;}
+  .sub{color:var(--muted);font-size:1rem;margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:20px;}
+  .nav{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:40px;}
+  .nav a{color:var(--muted);font-size:0.8rem;text-decoration:none;padding:4px 12px;border:1px solid var(--border);border-radius:20px;}
+  .nav a.cur{color:var(--accent);border-color:var(--accent);}
+  .nav a:hover{color:var(--text);}
+  h2{font-size:1.4rem;font-weight:700;color:var(--accent);margin:44px 0 14px;}
+  h3{font-size:1.1rem;font-weight:600;color:var(--text);margin:28px 0 10px;}
+  p{margin-bottom:14px;color:var(--muted);}
+  strong{color:var(--text);}
+  .label{font-size:0.72rem;text-transform:uppercase;letter-spacing:2px;color:var(--accent);font-weight:700;margin-bottom:6px;}
+  code{background:var(--surface2);padding:2px 7px;border-radius:4px;font-size:0.83rem;color:var(--green);}
+  .key{color:var(--accent);font-weight:600;}
+  .quote{background:var(--surface2);border-left:3px solid var(--purple);padding:14px 18px;border-radius:0 8px 8px 0;font-style:italic;color:var(--muted);margin:18px 0;}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin:18px 0;}
+  .card-blue{border-left:4px solid var(--accent);}
+  .card-purple{border-left:4px solid var(--purple);}
+  .card-green{border-left:4px solid var(--green);}
+  .card-red{border-left:4px solid var(--red);}
+  .card-orange{border-left:4px solid var(--orange);}
+  .card h4{font-size:0.95rem;font-weight:700;margin-bottom:8px;color:var(--text);}
+  .card ul{padding-left:18px;color:var(--muted);}
+  .card li{margin-bottom:5px;}
+
+  .diagram{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:28px 24px;margin:22px 0;}
+  .diagram-title{font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--purple);margin-bottom:18px;}
+
+  .g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+  @media(max-width:640px){.g2,.g3{grid-template-columns:1fr;}}
+
+  .pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:0.73rem;font-weight:600;margin:2px;}
+  .p-green{background:rgba(16,185,129,.15);color:var(--green);}
+  .p-red{background:rgba(239,68,68,.15);color:var(--red);}
+  .p-blue{background:rgba(59,130,246,.15);color:var(--accent);}
+  .p-orange{background:rgba(245,158,11,.15);color:var(--orange);}
+  .p-purple{background:rgba(139,92,246,.15);color:var(--purple);}
+
+  .box{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 16px;text-align:center;font-size:0.83rem;}
+  .box-blue{border:2px solid var(--accent);color:var(--accent);}
+  .box-green{border:2px solid var(--green);color:var(--green);}
+  .box-orange{border:2px solid var(--orange);color:var(--orange);}
+  .box-red{border:2px solid var(--red);color:var(--red);}
+  .box-purple{border:2px solid var(--purple);color:var(--purple);}
+  .box-cyan{border:2px solid var(--cyan);color:var(--cyan);}
+  .row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .vflow{display:flex;flex-direction:column;align-items:center;gap:8px;}
+  .arrow-d{color:var(--muted);font-size:1.1rem;}
+  .arrow-r{color:var(--muted);font-size:1.3rem;}
+
+  table{width:100%;border-collapse:collapse;margin:14px 0;}
+  th,td{text-align:left;padding:9px 13px;border-bottom:1px solid var(--border);font-size:0.85rem;}
+  th{color:var(--accent);font-weight:600;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.8px;}
+  td{color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="label">DDIA · Chapter 1</div>
+  <h1>Reliable, Scalable, and Maintainable Applications</h1>
+  <p class="sub">Part 1 of 3 — What data systems actually are, and what reliability means in practice: hardware faults, software errors, and human mistakes.</p>
+
+  <div class="nav">
+    <a href="chapter-1-part1.html" class="cur">Part 1: Reliability</a>
+    <a href="chapter-1-part2.html">Part 2: Scalability</a>
+    <a href="chapter-1-part3.html">Part 3: Maintainability &amp; Q&amp;A</a>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 1. THINKING ABOUT DATA SYSTEMS            -->
+  <!-- ══════════════════════════════════════════ -->
+  <h2>1. Thinking About Data Systems</h2>
+
+  <p>Most applications today are <strong>data-intensive</strong>, not compute-intensive. The bottleneck is rarely raw CPU power — it's the amount of data, the complexity of data, and the speed at which it changes. An application built from a database, a message queue, a cache, a search index, and a batch processing pipeline is not just using individual tools — it is a <span class="key">data system</span>.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 1 — A Typical Data System: Multiple Tools Behind One API</div>
+    <p style="font-size:0.83rem;color:var(--muted);margin-bottom:16px;">Modern applications stitch together many specialized tools. The application code acts as glue, maintaining consistency across all of them.</p>
+    <div class="vflow" style="gap:10px;">
+      <div class="row" style="justify-content:center;gap:10px;">
+        <div class="box" style="border-color:var(--muted);">Web Client</div>
+        <div class="box" style="border-color:var(--muted);">Mobile App</div>
+        <div class="box" style="border-color:var(--muted);">Internal Service</div>
+      </div>
+      <div class="arrow-d">▼</div>
+      <div class="box box-blue" style="min-width:300px;padding:14px;"><strong>Application Code</strong><br><span style="font-size:0.75rem;color:var(--muted);">Your API — hides complexity of underlying data systems</span></div>
+      <div style="display:flex;gap:8px;color:var(--muted);">▼ &nbsp; ▼ &nbsp; ▼ &nbsp; ▼ &nbsp; ▼</div>
+      <div class="row" style="justify-content:center;gap:8px;flex-wrap:wrap;">
+        <div class="box box-green" style="min-width:100px;"><strong>Database</strong><br><span style="font-size:0.72rem;">Primary store<br>(PostgreSQL)</span></div>
+        <div class="box box-orange" style="min-width:100px;"><strong>Cache</strong><br><span style="font-size:0.72rem;">Speed up reads<br>(Redis/Memcached)</span></div>
+        <div class="box box-purple" style="min-width:100px;"><strong>Search Index</strong><br><span style="font-size:0.72rem;">Full-text search<br>(Elasticsearch)</span></div>
+        <div class="box box-cyan" style="min-width:100px;"><strong>Message Queue</strong><br><span style="font-size:0.72rem;">Async work<br>(Kafka/RabbitMQ)</span></div>
+        <div class="box" style="min-width:100px;border-color:var(--pink);color:var(--pink);"><strong>Batch Jobs</strong><br><span style="font-size:0.72rem;">Analytics<br>(Spark/Hadoop)</span></div>
+      </div>
+    </div>
+    <p style="font-size:0.8rem;color:var(--muted);margin-top:14px;">Each tool is optimized for different access patterns. The application developer decides how to combine them — and is responsible for keeping them in sync. This is why data system design is hard.</p>
+  </div>
+
+  <div class="card card-blue">
+    <h4>The Three Core Concerns of Data Systems</h4>
+    <div class="g3" style="margin-top:8px;">
+      <div style="text-align:center;padding:12px;">
+        <div style="font-size:1.5rem;margin-bottom:6px;">🛡️</div>
+        <strong style="color:var(--accent);">Reliability</strong>
+        <p style="font-size:0.83rem;margin-top:4px;margin-bottom:0;">System works correctly even when things go wrong — hardware fails, software bugs, human mistakes.</p>
+      </div>
+      <div style="text-align:center;padding:12px;">
+        <div style="font-size:1.5rem;margin-bottom:6px;">📈</div>
+        <strong style="color:var(--green);">Scalability</strong>
+        <p style="font-size:0.83rem;margin-top:4px;margin-bottom:0;">System handles growth gracefully — more data, more traffic, more complexity without degrading.</p>
+      </div>
+      <div style="text-align:center;padding:12px;">
+        <div style="font-size:1.5rem;margin-bottom:6px;">🔧</div>
+        <strong style="color:var(--purple);">Maintainability</strong>
+        <p style="font-size:0.83rem;margin-top:4px;margin-bottom:0;">Different people can work on the system productively — fixing bugs, adapting, adding features.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 2. RELIABILITY                             -->
+  <!-- ══════════════════════════════════════════ -->
+  <h2>2. Reliability</h2>
+
+  <p>A reliable system <strong>continues to work correctly even when things go wrong</strong>. "Correctly" means performing the function the user expected, tolerating mistakes, preventing unauthorized access, and maintaining adequate performance. The things that can go wrong are called <span class="key">faults</span>. A system that anticipates faults and copes with them is called <span class="key">fault-tolerant</span> or <span class="key">resilient</span>.</p>
+
+  <div class="quote">"Fault-tolerant" is slightly misleading — a system can only tolerate a certain class of faults, not all possible ones. A black hole swallowing your datacenter cannot be tolerated. Kleppmann suggests a more precise framing: which faults does this system tolerate?</div>
+
+  <div class="card card-orange">
+    <h4>Fault vs Failure — A Critical Distinction</h4>
+    <div class="g2" style="margin-top:8px;">
+      <div>
+        <p style="font-size:0.88rem;"><span class="pill p-orange">Fault</span> A component deviates from its spec. One disk sector is corrupt. One request handler throws an exception. One upstream service returns a wrong value.</p>
+      </div>
+      <div>
+        <p style="font-size:0.88rem;"><span class="pill p-red">Failure</span> The whole system stops providing the required service to the user. Visible outage.</p>
+      </div>
+    </div>
+    <p style="margin:8px 0 0;font-size:0.85rem;">Goal: prevent faults from causing failures. Counterintuitively, Netflix's Chaos Monkey <strong>deliberately introduces faults</strong> (kills random VMs) to ensure fault tolerance is actually exercised and not just theoretically present.</p>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 2 — The Three Types of Faults</div>
+    <div class="g3">
+      <div style="border:2px solid var(--orange);border-radius:10px;padding:16px;text-align:center;">
+        <div style="font-size:1.4rem;margin-bottom:6px;">⚙️</div>
+        <strong style="color:var(--orange);">Hardware Faults</strong>
+        <p style="font-size:0.8rem;margin:8px 0 0;">Hard disk crashes, RAM errors, power outages, network cable cut. Random, uncorrelated. MTTF ~10-50 years per disk; at 10,000 disks, ~1 failure/day.</p>
+      </div>
+      <div style="border:2px solid var(--red);border-radius:10px;padding:16px;text-align:center;">
+        <div style="font-size:1.4rem;margin-bottom:6px;">🐛</div>
+        <strong style="color:var(--red);">Software Errors</strong>
+        <p style="font-size:0.8rem;margin:8px 0 0;">Systematic bugs that affect all nodes simultaneously. Harder to anticipate than hardware faults. A runaway process consuming all CPU/memory/disk/network.</p>
+      </div>
+      <div style="border:2px solid var(--purple);border-radius:10px;padding:16px;text-align:center;">
+        <div style="font-size:1.4rem;margin-bottom:6px;">👤</div>
+        <strong style="color:var(--purple);">Human Errors</strong>
+        <p style="font-size:0.8rem;margin:8px 0 0;">Configuration mistakes, deployment mistakes, bad API design forcing workarounds. Studies show operators are the leading cause of outages, not hardware.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 3. HARDWARE FAULTS                         -->
+  <!-- ══════════════════════════════════════════ -->
+  <h3>Hardware Faults</h3>
+  <p>Hard disks have a mean time to failure (MTTF) of roughly 10 to 50 years. On a storage cluster with 10,000 disks, you should expect roughly one disk failure per day. The first response was hardware redundancy: RAID for disks, dual power supplies, hot-swappable CPUs, diesel generators. This kept systems running through single-component failures.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 3 — Evolution of Hardware Fault Tolerance</div>
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <div style="border:1px solid var(--border);border-radius:8px;padding:14px;">
+        <p style="font-weight:600;color:var(--orange);margin-bottom:8px;">Era 1: Hardware Redundancy (Single Machine)</p>
+        <div class="row" style="flex-wrap:wrap;gap:8px;">
+          <span class="pill p-orange">RAID disk array</span>
+          <span class="pill p-orange">Dual power supplies</span>
+          <span class="pill p-orange">Hot-swap CPUs</span>
+          <span class="pill p-orange">Diesel generators</span>
+        </div>
+        <p style="font-size:0.8rem;margin-top:8px;margin-bottom:0;">Works for single-component failures. Downtime still required for maintenance. Adequate when a machine could run for years without needing a restart.</p>
+      </div>
+      <div style="border:2px solid var(--green);border-radius:8px;padding:14px;">
+        <p style="font-weight:600;color:var(--green);margin-bottom:8px;">Era 2: Software Fault Tolerance (Multi-Machine)</p>
+        <div class="row" style="flex-wrap:wrap;gap:8px;">
+          <span class="pill p-green">Rolling upgrades (no downtime)</span>
+          <span class="pill p-green">Tolerate loss of entire machines</span>
+          <span class="pill p-green">Cloud VMs (higher single-machine fault rate)</span>
+          <span class="pill p-green">Replication across nodes</span>
+        </div>
+        <p style="font-size:0.8rem;margin-top:8px;margin-bottom:0;">Required by: cloud VMs (less reliable than physical), need to patch OS without downtime, large clusters where machine failure is routine.</p>
+      </div>
+    </div>
+    <p style="font-size:0.8rem;color:var(--muted);margin-top:12px;">As platforms moved to cloud, single-VM reliability dropped but total-system reliability improved through software-level redundancy. The expectation shifted: machines will fail; design around it.</p>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 4. SOFTWARE ERRORS                         -->
+  <!-- ══════════════════════════════════════════ -->
+  <h3>Software Errors</h3>
+  <p>Hardware faults are <strong>random and independent</strong> — one disk failing doesn't make another more likely to fail. Software errors are different: a bug in the OS kernel, a runaway process, a downstream service returning wrong results, a cascading failure triggered by unexpected input — these affect <strong>every node simultaneously</strong>.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 4 — Hardware vs Software Faults: Correlation Matters</div>
+    <div class="g2">
+      <div>
+        <p style="text-align:center;font-weight:700;color:var(--orange);margin-bottom:10px;">Hardware Faults: Uncorrelated</p>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:10px;">
+          <div style="height:36px;background:var(--surface);border:1px solid var(--border);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--muted);">ok</div>
+          <div style="height:36px;background:var(--surface);border:1px solid var(--border);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--muted);">ok</div>
+          <div style="height:36px;background:rgba(239,68,68,.2);border:1px solid var(--red);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--red);">FAIL</div>
+          <div style="height:36px;background:var(--surface);border:1px solid var(--border);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--muted);">ok</div>
+          <div style="height:36px;background:var(--surface);border:1px solid var(--border);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--muted);">ok</div>
+          <div style="height:36px;background:var(--surface);border:1px solid var(--border);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--muted);">ok</div>
+          <div style="height:36px;background:var(--surface);border:1px solid var(--border);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--muted);">ok</div>
+          <div style="height:36px;background:var(--surface);border:1px solid var(--border);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--muted);">ok</div>
+        </div>
+        <p style="font-size:0.78rem;color:var(--muted);text-align:center;">One node fails; others unaffected. Redundancy solves it.</p>
+      </div>
+      <div>
+        <p style="text-align:center;font-weight:700;color:var(--red);margin-bottom:10px;">Software Errors: Correlated</p>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:10px;">
+          <div style="height:36px;background:rgba(239,68,68,.2);border:1px solid var(--red);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--red);">FAIL</div>
+          <div style="height:36px;background:rgba(239,68,68,.2);border:1px solid var(--red);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--red);">FAIL</div>
+          <div style="height:36px;background:rgba(239,68,68,.2);border:1px solid var(--red);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--red);">FAIL</div>
+          <div style="height:36px;background:rgba(239,68,68,.2);border:1px solid var(--red);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--red);">FAIL</div>
+          <div style="height:36px;background:rgba(239,68,68,.2);border:1px solid var(--red);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--red);">FAIL</div>
+          <div style="height:36px;background:rgba(239,68,68,.2);border:1px solid var(--red);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--red);">FAIL</div>
+          <div style="height:36px;background:rgba(239,68,68,.2);border:1px solid var(--red);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--red);">FAIL</div>
+          <div style="height:36px;background:rgba(239,68,68,.2);border:1px solid var(--red);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--red);">FAIL</div>
+        </div>
+        <p style="font-size:0.78rem;color:var(--red);text-align:center;">All nodes hit the same bug. Redundancy doesn't help.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-red">
+    <h4>Real Examples of Systematic Software Faults</h4>
+    <ul>
+      <li>A leap second on June 30, 2012 caused hundreds of servers running Linux to <strong>go into infinite CPU loops</strong> simultaneously — Reddit, Mozilla, LinkedIn, and others were all affected</li>
+      <li>A bad input that causes every instance of a service to crash (e.g., an invalid configuration value propagated to all nodes at deploy time)</li>
+      <li>A cascading failure where a slow downstream service causes upstream request queues to fill up, which eventually takes down the whole system</li>
+      <li>A memory leak that slowly degrades performance until all nodes require restarting</li>
+    </ul>
+    <p style="margin:8px 0 0;font-size:0.85rem;">There is no quick fix. Requires: careful thinking about assumptions, thorough testing, process isolation, monitoring, and allowing processes to crash and restart automatically.</p>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 5. HUMAN ERRORS                            -->
+  <!-- ══════════════════════════════════════════ -->
+  <h3>Human Errors</h3>
+  <p>Humans design, build, and operate software systems. Humans are also unreliable. One study of internet services found that <strong>configuration errors by operators were the leading cause of outages</strong>, while hardware faults played a role in only 10–25% of outages. How do you make systems reliable when humans are involved?</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 5 — Six Strategies to Minimize Human Error Impact</div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div class="row">
+        <div class="box box-blue" style="min-width:180px;font-size:0.8rem;"><strong>1. Design for correctness</strong></div>
+        <p style="margin:0;font-size:0.83rem;">APIs and abstractions that make it easy to do the right thing and hard to do the wrong thing. If the easiest path leads to the right behavior, operators will naturally do the right thing.</p>
+      </div>
+      <div class="row">
+        <div class="box box-green" style="min-width:180px;font-size:0.8rem;"><strong>2. Decouple risk</strong></div>
+        <p style="margin:0;font-size:0.83rem;">Provide sandbox environments where people can explore and experiment without affecting real users. A staging environment that mirrors production lets operators test changes safely.</p>
+      </div>
+      <div class="row">
+        <div class="box box-orange" style="min-width:180px;font-size:0.8rem;"><strong>3. Test thoroughly</strong></div>
+        <p style="margin:0;font-size:0.83rem;">Unit tests, integration tests, end-to-end tests, manual tests, automated checks. Testing is especially valuable at the edges — corner cases humans wouldn't think to test manually.</p>
+      </div>
+      <div class="row">
+        <div class="box box-purple" style="min-width:180px;font-size:0.8rem;"><strong>4. Enable fast recovery</strong></div>
+        <p style="margin:0;font-size:0.83rem;">Make it fast to roll back configuration changes. Roll out new code gradually (canary releases). Provide tools to reprocess/re-derive data in case something went wrong.</p>
+      </div>
+      <div class="row">
+        <div class="box box-red" style="min-width:180px;font-size:0.8rem;"><strong>5. Monitor carefully</strong></div>
+        <p style="margin:0;font-size:0.83rem;">Detailed performance metrics, error rates, SLA compliance. When something goes wrong, telemetry is essential to understand what is happening. Monitoring is your early warning system.</p>
+      </div>
+      <div class="row">
+        <div class="box box-cyan" style="min-width:180px;font-size:0.8rem;"><strong>6. Train and manage</strong></div>
+        <p style="margin:0;font-size:0.83rem;">Good management practices, training in complex systems, runbooks for common operations. The culture of an organization affects how humans behave in the system.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 6. FAULT TYPES COMPARED                    -->
+  <!-- ══════════════════════════════════════════ -->
+  <h3>The Three Fault Types: Compared</h3>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 6 — Hardware vs Software vs Human Faults: Key Differences</div>
+    <div style="overflow-x:auto;">
+    <table>
+      <tr>
+        <th>Dimension</th>
+        <th>Hardware Faults</th>
+        <th>Software Errors</th>
+        <th>Human Errors</th>
+      </tr>
+      <tr>
+        <td><strong>Correlation</strong></td>
+        <td>Independent (random)</td>
+        <td>Correlated (all nodes hit same bug)</td>
+        <td>Often correlated (bad config deployed everywhere)</td>
+      </tr>
+      <tr>
+        <td><strong>Trigger</strong></td>
+        <td>Physical wear, power, environment</td>
+        <td>Specific input, specific condition, time-based</td>
+        <td>Misunderstanding, typo, rushing, poor tooling</td>
+      </tr>
+      <tr>
+        <td><strong>Detection</strong></td>
+        <td>Often sudden and obvious</td>
+        <td>May lurk for months before triggering</td>
+        <td>Often not immediately obvious</td>
+      </tr>
+      <tr>
+        <td><strong>Primary mitigation</strong></td>
+        <td>Hardware redundancy, RAID, hot-swap</td>
+        <td>Testing, process isolation, monitoring</td>
+        <td>Good design, staging, rollback, monitoring</td>
+      </tr>
+      <tr>
+        <td><strong>Does redundancy help?</strong></td>
+        <td style="color:var(--green);">Yes — replicate across independent components</td>
+        <td style="color:var(--red);">No — redundancy hits the same bug</td>
+        <td style="color:var(--red);">Rarely — redundancy propagates the mistake</td>
+      </tr>
+      <tr>
+        <td><strong>Leading cause of outages?</strong></td>
+        <td>10–25% of outages</td>
+        <td>Significant</td>
+        <td style="color:var(--red);">Largest category</td>
+      </tr>
+    </table>
+    </div>
+  </div>
+
+  <div class="card card-purple">
+    <h4>When Is Reliability Not Worth It?</h4>
+    <p>There are situations where sacrificing reliability is acceptable — a prototype or MVP where correctness doesn't matter yet, or a service where the cost of fault tolerance exceeds the cost of the fault itself. But <strong>be deliberate about it</strong>. Knowing when you're cutting corners on reliability is different from not knowing they were cut at all.</p>
+    <p style="margin:0;">Unreliability has costs beyond the outage itself: loss of productivity (employees can't work), revenue (e-commerce downtime), regulatory fines (financial systems), and — most insidiously — gradual erosion of user trust that's hard to quantify and hard to rebuild.</p>
+  </div>
+
+  <div style="margin-top:60px;padding-top:24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;">
+    <a href="chapter-1-part2.html" style="color:var(--accent);font-size:0.9rem;text-decoration:none;">Part 2: Scalability →</a>
+  </div>
+</div>
+</body>
+</html>

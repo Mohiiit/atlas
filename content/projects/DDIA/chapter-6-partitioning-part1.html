@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Chapter 6 — Partitioning Part 1: Strategies and Indexes</title>
+<style>
+  :root {
+    --bg: #0a0e17;
+    --surface: #111827;
+    --surface2: #1a2234;
+    --border: #1e293b;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --accent: #3b82f6;
+    --accent2: #8b5cf6;
+    --accent3: #10b981;
+    --red: #ef4444;
+    --orange: #f59e0b;
+    --pink: #ec4899;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+  .container { max-width: 900px; margin: 0 auto; padding: 40px 24px 100px; }
+  h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 48px; border-bottom: 1px solid var(--border); padding-bottom: 24px; }
+  h2 { font-size: 1.5rem; font-weight: 700; margin: 48px 0 16px; color: var(--accent); }
+  h3 { font-size: 1.15rem; font-weight: 600; margin: 32px 0 12px; color: var(--text); }
+  p { margin-bottom: 16px; color: var(--text-muted); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 20px 0; }
+  .card-accent { border-left: 4px solid var(--accent); }
+  .card-green { border-left: 4px solid var(--accent3); }
+  .card-orange { border-left: 4px solid var(--orange); }
+  .card-purple { border-left: 4px solid var(--accent2); }
+  .card-red { border-left: 4px solid var(--red); }
+  .card h4 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+  .card ul { padding-left: 20px; color: var(--text-muted); }
+  .card li { margin-bottom: 6px; }
+  .key-term { color: var(--accent); font-weight: 600; }
+  .diagram { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 32px; margin: 24px 0; overflow-x: auto; }
+  .diagram-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent2); margin-bottom: 20px; }
+  .flow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; }
+  .flow-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; text-align: center; font-size: 0.9rem; min-width: 120px; }
+  .flow-box.primary { border-color: var(--accent); color: var(--accent); }
+  .flow-box.green { border-color: var(--accent3); color: var(--accent3); }
+  .flow-box.purple { border-color: var(--accent2); color: var(--accent2); }
+  .flow-box.orange { border-color: var(--orange); color: var(--orange); }
+  .flow-box.red { border-color: var(--red); color: var(--red); }
+  .flow-box.pink { border-color: var(--pink); color: var(--pink); }
+  .flow-arrow { color: var(--text-muted); font-size: 1.2rem; }
+  .flow-vert { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } .grid3 { grid-template-columns: 1fr; } }
+  .quote { background: var(--surface2); border-left: 3px solid var(--accent2); padding: 16px 20px; margin: 20px 0; border-radius: 0 8px 8px 0; font-style: italic; color: var(--text-muted); }
+  .tag { display: inline-block; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 2px 12px; font-size: 0.8rem; color: var(--text-muted); margin: 2px; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  th { color: var(--accent); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
+  td { color: var(--text-muted); }
+  .question-block { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin: 16px 0; overflow: hidden; }
+  .question-header { padding: 16px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 0.95rem; }
+  .question-header:hover { background: var(--surface2); }
+  .question-body { padding: 0 20px 16px; display: none; color: var(--text-muted); border-top: 1px solid var(--border); padding-top: 16px; }
+  .question-block.open .question-body { display: block; }
+  .q-num { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: var(--accent); color: white; border-radius: 50%; font-size: 0.8rem; font-weight: 700; margin-right: 12px; flex-shrink: 0; }
+  .chevron { transition: transform .2s; color: var(--text-muted); }
+  .question-block.open .chevron { transform: rotate(180deg); }
+  .section-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--accent2); font-weight: 700; margin-bottom: 8px; }
+  .arch-box { border: 2px solid var(--border); border-radius: 10px; padding: 16px; margin: 8px; text-align: center; }
+  .arch-box.blue { border-color: var(--accent); background: rgba(59,130,246,0.08); }
+  .arch-box.green { border-color: var(--accent3); background: rgba(16,185,129,0.08); }
+  .arch-box.purple { border-color: var(--accent2); background: rgba(139,92,246,0.08); }
+  .arch-box.orange { border-color: var(--orange); background: rgba(245,158,11,0.08); }
+  .arch-box.red { border-color: var(--red); background: rgba(239,68,68,0.08); }
+  .arch-box.pink { border-color: var(--pink); background: rgba(236,72,153,0.08); }
+  .arch-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .arch-detail { font-size: 0.8rem; color: var(--text-muted); }
+  .timeline { position: relative; padding-left: 32px; margin: 16px 0; }
+  .timeline::before { content: ''; position: absolute; left: 12px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+  .timeline-item { position: relative; margin-bottom: 20px; }
+  .timeline-item::before { content: ''; position: absolute; left: -26px; top: 6px; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: 2px solid var(--surface2); }
+  .timeline-item.green::before { background: var(--accent3); }
+  .timeline-item.orange::before { background: var(--orange); }
+  .timeline-item.red::before { background: var(--red); }
+  .timeline-item.purple::before { background: var(--accent2); }
+  .timeline-title { font-weight: 600; font-size: 0.9rem; color: var(--text); }
+  .timeline-desc { font-size: 0.85rem; color: var(--text-muted); }
+
+  /* Partition-specific styles */
+  .node-cluster { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+  .node-box { background: var(--surface); border: 2px solid var(--border); border-radius: 12px; padding: 16px; min-width: 140px; text-align: center; }
+  .node-box .node-title { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .partition-strip { display: flex; gap: 4px; margin: 4px 0; }
+  .part-cell { border-radius: 4px; padding: 4px 8px; font-size: 0.7rem; font-weight: 600; color: white; text-align: center; flex: 1; }
+  .part-cell.leader { opacity: 1; }
+  .part-cell.follower { opacity: 0.45; }
+  .hash-ring { position: relative; width: 220px; height: 220px; border: 3px solid var(--border); border-radius: 50%; margin: 20px auto; }
+  .hash-point { position: absolute; width: 14px; height: 14px; border-radius: 50%; transform: translate(-50%, -50%); font-size: 0; }
+  .hash-label { position: absolute; font-size: 0.7rem; font-weight: 600; white-space: nowrap; transform: translate(-50%, -50%); }
+  .encyclopedia { display: flex; gap: 2px; align-items: flex-end; justify-content: center; }
+  .enc-volume { border-radius: 4px 4px 0 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding: 4px 2px; min-width: 36px; font-size: 0.65rem; font-weight: 600; color: white; }
+  .enc-label { font-size: 0.6rem; margin-top: 4px; color: var(--text-muted); text-align: center; }
+  .scatter-gather { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .sg-row { display: flex; gap: 16px; align-items: center; justify-content: center; }
+  .sg-lines { display: flex; gap: 24px; color: var(--text-muted); font-size: 0.8rem; }
+  code { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; font-size: 0.85rem; color: var(--accent3); font-family: 'SF Mono', 'Fira Code', monospace; }
+  .bar-chart { display: flex; align-items: flex-end; gap: 3px; height: 160px; padding: 0 10px; }
+  .bar { background: var(--accent); border-radius: 3px 3px 0 0; min-width: 6px; flex: 1; transition: all .3s; position: relative; }
+  .bar:hover { background: var(--accent2); }
+  .bar-label { position: absolute; bottom: -22px; left: 50%; transform: translateX(-50%); font-size: 0.65rem; color: var(--text-muted); white-space: nowrap; }
+  .bar.hot { background: var(--red); }
+  .celebrity-diagram { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .celeb-node { display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 0.75rem; font-weight: 700; }
+  .req-flood { display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; }
+  .req-dot { width: 8px; height: 8px; border-radius: 50%; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<p class="section-label">Chapter 6 &mdash; Part 1 of 2</p>
+<h1>Partitioning: Strategies and Indexes</h1>
+<p class="subtitle">Breaking data into pieces for scalability &mdash; key range vs. hash partitioning, the hot spot problem, and secondary index strategies (document-partitioned vs. term-partitioned).</p>
+
+<!-- ============================================================ -->
+<!-- WHY PARTITION? -->
+<!-- ============================================================ -->
+<h2>Why Partition Data?</h2>
+
+<p>In Chapter 5 we explored <span class="key-term">replication</span> &mdash; keeping copies of the same data on multiple nodes for fault tolerance. But for very large datasets or very high query throughput, replication alone is not sufficient. We need to break the data into <span class="key-term">partitions</span> (also called <em>shards</em>), where each piece of data belongs to exactly one partition.</p>
+
+<div class="card card-accent">
+  <h4>The Goal of Partitioning</h4>
+  <ul>
+    <li><strong>Scalability:</strong> Distribute data across many disks; distribute query load across many processors</li>
+    <li><strong>Parallelism:</strong> Each node independently executes queries for its own partitions</li>
+    <li><strong>Throughput:</strong> 10 nodes should ideally handle 10x the data and 10x the throughput of a single node</li>
+  </ul>
+</div>
+
+<div class="card card-orange">
+  <h4>Terminology Across Systems</h4>
+  <p style="margin-bottom:8px;">The same concept goes by many names:</p>
+  <div style="display:flex;flex-wrap:wrap;gap:6px;">
+    <span class="tag">MongoDB: <strong>shard</strong></span>
+    <span class="tag">HBase: <strong>region</strong></span>
+    <span class="tag">Bigtable: <strong>tablet</strong></span>
+    <span class="tag">Cassandra/Riak: <strong>vnode</strong></span>
+    <span class="tag">Couchbase: <strong>vBucket</strong></span>
+    <span class="tag">Elasticsearch: <strong>shard</strong></span>
+  </div>
+</div>
+
+<!-- DIAGRAM 1: Why Partition -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 1 &mdash; Why Partition: Single Node vs. Partitioned Cluster</div>
+  <div style="display:flex;gap:32px;align-items:center;justify-content:center;flex-wrap:wrap;">
+    <div style="text-align:center;">
+      <div style="border:2px solid var(--red);border-radius:12px;padding:20px 28px;background:rgba(239,68,68,0.06);">
+        <div style="font-size:0.75rem;font-weight:700;color:var(--red);margin-bottom:8px;">SINGLE NODE</div>
+        <div style="font-size:2rem;">&#128451;</div>
+        <div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">All data + All queries</div>
+        <div style="font-size:0.7rem;color:var(--red);margin-top:4px;">Bottleneck at scale</div>
+      </div>
+    </div>
+    <div class="flow-arrow" style="font-size:2rem;">&#10132;</div>
+    <div style="text-align:center;">
+      <div style="font-size:0.75rem;font-weight:700;color:var(--accent3);margin-bottom:12px;">PARTITIONED CLUSTER</div>
+      <div style="display:flex;gap:8px;">
+        <div style="border:2px solid var(--accent3);border-radius:10px;padding:12px;background:rgba(16,185,129,0.06);min-width:80px;">
+          <div style="font-size:0.7rem;font-weight:700;color:var(--accent3);">Node 1</div>
+          <div style="font-size:0.65rem;color:var(--text-muted);">P0, P1</div>
+        </div>
+        <div style="border:2px solid var(--accent3);border-radius:10px;padding:12px;background:rgba(16,185,129,0.06);min-width:80px;">
+          <div style="font-size:0.7rem;font-weight:700;color:var(--accent3);">Node 2</div>
+          <div style="font-size:0.65rem;color:var(--text-muted);">P2, P3</div>
+        </div>
+        <div style="border:2px solid var(--accent3);border-radius:10px;padding:12px;background:rgba(16,185,129,0.06);min-width:80px;">
+          <div style="font-size:0.7rem;font-weight:700;color:var(--accent3);">Node 3</div>
+          <div style="font-size:0.65rem;color:var(--text-muted);">P4, P5</div>
+        </div>
+      </div>
+      <div style="font-size:0.7rem;color:var(--accent3);margin-top:8px;">Load spread across nodes</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PARTITIONING + REPLICATION -->
+<!-- ============================================================ -->
+<h2>Partitioning and Replication</h2>
+
+<p>Partitioning is usually <em>combined</em> with replication so that copies of each partition live on multiple nodes for fault tolerance. A node may be the <span class="key-term">leader</span> for some partitions and a <span class="key-term">follower</span> for others. The choice of partitioning scheme is mostly independent of the replication scheme.</p>
+
+<!-- DIAGRAM 2: Partitioning + Replication -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 2 &mdash; Combining Partitioning and Replication (Figure 6-1)</div>
+  <div class="node-cluster">
+    <!-- Node 1 -->
+    <div class="node-box" style="border-color:var(--accent);">
+      <div class="node-title" style="color:var(--accent);">Node 1</div>
+      <div class="partition-strip">
+        <div class="part-cell leader" style="background:var(--accent);">P0 L</div>
+      </div>
+      <div class="partition-strip">
+        <div class="part-cell follower" style="background:var(--accent3);">P1 F</div>
+      </div>
+      <div class="partition-strip">
+        <div class="part-cell follower" style="background:var(--accent2);">P2 F</div>
+      </div>
+    </div>
+    <!-- Node 2 -->
+    <div class="node-box" style="border-color:var(--accent3);">
+      <div class="node-title" style="color:var(--accent3);">Node 2</div>
+      <div class="partition-strip">
+        <div class="part-cell follower" style="background:var(--accent);">P0 F</div>
+      </div>
+      <div class="partition-strip">
+        <div class="part-cell leader" style="background:var(--accent3);">P1 L</div>
+      </div>
+      <div class="partition-strip">
+        <div class="part-cell follower" style="background:var(--accent2);">P2 F</div>
+      </div>
+    </div>
+    <!-- Node 3 -->
+    <div class="node-box" style="border-color:var(--accent2);">
+      <div class="node-title" style="color:var(--accent2);">Node 3</div>
+      <div class="partition-strip">
+        <div class="part-cell follower" style="background:var(--accent);">P0 F</div>
+      </div>
+      <div class="partition-strip">
+        <div class="part-cell follower" style="background:var(--accent3);">P1 F</div>
+      </div>
+      <div class="partition-strip">
+        <div class="part-cell leader" style="background:var(--accent2);">P2 L</div>
+      </div>
+    </div>
+  </div>
+  <div style="text-align:center;margin-top:16px;">
+    <span style="font-size:0.75rem;color:var(--text-muted);">
+      <strong style="color:var(--text);">L</strong> = Leader &nbsp;&middot;&nbsp;
+      <strong style="color:var(--text);">F</strong> = Follower &nbsp;&middot;&nbsp;
+      Each partition replicated across all 3 nodes &nbsp;&middot;&nbsp;
+      Each node leads exactly 1 partition
+    </span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- KEY RANGE PARTITIONING -->
+<!-- ============================================================ -->
+<h2>Partitioning by Key Range</h2>
+
+<p>Assign a <span class="key-term">continuous range of keys</span> to each partition, like the volumes of a paper encyclopedia. If you know the boundaries, you can determine which partition holds a given key and route requests directly to the right node.</p>
+
+<div class="card card-green">
+  <h4>Key Properties</h4>
+  <ul>
+    <li>Ranges are <strong>not</strong> necessarily evenly spaced &mdash; boundaries adapt to the data distribution</li>
+    <li>Within each partition, keys are kept in <strong>sorted order</strong>, enabling efficient range scans</li>
+    <li>Used by: Bigtable, HBase, RethinkDB, MongoDB (&lt; v2.4)</li>
+  </ul>
+</div>
+
+<!-- DIAGRAM 3: Encyclopedia -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 3 &mdash; Encyclopedia Analogy: Key Range Partitioning (Figure 6-2)</div>
+  <div class="encyclopedia">
+    <div style="display:flex;flex-direction:column;align-items:center;">
+      <div class="enc-volume" style="background:var(--accent);height:110px;">
+        <span style="margin-top:auto;">Vol 1</span>
+      </div>
+      <div class="enc-label">A &ndash; B</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;">
+      <div class="enc-volume" style="background:var(--accent);height:95px;">
+        <span style="margin-top:auto;">Vol 2</span>
+      </div>
+      <div class="enc-label">C &ndash; D</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;">
+      <div class="enc-volume" style="background:var(--accent3);height:120px;">
+        <span style="margin-top:auto;">Vol 3</span>
+      </div>
+      <div class="enc-label">E &ndash; G</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;">
+      <div class="enc-volume" style="background:var(--accent3);height:100px;">
+        <span style="margin-top:auto;">Vol 4</span>
+      </div>
+      <div class="enc-label">H &ndash; J</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;">
+      <div class="enc-volume" style="background:var(--accent2);height:85px;">
+        <span style="margin-top:auto;">Vol 5</span>
+      </div>
+      <div class="enc-label">K &ndash; M</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;">
+      <div class="enc-volume" style="background:var(--accent2);height:90px;">
+        <span style="margin-top:auto;">Vol 6</span>
+      </div>
+      <div class="enc-label">N &ndash; P</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;">
+      <div class="enc-volume" style="background:var(--orange);height:75px;">
+        <span style="margin-top:auto;">Vol 7</span>
+      </div>
+      <div class="enc-label">Q &ndash; S</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;">
+      <div class="enc-volume" style="background:var(--orange);height:105px;">
+        <span style="margin-top:auto;">Vol 8</span>
+      </div>
+      <div class="enc-label">T &ndash; Z</div>
+    </div>
+  </div>
+  <div style="text-align:center;margin-top:16px;font-size:0.8rem;color:var(--text-muted);">
+    Volume heights represent data density &mdash; boundaries are <strong>adaptive</strong>, not uniformly spaced.<br>
+    Letters with more entries (E&ndash;G) get their own volume; sparse ranges (T&ndash;Z) are grouped.
+  </div>
+</div>
+
+<h3>The Timestamp Hot Spot Problem</h3>
+<p>If the key is a <strong>timestamp</strong>, all writes land on the partition for "today" while other partitions sit idle. The fix: prefix each timestamp with another dimension (e.g., sensor name), so writes spread across partitions. Trade-off: range queries now require one query per sensor prefix.</p>
+
+<!-- DIAGRAM 4: Timestamp hot spot -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 4 &mdash; Timestamp Key Hot Spot and the Prefix Fix</div>
+  <div class="grid2">
+    <div style="text-align:center;">
+      <div style="font-size:0.8rem;font-weight:700;color:var(--red);margin-bottom:12px;">PROBLEM: Key = Timestamp Only</div>
+      <div style="display:flex;gap:6px;justify-content:center;">
+        <div style="border:2px solid var(--border);border-radius:8px;padding:10px;min-width:70px;">
+          <div style="font-size:0.65rem;color:var(--text-muted);">Partition 1</div>
+          <div style="font-size:0.7rem;color:var(--text-muted);">Jan</div>
+          <div style="font-size:0.65rem;color:var(--text-muted);margin-top:4px;">idle</div>
+        </div>
+        <div style="border:2px solid var(--border);border-radius:8px;padding:10px;min-width:70px;">
+          <div style="font-size:0.65rem;color:var(--text-muted);">Partition 2</div>
+          <div style="font-size:0.7rem;color:var(--text-muted);">Feb</div>
+          <div style="font-size:0.65rem;color:var(--text-muted);margin-top:4px;">idle</div>
+        </div>
+        <div style="border:2px solid var(--red);border-radius:8px;padding:10px;min-width:70px;background:rgba(239,68,68,0.08);">
+          <div style="font-size:0.65rem;color:var(--red);font-weight:700;">Partition 3</div>
+          <div style="font-size:0.7rem;color:var(--red);font-weight:700;">Mar (today)</div>
+          <div style="font-size:0.65rem;color:var(--red);margin-top:4px;">ALL writes!</div>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:center;">
+      <div style="font-size:0.8rem;font-weight:700;color:var(--accent3);margin-bottom:12px;">FIX: Key = SensorName + Timestamp</div>
+      <div style="display:flex;gap:6px;justify-content:center;">
+        <div style="border:2px solid var(--accent3);border-radius:8px;padding:10px;min-width:70px;background:rgba(16,185,129,0.06);">
+          <div style="font-size:0.65rem;color:var(--accent3);">Partition 1</div>
+          <div style="font-size:0.6rem;color:var(--text-muted);">sensorA_*</div>
+          <div style="font-size:0.65rem;color:var(--accent3);margin-top:4px;">writes</div>
+        </div>
+        <div style="border:2px solid var(--accent3);border-radius:8px;padding:10px;min-width:70px;background:rgba(16,185,129,0.06);">
+          <div style="font-size:0.65rem;color:var(--accent3);">Partition 2</div>
+          <div style="font-size:0.6rem;color:var(--text-muted);">sensorB_*</div>
+          <div style="font-size:0.65rem;color:var(--accent3);margin-top:4px;">writes</div>
+        </div>
+        <div style="border:2px solid var(--accent3);border-radius:8px;padding:10px;min-width:70px;background:rgba(16,185,129,0.06);">
+          <div style="font-size:0.65rem;color:var(--accent3);">Partition 3</div>
+          <div style="font-size:0.6rem;color:var(--text-muted);">sensorC_*</div>
+          <div style="font-size:0.65rem;color:var(--accent3);margin-top:4px;">writes</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- HASH PARTITIONING -->
+<!-- ============================================================ -->
+<h2>Partitioning by Hash of Key</h2>
+
+<p>A good <span class="key-term">hash function</span> takes skewed data and makes it uniformly distributed. Instead of assigning key ranges to partitions, we assign <strong>hash ranges</strong>: every key whose hash falls within a partition's range is stored in that partition. This distributes keys fairly regardless of their natural ordering.</p>
+
+<div class="card card-purple">
+  <h4>Hash Functions in Practice</h4>
+  <ul>
+    <li><strong>Cassandra &amp; MongoDB:</strong> use MD5</li>
+    <li><strong>Voldemort:</strong> uses Fowler&ndash;Noll&ndash;Vo function</li>
+    <li>Built-in language hash functions (Java's <code>Object.hashCode()</code>) are <strong>not suitable</strong> &mdash; same key can produce different hashes in different processes</li>
+    <li>No need for cryptographic strength &mdash; just uniform distribution</li>
+  </ul>
+</div>
+
+<!-- DIAGRAM 5: Hash function distributing keys -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 5 &mdash; How Hash Partitioning Distributes Keys (Figure 6-3)</div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:16px;">
+    <!-- Input keys -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+      <div class="flow-box" style="min-width:auto;padding:8px 14px;font-size:0.8rem;">key: "aardvark"</div>
+      <div class="flow-box" style="min-width:auto;padding:8px 14px;font-size:0.8rem;">key: "zebra"</div>
+      <div class="flow-box" style="min-width:auto;padding:8px 14px;font-size:0.8rem;">key: "banana"</div>
+      <div class="flow-box" style="min-width:auto;padding:8px 14px;font-size:0.8rem;">key: "yak"</div>
+    </div>
+    <div class="flow-arrow">&#8595; hash(key)</div>
+    <!-- Hash space as bar -->
+    <div style="width:100%;max-width:600px;">
+      <div style="display:flex;height:40px;border-radius:8px;overflow:hidden;border:1px solid var(--border);">
+        <div style="flex:1;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;color:white;border-right:1px solid var(--bg);">P0<br>0 &ndash; 2<sup>30</sup></div>
+        <div style="flex:1;background:var(--accent3);display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;color:white;border-right:1px solid var(--bg);">P1<br>2<sup>30</sup> &ndash; 2<sup>31</sup></div>
+        <div style="flex:1;background:var(--accent2);display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;color:white;border-right:1px solid var(--bg);">P2<br>2<sup>31</sup> &ndash; 3&times;2<sup>30</sup></div>
+        <div style="flex:1;background:var(--orange);display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;color:white;">P3<br>3&times;2<sup>30</sup> &ndash; 2<sup>32</sup></div>
+      </div>
+      <div style="display:flex;margin-top:6px;">
+        <div style="flex:1;text-align:center;font-size:0.65rem;color:var(--accent);">"banana" &#8594; h=0.7B</div>
+        <div style="flex:1;text-align:center;font-size:0.65rem;color:var(--accent3);">"aardvark" &#8594; h=1.3B</div>
+        <div style="flex:1;text-align:center;font-size:0.65rem;color:var(--accent2);">"yak" &#8594; h=2.5B</div>
+        <div style="flex:1;text-align:center;font-size:0.65rem;color:var(--orange);">"zebra" &#8594; h=3.8B</div>
+      </div>
+    </div>
+    <div style="font-size:0.8rem;color:var(--text-muted);text-align:center;">
+      Adjacent keys ("aardvark", "banana") scatter to different partitions &mdash; <strong>uniform distribution</strong> regardless of key ordering.
+    </div>
+  </div>
+</div>
+
+<div class="card card-red">
+  <h4>The Trade-off: No Range Queries</h4>
+  <p style="margin-bottom:0;">By hashing the key we lose the ability to do efficient range scans. Keys that were once adjacent are now scattered across all partitions. In MongoDB with hash-based sharding, any range query must be sent to <strong>all</strong> partitions. Riak, Couchbase, and Voldemort do not support range queries on the primary key at all.</p>
+</div>
+
+<!-- ============================================================ -->
+<!-- COMPARISON TABLE -->
+<!-- ============================================================ -->
+<h2>Key Range vs. Hash Partitioning</h2>
+
+<!-- DIAGRAM 6: Side-by-side visual comparison -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 6 &mdash; Key Range vs. Hash Partitioning: Visual Comparison</div>
+  <div class="grid2">
+    <div style="text-align:center;">
+      <div style="font-size:0.85rem;font-weight:700;color:var(--accent);margin-bottom:12px;">KEY RANGE</div>
+      <div style="display:flex;gap:2px;justify-content:center;">
+        <div style="background:var(--accent);padding:8px 4px;border-radius:4px 0 0 4px;color:white;font-size:0.6rem;width:40px;">A-D</div>
+        <div style="background:var(--accent);padding:8px 4px;color:white;font-size:0.6rem;width:40px;opacity:0.8;">E-K</div>
+        <div style="background:var(--accent);padding:8px 4px;color:white;font-size:0.6rem;width:40px;opacity:0.65;">L-R</div>
+        <div style="background:var(--accent);padding:8px 4px;border-radius:0 4px 4px 0;color:white;font-size:0.6rem;width:40px;opacity:0.5;">S-Z</div>
+      </div>
+      <div style="font-size:0.7rem;color:var(--accent3);margin-top:8px;">Sorted within partition</div>
+      <div style="font-size:0.7rem;color:var(--accent3);">Range scan: single partition</div>
+    </div>
+    <div style="text-align:center;">
+      <div style="font-size:0.85rem;font-weight:700;color:var(--accent2);margin-bottom:12px;">HASH</div>
+      <div style="display:flex;gap:2px;justify-content:center;">
+        <div style="background:var(--accent2);padding:8px 4px;border-radius:4px 0 0 4px;color:white;font-size:0.55rem;width:40px;">Z,D,M</div>
+        <div style="background:var(--accent2);padding:8px 4px;color:white;font-size:0.55rem;width:40px;opacity:0.8;">A,Q,K</div>
+        <div style="background:var(--accent2);padding:8px 4px;color:white;font-size:0.55rem;width:40px;opacity:0.65;">F,S,B</div>
+        <div style="background:var(--accent2);padding:8px 4px;border-radius:0 4px 4px 0;color:white;font-size:0.55rem;width:40px;opacity:0.5;">P,E,J</div>
+      </div>
+      <div style="font-size:0.7rem;color:var(--orange);margin-top:8px;">Scattered across partitions</div>
+      <div style="font-size:0.7rem;color:var(--orange);">Range scan: ALL partitions</div>
+    </div>
+  </div>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Dimension</th>
+      <th>Key Range</th>
+      <th>Hash</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Partitioning key</strong></td>
+      <td>Original key value</td>
+      <td>Hash of key value</td>
+    </tr>
+    <tr>
+      <td><strong>Range queries</strong></td>
+      <td style="color:var(--accent3);">Efficient (single partition)</td>
+      <td style="color:var(--red);">Expensive (all partitions)</td>
+    </tr>
+    <tr>
+      <td><strong>Load distribution</strong></td>
+      <td style="color:var(--orange);">Risk of hot spots (skew)</td>
+      <td style="color:var(--accent3);">Uniform distribution</td>
+    </tr>
+    <tr>
+      <td><strong>Sort order</strong></td>
+      <td style="color:var(--accent3);">Preserved within partition</td>
+      <td style="color:var(--red);">Lost</td>
+    </tr>
+    <tr>
+      <td><strong>Boundary selection</strong></td>
+      <td>Adaptive to data</td>
+      <td>Evenly spaced or random</td>
+    </tr>
+    <tr>
+      <td><strong>Used by</strong></td>
+      <td>HBase, Bigtable, RethinkDB</td>
+      <td>Cassandra, MongoDB, Riak, Voldemort</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ============================================================ -->
+<!-- CASSANDRA COMPOUND KEY -->
+<!-- ============================================================ -->
+<h2>Cassandra's Compound Key Compromise</h2>
+
+<p>Cassandra achieves a <span class="key-term">best-of-both-worlds compromise</span>. A table's primary key consists of several columns. Only the <strong>first column</strong> is hashed to determine the partition; the remaining columns are used as a <strong>concatenated index</strong> for sorting data within that partition's SSTables.</p>
+
+<!-- DIAGRAM 7: Cassandra compound key -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 7 &mdash; Cassandra Compound Primary Key Strategy</div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:16px;">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;">
+      <div style="border:2px solid var(--accent2);border-radius:8px;padding:12px 16px;background:rgba(139,92,246,0.08);">
+        <div style="font-size:0.7rem;font-weight:700;color:var(--accent2);margin-bottom:4px;">PRIMARY KEY</div>
+        <div style="font-size:0.9rem;"><code>(user_id, update_timestamp)</code></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;justify-content:center;">
+      <div style="text-align:center;">
+        <div class="flow-arrow">&#8595;</div>
+        <div style="font-size:0.75rem;font-weight:700;color:var(--accent);margin-bottom:8px;">hash(user_id) &rarr; Partition</div>
+      </div>
+      <div style="text-align:center;">
+        <div class="flow-arrow">&#8595;</div>
+        <div style="font-size:0.75rem;font-weight:700;color:var(--accent3);margin-bottom:8px;">update_timestamp &rarr; Sort order</div>
+      </div>
+    </div>
+    <!-- Show partitions with sorted data inside -->
+    <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">
+      <div style="border:2px solid var(--accent);border-radius:10px;padding:14px;min-width:180px;background:rgba(59,130,246,0.04);">
+        <div style="font-size:0.7rem;font-weight:700;color:var(--accent);margin-bottom:8px;">Partition A (user_123)</div>
+        <div style="font-size:0.65rem;color:var(--text-muted);line-height:1.6;">
+          <div style="border-bottom:1px solid var(--border);padding:2px 0;">2024-01-15 09:00 &mdash; "Hello!"</div>
+          <div style="border-bottom:1px solid var(--border);padding:2px 0;">2024-01-15 14:30 &mdash; "Update"</div>
+          <div style="padding:2px 0;">2024-01-16 08:00 &mdash; "Morning"</div>
+        </div>
+        <div style="font-size:0.6rem;color:var(--accent3);margin-top:4px;">sorted by timestamp</div>
+      </div>
+      <div style="border:2px solid var(--accent2);border-radius:10px;padding:14px;min-width:180px;background:rgba(139,92,246,0.04);">
+        <div style="font-size:0.7rem;font-weight:700;color:var(--accent2);margin-bottom:8px;">Partition B (user_456)</div>
+        <div style="font-size:0.65rem;color:var(--text-muted);line-height:1.6;">
+          <div style="border-bottom:1px solid var(--border);padding:2px 0;">2024-01-14 11:00 &mdash; "First post"</div>
+          <div style="border-bottom:1px solid var(--border);padding:2px 0;">2024-01-15 17:45 &mdash; "Photo"</div>
+          <div style="padding:2px 0;">2024-01-16 09:15 &mdash; "News"</div>
+        </div>
+        <div style="font-size:0.6rem;color:var(--accent3);margin-top:4px;">sorted by timestamp</div>
+      </div>
+    </div>
+    <div style="font-size:0.8rem;color:var(--text-muted);text-align:center;max-width:500px;">
+      <strong style="color:var(--text);">Result:</strong> Can efficiently query "all posts by user_123 between Jan 15&ndash;16" &mdash; hash locates the partition, range scan finds the timestamps. Different users are on different partitions.
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SKEW AND HOT SPOTS -->
+<!-- ============================================================ -->
+<h2>Skewed Workloads and Hot Spots</h2>
+
+<p>Even with hash partitioning, if all reads and writes target the <strong>same key</strong>, all requests route to a single partition. The hash of identical IDs is still identical. This is the <span class="key-term">celebrity problem</span>: a viral post or a celebrity user with millions of followers can create a storm of activity on one key.</p>
+
+<!-- DIAGRAM 8: Celebrity Problem -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 8 &mdash; The Celebrity / Hot Spot Problem</div>
+  <div class="celebrity-diagram">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div class="celeb-node" style="width:56px;height:56px;background:var(--pink);color:white;">Celebrity</div>
+      <div style="font-size:0.8rem;color:var(--text-muted);">posts update &rarr; key = <code>user_celebrity_001</code></div>
+    </div>
+    <div class="flow-arrow">&#8595;</div>
+    <div style="font-size:0.75rem;color:var(--red);font-weight:700;">hash("user_celebrity_001") always maps to same partition</div>
+    <div class="flow-arrow">&#8595;</div>
+    <div style="display:flex;gap:8px;align-items:flex-end;">
+      <div style="border:2px solid var(--border);border-radius:8px;padding:10px 14px;text-align:center;opacity:0.4;">
+        <div style="font-size:0.7rem;color:var(--text-muted);">P0</div>
+        <div style="font-size:0.65rem;color:var(--text-muted);">idle</div>
+      </div>
+      <div style="border:2px solid var(--border);border-radius:8px;padding:10px 14px;text-align:center;opacity:0.4;">
+        <div style="font-size:0.7rem;color:var(--text-muted);">P1</div>
+        <div style="font-size:0.65rem;color:var(--text-muted);">idle</div>
+      </div>
+      <div style="border:3px solid var(--red);border-radius:8px;padding:10px 14px;text-align:center;background:rgba(239,68,68,0.1);">
+        <div style="font-size:0.7rem;font-weight:700;color:var(--red);">P2</div>
+        <div style="font-size:2rem;">&#128293;</div>
+        <div style="font-size:0.65rem;color:var(--red);">10M req/s</div>
+      </div>
+      <div style="border:2px solid var(--border);border-radius:8px;padding:10px 14px;text-align:center;opacity:0.4;">
+        <div style="font-size:0.7rem;color:var(--text-muted);">P3</div>
+        <div style="font-size:0.65rem;color:var(--text-muted);">idle</div>
+      </div>
+    </div>
+    <div style="margin-top:16px;max-width:500px;text-align:center;">
+      <div style="font-size:0.8rem;font-weight:700;color:var(--accent3);margin-bottom:6px;">Mitigation: Random Suffix Splitting</div>
+      <div style="font-size:0.75rem;color:var(--text-muted);">
+        Append a random 2-digit number (00&ndash;99) to the hot key &rarr; writes spread across <strong>100 partitions</strong>.<br>
+        Trade-off: reads must query all 100 keys and merge results. Only apply to known hot keys.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DIAGRAM 9: Random suffix solution -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 9 &mdash; Random Suffix Hot Key Mitigation</div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+      <div class="flow-box primary" style="min-width:auto;padding:8px 12px;font-size:0.8rem;">celebrity_001<strong>_37</strong></div>
+      <div class="flow-box green" style="min-width:auto;padding:8px 12px;font-size:0.8rem;">celebrity_001<strong>_82</strong></div>
+      <div class="flow-box purple" style="min-width:auto;padding:8px 12px;font-size:0.8rem;">celebrity_001<strong>_05</strong></div>
+      <div class="flow-box orange" style="min-width:auto;padding:8px 12px;font-size:0.8rem;">celebrity_001<strong>_91</strong></div>
+    </div>
+    <div class="flow-arrow">&#8595; Each suffix hashes to a different partition</div>
+    <div style="display:flex;gap:6px;">
+      <div style="background:var(--accent);border-radius:6px;padding:8px 14px;color:white;font-size:0.75rem;font-weight:600;">P0: _37</div>
+      <div style="background:var(--accent3);border-radius:6px;padding:8px 14px;color:white;font-size:0.75rem;font-weight:600;">P1: _82</div>
+      <div style="background:var(--accent2);border-radius:6px;padding:8px 14px;color:white;font-size:0.75rem;font-weight:600;">P2: _05</div>
+      <div style="background:var(--orange);border-radius:6px;padding:8px 14px;color:white;font-size:0.75rem;font-weight:600;">P3: _91</div>
+    </div>
+    <div style="font-size:0.8rem;color:var(--text-muted);margin-top:8px;text-align:center;">
+      <strong style="color:var(--text);">Write path:</strong> Append random suffix &rarr; evenly distributed<br>
+      <strong style="color:var(--text);">Read path:</strong> Query all 100 variants &rarr; merge results (extra bookkeeping)
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECONDARY INDEXES -->
+<!-- ============================================================ -->
+<h2>Partitioning and Secondary Indexes</h2>
+
+<p>Primary key partitioning is straightforward &mdash; route by key. But <span class="key-term">secondary indexes</span> (searching by color, make, author, etc.) complicate things because a secondary index value can appear in <em>any</em> partition. There are two main approaches:</p>
+
+<div class="grid2" style="margin-bottom:24px;">
+  <div class="card card-accent">
+    <h4>Document-Partitioned (Local Index)</h4>
+    <ul>
+      <li>Each partition maintains its <strong>own</strong> secondary index</li>
+      <li>Index covers only documents in that partition</li>
+      <li>Writes are simple: only touch one partition</li>
+      <li>Reads require <strong>scatter/gather</strong> across all partitions</li>
+      <li>Also called a <strong>local index</strong></li>
+    </ul>
+  </div>
+  <div class="card card-purple">
+    <h4>Term-Partitioned (Global Index)</h4>
+    <ul>
+      <li>A <strong>global</strong> index covers data in all partitions</li>
+      <li>The index itself is partitioned by <strong>term</strong></li>
+      <li>Reads are efficient: query only the relevant index partition</li>
+      <li>Writes are complex: may affect <strong>multiple</strong> index partitions</li>
+      <li>Updates are often <strong>asynchronous</strong></li>
+    </ul>
+  </div>
+</div>
+
+<h3>Document-Partitioned Secondary Index (Local Index)</h3>
+
+<p>Imagine a used-car website. Each car listing has a unique document ID. The database is partitioned by document ID (IDs 0&ndash;499 in P0, 500&ndash;999 in P1, etc.). Each partition independently maintains secondary indexes on <code>color</code> and <code>make</code> covering only its own documents.</p>
+
+<!-- DIAGRAM 10: Document-partitioned secondary index -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 10 &mdash; Document-Partitioned Secondary Index (Figure 6-4)</div>
+  <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;">
+    <!-- Partition 0 -->
+    <div style="border:2px solid var(--accent);border-radius:12px;padding:16px;min-width:220px;background:rgba(59,130,246,0.04);">
+      <div style="font-size:0.8rem;font-weight:700;color:var(--accent);margin-bottom:10px;">Partition 0 (IDs 0&ndash;499)</div>
+      <div style="font-size:0.7rem;font-weight:600;color:var(--text);margin-bottom:4px;">Documents:</div>
+      <div style="font-size:0.65rem;color:var(--text-muted);line-height:1.6;margin-bottom:10px;">
+        ID:191 &mdash; color:red, make:Honda<br>
+        ID:214 &mdash; color:black, make:Ford<br>
+        ID:306 &mdash; color:red, make:Toyota
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:8px;">
+        <div style="font-size:0.7rem;font-weight:600;color:var(--accent);margin-bottom:4px;">Local Secondary Index:</div>
+        <div style="font-size:0.65rem;color:var(--text-muted);line-height:1.6;">
+          color:red &rarr; [191, 306]<br>
+          color:black &rarr; [214]<br>
+          make:Honda &rarr; [191]<br>
+          make:Ford &rarr; [214]<br>
+          make:Toyota &rarr; [306]
+        </div>
+      </div>
+    </div>
+    <!-- Partition 1 -->
+    <div style="border:2px solid var(--accent3);border-radius:12px;padding:16px;min-width:220px;background:rgba(16,185,129,0.04);">
+      <div style="font-size:0.8rem;font-weight:700;color:var(--accent3);margin-bottom:10px;">Partition 1 (IDs 500&ndash;999)</div>
+      <div style="font-size:0.7rem;font-weight:600;color:var(--text);margin-bottom:4px;">Documents:</div>
+      <div style="font-size:0.65rem;color:var(--text-muted);line-height:1.6;margin-bottom:10px;">
+        ID:521 &mdash; color:red, make:BMW<br>
+        ID:647 &mdash; color:silver, make:Ford<br>
+        ID:892 &mdash; color:red, make:Honda
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:8px;">
+        <div style="font-size:0.7rem;font-weight:600;color:var(--accent3);margin-bottom:4px;">Local Secondary Index:</div>
+        <div style="font-size:0.65rem;color:var(--text-muted);line-height:1.6;">
+          color:red &rarr; [521, 892]<br>
+          color:silver &rarr; [647]<br>
+          make:BMW &rarr; [521]<br>
+          make:Ford &rarr; [647]<br>
+          make:Honda &rarr; [892]
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="text-align:center;margin-top:16px;">
+    <div style="font-size:0.8rem;color:var(--text-muted);">
+      <strong style="color:var(--red);">To find all red cars:</strong> must query <em>both</em> partitions and merge results (scatter/gather)
+    </div>
+  </div>
+</div>
+
+<!-- DIAGRAM 11: Scatter/Gather pattern -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 11 &mdash; Scatter/Gather Query Pattern</div>
+  <div class="scatter-gather">
+    <div class="flow-box primary" style="min-width:200px;">Client: "Find all red cars"</div>
+    <div class="sg-lines">
+      <span>&#8601;</span>
+      <span>&#8595;</span>
+      <span>&#8600;</span>
+    </div>
+    <div class="sg-row">
+      <div class="flow-box" style="border-color:var(--accent);min-width:auto;padding:8px 12px;">
+        <div style="font-size:0.7rem;color:var(--accent);">P0</div>
+        <div style="font-size:0.65rem;color:var(--text-muted);">color:red &rarr; [191, 306]</div>
+      </div>
+      <div class="flow-box" style="border-color:var(--accent3);min-width:auto;padding:8px 12px;">
+        <div style="font-size:0.7rem;color:var(--accent3);">P1</div>
+        <div style="font-size:0.65rem;color:var(--text-muted);">color:red &rarr; [521, 892]</div>
+      </div>
+      <div class="flow-box" style="border-color:var(--accent2);min-width:auto;padding:8px 12px;">
+        <div style="font-size:0.7rem;color:var(--accent2);">P2</div>
+        <div style="font-size:0.65rem;color:var(--text-muted);">color:red &rarr; [...]</div>
+      </div>
+    </div>
+    <div class="sg-lines">
+      <span>&#8599;</span>
+      <span>&#8593;</span>
+      <span>&#8598;</span>
+    </div>
+    <div class="flow-box green" style="min-width:200px;">Merged result: [191, 306, 521, 892, ...]</div>
+  </div>
+  <div style="text-align:center;margin-top:12px;font-size:0.75rem;color:var(--text-muted);">
+    <strong style="color:var(--orange);">Tail latency amplification:</strong> overall response time = slowest partition's response time.
+    <br>Used by: MongoDB, Riak, Cassandra, Elasticsearch, SolrCloud, VoltDB.
+  </div>
+</div>
+
+<h3>Term-Partitioned Secondary Index (Global Index)</h3>
+
+<p>Instead of each partition maintaining its own local index, we construct a <span class="key-term">global index</span> that covers data in all partitions. This global index is itself partitioned &mdash; but by the <em>index term</em>, not the document ID. For example, colors a&ndash;r go to index partition 0, and colors s&ndash;z go to index partition 1.</p>
+
+<!-- DIAGRAM 12: Term-partitioned secondary index -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 12 &mdash; Term-Partitioned Secondary Index (Figure 6-5)</div>
+  <div style="display:flex;flex-direction:column;gap:20px;align-items:center;">
+    <!-- Data partitions -->
+    <div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">Data Partitions</div>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+      <div style="border:2px solid var(--accent);border-radius:10px;padding:12px;min-width:160px;background:rgba(59,130,246,0.04);">
+        <div style="font-size:0.7rem;font-weight:700;color:var(--accent);">Data P0 (IDs 0&ndash;499)</div>
+        <div style="font-size:0.6rem;color:var(--text-muted);margin-top:4px;">191: red Honda<br>214: black Ford<br>306: red Toyota</div>
+      </div>
+      <div style="border:2px solid var(--accent3);border-radius:10px;padding:12px;min-width:160px;background:rgba(16,185,129,0.04);">
+        <div style="font-size:0.7rem;font-weight:700;color:var(--accent3);">Data P1 (IDs 500&ndash;999)</div>
+        <div style="font-size:0.6rem;color:var(--text-muted);margin-top:4px;">521: red BMW<br>647: silver Ford<br>892: red Honda</div>
+      </div>
+    </div>
+
+    <div style="color:var(--text-muted);font-size:1rem;">&#8595; &#8595; &#8595;</div>
+
+    <!-- Global index partitions -->
+    <div style="font-size:0.75rem;font-weight:700;color:var(--accent2);text-transform:uppercase;letter-spacing:1px;">Global Index (Partitioned by Term)</div>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+      <div style="border:2px solid var(--orange);border-radius:10px;padding:12px;min-width:200px;background:rgba(245,158,11,0.04);">
+        <div style="font-size:0.7rem;font-weight:700;color:var(--orange);">Index P0 (terms a&ndash;r)</div>
+        <div style="font-size:0.6rem;color:var(--text-muted);margin-top:6px;line-height:1.6;">
+          color:<strong style="color:var(--text);">black</strong> &rarr; [214]<br>
+          color:<strong style="color:var(--text);">red</strong> &rarr; [191, 306, 521, 892]<br>
+          make:<strong style="color:var(--text);">BMW</strong> &rarr; [521]<br>
+          make:<strong style="color:var(--text);">Ford</strong> &rarr; [214, 647]<br>
+          make:<strong style="color:var(--text);">Honda</strong> &rarr; [191, 892]
+        </div>
+      </div>
+      <div style="border:2px solid var(--pink);border-radius:10px;padding:12px;min-width:200px;background:rgba(236,72,153,0.04);">
+        <div style="font-size:0.7rem;font-weight:700;color:var(--pink);">Index P1 (terms s&ndash;z)</div>
+        <div style="font-size:0.6rem;color:var(--text-muted);margin-top:6px;line-height:1.6;">
+          color:<strong style="color:var(--text);">silver</strong> &rarr; [647]<br>
+          make:<strong style="color:var(--text);">Toyota</strong> &rarr; [306]
+        </div>
+      </div>
+    </div>
+
+    <div style="font-size:0.8rem;color:var(--text-muted);text-align:center;max-width:500px;margin-top:8px;">
+      <strong style="color:var(--accent3);">"Find all red cars"</strong> &rarr; query only Index P0 (because "red" falls in a&ndash;r). Single index partition, no scatter/gather!
+    </div>
+  </div>
+</div>
+
+<div class="card card-orange">
+  <h4>The Write Complexity Trade-off</h4>
+  <p style="margin-bottom:8px;">A single document write may affect <strong>multiple index partitions</strong> (one per indexed term). In an ideal world, the index would update synchronously, but that requires a distributed transaction. In practice, global secondary indexes are updated <strong>asynchronously</strong>.</p>
+  <p style="margin-bottom:0;">Amazon DynamoDB: global secondary indexes updated "within a fraction of a second" normally, but may lag during infrastructure faults.</p>
+</div>
+
+<!-- DIAGRAM 13: Write path comparison -->
+<div class="diagram">
+  <div class="diagram-title">Diagram 13 &mdash; Write Paths: Document-Partitioned vs. Term-Partitioned Index</div>
+  <div class="grid2">
+    <div style="text-align:center;">
+      <div style="font-size:0.8rem;font-weight:700;color:var(--accent);margin-bottom:12px;">DOCUMENT-PARTITIONED (Local)</div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+        <div class="flow-box" style="min-width:auto;padding:8px 14px;font-size:0.8rem;">Write: ID=191, red Honda</div>
+        <div class="flow-arrow">&#8595;</div>
+        <div style="border:2px solid var(--accent3);border-radius:8px;padding:10px;background:rgba(16,185,129,0.06);">
+          <div style="font-size:0.7rem;color:var(--accent3);font-weight:700;">Partition 0 only</div>
+          <div style="font-size:0.6rem;color:var(--text-muted);">Update doc + local index</div>
+        </div>
+        <div style="font-size:0.7rem;color:var(--accent3);font-weight:600;">1 partition touched</div>
+      </div>
+    </div>
+    <div style="text-align:center;">
+      <div style="font-size:0.8rem;font-weight:700;color:var(--accent2);margin-bottom:12px;">TERM-PARTITIONED (Global)</div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+        <div class="flow-box" style="min-width:auto;padding:8px 14px;font-size:0.8rem;">Write: ID=191, red Honda</div>
+        <div class="flow-arrow">&#8595;</div>
+        <div style="display:flex;gap:6px;">
+          <div style="border:2px solid var(--orange);border-radius:8px;padding:8px;background:rgba(245,158,11,0.06);">
+            <div style="font-size:0.65rem;color:var(--orange);font-weight:700;">Data P0</div>
+            <div style="font-size:0.55rem;color:var(--text-muted);">Store doc</div>
+          </div>
+          <div style="border:2px solid var(--pink);border-radius:8px;padding:8px;background:rgba(236,72,153,0.06);">
+            <div style="font-size:0.65rem;color:var(--pink);font-weight:700;">Idx P0</div>
+            <div style="font-size:0.55rem;color:var(--text-muted);">color:red</div>
+          </div>
+          <div style="border:2px solid var(--accent2);border-radius:8px;padding:8px;background:rgba(139,92,246,0.06);">
+            <div style="font-size:0.65rem;color:var(--accent2);font-weight:700;">Idx P1</div>
+            <div style="font-size:0.55rem;color:var(--text-muted);">make:Honda</div>
+          </div>
+        </div>
+        <div style="font-size:0.7rem;color:var(--red);font-weight:600;">3 partitions touched</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3>Comparison: Document-Partitioned vs. Term-Partitioned</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Dimension</th>
+      <th>Document-Partitioned (Local)</th>
+      <th>Term-Partitioned (Global)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Index scope</strong></td>
+      <td>Per-partition (local)</td>
+      <td>Cross-partition (global)</td>
+    </tr>
+    <tr>
+      <td><strong>Write complexity</strong></td>
+      <td style="color:var(--accent3);">Simple: 1 partition</td>
+      <td style="color:var(--red);">Complex: N index partitions</td>
+    </tr>
+    <tr>
+      <td><strong>Read efficiency</strong></td>
+      <td style="color:var(--red);">Scatter/gather (all partitions)</td>
+      <td style="color:var(--accent3);">Targeted (1 index partition)</td>
+    </tr>
+    <tr>
+      <td><strong>Index freshness</strong></td>
+      <td style="color:var(--accent3);">Synchronous (immediate)</td>
+      <td style="color:var(--orange);">Often asynchronous (lag)</td>
+    </tr>
+    <tr>
+      <td><strong>Tail latency</strong></td>
+      <td style="color:var(--red);">Amplified (slowest partition)</td>
+      <td style="color:var(--accent3);">Minimal (single partition)</td>
+    </tr>
+    <tr>
+      <td><strong>Implementation</strong></td>
+      <td>Simpler</td>
+      <td>Requires distributed transactions or async updates</td>
+    </tr>
+    <tr>
+      <td><strong>Used by</strong></td>
+      <td>MongoDB, Riak, Cassandra, Elasticsearch, VoltDB</td>
+      <td>DynamoDB, Riak (search), Oracle DW</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ============================================================ -->
+<!-- KEY TAKEAWAYS -->
+<!-- ============================================================ -->
+<h2>Key Takeaways</h2>
+
+<div class="timeline">
+  <div class="timeline-item">
+    <div class="timeline-title">Partitioning = Scalability</div>
+    <div class="timeline-desc">Break data into partitions so each node handles a subset. Combined with replication for fault tolerance.</div>
+  </div>
+  <div class="timeline-item green">
+    <div class="timeline-title">Key Range: Sorted, Range-Scannable, but Skew-Prone</div>
+    <div class="timeline-desc">Great for range queries and time-series data. Risk of hot spots with sequential keys (timestamps).</div>
+  </div>
+  <div class="timeline-item purple">
+    <div class="timeline-title">Hash: Uniform Distribution, but No Range Queries</div>
+    <div class="timeline-desc">Eliminates most skew. Keys that were adjacent are now scattered. Cassandra's compound key is the best compromise.</div>
+  </div>
+  <div class="timeline-item red">
+    <div class="timeline-title">Hot Spots Persist Even with Hashing</div>
+    <div class="timeline-desc">Celebrity problem: identical keys hash identically. Mitigation: random suffixes (application-level responsibility).</div>
+  </div>
+  <div class="timeline-item orange">
+    <div class="timeline-title">Secondary Indexes: Local vs. Global Trade-off</div>
+    <div class="timeline-desc">Document-partitioned = simple writes, expensive reads. Term-partitioned = efficient reads, complex writes with async updates.</div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- QUESTIONS -->
+<!-- ============================================================ -->
+<h2>Test Your Understanding</h2>
+
+<div class="question-block">
+  <div class="question-header" onclick="this.parentElement.classList.toggle('open')">
+    <span><span class="q-num">1</span>Why can't you simply assign records to nodes randomly?</span>
+    <span class="chevron">&#9660;</span>
+  </div>
+  <div class="question-body">
+    <p>Random assignment distributes data evenly, but when reading a particular record, you have <strong>no way of knowing which node it is on</strong>. You would have to query all nodes in parallel for every single read, which is extremely inefficient. Partitioning schemes (key range or hash) provide a deterministic mapping from key to partition, enabling direct routing.</p>
+  </div>
+</div>
+
+<div class="question-block">
+  <div class="question-header" onclick="this.parentElement.classList.toggle('open')">
+    <span><span class="q-num">2</span>A sensor network writes timestamped readings. Why might key-range partitioning cause a hot spot, and how do you fix it?</span>
+    <span class="chevron">&#9660;</span>
+  </div>
+  <div class="question-body">
+    <p>If the key is purely a timestamp, all current writes go to the partition covering "now" (e.g., today's date range), creating a hot spot. The fix is to <strong>prefix the timestamp with the sensor name</strong>: the key becomes <code>(sensor_name, timestamp)</code>. This distributes writes across partitions (one per sensor group). The trade-off: to query a time range across all sensors, you now need a separate range query per sensor prefix.</p>
+  </div>
+</div>
+
+<div class="question-block">
+  <div class="question-header" onclick="this.parentElement.classList.toggle('open')">
+    <span><span class="q-num">3</span>Explain how Cassandra's compound primary key achieves a compromise between key-range and hash partitioning.</span>
+    <span class="chevron">&#9660;</span>
+  </div>
+  <div class="question-body">
+    <p>Cassandra declares a compound primary key of several columns, e.g., <code>(user_id, update_timestamp)</code>. The <strong>first column is hashed</strong> to determine the partition (providing uniform distribution like hash partitioning). The <strong>remaining columns</strong> serve as a concatenated sort key within that partition's SSTables (providing range-scan capability like key-range partitioning). You cannot range-scan the first column, but given a fixed first column value, you can efficiently range-scan the rest.</p>
+  </div>
+</div>
+
+<div class="question-block">
+  <div class="question-header" onclick="this.parentElement.classList.toggle('open')">
+    <span><span class="q-num">4</span>What is the "scatter/gather" pattern, and why does it cause tail latency amplification?</span>
+    <span class="chevron">&#9660;</span>
+  </div>
+  <div class="question-body">
+    <p>Scatter/gather is the query pattern for document-partitioned secondary indexes: a query is sent to <strong>all partitions</strong> in parallel, and results are combined. The overall response time equals the <strong>slowest partition's response time</strong>. Even if most partitions respond quickly, one slow partition (due to GC pause, disk I/O, network delay) dominates the total latency. With N partitions, the probability of hitting at least one slow response increases &mdash; this is tail latency amplification.</p>
+  </div>
+</div>
+
+<div class="question-block">
+  <div class="question-header" onclick="this.parentElement.classList.toggle('open')">
+    <span><span class="q-num">5</span>Why are global (term-partitioned) secondary index updates typically asynchronous?</span>
+    <span class="chevron">&#9660;</span>
+  </div>
+  <div class="question-body">
+    <p>A single document write may need to update index entries on <strong>multiple different partitions</strong> (one per indexed term). Synchronous updates would require a <strong>distributed transaction</strong> across all affected partitions, which is expensive and not supported by all databases. Instead, systems like DynamoDB update global indexes asynchronously &mdash; the trade-off being that reads may briefly see stale index data after a write.</p>
+  </div>
+</div>
+
+<div class="question-block">
+  <div class="question-header" onclick="this.parentElement.classList.toggle('open')">
+    <span><span class="q-num">6</span>You are designing a social media platform. Celebrity users with millions of followers cause hot spots. The random-suffix mitigation splits writes across 100 keys. What are the downsides?</span>
+    <span class="chevron">&#9660;</span>
+  </div>
+  <div class="question-body">
+    <p>Three main downsides: (1) <strong>Reads become expensive</strong> &mdash; you must query all 100 suffixed keys and merge the results. (2) <strong>Bookkeeping overhead</strong> &mdash; you need to track which keys are "hot" and deserve splitting; applying random suffixes to all keys would add unnecessary overhead to the vast majority of low-traffic keys. (3) <strong>Application-level responsibility</strong> &mdash; the database does not do this automatically, so the application must manage the splitting logic, suffix tracking, and read-time merging.</p>
+  </div>
+</div>
+
+</div>
+
+<script>
+// Allow clicking anywhere on the question header to toggle
+document.querySelectorAll('.question-header').forEach(header => {
+  header.addEventListener('click', function(e) {
+    // Toggle is handled by the onclick attribute
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Ch.1 Part 3 — Maintainability &amp; Q&amp;A</title>
+<style>
+  :root {
+    --bg:#0a0e17; --surface:#111827; --surface2:#1a2234; --border:#1e293b;
+    --text:#e2e8f0; --muted:#94a3b8; --accent:#3b82f6; --purple:#8b5cf6;
+    --green:#10b981; --red:#ef4444; --orange:#f59e0b; --pink:#ec4899; --cyan:#06b6d4;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;}
+  .wrap{max-width:900px;margin:0 auto;padding:40px 24px 100px;}
+  h1{font-size:2rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px;}
+  .sub{color:var(--muted);font-size:1rem;margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:20px;}
+  .nav{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:40px;}
+  .nav a{color:var(--muted);font-size:0.8rem;text-decoration:none;padding:4px 12px;border:1px solid var(--border);border-radius:20px;}
+  .nav a.cur{color:var(--purple);border-color:var(--purple);}
+  .nav a:hover{color:var(--text);}
+  h2{font-size:1.4rem;font-weight:700;color:var(--purple);margin:44px 0 14px;}
+  h3{font-size:1.1rem;font-weight:600;color:var(--text);margin:28px 0 10px;}
+  p{margin-bottom:14px;color:var(--muted);}
+  strong{color:var(--text);}
+  .label{font-size:0.72rem;text-transform:uppercase;letter-spacing:2px;color:var(--purple);font-weight:700;margin-bottom:6px;}
+  code{background:var(--surface2);padding:2px 7px;border-radius:4px;font-size:0.83rem;color:var(--green);}
+  .key{color:var(--purple);font-weight:600;}
+  .quote{background:var(--surface2);border-left:3px solid var(--purple);padding:14px 18px;border-radius:0 8px 8px 0;font-style:italic;color:var(--muted);margin:18px 0;}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin:18px 0;}
+  .card-blue{border-left:4px solid var(--accent);}
+  .card-purple{border-left:4px solid var(--purple);}
+  .card-green{border-left:4px solid var(--green);}
+  .card-red{border-left:4px solid var(--red);}
+  .card-orange{border-left:4px solid var(--orange);}
+  .card h4{font-size:0.95rem;font-weight:700;margin-bottom:8px;color:var(--text);}
+  .card ul{padding-left:18px;color:var(--muted);}
+  .card li{margin-bottom:5px;}
+
+  .diagram{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:28px 24px;margin:22px 0;}
+  .diagram-title{font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--purple);margin-bottom:18px;}
+
+  .g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+  @media(max-width:640px){.g2,.g3{grid-template-columns:1fr;}}
+
+  .pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:0.73rem;font-weight:600;margin:2px;}
+  .p-green{background:rgba(16,185,129,.15);color:var(--green);}
+  .p-red{background:rgba(239,68,68,.15);color:var(--red);}
+  .p-blue{background:rgba(59,130,246,.15);color:var(--accent);}
+  .p-orange{background:rgba(245,158,11,.15);color:var(--orange);}
+  .p-purple{background:rgba(139,92,246,.15);color:var(--purple);}
+
+  .box{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 16px;text-align:center;font-size:0.83rem;}
+  .box-blue{border:2px solid var(--accent);color:var(--accent);}
+  .box-green{border:2px solid var(--green);color:var(--green);}
+  .box-orange{border:2px solid var(--orange);color:var(--orange);}
+  .box-red{border:2px solid var(--red);color:var(--red);}
+  .box-purple{border:2px solid var(--purple);color:var(--purple);}
+  .row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .vflow{display:flex;flex-direction:column;align-items:center;gap:8px;}
+  .arrow-d{color:var(--muted);font-size:1.1rem;}
+
+  table{width:100%;border-collapse:collapse;margin:14px 0;}
+  th,td{text-align:left;padding:9px 13px;border-bottom:1px solid var(--border);font-size:0.85rem;}
+  th{color:var(--purple);font-weight:600;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.8px;}
+  td{color:var(--muted);}
+
+  .qa{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin:14px 0;overflow:hidden;}
+  .qa-header{padding:14px 18px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:0.93rem;}
+  .qa-header:hover{background:var(--surface2);}
+  .qa-body{padding:0 18px 14px;display:none;color:var(--muted);border-top:1px solid var(--border);padding-top:14px;font-size:0.9rem;line-height:1.7;}
+  .qa.open .qa-body{display:block;}
+  .qa-num{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;background:var(--purple);color:#fff;border-radius:50%;font-size:0.78rem;font-weight:700;margin-right:10px;flex-shrink:0;}
+  .chev{transition:transform .2s;color:var(--muted);}
+  .qa.open .chev{transform:rotate(180deg);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="label">DDIA · Chapter 1</div>
+  <h1>Reliable, Scalable, and Maintainable Applications</h1>
+  <p class="sub">Part 3 of 3 — Maintainability (operability, simplicity, evolvability), chapter summary, and 10 first-principles questions.</p>
+
+  <div class="nav">
+    <a href="chapter-1-part1.html">Part 1: Reliability</a>
+    <a href="chapter-1-part2.html">Part 2: Scalability</a>
+    <a href="chapter-1-part3.html" class="cur">Part 3: Maintainability &amp; Q&amp;A</a>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 1. MAINTAINABILITY                         -->
+  <!-- ══════════════════════════════════════════ -->
+  <h2>Maintainability</h2>
+
+  <p>The majority of the cost of software is not in the initial development — it's in ongoing <strong>maintenance</strong>: fixing bugs, keeping systems operational, investigating failures, adapting to new platforms, modifying for new use cases, repaying technical debt.</p>
+
+  <p>Yet many engineers dislike working on legacy systems. The term "legacy system" often signals <em>pain</em>. Much of this pain is avoidable, not inevitable. Good design makes the difference. Three principles guide maintainability:</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 1 — The Three Pillars of Maintainability</div>
+    <div class="g3">
+      <div style="border:2px solid var(--accent);border-radius:10px;padding:18px;text-align:center;">
+        <div style="font-size:1.6rem;margin-bottom:8px;">⚙️</div>
+        <strong style="color:var(--accent);">Operability</strong>
+        <p style="font-size:0.82rem;margin:8px 0 0;">Make it easy for operations teams to keep the system running smoothly.</p>
+      </div>
+      <div style="border:2px solid var(--green);border-radius:10px;padding:18px;text-align:center;">
+        <div style="font-size:1.6rem;margin-bottom:8px;">🧹</div>
+        <strong style="color:var(--green);">Simplicity</strong>
+        <p style="font-size:0.82rem;margin:8px 0 0;">Make it easy for new engineers to understand the system by reducing complexity.</p>
+      </div>
+      <div style="border:2px solid var(--purple);border-radius:10px;padding:18px;text-align:center;">
+        <div style="font-size:1.6rem;margin-bottom:8px;">🔄</div>
+        <strong style="color:var(--purple);">Evolvability</strong>
+        <p style="font-size:0.82rem;margin:8px 0 0;">Make it easy to make changes in the future — adapt to new requirements, fix surprises.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 2. OPERABILITY                              -->
+  <!-- ══════════════════════════════════════════ -->
+  <h3>Operability: Making Life Easy for Operations</h3>
+
+  <p>Good operations can often work around limitations of bad software, but good software cannot compensate for bad operations. Operations teams are responsible for keeping the system running — monitoring health, tracking down root causes of failures, keeping software up to date, doing capacity planning, managing configs across environments.</p>
+
+  <div class="card card-blue">
+    <h4>What Good Operability Looks Like</h4>
+    <ul>
+      <li><strong>Visibility into runtime behavior</strong>: good monitoring, dashboards showing internal system state, metrics that tell you what the system is doing and why</li>
+      <li><strong>Standard tools and automation</strong>: support for standard automation and configuration management tools. Don't require operators to invent bespoke workflows</li>
+      <li><strong>Avoiding single-machine dependencies</strong>: designed to continue working even if individual machines fail. Maintenance can be performed on one machine at a time without downtime</li>
+      <li><strong>Good documentation</strong>: when an operator asks "if I do X, what will happen?" — the answer is in the docs, not buried in the codebase</li>
+      <li><strong>Predictable behavior</strong>: minimize surprises. Avoid "magic" that works in unknown ways under the hood</li>
+      <li><strong>Self-healing where possible</strong>: systems that can automatically restart failed components, not require manual intervention for every hiccup</li>
+    </ul>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 3. SIMPLICITY                              -->
+  <!-- ══════════════════════════════════════════ -->
+  <h3>Simplicity: Managing Complexity</h3>
+
+  <p>As systems grow, they often become very complex. Complexity slows down everyone working on the system — harder to understand, harder to reason about, harder to test, harder to change safely. There are two very different kinds of complexity:</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 2 — Essential vs Accidental Complexity</div>
+    <div class="g2" style="gap:20px;">
+      <div style="border:2px solid var(--orange);border-radius:10px;padding:16px;">
+        <p style="font-weight:700;color:var(--orange);margin-bottom:8px;">Essential Complexity</p>
+        <p style="font-size:0.85rem;">Complexity inherent to the problem being solved. Can't be removed without changing what the system does. A distributed database coordinating 1000 nodes <em>is</em> fundamentally complex.</p>
+        <div style="margin-top:8px;"><span class="pill p-orange">Irreducible</span> <span class="pill p-orange">Part of the domain</span></div>
+      </div>
+      <div style="border:2px solid var(--red);border-radius:10px;padding:16px;">
+        <p style="font-weight:700;color:var(--red);margin-bottom:8px;">Accidental Complexity</p>
+        <p style="font-size:0.85rem;">Complexity introduced by the implementation — state space explosion, inconsistent naming, tight coupling, workarounds built on workarounds. It's not required by the problem.</p>
+        <div style="margin-top:8px;"><span class="pill p-red">Avoidable</span> <span class="pill p-red">Caused by implementation choices</span></div>
+      </div>
+    </div>
+    <div class="card card-green" style="margin:16px 0 0;">
+      <h4 style="color:var(--green);">The Best Tool Against Accidental Complexity: Abstraction</h4>
+      <p style="margin:0;font-size:0.88rem;">A good abstraction hides implementation details behind a clean interface. High-level programming languages are an abstraction over machine code. SQL is an abstraction over B-tree / LSM-tree internals. A good abstraction can be reused across many applications and reduces cognitive load — you reason about the abstraction, not its internals. Bad abstractions leak their internals (leaky abstraction), adding accidental complexity back in.</p>
+    </div>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 3 — Symptoms of Accidental Complexity</div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div class="row">
+        <div class="box box-red" style="min-width:180px;font-size:0.8rem;"><strong>Explosion of state space</strong></div>
+        <p style="margin:0;font-size:0.83rem;">The number of possible states the system can be in grows exponentially. Hard to test all of them. Hard to reason about what "should" happen.</p>
+      </div>
+      <div class="row">
+        <div class="box box-red" style="min-width:180px;font-size:0.8rem;"><strong>Tight coupling</strong></div>
+        <p style="margin:0;font-size:0.83rem;">A change in one module requires changes in many other modules. The modules are entangled instead of isolated. Refactoring one thing breaks ten others.</p>
+      </div>
+      <div class="row">
+        <div class="box box-red" style="min-width:180px;font-size:0.8rem;"><strong>Tangled dependencies</strong></div>
+        <p style="margin:0;font-size:0.83rem;">Module A depends on B, B depends on C, C depends on A. Circular dependencies make the system impossible to understand in isolation.</p>
+      </div>
+      <div class="row">
+        <div class="box box-red" style="min-width:180px;font-size:0.8rem;"><strong>Inconsistent naming</strong></div>
+        <p style="margin:0;font-size:0.83rem;">The same concept is called three different names in three different modules. Engineers have to build a mental translation table constantly.</p>
+      </div>
+      <div class="row">
+        <div class="box box-red" style="min-width:180px;font-size:0.8rem;"><strong>Hacks and special cases</strong></div>
+        <p style="margin:0;font-size:0.83rem;">Workarounds built on top of workarounds. "This case is handled specially in the billing module because of the 2019 migration." Nobody knows why anymore.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 4. EVOLVABILITY                            -->
+  <!-- ══════════════════════════════════════════ -->
+  <h3>Evolvability: Making Change Easy</h3>
+
+  <p>Requirements change. The system you build today will need to do something different tomorrow. A new feature request arrives. Legal requirements change. A platform you depend on reaches end of life. The business pivots. <span class="key">Evolvability</span> is the system's capacity to absorb these changes with ease — also called extensibility, modifiability, or plasticity.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 4 — Why Systems Resist Change Over Time</div>
+    <div class="vflow" style="gap:10px;">
+      <div class="box box-blue" style="min-width:300px;padding:14px;">
+        <strong>v1: Clean, simple system</strong><br>
+        <span style="font-size:0.75rem;color:var(--muted);">Good abstractions, clear separation of concerns</span>
+      </div>
+      <div class="arrow-d">▼ first feature request</div>
+      <div class="box box-green" style="min-width:300px;padding:14px;">
+        <strong>v2: Feature added cleanly</strong><br>
+        <span style="font-size:0.75rem;color:var(--muted);">Extensions fit naturally into existing structure</span>
+      </div>
+      <div class="arrow-d">▼ years of pressure, shortcuts, and "we'll fix it later"</div>
+      <div class="box box-red" style="min-width:300px;padding:14px;">
+        <strong>v10: Accumulated technical debt</strong><br>
+        <span style="font-size:0.75rem;color:var(--red);">Tangled code, unexplained special cases, fear of changes</span>
+      </div>
+      <div class="arrow-d">▼ new feature request</div>
+      <div style="border:2px dashed var(--red);border-radius:8px;padding:12px;min-width:300px;text-align:center;">
+        <span style="color:var(--red);font-size:0.85rem;font-weight:600;">Each change risks breaking unrelated things.<br>Test coverage insufficient. Nobody fully understands the system.</span>
+      </div>
+    </div>
+    <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px;">
+      <p style="font-size:0.85rem;margin:0;color:var(--muted);">Evolvability is not about a specific tool or framework — it's about the organizational and engineering process: agile methodologies, test-driven development, refactoring, good abstractions. At the data system level, it connects directly to Chapter 4's themes of schema evolution and backward/forward compatibility.</p>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 5. CHAPTER SUMMARY                         -->
+  <!-- ══════════════════════════════════════════ -->
+  <h2>Chapter Summary</h2>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 5 — Chapter 1 Full Concept Map</div>
+    <div class="vflow" style="gap:10px;">
+      <div class="box" style="border-color:var(--muted);min-width:360px;padding:14px;">
+        <strong>Data-Intensive Application</strong><br>
+        <span style="font-size:0.75rem;color:var(--muted);">Multiple specialized tools (DB, cache, queue, search, batch) stitched together by application code</span>
+      </div>
+      <div class="arrow-d">▼ must achieve</div>
+      <div class="row" style="justify-content:center;gap:12px;">
+        <div class="box box-blue" style="min-width:130px;">
+          <strong style="color:var(--accent);">🛡 Reliability</strong><br>
+          <span style="font-size:0.72rem;">Works correctly despite faults</span>
+        </div>
+        <div class="box box-green" style="min-width:130px;">
+          <strong style="color:var(--green);">📈 Scalability</strong><br>
+          <span style="font-size:0.72rem;">Handles growth gracefully</span>
+        </div>
+        <div class="box box-purple" style="min-width:130px;">
+          <strong style="color:var(--purple);">🔧 Maintainability</strong><br>
+          <span style="font-size:0.72rem;">Teams can work productively</span>
+        </div>
+      </div>
+      <div class="arrow-d">▼ achieved via</div>
+      <div class="row" style="justify-content:center;gap:10px;flex-wrap:wrap;">
+        <div style="border:1px solid var(--accent);border-radius:8px;padding:10px;min-width:130px;font-size:0.78rem;text-align:center;"><strong style="color:var(--accent);">Fault tolerance</strong><br>for hardware, software, human faults</div>
+        <div style="border:1px solid var(--green);border-radius:8px;padding:10px;min-width:130px;font-size:0.78rem;text-align:center;"><strong style="color:var(--green);">Load parameters</strong><br>percentiles, not averages</div>
+        <div style="border:1px solid var(--orange);border-radius:8px;padding:10px;min-width:130px;font-size:0.78rem;text-align:center;"><strong style="color:var(--orange);">Scaling strategies</strong><br>vertical + horizontal</div>
+        <div style="border:1px solid var(--purple);border-radius:8px;padding:10px;min-width:130px;font-size:0.78rem;text-align:center;"><strong style="color:var(--purple);">Good abstractions</strong><br>manage complexity</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 6. Q&A                                     -->
+  <!-- ══════════════════════════════════════════ -->
+  <h2 style="color:var(--pink);">First-Principles Questions</h2>
+  <p>Click to reveal. Try to answer first.</p>
+
+  <div class="qa" onclick="this.classList.toggle('open')">
+    <div class="qa-header"><span><span class="qa-num">1</span>What is the difference between a fault and a failure? Why does the distinction matter?</span><span class="chev">▼</span></div>
+    <div class="qa-body">A <strong>fault</strong> is when one component deviates from its spec. A <strong>failure</strong> is when the whole system stops providing the required service. The distinction matters because fault-tolerant systems are designed to prevent faults from cascading into failures. Hardware redundancy (RAID, hot-swap) accepts that components will fault and keeps the system running anyway. You cannot prevent all faults — hardware wears out, bugs exist, humans make mistakes — but you can design so that faults don't become visible failures.</div>
+  </div>
+
+  <div class="qa" onclick="this.classList.toggle('open')">
+    <div class="qa-header"><span><span class="qa-num">2</span>Why does Netflix deliberately inject faults using Chaos Monkey? Isn't this counter-productive?</span><span class="chev">▼</span></div>
+    <div class="qa-body">Because fault tolerance that isn't exercised tends to rot. If your system's fault tolerance code paths are never triggered in production, they may silently break (due to other changes) and you won't discover this until a real failure occurs — at the worst possible time. Chaos Monkey deliberately kills random VMs in production to <em>continuously verify</em> that the system actually tolerates those faults. It's counter-intuitive but sound engineering: <strong>the only way to be confident your fault tolerance works is to test it regularly in a real environment.</strong></div>
+  </div>
+
+  <div class="qa" onclick="this.classList.toggle('open')">
+    <div class="qa-header"><span><span class="qa-num">3</span>Why are software errors more dangerous than hardware faults, even though hardware fails more frequently?</span><span class="chev">▼</span></div>
+    <div class="qa-body">Hardware faults are <strong>uncorrelated</strong>: one disk failing doesn't make another more likely. Redundancy (RAID, replicas) directly addresses this. Software errors are <strong>correlated</strong>: a bug affects all nodes running that software simultaneously. More redundant nodes just means more nodes all fail at the same time. Redundancy doesn't help. A software bug that causes a CPU spin will hit every node that gets the triggering input. This is why the leap second bug in 2012 took down hundreds of servers simultaneously — they all ran the same buggy kernel code.</div>
+  </div>
+
+  <div class="qa" onclick="this.classList.toggle('open')">
+    <div class="qa-header"><span><span class="qa-num">4</span>Why is the median (p50) response time insufficient for SLA purposes? What should you use instead?</span><span class="chev">▼</span></div>
+    <div class="qa-body">The median tells you that half of requests are faster — but it ignores the worst half. SLAs care about <strong>user experience</strong>, and the users who experience the worst latency are often your most valuable customers (they have the most data, the largest accounts, the heaviest sessions). Use <strong>high percentiles</strong>: p95 (95% of requests are faster), p99, or p999. For systems with fan-out (a page triggers many backend calls), tail latency is amplified: with 100 parallel calls each at p99 = 1s, the page is slow 63% of the time. The p50 of individual calls is irrelevant to the user experience of the page.</div>
+  </div>
+
+  <div class="qa" onclick="this.classList.toggle('open')">
+    <div class="qa-header"><span><span class="qa-num">5</span>Twitter considered two approaches for the home timeline. What was the critical load parameter that determined which approach to use?</span><span class="chev">▼</span></div>
+    <div class="qa-body">The critical parameter is <strong>fan-out ratio</strong> — the average number of followers per user. With low fan-out, approach 2 (fan-out on write, pre-computed caches) works well: writing one tweet pushes to relatively few caches. But celebrities have millions of followers — fanning out to 30 million caches per tweet takes minutes and creates enormous write amplification. Twitter's hybrid solution — fan-out on write for regular users, fan-out on read for celebrities — reflects the <em>shape of the load distribution</em>, not just the average. The load parameter that matters is not just "average fan-out" but the entire distribution including the extreme tail.</div>
+  </div>
+
+  <div class="qa" onclick="this.classList.toggle('open')">
+    <div class="qa-header"><span><span class="qa-num">6</span>When is vertical scaling (scaling up) a better choice than horizontal scaling (scaling out)?</span><span class="chev">▼</span></div>
+    <div class="qa-body">Vertical scaling is better when: (1) the system is <strong>stateful</strong> — distributing state across nodes introduces coordination, consistency, and replication complexity that often outweighs the benefits; (2) the load is <strong>predictable and slowly growing</strong> — the complexity of distributed systems isn't needed yet; (3) <strong>operational simplicity</strong> is valued — one beefy machine is easier to operate than 20 coordinated nodes; (4) you're <strong>early in development</strong> and want to avoid premature optimization. Vertical scaling has limits (a single machine can only be so large) but modern machines are surprisingly powerful, and horizontal scaling introduces distributed systems problems (see Chapters 5–9) that are genuinely hard.</div>
+  </div>
+
+  <div class="qa" onclick="this.classList.toggle('open')">
+    <div class="qa-header"><span><span class="qa-num">7</span>What is the difference between essential complexity and accidental complexity? Give an example of each.</span><span class="chev">▼</span></div>
+    <div class="qa-body"><strong>Essential complexity</strong> is inherent to the problem. Example: a distributed database that replicates data across 5 datacenters must handle network partitions, replication lag, and consensus protocols — this complexity cannot be removed without changing the product. <strong>Accidental complexity</strong> is introduced by the implementation. Example: a monolith where every module directly imports every other module, creating circular dependencies and making it impossible to change one module without touching ten others. Or: the same concept called "user_id", "userId", "uid", and "member_id" in different files, forcing constant mental translation. Accidental complexity can be reduced through better design, refactoring, and abstraction — without changing what the system does.</div>
+  </div>
+
+  <div class="qa" onclick="this.classList.toggle('open')">
+    <div class="qa-header"><span><span class="qa-num">8</span>What is head-of-line blocking and why does it make server-side percentile measurements misleading?</span><span class="chev">▼</span></div>
+    <div class="qa-body">Head-of-line blocking occurs when a slow request occupies a server worker, causing subsequent faster requests to queue behind it. Even if the queued requests would take 1ms to process, they experience 1 second of latency because they're waiting behind one slow request. Server-side measurements only count the actual processing time — they miss the time spent waiting in queue. <strong>Client-side measurements capture the full wall-clock time</strong> including queueing. This is why SLA measurements must be done from the client's perspective, and why p99 latency seen by clients often looks much worse than what the server reports for the same requests.</div>
+  </div>
+
+  <div class="qa" onclick="this.classList.toggle('open')">
+    <div class="qa-header"><span><span class="qa-num">9</span>What does "data-intensive" mean vs "compute-intensive"? Why does this distinction matter for architecture?</span><span class="chev">▼</span></div>
+    <div class="qa-body">A <strong>compute-intensive</strong> application's bottleneck is raw CPU processing speed — scientific simulations, rendering, encryption. Scaling solution: faster CPUs or more of them. A <strong>data-intensive</strong> application's bottleneck is data volume, data complexity, and data change velocity — the amount of data it stores, the rate it's updated, the complexity of the queries. Most business applications are data-intensive. The architecture must address: storing data reliably (databases), retrieving it quickly (indexes, caches), routing updates (message queues), processing it in bulk (batch/stream processing). Getting each of these right requires different specialized tools — this is why a "data system" is a composition of components, not a single database.</div>
+  </div>
+
+  <div class="qa" onclick="this.classList.toggle('open')">
+    <div class="qa-header"><span><span class="qa-num">10</span>Why is there no single "scalable architecture"? What determines the right architecture for a given system?</span><span class="chev">▼</span></div>
+    <div class="qa-body">Architecture is a direct function of the system's specific <strong>load parameters</strong>. A system handling 100k RPS of 1KB payloads has totally different bottlenecks from a system handling 3 RPS of 2GB video uploads, even at the same overall throughput. The right architecture depends on: the ratio of reads to writes, data volume and growth rate, query complexity, access patterns (random vs sequential), latency requirements, and the specific "shape" of extreme load (celebrity users, viral events). A social network optimizes for fan-out. A time-series database optimizes for sequential writes and range queries. A full-text search engine optimizes for inverted index traversal. These architectures cannot be exchanged. The failure mode of premature scaling is not just wasted complexity — it's architecture optimized for the wrong parameters.</div>
+  </div>
+
+  <div style="margin-top:60px;padding-top:24px;border-top:1px solid var(--border);display:flex;justify-content:flex-start;">
+    <a href="chapter-1-part2.html" style="color:var(--muted);font-size:0.9rem;text-decoration:none;">← Part 2: Scalability</a>
+  </div>
+</div>
+</body>
+</html>

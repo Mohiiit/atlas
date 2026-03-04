@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Ch.4 Part 2 — Schema Evolution</title>
+<style>
+  :root {
+    --bg:#0a0e17; --surface:#111827; --surface2:#1a2234; --border:#1e293b;
+    --text:#e2e8f0; --muted:#94a3b8; --accent:#3b82f6; --purple:#8b5cf6;
+    --green:#10b981; --red:#ef4444; --orange:#f59e0b; --pink:#ec4899; --cyan:#06b6d4;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;}
+  .wrap{max-width:900px;margin:0 auto;padding:40px 24px 100px;}
+  h1{font-size:2rem;font-weight:800;background:linear-gradient(135deg,var(--purple),var(--pink));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px;}
+  .sub{color:var(--muted);font-size:1rem;margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:20px;}
+  .nav{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:40px;}
+  .nav a{color:var(--muted);font-size:0.8rem;text-decoration:none;padding:4px 12px;border:1px solid var(--border);border-radius:20px;}
+  .nav a.cur{color:var(--purple);border-color:var(--purple);}
+  .nav a:hover{color:var(--text);}
+  h2{font-size:1.4rem;font-weight:700;color:var(--accent);margin:44px 0 14px;}
+  h3{font-size:1.1rem;font-weight:600;color:var(--text);margin:28px 0 10px;}
+  p{margin-bottom:14px;color:var(--muted);}
+  strong{color:var(--text);}
+  .label{font-size:0.72rem;text-transform:uppercase;letter-spacing:2px;color:var(--purple);font-weight:700;margin-bottom:6px;}
+  code{background:var(--surface2);padding:2px 7px;border-radius:4px;font-size:0.83rem;color:var(--green);}
+  .key{color:var(--accent);font-weight:600;}
+  pre{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:14px;font-size:0.8rem;color:var(--muted);line-height:1.6;overflow-x:auto;margin:10px 0;}
+  pre code{background:none;padding:0;}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin:18px 0;}
+  .card-blue{border-left:4px solid var(--accent);}
+  .card-purple{border-left:4px solid var(--purple);}
+  .card-green{border-left:4px solid var(--green);}
+  .card-red{border-left:4px solid var(--red);}
+  .card-orange{border-left:4px solid var(--orange);}
+  .card-cyan{border-left:4px solid var(--cyan);}
+  .card h4{font-size:0.95rem;font-weight:700;margin-bottom:8px;color:var(--text);}
+  .card ul{padding-left:18px;color:var(--muted);}
+  .card li{margin-bottom:5px;}
+
+  .diagram{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:28px 24px;margin:22px 0;}
+  .diagram-title{font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--purple);margin-bottom:18px;}
+
+  .g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+  @media(max-width:640px){.g2,.g3{grid-template-columns:1fr;}}
+  .pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:0.73rem;font-weight:600;}
+  .p-green{background:rgba(16,185,129,.15);color:var(--green);}
+  .p-red{background:rgba(239,68,68,.15);color:var(--red);}
+  .p-blue{background:rgba(59,130,246,.15);color:var(--accent);}
+  .p-orange{background:rgba(245,158,11,.15);color:var(--orange);}
+  .p-purple{background:rgba(139,92,246,.15);color:var(--purple);}
+  .p-cyan{background:rgba(6,182,212,.15);color:var(--cyan);}
+
+  .vflow{display:flex;flex-direction:column;align-items:center;gap:8px;}
+  .box{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 16px;text-align:center;font-size:0.83rem;}
+  .box-blue{border:2px solid var(--accent);color:var(--accent);}
+  .box-green{border:2px solid var(--green);color:var(--green);}
+  .box-orange{border:2px solid var(--orange);color:var(--orange);}
+  .box-red{border:2px solid var(--red);color:var(--red);}
+  .box-purple{border:2px solid var(--purple);color:var(--purple);}
+  .box-cyan{border:2px solid var(--cyan);color:var(--cyan);}
+  .row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .arrow-r{color:var(--muted);font-size:1.3rem;}
+  .arrow-d{color:var(--muted);font-size:1.1rem;}
+
+  .sfield{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:0.82rem;font-family:monospace;}
+  .sfield .stag{color:var(--orange);font-weight:700;min-width:20px;}
+  .sfield .stype{color:var(--accent);}
+  .sfield .sname{color:var(--text);}
+  .sfield .smeta{color:var(--muted);font-size:0.74rem;}
+
+  table{width:100%;border-collapse:collapse;margin:14px 0;}
+  th,td{text-align:left;padding:9px 13px;border-bottom:1px solid var(--border);font-size:0.85rem;}
+  th{color:var(--accent);font-weight:600;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.8px;}
+  td{color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="label">DDIA · Part I: Foundations</div>
+  <h1>Chapter 4: Encoding and Evolution</h1>
+  <p class="sub">Part 2 of 3 — Schema evolution rules for Thrift/Protobuf, Avro's fundamentally different approach, and merits of schema-driven formats.</p>
+
+  <div class="nav">
+    <a href="chapter-4-part1.html">Part 1: Encoding Formats</a>
+    <a href="chapter-4-part2.html" class="cur">Part 2: Schema Evolution</a>
+    <a href="chapter-4-part3.html">Part 3: Dataflow &amp; Q&amp;A</a>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 1. THRIFT/PROTOBUF SCHEMA EVOLUTION        -->
+  <!-- ══════════════════════════════════════════ -->
+  <h2>1. Schema Evolution: Thrift &amp; Protocol Buffers</h2>
+
+  <p>Schemas inevitably change. The question is: how can you change a schema while keeping encoded data readable by both old and new code? For Thrift and Protocol Buffers, the answer revolves around <span class="key">field tag numbers</span> — these are the stable identity of a field across all schema versions.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 1 — Adding and Removing Fields (Tag Rules)</div>
+    <div class="g2" style="gap:24px;align-items:start;">
+      <div>
+        <p style="font-weight:700;color:var(--green);margin-bottom:10px;">✓ Adding a New Field</p>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:8px;">
+          <p style="font-size:0.78rem;color:var(--muted);margin-bottom:8px;">Schema v1:</p>
+          <div class="sfield"><span class="stag">1:</span> <span class="stype">string</span> <span class="sname">userName</span></div>
+          <div class="sfield"><span class="stag">2:</span> <span class="stype">i64</span> <span class="sname">favoriteNumber</span></div>
+        </div>
+        <div style="text-align:center;color:var(--green);font-size:0.8rem;padding:4px;">▼ add field</div>
+        <div style="background:var(--surface);border:2px solid var(--green);border-radius:8px;padding:14px;">
+          <p style="font-size:0.78rem;color:var(--muted);margin-bottom:8px;">Schema v2:</p>
+          <div class="sfield"><span class="stag">1:</span> <span class="stype">string</span> <span class="sname">userName</span></div>
+          <div class="sfield"><span class="stag">2:</span> <span class="stype">i64</span> <span class="sname">favoriteNumber</span></div>
+          <div class="sfield"><span class="stag">3:</span> <span class="stype">string</span> <span class="sname">email</span> <span class="smeta">(optional, NEW)</span></div>
+        </div>
+        <div style="margin-top:10px;font-size:0.8rem;color:var(--green);">
+          <strong>Forward compat:</strong> old code sees tag 3, doesn't know it → skips it. OK.<br>
+          <strong>Backward compat:</strong> new code reads old data, tag 3 absent → uses default. OK <em>only if field is optional</em>.
+        </div>
+      </div>
+      <div>
+        <p style="font-weight:700;color:var(--red);margin-bottom:10px;">✗ Removing a Field (dangers)</p>
+        <div style="background:var(--surface);border:2px solid var(--red);border-radius:8px;padding:14px;margin-bottom:8px;">
+          <p style="font-size:0.78rem;color:var(--muted);margin-bottom:8px;">Schema v1:</p>
+          <div class="sfield"><span class="stag">1:</span> <span class="stype">string</span> <span class="sname">userName</span></div>
+          <div class="sfield"><span class="stag">2:</span> <span class="stype">i64</span> <span class="sname">favoriteNumber</span></div>
+          <div class="sfield"><span class="stag">3:</span> <span class="stype">string</span> <span class="sname">email</span> <span class="smeta">(optional)</span></div>
+        </div>
+        <div style="text-align:center;color:var(--red);font-size:0.8rem;padding:4px;">▼ remove field</div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;">
+          <p style="font-size:0.78rem;color:var(--muted);margin-bottom:8px;">Schema v2:</p>
+          <div class="sfield"><span class="stag">1:</span> <span class="stype">string</span> <span class="sname">userName</span></div>
+          <div class="sfield"><span class="stag">2:</span> <span class="stype">i64</span> <span class="sname">favoriteNumber</span></div>
+          <div class="sfield"><span class="smeta" style="color:var(--red);">Tag 3: RETIRED — never reuse!</span></div>
+        </div>
+        <div style="margin-top:10px;font-size:0.8rem;color:var(--red);">
+          Can only remove <strong>optional</strong> fields (never required).<br>
+          Must <strong>never reuse the tag number</strong> — old data still has tag 3; reuse would misinterpret it.
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:18px;border-top:1px solid var(--border);padding-top:14px;">
+      <p style="font-size:0.85rem;font-weight:600;margin-bottom:8px;">The Cardinal Rules:</p>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        <span class="pill p-green">Change field names freely (not in encoded data)</span>
+        <span class="pill p-red">NEVER change a field's tag number</span>
+        <span class="pill p-red">NEVER reuse a removed tag number</span>
+        <span class="pill p-orange">New fields must be optional or have defaults</span>
+        <span class="pill p-blue">Type changes: possible but risky (may truncate)</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-orange">
+    <h4>Why Tag Numbers Are Sacred</h4>
+    <p>The tag number is the <strong>identity</strong> of the field in encoded bytes. Changing a tag turns every existing encoded record unreadable — the parser maps tag → wrong field. Reusing a removed tag is equally dangerous: old data in databases, message queues, and log files still contains records with that tag number. The parser silently misinterprets the old field as the new one. These rules are absolute because <strong>encoded data can persist for years</strong>.</p>
+    <p style="margin:0;">Datatypes: changing a 32-bit int to a 64-bit int is possible — new code reads old values (fills missing bits with zeros). But <strong>old code reading new 64-bit values will truncate silently</strong> if the value exceeds 32 bits. Changing types is a compatibility hazard.</p>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 2. AVRO                                     -->
+  <!-- ══════════════════════════════════════════ -->
+  <h2>2. Avro: A Fundamentally Different Approach</h2>
+
+  <p>Apache Avro was started in 2009 as a Hadoop subproject. Hadoop needed to dump relational database tables to binary files, and Thrift wasn't designed for this. Avro's key difference: <strong>there are no tag numbers</strong> in the schema or the encoding.</p>
+
+  <div class="g2">
+    <div class="card card-purple">
+      <h4>Avro IDL (Human-Editable)</h4>
+      <pre><code>record Person {
+  string              userName;
+  union {null, long}  favoriteNumber = null;
+  array&lt;string&gt;       interests;
+}</code></pre>
+    </div>
+    <div class="card card-purple">
+      <h4>Avro JSON Schema</h4>
+      <pre><code>{
+  "type": "record",
+  "name": "Person",
+  "fields": [
+    {"name":"userName","type":"string"},
+    {"name":"favoriteNumber",
+     "type":["null","long"],
+     "default":null},
+    {"name":"interests",
+     "type":{"type":"array",
+             "items":"string"}}
+  ]
+}</code></pre>
+    </div>
+  </div>
+
+  <p>The Avro binary encoding (32 bytes) is just values concatenated: length-prefixed strings, varint integers — <strong>no field tags, no type markers</strong>. The decoder reads fields in schema order and uses the schema to determine each field's datatype. This means: <strong>the binary can only be decoded correctly with the same (or a compatible) schema used to write it</strong>.</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 2 — Avro Binary: Just Values, No Tags</div>
+    <p style="font-size:0.83rem;color:var(--muted);margin-bottom:14px;">Fields are read in schema order. Without the schema, the binary is uninterpretable.</p>
+    <div style="display:flex;gap:3px;flex-wrap:wrap;margin-bottom:10px;">
+      <div>
+        <div style="padding:7px 9px;border-radius:4px;font-size:0.71rem;font-family:monospace;text-align:center;background:var(--green);color:#fff;font-weight:600;">06</div>
+        <div style="font-size:0.68rem;color:var(--muted);text-align:center;margin-top:2px;">len:6</div>
+      </div>
+      <div>
+        <div style="padding:7px 9px;border-radius:4px;font-size:0.71rem;font-family:monospace;text-align:center;background:var(--green);color:#fff;font-weight:600;">4D 61 72 74 69 6E</div>
+        <div style="font-size:0.68rem;color:var(--muted);text-align:center;margin-top:2px;">"Martin"</div>
+      </div>
+      <div>
+        <div style="padding:7px 9px;border-radius:4px;font-size:0.71rem;font-family:monospace;text-align:center;background:var(--accent);color:#fff;font-weight:600;">02</div>
+        <div style="font-size:0.68rem;color:var(--muted);text-align:center;margin-top:2px;">union<br>branch:1</div>
+      </div>
+      <div>
+        <div style="padding:7px 9px;border-radius:4px;font-size:0.71rem;font-family:monospace;text-align:center;background:var(--accent);color:#fff;font-weight:600;">F2 14</div>
+        <div style="font-size:0.68rem;color:var(--muted);text-align:center;margin-top:2px;">1337<br>(varint)</div>
+      </div>
+      <div>
+        <div style="padding:7px 9px;border-radius:4px;font-size:0.71rem;font-family:monospace;text-align:center;background:var(--purple);color:#fff;font-weight:600;">04</div>
+        <div style="font-size:0.68rem;color:var(--muted);text-align:center;margin-top:2px;">array<br>len:2</div>
+      </div>
+      <div>
+        <div style="padding:7px 9px;border-radius:4px;font-size:0.71rem;font-family:monospace;text-align:center;background:var(--orange);color:#fff;font-weight:600;">...</div>
+        <div style="font-size:0.68rem;color:var(--muted);text-align:center;margin-top:2px;">strings</div>
+      </div>
+    </div>
+    <p style="font-size:0.78rem;color:var(--muted);">No 0B type bytes. No 00 01 tag bytes. Just values. The schema (stored separately) tells the decoder: "first field is a string, second is union{null,long}, third is array of strings."</p>
+  </div>
+
+  <h3>Writer's Schema vs Reader's Schema</h3>
+  <p>The key Avro insight: the writer's schema and reader's schema <strong>don't have to be identical</strong> — they just need to be <span class="key">compatible</span>. When reading, the Avro library resolves differences by matching fields <strong>by name</strong> (not by tag number or field position).</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 3 — Avro Schema Resolution: Writer v2 vs Reader v1</div>
+    <div style="display:grid;grid-template-columns:1fr 50px 1fr;gap:0;align-items:start;">
+      <div>
+        <p style="text-align:center;font-weight:700;color:var(--orange);margin-bottom:10px;">Writer's Schema (v2)</p>
+        <div style="background:var(--surface);border:2px solid var(--orange);border-radius:8px;padding:14px;">
+          <div class="sfield"><span class="sname">userName</span>: <span class="stype">string</span></div>
+          <div class="sfield"><span class="sname">favoriteNumber</span>: <span class="stype">union{null,long}</span></div>
+          <div class="sfield"><span class="sname">interests</span>: <span class="stype">array&lt;string&gt;</span></div>
+          <div class="sfield" style="color:var(--green);"><span class="sname">email</span>: <span class="stype">string</span> <span class="smeta">(NEW field)</span></div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;padding-top:50px;gap:22px;font-size:1rem;">
+        <span style="color:var(--green);">↔</span>
+        <span style="color:var(--green);">↔</span>
+        <span style="color:var(--green);">↔</span>
+        <span style="color:var(--red);font-size:0.9rem;">✗</span>
+      </div>
+      <div>
+        <p style="text-align:center;font-weight:700;color:var(--accent);margin-bottom:10px;">Reader's Schema (v1)</p>
+        <div style="background:var(--surface);border:2px solid var(--accent);border-radius:8px;padding:14px;">
+          <div class="sfield"><span class="sname">userName</span>: <span class="stype">string</span></div>
+          <div class="sfield"><span class="sname">favoriteNumber</span>: <span class="stype">union{null,long}</span></div>
+          <div class="sfield"><span class="sname">interests</span>: <span class="stype">array&lt;string&gt;</span></div>
+          <div class="sfield" style="color:var(--muted);font-size:0.75rem;">(no email field)</div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:16px;display:flex;flex-direction:column;gap:6px;">
+      <div class="row"><span class="pill p-green">Match</span><span style="font-size:0.82rem;">Field in both schemas with same name → resolve, may type-convert</span></div>
+      <div class="row"><span class="pill p-orange">Ignore</span><span style="font-size:0.82rem;">Field in writer but not reader (e.g., "email") → reader skips it</span></div>
+      <div class="row"><span class="pill p-blue">Default</span><span style="font-size:0.82rem;">Field in reader but not writer → filled with default from reader's schema</span></div>
+    </div>
+  </div>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 4 — Avro Schema Evolution Rules</div>
+    <div class="g2">
+      <div class="card card-green" style="margin:0;">
+        <h4 style="color:var(--green);">✓ Allowed</h4>
+        <ul style="font-size:0.85rem;">
+          <li>Add a field <strong>with a default value</strong></li>
+          <li>Remove a field <strong>that has a default value</strong></li>
+          <li>Change datatype (if Avro can convert it)</li>
+          <li>Change field name <em>using an alias</em> (backward compat only)</li>
+          <li>Reorder fields freely (matched by name, not position)</li>
+        </ul>
+      </div>
+      <div class="card card-red" style="margin:0;">
+        <h4 style="color:var(--red);">✗ Not Allowed</h4>
+        <ul style="font-size:0.85rem;">
+          <li>Add field <strong>without default</strong> → breaks backward compat</li>
+          <li>Remove field <strong>without default</strong> → breaks forward compat</li>
+          <li>Change field name without alias → breaks backward compat</li>
+          <li>Add union branch → backward compat only (not forward)</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card card-purple" style="margin:14px 0 0;">
+      <h4>Avro's Null Handling (more explicit than Protobuf)</h4>
+      <p style="margin:0;font-size:0.85rem;">Avro has no <code>optional</code>/<code>required</code>. To allow null, declare a <strong>union type</strong>: <code>union {null, long}</code>. You can only use <code>null</code> as a default if <code>null</code> is the first union branch. This is more verbose, but forces you to be <em>explicit</em> about nullability — a source of many bugs in Protobuf/Thrift schemas.</p>
+    </div>
+  </div>
+
+  <h3>How Does the Reader Find the Writer's Schema?</h3>
+  <p>You can't include the schema with every record (it would be larger than the data itself). The answer depends on context:</p>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 5 — Three Ways Readers Discover Writer's Schema</div>
+    <div style="display:flex;flex-direction:column;gap:16px;">
+
+      <div style="border:1px solid var(--border);border-radius:8px;padding:16px;">
+        <p style="font-weight:600;color:var(--green);margin-bottom:10px;">Scenario 1: Large File (Hadoop, Avro Object Container)</p>
+        <div class="row">
+          <div class="box box-green" style="min-width:130px;"><strong>Writer's Schema</strong><br><span style="font-size:0.72rem;">included ONCE at<br>beginning of file</span></div>
+          <span class="arrow-r">→</span>
+          <div class="box" style="flex:1;max-width:280px;border-color:var(--muted);"><strong>Avro file</strong><br><span style="font-size:0.72rem;">[schema header] [record] [record] ... millions</span></div>
+          <span class="arrow-r">→</span>
+          <div class="box box-blue" style="min-width:130px;"><strong>Reader</strong><br><span style="font-size:0.72rem;">reads schema from header</span></div>
+        </div>
+      </div>
+
+      <div style="border:1px solid var(--border);border-radius:8px;padding:16px;">
+        <p style="font-weight:600;color:var(--accent);margin-bottom:10px;">Scenario 2: Database Records (each at different versions)</p>
+        <div class="row">
+          <div class="box box-blue" style="min-width:130px;"><strong>Record</strong><br><span style="font-size:0.72rem;">includes schema<br>version number (e.g., v3)</span></div>
+          <span class="arrow-r">→</span>
+          <div class="box box-purple" style="min-width:150px;"><strong>Schema Registry</strong><br><span style="font-size:0.72rem;">v1 → schema_v1<br>v2 → schema_v2<br>v3 → schema_v3</span></div>
+          <span class="arrow-r">→</span>
+          <div class="box box-blue" style="min-width:130px;"><strong>Reader</strong><br><span style="font-size:0.72rem;">extracts version,<br>fetches schema</span></div>
+        </div>
+      </div>
+
+      <div style="border:1px solid var(--border);border-radius:8px;padding:16px;">
+        <p style="font-weight:600;color:var(--purple);margin-bottom:10px;">Scenario 3: Network / Avro RPC</p>
+        <div class="row" style="justify-content:center;">
+          <div class="box box-purple" style="min-width:120px;"><strong>Process A</strong></div>
+          <div style="display:flex;flex-direction:column;align-items:center;">
+            <span style="font-size:0.72rem;color:var(--purple);">negotiate schema</span>
+            <span style="color:var(--purple);">⇄</span>
+            <span style="font-size:0.72rem;color:var(--muted);">on connection setup</span>
+          </div>
+          <div class="box box-purple" style="min-width:120px;"><strong>Process B</strong></div>
+        </div>
+        <p style="font-size:0.78rem;color:var(--muted);margin-top:8px;text-align:center;">Schema negotiated once; reused for the lifetime of the connection.</p>
+      </div>
+    </div>
+    <p style="font-size:0.82rem;color:var(--muted);margin-top:14px;">A <strong>schema registry</strong> also functions as living documentation — the schema required for decoding is always up to date, unlike hand-written documentation that diverges from reality.</p>
+  </div>
+
+  <h3>Avro's Killer Feature: Dynamically Generated Schemas</h3>
+  <p>Why does it matter that Avro has no tag numbers? Consider dumping a relational database to Avro binary. With Avro, you auto-generate an Avro schema from the database schema: each column becomes a field, column names map directly to field names. When the database schema changes (column added or removed), just regenerate the Avro schema automatically.</p>
+
+  <p>With Thrift or Protocol Buffers, field tags must be assigned <strong>by hand</strong>. Every time the database schema changes, someone manually updates the tag mapping. One mistake and you silently corrupt data. Avro was specifically designed for this Hadoop use case; Thrift was not.</p>
+
+  <div class="card card-cyan">
+    <h4>Thrift vs Protobuf vs Avro: When to Use Which</h4>
+    <ul style="font-size:0.88rem;">
+      <li><strong>Thrift</strong>: older, two wire formats, good for polyglot microservices at Facebook-style scale. More expressive type system (nested lists).</li>
+      <li><strong>Protocol Buffers (gRPC)</strong>: dominant choice for new internal microservices. Strong tooling, gRPC HTTP/2 transport, proto3 removes <code>required</code>. Best for stable schemas.</li>
+      <li><strong>Avro</strong>: best for dynamic schema generation (database → file pipelines, Kafka Schema Registry, Hadoop). Schema evolution by name matching is more flexible for generated schemas.</li>
+    </ul>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 3. MERITS OF SCHEMAS                       -->
+  <!-- ══════════════════════════════════════════ -->
+  <h2>3. The Merits of Schemas</h2>
+
+  <div class="diagram">
+    <div class="diagram-title">Diagram 6 — Full Encoding Format Comparison</div>
+    <div style="overflow-x:auto;">
+    <table>
+      <tr>
+        <th>Dimension</th>
+        <th>JSON / XML</th>
+        <th>MessagePack</th>
+        <th>Thrift / Protobuf</th>
+        <th>Avro</th>
+      </tr>
+      <tr>
+        <td><strong>Schema</strong></td>
+        <td>Optional (complex)</td>
+        <td>None</td>
+        <td>Required IDL</td>
+        <td>Required IDL/JSON</td>
+      </tr>
+      <tr>
+        <td><strong>Field identity</strong></td>
+        <td>Name strings in data</td>
+        <td>Name strings in data</td>
+        <td>Tag numbers</td>
+        <td>Name (resolved by schema)</td>
+      </tr>
+      <tr>
+        <td><strong>Human readable</strong></td>
+        <td style="color:var(--green);">Yes</td>
+        <td style="color:var(--red);">No</td>
+        <td style="color:var(--red);">No</td>
+        <td style="color:var(--red);">No (but container files self-describe)</td>
+      </tr>
+      <tr>
+        <td><strong>Size (same record)</strong></td>
+        <td style="color:var(--red);">81 bytes (JSON)</td>
+        <td style="color:var(--orange);">66 bytes</td>
+        <td style="color:var(--green);">33–59 bytes</td>
+        <td style="color:var(--green);">32 bytes</td>
+      </tr>
+      <tr>
+        <td><strong>Backward compat</strong></td>
+        <td>Ad-hoc</td>
+        <td>Ad-hoc</td>
+        <td style="color:var(--green);">Built-in (skip unknown tags)</td>
+        <td style="color:var(--green);">Built-in (ignore unknown fields)</td>
+      </tr>
+      <tr>
+        <td><strong>Forward compat</strong></td>
+        <td>Ad-hoc</td>
+        <td>Ad-hoc</td>
+        <td style="color:var(--green);">Built-in (skip unknown tags)</td>
+        <td style="color:var(--green);">Built-in (use defaults)</td>
+      </tr>
+      <tr>
+        <td><strong>Dynamic schemas</strong></td>
+        <td style="color:var(--green);">Easy</td>
+        <td style="color:var(--green);">Easy</td>
+        <td style="color:var(--red);">Hard (manual tag assignment)</td>
+        <td style="color:var(--green);">Excellent (no tags to manage)</td>
+      </tr>
+      <tr>
+        <td><strong>Number precision</strong></td>
+        <td style="color:var(--red);">No int/float distinction</td>
+        <td style="color:var(--green);">Typed</td>
+        <td style="color:var(--green);">i32, i64, float, double</td>
+        <td style="color:var(--green);">int, long, float, double</td>
+      </tr>
+      <tr>
+        <td><strong>Code generation</strong></td>
+        <td>Optional</td>
+        <td>No</td>
+        <td style="color:var(--green);">Yes (strongly typed classes)</td>
+        <td style="color:var(--green);">Optional (works without it)</td>
+      </tr>
+      <tr>
+        <td><strong>Cross-org use</strong></td>
+        <td style="color:var(--green);">Excellent (lingua franca)</td>
+        <td>Niche</td>
+        <td style="color:var(--red);">Rare (both sides need IDL)</td>
+        <td style="color:var(--red);">Rare</td>
+      </tr>
+    </table>
+    </div>
+  </div>
+
+  <div class="card card-green">
+    <h4>Why Schema-Driven Formats Win for Internal Use</h4>
+    <ul>
+      <li><strong>Compact</strong>: omit field names from every encoded record (32 bytes vs 81 bytes)</li>
+      <li><strong>Documentation that can't drift</strong>: the schema is required to decode data — it's always accurate, unlike README files</li>
+      <li><strong>Deployment guardrails</strong>: a schema registry lets you check compatibility <em>before</em> deploying — catch breaking changes at CI time</li>
+      <li><strong>Code generation</strong>: in statically typed languages (Java, Go, C++), generated classes give compile-time type checking and IDE autocomplete</li>
+      <li><strong>Same flexibility as schemaless</strong>: Avro/Protobuf evolution gives you JSON's flexibility with better guarantees</li>
+    </ul>
+    <p style="margin:0;font-size:0.83rem;color:var(--muted);">Historical note: these ideas aren't new. <strong>ASN.1</strong> (1984) uses tag numbers like Protobuf. Its binary encoding (DER) is still used today in SSL certificates (X.509).</p>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- NAV FOOTER                                 -->
+  <!-- ══════════════════════════════════════════ -->
+  <div style="margin-top:60px;padding-top:24px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+    <a href="chapter-4-part1.html" style="color:var(--muted);font-size:0.9rem;text-decoration:none;">← Part 1: Encoding Formats</a>
+    <a href="chapter-4-part3.html" style="color:var(--accent);font-size:0.9rem;text-decoration:none;">Part 3: Dataflow &amp; Q&amp;A →</a>
+  </div>
+</div>
+</body>
+</html>
