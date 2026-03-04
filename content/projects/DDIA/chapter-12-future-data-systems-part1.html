@@ -3,819 +3,212 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DDIA Chapter 12 Part 1 — Data Integration and Unbundling</title>
+<title>DDIA Ch 12 Part 1 — Data Integration</title>
 <style>
-  :root {
-    --bg: #0a0e17;
-    --surface: #111827;
-    --surface2: #1a2234;
-    --border: #1e293b;
-    --text: #e2e8f0;
-    --text-muted: #94a3b8;
-    --accent: #3b82f6;
-    --accent2: #8b5cf6;
-    --accent3: #10b981;
-    --red: #ef4444;
-    --orange: #f59e0b;
-    --pink: #ec4899;
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
-  .container { max-width: 900px; margin: 0 auto; padding: 40px 24px 100px; }
-  h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 48px; border-bottom: 1px solid var(--border); padding-bottom: 24px; }
-  h2 { font-size: 1.5rem; font-weight: 700; margin: 48px 0 16px; color: var(--accent); }
-  h3 { font-size: 1.15rem; font-weight: 600; margin: 32px 0 12px; color: var(--text); }
-  p { margin-bottom: 16px; color: var(--text-muted); }
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 20px 0; }
-  .card-accent { border-left: 4px solid var(--accent); }
-  .card-green { border-left: 4px solid var(--accent3); }
-  .card-orange { border-left: 4px solid var(--orange); }
-  .card-purple { border-left: 4px solid var(--accent2); }
-  .card-red { border-left: 4px solid var(--red); }
-  .card h4 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
-  .card ul { padding-left: 20px; color: var(--text-muted); }
-  .card li { margin-bottom: 6px; }
-  .key-term { color: var(--accent); font-weight: 600; }
-  .diagram { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 32px; margin: 24px 0; overflow-x: auto; }
-  .diagram-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent2); margin-bottom: 20px; }
-  .flow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; }
-  .flow-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; text-align: center; font-size: 0.9rem; min-width: 120px; }
-  .flow-box.primary { border-color: var(--accent); color: var(--accent); }
-  .flow-box.green { border-color: var(--accent3); color: var(--accent3); }
-  .flow-box.purple { border-color: var(--accent2); color: var(--accent2); }
-  .flow-box.orange { border-color: var(--orange); color: var(--orange); }
-  .flow-box.red { border-color: var(--red); color: var(--red); }
-  .flow-box.pink { border-color: var(--pink); color: var(--pink); }
-  .flow-arrow { color: var(--text-muted); font-size: 1.2rem; }
-  .flow-vert { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-  @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } .grid3 { grid-template-columns: 1fr; } }
-  .quote { background: var(--surface2); border-left: 3px solid var(--accent2); padding: 16px 20px; margin: 20px 0; border-radius: 0 8px 8px 0; font-style: italic; color: var(--text-muted); }
-  .tag { display: inline-block; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 2px 12px; font-size: 0.8rem; color: var(--text-muted); margin: 2px; }
-  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
-  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
-  th { color: var(--accent); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
-  td { color: var(--text-muted); }
-  .question-block { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin: 16px 0; overflow: hidden; }
-  .question-header { padding: 16px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 0.95rem; }
-  .question-header:hover { background: var(--surface2); }
-  .question-body { padding: 0 20px 16px; display: none; color: var(--text-muted); border-top: 1px solid var(--border); padding-top: 16px; }
-  .question-block.open .question-body { display: block; }
-  .q-num { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: var(--accent); color: white; border-radius: 50%; font-size: 0.8rem; font-weight: 700; margin-right: 12px; flex-shrink: 0; }
-  .chevron { transition: transform .2s; color: var(--text-muted); }
-  .question-block.open .chevron { transform: rotate(180deg); }
-  .section-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--accent2); font-weight: 700; margin-bottom: 8px; }
-
-  /* Timeline / sequence diagrams */
-  .seq-diagram { display: flex; flex-direction: column; gap: 6px; font-size: 0.85rem; }
-  .seq-row { display: flex; align-items: center; gap: 8px; }
-  .seq-label { min-width: 90px; font-weight: 600; text-align: right; }
-  .seq-bar { flex: 1; height: 32px; border-radius: 6px; display: flex; align-items: center; padding: 0 12px; font-size: 0.8rem; position: relative; }
-  .seq-spacer { flex: 1; }
-
-  /* Layered architecture diagram */
-  .layer-stack { display: flex; flex-direction: column; gap: 4px; }
-  .layer { padding: 14px 20px; border-radius: 8px; text-align: center; font-weight: 600; font-size: 0.9rem; }
-
-  /* Race condition specific */
-  .race-grid { display: grid; grid-template-columns: 100px 1fr 1fr; gap: 2px; font-size: 0.82rem; }
-  .race-cell { padding: 8px 12px; background: var(--surface); border-radius: 4px; }
-  .race-header { font-weight: 700; color: var(--accent); }
-  .race-time { color: var(--text-muted); font-weight: 600; }
-  .race-action { color: var(--text-muted); }
-  .race-danger { color: var(--red); font-weight: 600; }
-  .race-ok { color: var(--accent3); }
-
-  /* Vertical flow */
-  .vflow { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-  .vflow-arrow { color: var(--text-muted); font-size: 1.2rem; }
-
-  /* Pipeline */
-  .pipeline { display: flex; align-items: stretch; gap: 2px; flex-wrap: wrap; justify-content: center; }
-  .pipe-stage { padding: 10px 16px; border-radius: 8px; text-align: center; font-size: 0.82rem; font-weight: 600; display: flex; align-items: center; }
-  .pipe-conn { display: flex; align-items: center; color: var(--text-muted); font-size: 1.1rem; padding: 0 4px; }
-
-  /* Wide comparison boxes */
-  .compare-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin: 20px 0; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
-  .compare-col { padding: 20px; }
-  .compare-col:first-child { background: var(--surface); border-right: 1px solid var(--border); }
-  .compare-col:last-child { background: var(--surface2); }
-  .compare-col h4 { margin-bottom: 12px; }
-  .compare-col ul { padding-left: 18px; }
-  .compare-col li { margin-bottom: 6px; color: var(--text-muted); font-size: 0.9rem; }
-  @media (max-width: 640px) { .compare-row { grid-template-columns: 1fr; } .compare-col:first-child { border-right: none; border-bottom: 1px solid var(--border); } }
+:root {
+  --bg:#0a0e17; --surface:#111827; --surface2:#1a2234; --border:#1e293b;
+  --text:#e2e8f0; --muted:#94a3b8; --accent:#3b82f6; --purple:#8b5cf6;
+  --green:#10b981; --red:#ef4444; --orange:#f59e0b; --pink:#ec4899; --cyan:#06b6d4;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.7;padding:2rem 1rem}
+.wrap{max-width:860px;margin:0 auto}
+h1{font-size:2rem;color:var(--accent);margin-bottom:.25rem}
+h2{font-size:1.4rem;color:var(--purple);margin:2.5rem 0 .75rem;padding-left:.75rem;border-left:3px solid var(--purple)}
+h3{font-size:1.1rem;color:var(--cyan);margin:1.5rem 0 .5rem}
+p{margin:.6rem 0}ul,ol{margin:.5rem 0 .5rem 1.5rem}li{margin:.25rem 0}
+code{background:var(--surface2);color:var(--cyan);padding:.1rem .4rem;border-radius:4px;font-size:.88rem}
+.nav{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:2rem}
+.nav a{padding:.4rem 1rem;border-radius:6px;text-decoration:none;font-size:.9rem;background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
+.nav a.cur{background:var(--accent);color:#fff;border-color:var(--accent)}
+.subtitle{color:var(--muted);font-size:1rem;margin-bottom:2rem}
+.diagram{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.5rem;margin:1.2rem 0;overflow-x:auto}
+.box{display:inline-block;padding:.4rem .9rem;border-radius:6px;font-size:.85rem;font-weight:600;text-align:center}
+.box.blue{background:#1e3a5f;border:1px solid var(--accent);color:var(--accent)}
+.box.purple{background:#2d1b69;border:1px solid var(--purple);color:var(--purple)}
+.box.green{background:#064e3b;border:1px solid var(--green);color:var(--green)}
+.box.orange{background:#451a03;border:1px solid var(--orange);color:var(--orange)}
+.box.cyan{background:#0c4a6e;border:1px solid var(--cyan);color:var(--cyan)}
+.box.red{background:#450a0a;border:1px solid var(--red);color:var(--red)}
+.box.muted{background:var(--surface2);border:1px solid var(--border);color:var(--muted)}
+.row{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin:.5rem 0}
+.vflow{display:flex;flex-direction:column;align-items:center;gap:.5rem}
+.arrow{color:var(--muted);font-size:1.2rem}
+.rarrow{color:var(--muted);font-size:1.1rem}
+.callout{border-left:3px solid var(--orange);background:var(--surface2);padding:.8rem 1rem;border-radius:0 6px 6px 0;margin:1rem 0;font-size:.92rem}
+.callout.blue{border-left-color:var(--accent);background:#0c1a2e}
+.callout.green{border-left-color:var(--green);background:#052015}
+.callout.red{border-left-color:var(--red);background:#200}
+.table-wrap{overflow-x:auto;margin:1rem 0}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th{background:var(--surface2);color:var(--accent);padding:.6rem .8rem;text-align:left;border:1px solid var(--border)}
+td{padding:.5rem .8rem;border:1px solid var(--border);vertical-align:top}
+tr:nth-child(even) td{background:var(--surface)}
 </style>
 </head>
 <body>
-<div class="container">
-
-<p class="section-label">Chapter 12 &mdash; Part 1 of 2</p>
-<h1>The Future of Data Systems: Data Integration &amp; Unbundling</h1>
-<p class="subtitle">How to combine specialized tools into a coherent whole, why dual writes are dangerous, the limits of total ordering, lambda architecture and its successors, and the vision of unbundled databases composing a "meta-database of everything."</p>
-
-<!-- ===================================================================== -->
-<h2>1. The Data Integration Problem</h2>
-
-<p>In complex applications, data is used in many different ways. No single piece of software handles every access pattern well. You inevitably end up cobbling together multiple specialized tools: an OLTP database, a full-text search index, an analytics warehouse, a cache, a recommendation engine, and more. The challenge is keeping all of these representations <span class="key-term">consistent</span> with each other.</p>
-
-<div class="card card-accent">
-  <h4>Why Integration Is Hard</h4>
-  <ul>
-    <li>Each tool excels at one access pattern but is poor for others</li>
-    <li>As the number of derived representations grows, synchronization complexity explodes</li>
-    <li>You must be clear about <strong>inputs and outputs</strong>: where is data written first? Which representations are derived from which sources?</li>
-    <li>The need for data integration only becomes apparent when you zoom out and look at dataflows across an entire organization</li>
-  </ul>
+<div class="wrap">
+<div class="nav">
+  <a href="chapter-12-future-data-systems-part1.html" class="cur">Part 1: Data Integration</a>
+  <a href="chapter-12-future-data-systems-part2.html">Part 2: Unbundled Databases</a>
+  <a href="chapter-12-future-data-systems-part3.html">Part 3: Ethics &amp; Q&amp;A</a>
 </div>
+<h1>Chapter 12 — The Future of Data Systems</h1>
+<div class="subtitle">Part 1: Data Integration, Derived Views, Lambda Architecture</div>
 
-<!-- DIAGRAM 1: Combining Specialized Tools -->
+<p>Chapter 12 synthesizes the entire book. Modern data systems are built from many specialized tools, each optimized for a specific task. The challenge: making them work together reliably. Kleppmann's vision: an architecture built around immutable events and derived views.</p>
+
+<h2>The Challenge: Data Integration</h2>
+<p>A typical modern application uses many data systems simultaneously: a relational database for transactions, Elasticsearch for search, Redis for caching, a data warehouse for analytics, Kafka for event streams. Keeping them in sync is the central data engineering challenge.</p>
+
 <div class="diagram">
-  <div class="diagram-title">Diagram 1: Combining Specialized Tools &mdash; The Data Integration Landscape</div>
-  <div class="vflow">
-    <div class="flow-box primary" style="min-width: 200px; font-weight: 700;">Application Writes</div>
-    <div class="vflow-arrow">&darr;</div>
-    <div class="flow-box green" style="min-width: 240px; font-weight: 700;">System of Record (OLTP DB)</div>
-    <div style="display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; margin-top: 8px;">
-      <div class="vflow">
-        <div class="vflow-arrow">&darr;</div>
-        <div class="flow-box purple">Search Index</div>
-      </div>
-      <div class="vflow">
-        <div class="vflow-arrow">&darr;</div>
-        <div class="flow-box orange">Analytics / DW</div>
-      </div>
-      <div class="vflow">
-        <div class="vflow-arrow">&darr;</div>
-        <div class="flow-box pink">Cache / CDN</div>
-      </div>
-      <div class="vflow">
-        <div class="vflow-arrow">&darr;</div>
-        <div class="flow-box red">ML Models</div>
-      </div>
-      <div class="vflow">
-        <div class="vflow-arrow">&darr;</div>
-        <div class="flow-box" style="border-color: var(--accent3); color: var(--accent3);">Notifications</div>
-      </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.5rem;font-size:.78rem;text-align:center">
+    <div style="background:var(--surface2);padding:.6rem;border-radius:6px;border:1px solid var(--border)">
+      <div style="color:var(--accent);font-weight:700">PostgreSQL</div>
+      Transactions, constraints
     </div>
-    <p style="margin-top: 12px; font-size: 0.82rem; text-align: center;">All derived views must stay in sync with the system of record</p>
+    <div style="background:var(--surface2);padding:.6rem;border-radius:6px;border:1px solid var(--border)">
+      <div style="color:var(--green);font-weight:700">Elasticsearch</div>
+      Full-text search
+    </div>
+    <div style="background:var(--surface2);padding:.6rem;border-radius:6px;border:1px solid var(--border)">
+      <div style="color:var(--orange);font-weight:700">Redis</div>
+      Low-latency cache
+    </div>
+    <div style="background:var(--surface2);padding:.6rem;border-radius:6px;border:1px solid var(--border)">
+      <div style="color:var(--purple);font-weight:700">Redshift</div>
+      Analytics warehouse
+    </div>
+    <div style="background:var(--surface2);padding:.6rem;border-radius:6px;border:1px solid var(--border)">
+      <div style="color:var(--cyan);font-weight:700">Kafka</div>
+      Event streams
+    </div>
+    <div style="background:var(--surface2);padding:.6rem;border-radius:6px;border:1px solid var(--border)">
+      <div style="color:var(--pink);font-weight:700">ML model</div>
+      Recommendations
+    </div>
+  </div>
+  <div style="margin-top:.75rem;font-size:.8rem;color:var(--orange)">
+    Problem: all need consistent data. Any update to PostgreSQL must propagate to Elasticsearch, Redis, Redshift. If one propagation fails, systems diverge.
   </div>
 </div>
 
-<h3>Reasoning About Dataflows</h3>
-<p>When the same data lives in several storage systems, you need to be very clear about the dataflow direction. Data should first be written to a <span class="key-term">system of record</span>, and all other representations should be <span class="key-term">derived</span> from it. If change data capture (CDC) is the only way of updating a derived system, you can be confident the derived view is consistent with the source (barring bugs). Writing to the database is the only way of supplying new input into the system.</p>
+<h3>Why No Single System Wins</h3>
+<p>No single database can be optimal at everything simultaneously:</p>
+<ul>
+  <li>OLTP needs low-latency writes and transactions</li>
+  <li>Full-text search needs inverted indexes</li>
+  <li>Analytics needs columnar storage and vectorized execution</li>
+  <li>Caching needs in-memory key-value access</li>
+  <li>Graph queries need adjacency-list traversal</li>
+</ul>
+<p>Each storage/query pattern has a different ideal data structure. The polyglot persistence approach: use the right tool for each job, integrate them.</p>
 
-<!-- ===================================================================== -->
-<h2>2. The Dual Writes Problem</h2>
+<h2>Keeping Systems in Sync</h2>
+<p>Two approaches to keeping multiple data stores in sync:</p>
 
-<p>The simplest (and most dangerous) approach is to have the application write directly to both the database and the search index. This introduces a <span class="key-term">dual writes</span> problem: when two clients concurrently send conflicting writes, the two storage systems may process them in different orders, becoming <strong>permanently inconsistent</strong>.</p>
-
-<!-- DIAGRAM 2: Dual Writes Race Condition -->
+<h3>1. Dual Writes (Anti-Pattern)</h3>
 <div class="diagram">
-  <div class="diagram-title">Diagram 2: Dual Writes Race Condition</div>
-  <div class="race-grid">
-    <div class="race-cell race-header">Time</div>
-    <div class="race-cell race-header">Client A</div>
-    <div class="race-cell race-header">Client B</div>
-
-    <div class="race-cell race-time">t1</div>
-    <div class="race-cell race-action">Write X=1 to <strong>DB</strong></div>
-    <div class="race-cell race-action" style="opacity: 0.4;">&mdash;</div>
-
-    <div class="race-cell race-time">t2</div>
-    <div class="race-cell race-action" style="opacity: 0.4;">&mdash;</div>
-    <div class="race-cell race-action">Write X=2 to <strong>DB</strong></div>
-
-    <div class="race-cell race-time">t3</div>
-    <div class="race-cell race-action" style="opacity: 0.4;">&mdash;</div>
-    <div class="race-cell race-action">Write X=2 to <strong>Search</strong></div>
-
-    <div class="race-cell race-time">t4</div>
-    <div class="race-cell race-action">Write X=1 to <strong>Search</strong></div>
-    <div class="race-cell race-action" style="opacity: 0.4;">&mdash;</div>
-
-    <div class="race-cell race-time" style="color: var(--red);">Result</div>
-    <div class="race-cell race-danger" style="grid-column: span 2; text-align: center;">
-      DB has X=2 &nbsp;&bull;&nbsp; Search has X=1 &nbsp;&rarr;&nbsp; PERMANENT INCONSISTENCY
-    </div>
+  <div style="background:#200;padding:.75rem;border-radius:6px;font-size:.82rem;line-height:1.8;border:1px solid var(--red)">
+    <div style="color:var(--red);font-weight:700;margin-bottom:.3rem">Application-level dual writes (bad)</div>
+    App: write to database → write to Elasticsearch → write to cache<br/>
+    Problem 1: <span style="color:var(--red)">crash between writes → systems out of sync</span><br/>
+    Problem 2: <span style="color:var(--red)">two concurrent clients → race condition → different systems in different orders</span><br/>
+    Problem 3: <span style="color:var(--red)">partial failure → no automatic retry or rollback</span>
   </div>
-  <p style="margin-top: 16px; font-size: 0.82rem; text-align: center; color: var(--text-muted);">Neither system is "in charge" of ordering &mdash; both make contradictory decisions.</p>
 </div>
 
-<div class="card card-red">
-  <h4>Why Dual Writes Fail</h4>
-  <ul>
-    <li>No single authority decides the order of writes</li>
-    <li>Network delays cause different arrival orders at different systems</li>
-    <li>One write may succeed while the other fails, leaving partial state</li>
-    <li>Even with retry logic, you cannot guarantee consistent ordering without a central sequencer</li>
-  </ul>
-</div>
-
-<!-- ===================================================================== -->
-<h2>3. CDC-Based Integration: The Safe Approach</h2>
-
-<p>The solution is to funnel all user input through a <strong>single system</strong> that decides on an ordering for all writes. Then you derive other representations by processing writes in that same order. This is an application of <span class="key-term">state machine replication</span> via total order broadcast.</p>
-
-<!-- DIAGRAM 3: CDC-Based Safe Integration -->
+<h3>2. Change Data Capture (Correct Pattern)</h3>
 <div class="diagram">
-  <div class="diagram-title">Diagram 3: CDC-Based Integration &mdash; Single Leader, Derived Views</div>
-  <div class="vflow">
-    <div class="flow" style="gap: 24px;">
-      <div class="flow-box primary">Client A</div>
-      <div class="flow-box primary">Client B</div>
-      <div class="flow-box primary">Client C</div>
-    </div>
-    <div class="vflow-arrow">&darr; all writes go here</div>
-    <div class="flow-box green" style="min-width: 280px; font-weight: 700; font-size: 1rem;">System of Record (Single Leader DB)</div>
-    <div class="vflow-arrow">&darr; CDC / Event Log (total order)</div>
-    <div class="flow-box purple" style="min-width: 300px;">Ordered Change Stream</div>
-    <div style="display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; margin-top: 8px;">
-      <div class="vflow">
-        <div class="vflow-arrow">&darr;</div>
-        <div class="flow-box orange">Search Index</div>
-      </div>
-      <div class="vflow">
-        <div class="vflow-arrow">&darr;</div>
-        <div class="flow-box pink">Cache</div>
-      </div>
-      <div class="vflow">
-        <div class="vflow-arrow">&darr;</div>
-        <div class="flow-box red">Analytics</div>
-      </div>
-      <div class="vflow">
-        <div class="vflow-arrow">&darr;</div>
-        <div class="flow-box" style="border-color: var(--accent3); color: var(--accent3);">ML Pipeline</div>
-      </div>
-    </div>
+  <div style="background:#052015;padding:.75rem;border-radius:6px;font-size:.82rem;line-height:1.8;border:1px solid var(--green)">
+    <div style="color:var(--green);font-weight:700;margin-bottom:.3rem">CDC pipeline (good)</div>
+    App: write to database only (single source of truth)<br/>
+    CDC reads WAL → publishes change events to Kafka<br/>
+    Consumers: Elasticsearch indexer, cache invalidator, warehouse loader<br/>
+    <span style="color:var(--green)">All consumers see the same ordered sequence of changes. No race conditions.</span>
   </div>
-  <p style="margin-top: 16px; font-size: 0.82rem; text-align: center; color: var(--text-muted);">All consumers see the same ordered stream &rarr; deterministic, idempotent updates &rarr; consistency.</p>
 </div>
 
-<div class="card card-green">
-  <h4>Properties of Log-Based Derivation</h4>
-  <ul>
-    <li><strong>Deterministic:</strong> same input log always produces the same derived state</li>
-    <li><strong>Idempotent:</strong> replaying events is safe; you can recover from faults by reprocessing</li>
-    <li><strong>Decoupled:</strong> producers and consumers don't need to know about each other</li>
-    <li><strong>Auditable:</strong> the event log is an immutable record of every change</li>
-  </ul>
-</div>
+<h2>Derived Data and Views</h2>
+<p>The key architectural insight of Chapter 12: most data stores in your system are <strong>derived data</strong> — computed from some authoritative source. Recognizing this simplifies the architecture.</p>
 
-<!-- ===================================================================== -->
-<h2>4. Derived Data vs. Distributed Transactions</h2>
-
-<p>Both derived data systems and distributed transactions aim to keep multiple data stores consistent. They achieve a similar goal by different means:</p>
-
-<!-- DIAGRAM 4: Comparison Table -->
 <div class="diagram">
-  <div class="diagram-title">Diagram 4: Derived Data vs. Distributed Transactions</div>
-  <table>
-    <tr>
-      <th>Aspect</th>
-      <th style="color: var(--accent3);">Log-Based Derived Data</th>
-      <th style="color: var(--orange);">Distributed Transactions (2PC)</th>
-    </tr>
-    <tr>
-      <td><strong>Ordering mechanism</strong></td>
-      <td>Append-only event log (total order)</td>
-      <td>Locks for mutual exclusion (2PL)</td>
-    </tr>
-    <tr>
-      <td><strong>Atomicity</strong></td>
-      <td>Deterministic retry + idempotence</td>
-      <td>Atomic commit across participants</td>
-    </tr>
-    <tr>
-      <td><strong>Consistency model</strong></td>
-      <td>Eventual consistency (async updates)</td>
-      <td>Linearizability (read your own writes)</td>
-    </tr>
-    <tr>
-      <td><strong>Fault tolerance</strong></td>
-      <td>Local fault containment; log buffers</td>
-      <td>Any participant failure aborts all; cascading</td>
-    </tr>
-    <tr>
-      <td><strong>Performance</strong></td>
-      <td>High throughput; async processing</td>
-      <td>High latency due to lock contention</td>
-    </tr>
-    <tr>
-      <td><strong>Heterogeneous?</strong></td>
-      <td>Works across different technologies</td>
-      <td>Requires all participants to support XA</td>
-    </tr>
-    <tr>
-      <td><strong>Adoption</strong></td>
-      <td>Widely practical (Kafka, Debezium, etc.)</td>
-      <td>Limited adoption; poor XA support</td>
-    </tr>
-  </table>
+  <div style="display:grid;grid-template-columns:1fr 2fr;gap:1rem;font-size:.82rem">
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px;border:2px solid var(--accent)">
+      <div style="color:var(--accent);font-weight:700;margin-bottom:.3rem">System of Record</div>
+      The authoritative source. Written when events occur. Normalized, consistent. Example: the primary database.
+    </div>
+    <div>
+      <div style="background:var(--surface2);padding:.6rem;border-radius:6px;margin-bottom:.5rem;border-left:3px solid var(--muted)">
+        <div style="color:var(--muted);font-weight:700">Derived: Elasticsearch index</div>
+        Computed from the record. Denormalized for fast search. Can be rebuilt from source.
+      </div>
+      <div style="background:var(--surface2);padding:.6rem;border-radius:6px;margin-bottom:.5rem;border-left:3px solid var(--muted)">
+        <div style="color:var(--muted);font-weight:700">Derived: Redis cache</div>
+        Materialized view of frequently-read data. Can expire and be recomputed.
+      </div>
+      <div style="background:var(--surface2);padding:.6rem;border-radius:6px;border-left:3px solid var(--muted)">
+        <div style="color:var(--muted);font-weight:700">Derived: data warehouse</div>
+        Denormalized fact tables for analytics. Rebuilt via ETL from source.
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:.75rem;font-size:.8rem;color:var(--green)">
+    If a derived system fails, it can always be rebuilt by replaying the source data. Derived systems are expendable; the system of record is precious.
+  </div>
 </div>
 
-<div class="quote">
-  "In the absence of widespread support for a good distributed transaction protocol, log-based derived data is the most promising approach for integrating different data systems." &mdash; Kleppmann
-</div>
+<h2>Lambda Architecture</h2>
+<p>Lambda Architecture (Nathan Marz, 2012) is an early attempt to combine batch and stream processing:</p>
 
-<div class="card card-purple">
-  <h4>The Middle Ground</h4>
-  <p>Kleppmann argues we should not simply accept "eventual consistency &mdash; suck it up." Instead, we can build <strong>stronger guarantees on top of</strong> asynchronously derived systems (explored in Part 2 of this chapter). The goal is a middle ground between the strictness of distributed transactions and the lax guarantees of pure eventual consistency.</p>
-</div>
-
-<!-- ===================================================================== -->
-<h2>5. The Limits of Total Ordering</h2>
-
-<p>Constructing a totally ordered event log works well for small systems (single-leader replication produces exactly such a log). But as scale and geographic distribution grow, total ordering becomes infeasible:</p>
-
-<div class="card card-orange">
-  <h4>When Total Ordering Breaks Down</h4>
-  <ul>
-    <li><strong>Throughput exceeds single node:</strong> Partitioned logs have ambiguous ordering across partitions</li>
-    <li><strong>Multi-datacenter:</strong> Each datacenter has its own leader; cross-DC coordination is too slow</li>
-    <li><strong>Microservices:</strong> Each service owns independent state; no defined order between services</li>
-    <li><strong>Offline clients:</strong> Client-side state updated optimistically; clients and servers see events in different orders</li>
-  </ul>
-</div>
-
-<p>Total order broadcast is equivalent to <span class="key-term">consensus</span>, and most consensus algorithms require all events to pass through a single leader. Designing consensus that scales beyond a single node's throughput and works in geo-distributed settings remains an <strong>open research problem</strong>.</p>
-
-<!-- ===================================================================== -->
-<h2>6. Causal Ordering: The Unfriend/Message Problem</h2>
-
-<p>When there is no causal link between events, lack of total order is harmless. But causal dependencies can arise in subtle ways across different services, leading to dangerous reorderings.</p>
-
-<!-- DIAGRAM 5: Unfriend + Message Race Condition -->
 <div class="diagram">
-  <div class="diagram-title">Diagram 5: The Unfriend/Message Causal Race Condition</div>
-  <div style="display: flex; flex-direction: column; gap: 12px; max-width: 680px; margin: 0 auto;">
-
-    <div style="display: flex; gap: 16px; align-items: center;">
-      <div class="flow-box primary" style="min-width: 80px;">Alice</div>
-      <div style="flex: 1; font-size: 0.85rem; color: var(--text-muted);">
-        <strong style="color: var(--red);">Step 1:</strong> Unfriends Bob &rarr; writes to <span class="key-term">Friendship Service</span>
+  <div class="vflow" style="font-size:.82rem">
+    <div class="box muted" style="font-size:.78rem">Incoming data</div>
+    <div class="arrow">↓</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;width:100%">
+      <div style="background:var(--surface2);padding:.6rem;border-radius:6px;text-align:center">
+        <div style="color:var(--accent);font-weight:700;margin-bottom:.2rem">Batch layer</div>
+        <div style="font-size:.78rem">Process all historical data. Accurate. Slow (hours). Produces "batch views".</div>
+      </div>
+      <div style="background:var(--surface2);padding:.6rem;border-radius:6px;text-align:center">
+        <div style="color:var(--purple);font-weight:700;margin-bottom:.2rem">Speed layer</div>
+        <div style="font-size:.78rem">Process recent data. Fast but approximate. Produces "real-time views".</div>
       </div>
     </div>
-
-    <div style="display: flex; gap: 16px; align-items: center;">
-      <div class="flow-box primary" style="min-width: 80px;">Alice</div>
-      <div style="flex: 1; font-size: 0.85rem; color: var(--text-muted);">
-        <strong style="color: var(--orange);">Step 2:</strong> Posts rude message about Bob &rarr; writes to <span class="key-term">Message Service</span>
-      </div>
+    <div class="arrow">↓</div>
+    <div style="background:#052015;padding:.6rem;border-radius:6px;width:100%;text-align:center;border:1px solid var(--green)">
+      <div style="color:var(--green);font-weight:700;margin-bottom:.2rem">Serving layer</div>
+      <div style="font-size:.78rem">Merge batch view + real-time view → serve queries</div>
     </div>
-
-    <div style="border: 1px dashed var(--red); border-radius: 8px; padding: 16px; margin-top: 8px;">
-      <p style="font-size: 0.85rem; margin-bottom: 8px; color: var(--red); font-weight: 700;">Notification Service processes events out of causal order:</p>
-      <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center; justify-content: center;">
-        <div class="flow-box orange" style="min-width: 160px;">message-send event</div>
-        <div class="flow-arrow">&rarr; processed BEFORE &rarr;</div>
-        <div class="flow-box red" style="min-width: 160px;">unfriend event</div>
-      </div>
-      <p style="font-size: 0.85rem; margin-top: 12px; text-align: center; color: var(--red); font-weight: 600;">Bob receives notification of the rude message!</p>
-    </div>
-
-    <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 8px;">The causal dependency (unfriend happened-before message) is lost because the two events live in different services with independent ordering.</p>
   </div>
 </div>
 
-<div class="card card-accent">
-  <h4>Approaches to Capturing Causality</h4>
-  <ul>
-    <li><strong>Logical timestamps:</strong> Provide total ordering without coordination, but recipients must handle out-of-order delivery and carry extra metadata</li>
-    <li><strong>Causal event references:</strong> Log the system state the user saw before making a decision; later events reference that snapshot's identifier to record the dependency</li>
-    <li><strong>Conflict resolution:</strong> Algorithms like CRDTs help maintain state with out-of-order events, but do not help with external side effects (e.g., sending a notification)</li>
-  </ul>
+<h3>Lambda Architecture: Critique</h3>
+<div class="callout red">
+  Lambda architecture forces you to maintain the same logic in two different systems (batch + streaming). They often diverge over time (different behavior, different bugs). Debugging is complex. The serving layer merge is complex. Modern stream processors (Flink, Kafka Streams) can handle both batch and stream in one system — making Lambda obsolete.
 </div>
 
-<!-- ===================================================================== -->
-<h2>7. Maintaining Derived State: The Functional Pipeline</h2>
+<h2>Kappa Architecture</h2>
+<p>Jay Kreps (Kafka co-creator) proposed the Kappa Architecture: use only a stream processor, no separate batch layer. Historical reprocessing = replay the event log from the beginning with a new processor version.</p>
 
-<p>Batch processing has a strong <span class="key-term">functional flavor</span>: deterministic, pure functions whose output depends only on their input, treating inputs as immutable and outputs as append-only. Stream processing extends this model to allow managed, fault-tolerant state. Together, they form a <strong>functional data pipeline</strong>.</p>
-
-<!-- DIAGRAM 6: Functional Derivation Pipeline -->
 <div class="diagram">
-  <div class="diagram-title">Diagram 6: Functional Data Pipeline &mdash; Deterministic Derivation</div>
-  <div class="pipeline">
-    <div class="pipe-stage" style="background: var(--accent); color: white;">Immutable<br>Event Log</div>
-    <div class="pipe-conn">&rarr;</div>
-    <div class="pipe-stage" style="background: var(--accent2); color: white;">Deterministic<br>Transform fn()</div>
-    <div class="pipe-conn">&rarr;</div>
-    <div class="pipe-stage" style="background: var(--accent3); color: white;">Derived View<br>(Search Index)</div>
-  </div>
-  <div style="height: 12px;"></div>
-  <div class="pipeline">
-    <div class="pipe-stage" style="background: var(--accent); color: white;">Immutable<br>Event Log</div>
-    <div class="pipe-conn">&rarr;</div>
-    <div class="pipe-stage" style="background: var(--orange); color: white;">Deterministic<br>Aggregate fn()</div>
-    <div class="pipe-conn">&rarr;</div>
-    <div class="pipe-stage" style="background: var(--pink); color: white;">Derived View<br>(Materialized Cache)</div>
-  </div>
-  <div style="height: 12px;"></div>
-  <div class="pipeline">
-    <div class="pipe-stage" style="background: var(--accent); color: white;">Immutable<br>Event Log</div>
-    <div class="pipe-conn">&rarr;</div>
-    <div class="pipe-stage" style="background: var(--red); color: white;">Deterministic<br>Train fn()</div>
-    <div class="pipe-conn">&rarr;</div>
-    <div class="pipe-stage" style="background: var(--surface); color: var(--accent3); border: 1px solid var(--accent3);">Derived View<br>(ML Model)</div>
-  </div>
-  <p style="margin-top: 16px; font-size: 0.82rem; text-align: center; color: var(--text-muted);">Same input &rarr; same output. Replay-safe. Fault recovery = just re-run the function.</p>
-</div>
-
-<div class="card card-green">
-  <h4>Why Asynchrony Helps</h4>
-  <p>Derived data could in theory be maintained synchronously (like a DB updating secondary indexes within the same transaction). But <strong>asynchrony is what makes event-log systems robust</strong>: a fault in one consumer is contained locally. The event log buffers messages, and the faulty consumer can catch up when fixed. By contrast, distributed transactions abort everything if any participant fails, amplifying local faults into system-wide failures.</p>
-</div>
-
-<!-- ===================================================================== -->
-<h2>8. Reprocessing for Application Evolution</h2>
-
-<p>Stream processing reflects changes with low delay. Batch processing allows reprocessing large amounts of historical data to derive entirely new views. Together, they enable <span class="key-term">gradual schema migration</span> without downtime.</p>
-
-<!-- DIAGRAM 7: Gradual Migration via Reprocessing -->
-<div class="diagram">
-  <div class="diagram-title">Diagram 7: Gradual Migration via Derived View Reprocessing</div>
-  <div style="display: flex; flex-direction: column; gap: 12px; max-width: 600px; margin: 0 auto;">
-    <div class="layer" style="background: var(--accent); color: white;">Immutable Event Log (Source of Truth)</div>
-    <div style="display: flex; gap: 16px; justify-content: center;">
-      <div class="vflow" style="flex: 1;">
-        <div class="vflow-arrow">&darr;</div>
-        <div class="layer" style="background: var(--surface); border: 2px solid var(--accent3); color: var(--accent3);">Old Schema View (v1)<br><span style="font-size: 0.75rem; color: var(--text-muted);">95% of users</span></div>
-      </div>
-      <div class="vflow" style="flex: 1;">
-        <div class="vflow-arrow">&darr;</div>
-        <div class="layer" style="background: var(--surface); border: 2px solid var(--accent2); color: var(--accent2);">New Schema View (v2)<br><span style="font-size: 0.75rem; color: var(--text-muted);">5% of users (canary)</span></div>
-      </div>
-    </div>
-    <div style="text-align: center; font-size: 0.85rem; color: var(--text-muted); margin-top: 8px;">
-      <strong style="color: var(--orange);">Phase 1:</strong> Both views live side-by-side &rarr;
-      <strong style="color: var(--accent3);">Phase 2:</strong> Gradually shift traffic &rarr;
-      <strong style="color: var(--accent);">Phase 3:</strong> Drop old view
-    </div>
-    <p style="font-size: 0.82rem; text-align: center; color: var(--text-muted);">Every stage is reversible. If v2 has bugs, route traffic back to v1 instantly.</p>
+  <div style="background:var(--surface2);padding:.75rem;border-radius:6px;font-size:.82rem;line-height:1.8">
+    <div style="color:var(--cyan);font-weight:700;margin-bottom:.3rem">Kappa: one system for all</div>
+    All events stored in Kafka (long retention or compacted log)<br/>
+    Stream processor handles both "real-time" (current events) and "batch" (replay from beginning)<br/>
+    New version deployment: start new consumer at offset 0 → build new state → switch traffic → delete old<br/>
+    <span style="color:var(--green)">One codebase. One language. One operational concern.</span>
   </div>
 </div>
 
-<div class="quote">
-  "The beauty of gradual migration is that every stage of the process is easily reversible if something goes wrong: you always have a working system to go back to. By reducing the risk of irreversible damage, you can be more confident about going ahead, and thus move faster." &mdash; Kleppmann
+<div class="callout blue">
+  Kappa works well when all data fits in the event log. For truly massive historical datasets (petabytes of S3 data), batch jobs (Spark) are still better for the "from scratch" rebuild. In practice, many systems use a hybrid: Kafka for recent data + Spark/Presto for historical data.
 </div>
 
-<div class="card card-accent">
-  <h4>The Railway Analogy</h4>
-  <p>In 19th-century England, different railway gauges were incompatible. After a standard gauge was chosen (1846), tracks were converted by adding a <strong>third rail</strong> (mixed gauge), allowing trains of both gauges to run simultaneously. The old gauge was removed only after all trains had been converted. This is exactly how derived view reprocessing works: maintain old and new side by side, migrate gradually, and roll back safely if needed.</p>
+<div style="margin-top:3rem;padding:1.5rem;background:var(--surface);border-radius:10px;border:1px solid var(--border)">
+  <div style="font-size:.85rem;color:var(--muted)">Next →</div>
+  <div><a href="chapter-12-future-data-systems-part2.html" style="color:var(--accent);text-decoration:none">Part 2: Unbundled Databases &amp; Dataflow Systems</a></div>
 </div>
-
-<!-- ===================================================================== -->
-<h2>9. Lambda Architecture</h2>
-
-<p>The <span class="key-term">lambda architecture</span> attempts to combine batch and stream processing by running two parallel systems: a batch layer for correctness and a speed layer for low latency.</p>
-
-<!-- DIAGRAM 8: Lambda Architecture -->
-<div class="diagram">
-  <div class="diagram-title">Diagram 8: Lambda Architecture &mdash; Batch + Speed + Serving Layers</div>
-  <div style="display: flex; flex-direction: column; gap: 12px; max-width: 680px; margin: 0 auto;">
-    <div class="layer" style="background: var(--accent); color: white; font-size: 1rem;">Incoming Events (Immutable, Append-Only)</div>
-
-    <div style="display: flex; gap: 16px; justify-content: center;">
-      <div class="vflow" style="flex: 1;">
-        <div class="vflow-arrow">&darr;</div>
-        <div class="layer" style="background: var(--accent2); color: white;">
-          <strong>Batch Layer</strong><br>
-          <span style="font-size: 0.78rem; opacity: 0.9;">Hadoop MapReduce<br>Slow but exact<br>Reprocesses all history</span>
-        </div>
-        <div class="vflow-arrow">&darr;</div>
-        <div class="layer" style="background: var(--surface); border: 2px solid var(--accent2); color: var(--accent2);">Batch View</div>
-      </div>
-      <div class="vflow" style="flex: 1;">
-        <div class="vflow-arrow">&darr;</div>
-        <div class="layer" style="background: var(--orange); color: white;">
-          <strong>Speed Layer</strong><br>
-          <span style="font-size: 0.78rem; opacity: 0.9;">Storm / Spark Streaming<br>Fast but approximate<br>Handles recent events only</span>
-        </div>
-        <div class="vflow-arrow">&darr;</div>
-        <div class="layer" style="background: var(--surface); border: 2px solid var(--orange); color: var(--orange);">Realtime View</div>
-      </div>
-    </div>
-
-    <div class="vflow-arrow" style="text-align: center;">&darr; merge results</div>
-    <div class="layer" style="background: var(--accent3); color: white; font-size: 1rem;">
-      <strong>Serving Layer</strong><br>
-      <span style="font-size: 0.82rem; opacity: 0.9;">Responds to queries by combining batch + realtime views</span>
-    </div>
-  </div>
 </div>
-
-<div class="card card-red">
-  <h4>Problems with Lambda Architecture</h4>
-  <ul>
-    <li><strong>Dual codebase:</strong> You must maintain the same logic in two different frameworks (batch + stream) &mdash; significant engineering overhead</li>
-    <li><strong>Merging is hard:</strong> Combining batch and realtime outputs is easy for simple aggregations but very difficult for joins, sessionization, and non-time-series data</li>
-    <li><strong>Reprocessing cost:</strong> Running full batch jobs over all historical data is expensive, forcing incremental batching which adds complexity and defeats the purpose of the "simple batch layer"</li>
-    <li><strong>Operational burden:</strong> Debugging, tuning, and monitoring two separate pipelines that must produce compatible results</li>
-  </ul>
-</div>
-
-<!-- ===================================================================== -->
-<h2>10. Unifying Batch and Stream Processing</h2>
-
-<p>Modern systems eliminate the lambda architecture's downsides by implementing both batch and stream computation in a <strong>single unified engine</strong>. This requires three key capabilities:</p>
-
-<div class="grid3">
-  <div class="card card-accent">
-    <h4>Replay Historical Events</h4>
-    <p>The same engine processes both the stream of recent events and replayed historical data (e.g., from log-based brokers like Kafka or from HDFS).</p>
-  </div>
-  <div class="card card-green">
-    <h4>Exactly-Once Semantics</h4>
-    <p>Output is the same as if no faults occurred, even when faults do occur. Failed tasks' partial output is discarded, just like in batch processing.</p>
-  </div>
-  <div class="card card-purple">
-    <h4>Event-Time Windowing</h4>
-    <p>Windowing by event time (not processing time), because processing time is meaningless when replaying historical events. Apache Beam / Flink provide this.</p>
-  </div>
-</div>
-
-<div class="card card-orange">
-  <h4>Spark vs. Flink: Two Philosophies</h4>
-  <ul>
-    <li><strong>Spark:</strong> Stream processing on top of a batch engine via <em>microbatches</em> (may struggle with hopping/sliding windows)</li>
-    <li><strong>Flink:</strong> Batch processing on top of a stream engine (treats a bounded dataset as a finite stream)</li>
-    <li>In principle, one can emulate the other, but performance characteristics differ</li>
-  </ul>
-</div>
-
-<!-- ===================================================================== -->
-<h2>11. Unbundling Databases</h2>
-
-<p>Databases, Hadoop, and operating systems all ultimately do the same thing: store data and let you process/query it. Kleppmann draws a deep analogy between the internal features of a database and the external data integration architecture we've been building:</p>
-
-<h3>Composing Data Storage Technologies</h3>
-
-<!-- DIAGRAM 9: Composing Storage &mdash; Database Features as External Systems -->
-<div class="diagram">
-  <div class="diagram-title">Diagram 9: Internal DB Features as External Composed Systems</div>
-  <div class="compare-row">
-    <div class="compare-col">
-      <h4 style="color: var(--accent);">Inside a Traditional Database</h4>
-      <ul>
-        <li>Secondary indexes (B-tree, hash)</li>
-        <li>Materialized views (precomputed caches)</li>
-        <li>Replication logs (follower sync)</li>
-        <li>Full-text search indexes</li>
-        <li>Triggers and stored procedures</li>
-        <li>Transaction manager (2PL, MVCC)</li>
-      </ul>
-    </div>
-    <div class="compare-col">
-      <h4 style="color: var(--accent3);">The Unbundled Equivalent</h4>
-      <ul>
-        <li>Elasticsearch / Solr (search index)</li>
-        <li>Redis / Memcached (cache layer)</li>
-        <li>Kafka CDC (replication across systems)</li>
-        <li>Dedicated NLP + inverted index</li>
-        <li>Stream processors (Flink, Spark)</li>
-        <li>Event log ordering + idempotent writes</li>
-      </ul>
-    </div>
-  </div>
-</div>
-
-<h3>CREATE INDEX = Replay the Replication Log</h3>
-
-<p>Think about what happens when you run <code>CREATE INDEX</code>: the database scans a consistent snapshot, builds the index, then processes the backlog of writes made since the snapshot. This is <strong>remarkably similar</strong> to setting up a new follower replica or bootstrapping CDC. Running <code>CREATE INDEX</code> is essentially reprocessing the existing dataset to derive a new view.</p>
-
-<div class="card card-accent">
-  <h4>The Insight</h4>
-  <p>Creating an index, setting up a new follower, and bootstrapping a CDC consumer are all the <strong>same operation</strong> at different levels of abstraction: take a snapshot, build the derived structure, then consume the ongoing change stream to keep it up to date.</p>
-</div>
-
-<!-- ===================================================================== -->
-<h2>12. The Meta-Database of Everything</h2>
-
-<p>If you zoom out far enough, the dataflow across an entire organization looks like <strong>one huge database</strong>. Every batch job, stream process, or ETL pipeline that transports data from one place to another is acting like the internal database subsystem that keeps indexes or materialized views up to date.</p>
-
-<!-- DIAGRAM 10: Meta-Database of Everything -->
-<div class="diagram">
-  <div class="diagram-title">Diagram 10: The Meta-Database of Everything</div>
-  <div style="display: flex; flex-direction: column; gap: 12px; max-width: 720px; margin: 0 auto;">
-
-    <div style="border: 2px solid var(--accent); border-radius: 12px; padding: 20px; text-align: center;">
-      <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--accent); margin-bottom: 8px; font-weight: 700;">Organization-Wide "Meta-Database"</div>
-
-      <div class="layer" style="background: var(--accent); color: white; margin-bottom: 12px;">System of Record Writes (the "transaction log")</div>
-
-      <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 12px;">
-        <div style="font-size: 0.78rem; color: var(--text-muted);">Batch/Stream processors = triggers &amp; stored procedures</div>
-      </div>
-
-      <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;">
-        <div class="flow-box green" style="min-width: 100px; font-size: 0.78rem;">OLTP DB<br><span style="opacity: 0.7;">"primary key index"</span></div>
-        <div class="flow-box purple" style="min-width: 100px; font-size: 0.78rem;">Search Index<br><span style="opacity: 0.7;">"full-text index"</span></div>
-        <div class="flow-box orange" style="min-width: 100px; font-size: 0.78rem;">Data Warehouse<br><span style="opacity: 0.7;">"materialized view"</span></div>
-        <div class="flow-box pink" style="min-width: 100px; font-size: 0.78rem;">Cache<br><span style="opacity: 0.7;">"denorm. view"</span></div>
-        <div class="flow-box red" style="min-width: 100px; font-size: 0.78rem;">ML Model<br><span style="opacity: 0.7;">"derived index"</span></div>
-      </div>
-    </div>
-
-    <p style="font-size: 0.82rem; text-align: center; color: var(--text-muted);">Each external system is like a different "index type" in the meta-database. Instead of one integrated product providing all features, they are separate software on separate machines managed by different teams.</p>
-  </div>
-</div>
-
-<!-- ===================================================================== -->
-<h2>13. Federation vs. Unbundling</h2>
-
-<p>There are two avenues for composing diverse storage and processing tools into a cohesive system:</p>
-
-<!-- DIAGRAM 11: Federation vs Unbundling -->
-<div class="diagram">
-  <div class="diagram-title">Diagram 11: Federation vs. Unbundling Comparison</div>
-  <div class="compare-row">
-    <div class="compare-col">
-      <h4 style="color: var(--accent);">Federated Databases (Unifying Reads)</h4>
-      <ul>
-        <li>Unified query interface to diverse storage engines</li>
-        <li>Also known as a <em>polystore</em></li>
-        <li>Example: PostgreSQL foreign data wrappers</li>
-        <li>Follows the <strong>relational tradition</strong>: high-level query language, elegant semantics, complex implementation</li>
-        <li>Does NOT solve write synchronization</li>
-      </ul>
-    </div>
-    <div class="compare-col">
-      <h4 style="color: var(--accent3);">Unbundled Databases (Unifying Writes)</h4>
-      <ul>
-        <li>Reliable sync of writes across systems via CDC + event logs</li>
-        <li>Like unbundling a DB's index-maintenance features</li>
-        <li>Example: Kafka Connect + Debezium</li>
-        <li>Follows the <strong>Unix tradition</strong>: small tools that do one thing well, uniform low-level API (pipes), composable via higher-level language</li>
-        <li>The harder engineering problem</li>
-      </ul>
-    </div>
-  </div>
-</div>
-
-<div class="card card-purple">
-  <h4>What's Missing: The "Unix Shell" for Data Systems</h4>
-  <p>We don't yet have the unbundled-database equivalent of the Unix shell &mdash; a high-level language for composing storage and processing systems declaratively. Kleppmann imagines being able to write <code>mysql | elasticsearch</code> by analogy to Unix pipes, which would be the unbundled equivalent of <code>CREATE INDEX</code>: automatically capture all changes from MySQL and apply them to Elasticsearch, without custom application code.</p>
-</div>
-
-<!-- ===================================================================== -->
-<h2>14. Write Path vs. Read Path</h2>
-
-<p>The dataflow through a system of derived data can be understood through two complementary concepts:</p>
-
-<!-- DIAGRAM 12: Write Path vs Read Path -->
-<div class="diagram">
-  <div class="diagram-title">Diagram 12: Write Path vs. Read Path</div>
-  <div style="display: flex; gap: 24px; flex-wrap: wrap; justify-content: center;">
-
-    <div style="flex: 1; min-width: 280px; border: 2px solid var(--accent); border-radius: 12px; padding: 20px;">
-      <h4 style="color: var(--accent); margin-bottom: 12px; text-align: center;">Write Path (Eager)</h4>
-      <div class="vflow">
-        <div class="flow-box primary" style="min-width: 200px;">User Write Event</div>
-        <div class="vflow-arrow">&darr;</div>
-        <div class="flow-box green" style="min-width: 200px;">System of Record</div>
-        <div class="vflow-arrow">&darr; CDC stream</div>
-        <div class="flow-box purple" style="min-width: 200px;">Derive &amp; Store Index</div>
-        <div class="vflow-arrow">&darr;</div>
-        <div class="flow-box orange" style="min-width: 200px;">Derive &amp; Store Cache</div>
-      </div>
-      <p style="font-size: 0.8rem; margin-top: 12px; color: var(--text-muted); text-align: center;">Pre-computes derived data at write time. Work happens in advance of any query.</p>
-    </div>
-
-    <div style="flex: 1; min-width: 280px; border: 2px solid var(--accent3); border-radius: 12px; padding: 20px;">
-      <h4 style="color: var(--accent3); margin-bottom: 12px; text-align: center;">Read Path (Lazy)</h4>
-      <div class="vflow">
-        <div class="flow-box" style="min-width: 200px; border-color: var(--accent3); color: var(--accent3);">User Query</div>
-        <div class="vflow-arrow">&darr;</div>
-        <div class="flow-box" style="min-width: 200px; border-color: var(--accent3); color: var(--accent3);">Query Parser / Planner</div>
-        <div class="vflow-arrow">&darr;</div>
-        <div class="flow-box" style="min-width: 200px; border-color: var(--accent3); color: var(--accent3);">Scan Storage &amp; Compute</div>
-        <div class="vflow-arrow">&darr;</div>
-        <div class="flow-box" style="min-width: 200px; border-color: var(--accent3); color: var(--accent3);">Return Result</div>
-      </div>
-      <p style="font-size: 0.8rem; margin-top: 12px; color: var(--text-muted); text-align: center;">Computes result on demand. Work happens when the query arrives.</p>
-    </div>
-  </div>
-  <p style="font-size: 0.85rem; margin-top: 16px; text-align: center; color: var(--text-muted);">
-    <strong>Caches and indexes</strong> shift work from the read path to the write path. A <strong>materialized view</strong> is the extreme of the write path (fully pre-computed). A full <strong>table scan</strong> is the extreme of the read path (nothing pre-computed).
-  </p>
-</div>
-
-<div class="card card-green">
-  <h4>The Tradeoff</h4>
-  <ul>
-    <li><strong>Write path:</strong> Pre-computes derived data eagerly. Reads are fast but writes are more expensive. Good when reads vastly outnumber writes.</li>
-    <li><strong>Read path:</strong> Computes results lazily at query time. Writes are cheap but reads pay the computation cost. Good for ad-hoc queries and exploration.</li>
-    <li>Most real systems use a mix: indexes and caches (write path) combined with query processing (read path).</li>
-    <li>A derived data system decides what to pre-compute. A full-text search index is a write-path optimization. An analytics query over raw data is a read-path computation.</li>
-  </ul>
-</div>
-
-<!-- ===================================================================== -->
-<h2>Key Takeaways</h2>
-
-<div class="grid2">
-  <div class="card card-accent">
-    <h4>Data Integration</h4>
-    <ul>
-      <li>No single tool handles all access patterns; you must combine specialized systems</li>
-      <li>Dual writes lead to permanent inconsistency; use CDC from a single source of truth</li>
-      <li>The event log provides deterministic, idempotent, fault-tolerant derivation</li>
-    </ul>
-  </div>
-  <div class="card card-green">
-    <h4>Ordering &amp; Causality</h4>
-    <ul>
-      <li>Total ordering works for small systems but breaks down at scale, across DCs, and across services</li>
-      <li>Causal dependencies across services can cause subtle bugs (unfriend/message problem)</li>
-      <li>Logical timestamps and causal references are partial solutions</li>
-    </ul>
-  </div>
-  <div class="card card-purple">
-    <h4>Batch + Stream Unification</h4>
-    <ul>
-      <li>Lambda architecture is influential but operationally painful</li>
-      <li>Modern engines (Flink, Beam) unify both in a single framework</li>
-      <li>Reprocessing enables gradual, reversible schema evolution</li>
-    </ul>
-  </div>
-  <div class="card card-orange">
-    <h4>Unbundling Databases</h4>
-    <ul>
-      <li>An organization's dataflow is like one meta-database; each system is an "index type"</li>
-      <li>Federation unifies reads; unbundling unifies writes</li>
-      <li>CREATE INDEX is the same operation as bootstrapping a CDC consumer</li>
-    </ul>
-  </div>
-</div>
-
-<!-- ===================================================================== -->
-<h2>Test Your Understanding</h2>
-
-<div class="question-block" onclick="this.classList.toggle('open')">
-  <div class="question-header">
-    <span><span class="q-num">1</span>Why is the dual-writes approach to keeping a database and search index in sync fundamentally broken, and what specifically causes permanent inconsistency?</span>
-    <span class="chevron">&#9662;</span>
-  </div>
-  <div class="question-body">
-    <p>Dual writes means the application writes directly to both the database and the search index. The fundamental problem is that <strong>no single system is "in charge" of determining write order</strong>. When two clients send conflicting writes concurrently, the database might process them in order A-then-B while the search index processes them B-then-A (due to different network delays). This results in the database storing one value and the search index storing a different value &mdash; a <strong>permanent inconsistency</strong> that will not resolve itself. Additionally, if one write succeeds and the other fails (partial failure), you're left in an inconsistent state with no automatic recovery mechanism.</p>
-  </div>
-</div>
-
-<div class="question-block" onclick="this.classList.toggle('open')">
-  <div class="question-header">
-    <span><span class="q-num">2</span>Explain the analogy between running CREATE INDEX in a database and setting up a CDC consumer. What three phases do they share?</span>
-    <span class="chevron">&#9662;</span>
-  </div>
-  <div class="question-body">
-    <p>Both operations share three identical phases: <strong>(1) Take a consistent snapshot</strong> of the current data; <strong>(2) Build the derived structure</strong> (index or external system) from that snapshot; <strong>(3) Process the backlog</strong> of writes that occurred since the snapshot was taken, then continue consuming the ongoing change stream to keep the derived structure up to date. This is also exactly how setting up a new follower replica works. The insight is that these are all the same fundamental operation at different levels of abstraction: derive a new view from existing data, then keep it synchronized via the change stream.</p>
-  </div>
-</div>
-
-<div class="question-block" onclick="this.classList.toggle('open')">
-  <div class="question-header">
-    <span><span class="q-num">3</span>What are the four scenarios where constructing a totally ordered event log becomes infeasible, and what is the underlying theoretical reason?</span>
-    <span class="chevron">&#9662;</span>
-  </div>
-  <div class="question-body">
-    <p>The four scenarios are: <strong>(1) Throughput exceeds a single node</strong> &mdash; partitioned logs have ambiguous cross-partition ordering; <strong>(2) Multi-datacenter deployment</strong> &mdash; each DC needs its own leader, and cross-DC synchronous coordination is too slow; <strong>(3) Microservices with independent state</strong> &mdash; events in different services have no defined mutual order; <strong>(4) Offline-capable clients</strong> &mdash; client-side state is updated optimistically, so clients and servers see events in different orders. The underlying theoretical reason is that total order broadcast is equivalent to <strong>consensus</strong>, and most consensus algorithms require all events to pass through a single leader node. Scaling consensus beyond a single node's throughput in a geo-distributed setting remains an open research problem.</p>
-  </div>
-</div>
-
-<div class="question-block" onclick="this.classList.toggle('open')">
-  <div class="question-header">
-    <span><span class="q-num">4</span>What are the three main practical problems with the lambda architecture, and how does unifying batch and stream processing solve them?</span>
-    <span class="chevron">&#9662;</span>
-  </div>
-  <div class="question-body">
-    <p>The three problems: <strong>(1) Dual codebase maintenance</strong> &mdash; the same logic must be implemented and debugged in two separate frameworks (e.g., MapReduce + Storm); <strong>(2) Merging outputs is hard</strong> &mdash; combining batch and realtime views is simple for tumbling window aggregations but extremely difficult for joins, sessionization, or non-time-series data; <strong>(3) Expensive full reprocessing</strong> &mdash; running batch over all historical data is costly, forcing incremental batching which adds the very complexity the batch layer was supposed to avoid. Unified systems like Flink solve these by allowing the <em>same code</em> to process both historical replays and live streams, with exactly-once semantics and event-time windowing, eliminating the need for separate pipelines and output merging.</p>
-  </div>
-</div>
-
-<div class="question-block" onclick="this.classList.toggle('open')">
-  <div class="question-header">
-    <span><span class="q-num">5</span>Explain the difference between federation and unbundling. Which problem does each solve, and which follows the "relational tradition" versus the "Unix tradition"?</span>
-    <span class="chevron">&#9662;</span>
-  </div>
-  <div class="question-body">
-    <p><strong>Federation (polystore)</strong> unifies <em>reads</em> by providing a single query interface across diverse storage engines (e.g., PostgreSQL foreign data wrappers). It follows the <strong>relational tradition</strong>: a high-level query language with elegant semantics and a complex implementation. However, it does not solve write synchronization. <strong>Unbundling</strong> unifies <em>writes</em> by reliably syncing data changes across systems via CDC and event logs. It follows the <strong>Unix tradition</strong>: small tools that do one thing well, communicating through a uniform low-level API (like pipes) and composable via higher-level abstractions. Unbundling is the harder engineering problem because keeping writes in sync across heterogeneous systems requires dealing with ordering, idempotence, and fault tolerance &mdash; which is essentially the distributed index-maintenance problem that databases solve internally.</p>
-  </div>
-</div>
-
-<div class="question-block" onclick="this.classList.toggle('open')">
-  <div class="question-header">
-    <span><span class="q-num">6</span>In the unfriend/message example, why do standard conflict resolution algorithms (like CRDTs) fail to prevent the notification from reaching the ex-partner?</span>
-    <span class="chevron">&#9662;</span>
-  </div>
-  <div class="question-body">
-    <p>The unfriend event and the message-send event live in <strong>different services</strong> (friendship service vs. message service), so there is no shared ordering between them. When the notification service joins the message stream with the friend list, it may process the message-send event <em>before</em> the unfriend event, sending the notification to the ex-partner. Conflict resolution algorithms like CRDTs help with <strong>maintaining state</strong> by converging on a consistent value regardless of event order &mdash; but they <strong>do not help with external side effects</strong>. A notification, once sent, cannot be "un-sent." The damage is done before any conflict resolution has a chance to act. This is why the problem requires capturing <strong>causal dependencies</strong> (the message was sent <em>after</em> the unfriend), not just resolving conflicting state updates. Approaches like logging the state the user saw before acting, or using logical timestamps with causal metadata, are needed but add complexity.</p>
-  </div>
-</div>
-
-</div>
-
-<script>
-// Question blocks are toggled via the onclick attribute on each .question-block
-</script>
 </body>
 </html>
