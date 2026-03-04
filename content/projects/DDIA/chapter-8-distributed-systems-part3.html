@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Ch 8 Part 3 — Byzantine Faults &amp; Q&amp;A</title>
+<style>
+:root {
+  --bg:#0a0e17; --surface:#111827; --surface2:#1a2234; --border:#1e293b;
+  --text:#e2e8f0; --muted:#94a3b8; --accent:#3b82f6; --purple:#8b5cf6;
+  --green:#10b981; --red:#ef4444; --orange:#f59e0b; --pink:#ec4899; --cyan:#06b6d4;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.7;padding:2rem 1rem}
+.wrap{max-width:860px;margin:0 auto}
+h1{font-size:2rem;color:var(--accent);margin-bottom:.25rem}
+h2{font-size:1.4rem;color:var(--purple);margin:2.5rem 0 .75rem;padding-left:.75rem;border-left:3px solid var(--purple)}
+h3{font-size:1.1rem;color:var(--cyan);margin:1.5rem 0 .5rem}
+p{margin:.6rem 0}ul,ol{margin:.5rem 0 .5rem 1.5rem}li{margin:.25rem 0}
+code{background:var(--surface2);color:var(--cyan);padding:.1rem .4rem;border-radius:4px;font-size:.88rem}
+.nav{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:2rem}
+.nav a{padding:.4rem 1rem;border-radius:6px;text-decoration:none;font-size:.9rem;background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
+.nav a.cur{background:var(--accent);color:#fff;border-color:var(--accent)}
+.subtitle{color:var(--muted);font-size:1rem;margin-bottom:2rem}
+.diagram{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.5rem;margin:1.2rem 0;overflow-x:auto}
+.box{display:inline-block;padding:.4rem .9rem;border-radius:6px;font-size:.85rem;font-weight:600;text-align:center}
+.box.blue{background:#1e3a5f;border:1px solid var(--accent);color:var(--accent)}
+.box.purple{background:#2d1b69;border:1px solid var(--purple);color:var(--purple)}
+.box.green{background:#064e3b;border:1px solid var(--green);color:var(--green)}
+.box.orange{background:#451a03;border:1px solid var(--orange);color:var(--orange)}
+.box.cyan{background:#0c4a6e;border:1px solid var(--cyan);color:var(--cyan)}
+.box.red{background:#450a0a;border:1px solid var(--red);color:var(--red)}
+.box.muted{background:var(--surface2);border:1px solid var(--border);color:var(--muted)}
+.row{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin:.5rem 0}
+.vflow{display:flex;flex-direction:column;align-items:center;gap:.5rem}
+.arrow{color:var(--muted);font-size:1.2rem}
+.rarrow{color:var(--muted);font-size:1.1rem}
+.callout{border-left:3px solid var(--orange);background:var(--surface2);padding:.8rem 1rem;border-radius:0 6px 6px 0;margin:1rem 0;font-size:.92rem}
+.callout.blue{border-left-color:var(--accent);background:#0c1a2e}
+.callout.green{border-left-color:var(--green);background:#052015}
+.callout.red{border-left-color:var(--red);background:#200}
+.table-wrap{overflow-x:auto;margin:1rem 0}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th{background:var(--surface2);color:var(--accent);padding:.6rem .8rem;text-align:left;border:1px solid var(--border)}
+td{padding:.5rem .8rem;border:1px solid var(--border);vertical-align:top}
+tr:nth-child(even) td{background:var(--surface)}
+.qa{border:1px solid var(--border);border-radius:8px;margin:.6rem 0;overflow:hidden}
+.qa-header{display:flex;align-items:center;gap:.75rem;padding:.8rem 1rem;cursor:pointer;background:var(--surface);user-select:none}
+.qa-header:hover{background:var(--surface2)}
+.qa-num{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0;background:var(--purple);color:#fff}
+.qa-q{flex:1;font-weight:600;font-size:.92rem}
+.chev{color:var(--muted);transition:.3s}
+.qa.open .chev{transform:rotate(90deg)}
+.qa-body{display:none;padding:.8rem 1rem;border-top:1px solid var(--border);background:var(--surface2);font-size:.9rem;line-height:1.7}
+.qa.open .qa-body{display:block}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="nav">
+  <a href="chapter-8-distributed-systems-part1.html">Part 1: Faults &amp; Networks</a>
+  <a href="chapter-8-distributed-systems-part2.html">Part 2: Clocks, Pauses &amp; Truth</a>
+  <a href="chapter-8-distributed-systems-part3.html" class="cur">Part 3: Byzantine Faults &amp; Q&amp;A</a>
+</div>
+<h1>Chapter 8 — The Trouble with Distributed Systems</h1>
+<div class="subtitle">Part 3: Byzantine Faults, System Models, Safety &amp; Liveness, Q&amp;A</div>
+
+<h2>Byzantine Faults</h2>
+<p>So far we've assumed nodes are honest: they may crash or be slow, but they never send deliberately incorrect data. <strong>Byzantine faults</strong> are a step beyond — nodes that lie, send contradictory messages to different nodes, or behave arbitrarily maliciously.</p>
+
+<div class="diagram">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;font-size:.82rem">
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px;border-left:3px solid var(--orange)">
+      <div style="color:var(--orange);font-weight:700;margin-bottom:.3rem">Crash-stop fault</div>
+      Node stops working and stays silent. Other nodes see no response. Simple — either node is up or it's down.<br/>
+      <span style="color:var(--green)">✓ Assumed in most distributed systems</span>
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px;border-left:3px solid var(--red)">
+      <div style="color:var(--red);font-weight:700;margin-bottom:.3rem">Byzantine fault</div>
+      Node continues running but sends wrong, inconsistent, or contradictory data. May tell different nodes different things.<br/>
+      <span style="color:var(--red)">✗ Much harder to handle. Requires special algorithms.</span>
+    </div>
+  </div>
+</div>
+
+<h3>When Do Byzantine Faults Actually Occur?</h3>
+<p>In most enterprise/web systems, Byzantine faults are not a practical concern. But they do matter in specific contexts:</p>
+
+<div class="diagram">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem;font-size:.82rem">
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--cyan);font-weight:700;margin-bottom:.3rem">Aerospace systems</div>
+      Radiation can flip bits in memory (bit-rot). A sensor reading becomes incorrect data. Nodes may disagree on sensor values due to hardware errors.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--cyan);font-weight:700;margin-bottom:.3rem">Blockchain / P2P</div>
+      Bitcoin, Ethereum: participants are anonymous, untrusted. Any peer may send bogus transactions. The protocol must reach consensus despite malicious actors.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--cyan);font-weight:700;margin-bottom:.3rem">Multi-org systems</div>
+      Multiple competing companies sharing infrastructure. A participant may cheat to gain advantage. Byzantine fault tolerance (BFT) provides guarantees even when some organizations defect.
+    </div>
+  </div>
+</div>
+
+<h3>Byzantine Fault Tolerance (BFT)</h3>
+<p>A system is <strong>Byzantine fault tolerant</strong> if it continues to operate correctly even if some nodes are lying or malicious. The classic result:</p>
+
+<div class="callout red">
+  <strong>Byzantine Generals Problem</strong>: With N nodes, you can tolerate at most f Byzantine nodes if N ≥ 3f + 1. To tolerate 1 traitor, you need at least 4 nodes. To tolerate 2, you need at least 7. The overhead is large — BFT algorithms are expensive and complex.
+</div>
+
+<p>Most distributed databases (Zookeeper, etcd, Raft, Paxos) assume crash-stop faults only. They are NOT Byzantine fault tolerant. A single malicious node can corrupt the cluster.</p>
+
+<div class="callout blue">
+  For most systems (internal networks, trusted servers), Byzantine fault tolerance is overkill. The threat model is crashes, not adversaries. Use Byzantine fault tolerance when participants are untrusted (blockchains) or hardware errors are likely (aerospace).
+</div>
+
+<h3>Weak Forms of Byzantine Behavior in Practice</h3>
+<p>Even without explicit attackers, bugs and hardware issues can cause behaviors resembling Byzantine faults:</p>
+<ul>
+  <li>A firmware bug causes a NIC to occasionally corrupt packets (that pass the TCP checksum)</li>
+  <li>A memory bug causes a node to return incorrect data for a key</li>
+  <li>A software bug causes a node to send inconsistent responses to different callers</li>
+</ul>
+<p>Defense: checksums at the application level, majority voting across redundant sensors, asserting invariants on received data. Not full BFT, but catches common hardware/software corruption.</p>
+
+<h2>System Model and Reality</h2>
+<p>Algorithms are designed against an abstract <strong>system model</strong> — a set of assumptions about what can and cannot happen. Choosing the right model matters: too weak and the algorithm doesn't work; too strong and no real system satisfies it.</p>
+
+<h3>Timing Models</h3>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Model</th><th>Assumption</th><th>Reality?</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>Synchronous</strong></td>
+      <td>Network delay, process pauses, and clock drift all have known upper bounds. Messages arrive within some maximum time.</td>
+      <td>Unrealistic for most distributed systems. Real networks have unbounded delay.</td>
+    </tr>
+    <tr>
+      <td><strong>Partially synchronous</strong></td>
+      <td>System behaves synchronously most of the time, but can occasionally have periods of asynchrony (unbounded delays). The system eventually returns to synchrony.</td>
+      <td>Most realistic model. Captures real-world behavior: networks are usually fast but occasionally hit delays.</td>
+    </tr>
+    <tr>
+      <td><strong>Asynchronous</strong></td>
+      <td>No timing guarantees. No clocks. Messages can be delayed arbitrarily. Algorithm cannot rely on timeouts.</td>
+      <td>Worst-case assumption. FLP impossibility applies: cannot solve consensus deterministically.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h3>Node Failure Models</h3>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Model</th><th>What a node can do</th><th>Examples</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>Crash-stop</strong></td>
+      <td>Node crashes and never comes back. Once it stops responding, it stays stopped.</td>
+      <td>Simplest. Used by many algorithms. Process is killed (not rebooted).</td>
+    </tr>
+    <tr>
+      <td><strong>Crash-recovery</strong></td>
+      <td>Node can crash but may restart and rejoin. It forgets in-memory state but retains durable (disk-persisted) state.</td>
+      <td>Most realistic. Servers reboot. State on disk survives; RAM doesn't.</td>
+    </tr>
+    <tr>
+      <td><strong>Byzantine (arbitrary)</strong></td>
+      <td>Node can do anything: crash, return wrong data, send different data to different peers, or lie about state.</td>
+      <td>Worst case. Required for adversarial settings.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout">
+  Most real distributed databases use the <strong>partially synchronous</strong> timing model + <strong>crash-recovery</strong> node model. Algorithms are designed to be correct under these assumptions — not the stronger synchronous model (which doesn't hold) and not the weaker Byzantine model (which is too expensive to handle).
+</div>
+
+<h3>Which System Model to Use?</h3>
+<div class="diagram">
+  <div style="background:var(--surface2);padding:1rem;border-radius:6px;font-size:.83rem;line-height:1.9">
+    <div style="margin-bottom:.5rem;color:var(--cyan);font-weight:700">Choosing the right model:</div>
+    <div><span style="color:var(--green)">✓ Crash-recovery + partial synchrony</span> → practical systems (ZooKeeper, Raft, Paxos, most databases)</div>
+    <div><span style="color:var(--orange)">⚠ Crash-stop + synchrony</span> → simpler algorithms, but overly optimistic</div>
+    <div><span style="color:var(--red)">✗ Asynchronous</span> → FLP: cannot achieve consensus deterministically. Need randomization or failure detectors.</div>
+    <div style="margin-top:.5rem"><span style="color:var(--purple)">Byzantine</span> → blockchains, aerospace, multi-org untrusted environments only</div>
+  </div>
+</div>
+
+<h2>Correctness of Algorithms: Safety and Liveness</h2>
+<p>When we say an algorithm is correct, we need to define what "correct" means. Two fundamental properties:</p>
+
+<div class="diagram">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+    <div style="background:#052015;padding:.85rem;border-radius:6px;border:1px solid var(--green)">
+      <div style="color:var(--green);font-weight:700;margin-bottom:.4rem;font-size:.95rem">Safety</div>
+      <div style="font-size:.83rem">
+        "Nothing bad happens."<br/>
+        A safety property is violated at a specific point in time — once violated, it cannot be undone.<br/><br/>
+        <strong>Examples:</strong><br/>
+        • Uniqueness: no two nodes believe they hold the same exclusive lock<br/>
+        • Monotonic sequence: fencing tokens are always increasing<br/>
+        • No dirty reads: committed values only<br/><br/>
+        <span style="color:var(--green)">If violated: the system made an incorrect decision that can't be fixed.</span>
+      </div>
+    </div>
+    <div style="background:#0c1a2e;padding:.85rem;border-radius:6px;border:1px solid var(--accent)">
+      <div style="color:var(--accent);font-weight:700;margin-bottom:.4rem;font-size:.95rem">Liveness</div>
+      <div style="font-size:.83rem">
+        "Something good eventually happens."<br/>
+        A liveness property says that eventually the system makes progress.<br/><br/>
+        <strong>Examples:</strong><br/>
+        • Availability: every request eventually gets a response<br/>
+        • Leader election: a new leader is eventually elected after failure<br/>
+        • Termination: the consensus algorithm eventually completes<br/><br/>
+        <span style="color:var(--accent)">Cannot be violated at a single point — system could still recover.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3>Why Both Properties Matter</h3>
+<p>An algorithm that does nothing trivially satisfies all safety properties (nothing bad happens, ever) but violates liveness (nothing good ever happens either). Useful systems need both.</p>
+
+<div class="callout">
+  In practice, distributed systems sometimes sacrifice liveness (availability) to preserve safety. A database that refuses writes during a partition is choosing safety over liveness. This is a deliberate design trade-off — not a bug.
+</div>
+
+<h3>Safety, Liveness, and CAP</h3>
+<div class="diagram">
+  <div style="background:var(--surface2);padding:1rem;border-radius:6px;font-size:.83rem">
+    <div style="color:var(--muted);margin-bottom:.5rem">How CAP relates to safety/liveness:</div>
+    <div><strong style="color:var(--green)">Consistency (CAP)</strong> = a safety property. Every read returns the most recent write.</div>
+    <div style="margin-top:.3rem"><strong style="color:var(--accent)">Availability (CAP)</strong> = a liveness property. Every request eventually gets a non-error response.</div>
+    <div style="margin-top:.3rem"><strong style="color:var(--orange)">Partition tolerance</strong> = not optional — partitions happen.</div>
+    <div style="margin-top:.5rem;color:var(--muted)">So CAP is really: during a network partition, choose to preserve safety (consistency) or liveness (availability). You can't have both simultaneously.</div>
+  </div>
+</div>
+
+<h2>Chapter 8 Summary</h2>
+<div class="diagram">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.75rem;font-size:.82rem">
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--red);font-weight:700;margin-bottom:.3rem">Networks</div>
+      Asynchronous, best-effort. Cannot distinguish crashed node from slow network. You only have timeouts — and timeouts don't tell you what happened.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--orange);font-weight:700;margin-bottom:.3rem">Clocks</div>
+      Time-of-day clocks are unreliable. Monotonic clocks only for durations. NTP can't give exact time. Google Spanner's TrueTime is the exception, not the rule.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--red);font-weight:700;margin-bottom:.3rem">Process pauses</div>
+      GC, VM migration, I/O, OS scheduling. A thread can be paused at any point. When it wakes up, the world has moved on. Assume nothing about time.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--green);font-weight:700;margin-bottom:.3rem">Fencing tokens</div>
+      The solution to stale lock holders. Monotonically increasing token issued with each lock grant. Storage rejects writes with old tokens. Correctness enforced at the resource.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--purple);font-weight:700;margin-bottom:.3rem">Byzantine faults</div>
+      For most systems: crash-stop is sufficient. Byzantine fault tolerance only for adversarial/untrusted environments. 3f+1 nodes to tolerate f traitors.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--cyan);font-weight:700;margin-bottom:.3rem">System models</div>
+      Use: crash-recovery + partially synchronous. Design algorithms that are correct in this model. Verify: safety (nothing bad) + liveness (something good eventually).
+    </div>
+  </div>
+</div>
+
+<h2>Review Q&amp;A</h2>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">1</div><div class="qa-q">Why can't you tell the difference between a crashed node and a slow network?</div><div class="chev">›</div></div>
+  <div class="qa-body">In an asynchronous network, there is no upper bound on message delay. When you send a request and get no response within time T, there are multiple possible explanations: the request was lost in the network; the request arrived but the response was lost; the node crashed; the node is alive but slow due to GC, I/O, or load; the network is congested. None of these scenarios produces a distinct signal — they all look the same to the sender: silence. The only tool you have is a timeout, but a timeout just tells you "I haven't heard back in T time" — not why. This is a fundamental limitation of asynchronous networks, not a bug you can fix.</div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">2</div><div class="qa-q">Why is it dangerous to use time-of-day clocks for ordering events in distributed systems?</div><div class="chev">›</div></div>
+  <div class="qa-body">Time-of-day clocks (e.g., <code>System.currentTimeMillis()</code>) are synchronized via NTP, but NTP has a precision of ~10ms on a well-run network and can be much worse. More critically, NTP can cause time-of-day clocks to jump backward when they drift ahead of the NTP server. If Node A has clock 10:00:00.010 and Node B has clock 10:00:00.000 (5ms behind), and B writes after A, B's timestamp appears earlier — B's write looks older and gets discarded by LWW (last-write-wins). The correct write is silently dropped. The fix: use logical clocks (Lamport timestamps, version vectors) for ordering, not wall clocks.</div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">3</div><div class="qa-q">How does a GC pause break the assumption of distributed lock safety?</div><div class="chev">›</div></div>
+  <div class="qa-body">Consider: Client A acquires a distributed lock with 30-second TTL. Client A checks the time (12:00:00), sees the lease expires at 12:00:30, and decides to proceed. Then, between the time-check and the write, the JVM triggers a stop-the-world GC pause for 60 seconds. Client A is frozen. During the pause, the lock expires. Client B acquires the lock. Client B writes to the shared resource. Client A wakes up, doesn't re-check the time (or re-checks but is now preempted again between the check and the write), and also writes. Both clients wrote — the lock failed to provide mutual exclusion. The fundamental problem: you cannot safely act on a lease check, because you can be paused between the check and the action.</div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">4</div><div class="qa-q">How do fencing tokens solve the stale lock holder problem?</div><div class="chev">›</div></div>
+  <div class="qa-body">The key insight: don't rely on clients to know whether their lock is still valid. Instead, make the resource (storage server) the authority. Every time a lock is granted, the lock server issues a monotonically increasing fencing token (e.g., ZooKeeper's zxid). The client includes this token in every write to the storage service. The storage service tracks the highest token it has processed. If a write arrives with a token lower than the last seen, it is rejected. So: Client A gets token 33, pauses. Client B gets token 34, writes (storage records: last=34). Client A wakes up, tries to write with token 33 → storage sees 33 &lt; 34, rejects. Client A's stale write is blocked, even though Client A doesn't know it's stale.</div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">5</div><div class="qa-q">What is the Byzantine Generals Problem and why does it require N ≥ 3f + 1 nodes?</div><div class="chev">›</div></div>
+  <div class="qa-body">The Byzantine Generals Problem asks: can N generals, some of whom may be traitors, reach agreement on a battle plan by exchanging messages? Traitors may send contradictory messages to different generals. The result (Lamport, Shostak, Pease 1982): you need at least 3f+1 nodes to tolerate f traitors. Intuition: with f traitors and 3f nodes (not enough), the traitors can create ambiguity such that honest nodes can't distinguish correct from incorrect information — there are too few honest nodes to outvote the liars. With 3f+1 nodes, an honest majority of 2f+1 can detect and override up to f Byzantine nodes. This is expensive: for f=1 (tolerating 1 traitor), you need 4 nodes; for f=2, you need 7.</div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">6</div><div class="qa-q">What is the difference between the synchronous, partially synchronous, and asynchronous system models?</div><div class="chev">›</div></div>
+  <div class="qa-body"><strong>Synchronous model</strong>: All network delays, process pauses, and clock drifts have known finite upper bounds. Algorithms can use timeouts to detect failures. This model is unrealistic for real distributed systems — actual networks have unbounded delay. <strong>Partially synchronous model</strong>: The system behaves synchronously most of the time, but occasionally has asynchronous periods with unbounded delays. The system eventually returns to synchrony. This is the most realistic model — it captures the real world: networks are usually fast but sometimes slow. Most practical algorithms (Raft, Paxos, ZooKeeper) are designed for partial synchrony. <strong>Asynchronous model</strong>: No timing assumptions at all. No clocks. Messages can be delayed arbitrarily. The FLP impossibility result applies: you cannot deterministically solve consensus in a fully asynchronous system with even one crash fault.</div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">7</div><div class="qa-q">What is the difference between a safety property and a liveness property? Give examples.</div><div class="chev">›</div></div>
+  <div class="qa-body"><strong>Safety</strong>: "Nothing bad happens." A safety property is violated at a specific moment — once violated, it cannot be undone. Examples: (1) Uniqueness — no two nodes simultaneously believe they hold the same exclusive lock; (2) Monotonicity — fencing tokens are always strictly increasing; (3) No dirty reads — a transaction only sees committed data. If a safety property is violated, the system has made a mistake that cannot be corrected. <strong>Liveness</strong>: "Something good eventually happens." A liveness property cannot be violated at a single point — it always leaves hope that the system will eventually catch up. Examples: (1) Availability — every request eventually gets a response; (2) Progress — a distributed transaction eventually commits or aborts; (3) Leader election — after a crash, the system eventually elects a new leader. A system that does nothing satisfies all safety properties trivially (nothing bad can happen) but violates all liveness properties. Both are needed for useful systems.</div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">8</div><div class="qa-q">Why does Google Spanner use GPS receivers and atomic clocks, and what does TrueTime give them?</div><div class="chev">›</div></div>
+  <div class="qa-body">Spanner is a globally distributed database that provides external consistency (a stronger form of serializability across globally distributed transactions). To achieve this, Spanner needs to assign commit timestamps that respect real-time ordering: if transaction T1 commits before T2 starts, T1's commit timestamp must be smaller than T2's. This requires knowing the real time accurately. Regular NTP has ~10ms uncertainty — too large. Spanner's solution: GPS receivers and atomic clocks in every datacenter provide extremely accurate time. The <strong>TrueTime API</strong> returns an interval [earliest, latest] that is guaranteed to contain the true current time. The uncertainty interval is typically 1–7ms. Spanner waits for the uncertainty window to pass before committing a transaction — this ensures that even if two datacenters' clocks are at the extremes of their uncertainty windows, the commit timestamps are still correctly ordered. This "commit wait" is the cost of external consistency without distributed locking.</div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">9</div><div class="qa-q">Why is the crash-recovery model more realistic than crash-stop, and what does it require of algorithms?</div><div class="chev">›</div></div>
+  <div class="qa-body">Crash-stop assumes that once a node crashes, it stays crashed forever. This is unrealistic — in real deployments, servers are restarted: either automatically by a watchdog, or manually by operators. A node may crash, lose its in-memory state, and rejoin the cluster with only its disk-persisted state intact. The crash-recovery model captures this reality. Algorithms designed for crash-recovery must: (1) Persist critical state to disk before taking any action (e.g., write-ahead log in 2PC, voted values in Paxos); (2) Re-read disk state on restart and continue from where they were; (3) Handle "in-doubt" transactions — where the node crashed after preparing but before learning the commit decision. This is why Paxos, Raft, and ZooKeeper all write to stable storage before responding to requests — to survive crashes and restarts correctly.</div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">10</div><div class="qa-q">A node believes it is still the leader. Under what conditions is this belief dangerous, and how should systems handle it?</div><div class="chev">›</div></div>
+  <div class="qa-body">A node may believe it's the leader because it held that role — but the rest of the cluster may have elected a new leader (due to the old leader appearing unresponsive, e.g., during a GC pause). The old leader's belief is now stale. If it acts on this belief — accepting writes, responding to reads as authoritative — it becomes a <strong>split-brain</strong>: two nodes both behave as leader simultaneously. This can cause: (1) Two leaders accepting conflicting writes; (2) Stale reads returning outdated data; (3) Data corruption. Systems handle this via: (a) <strong>Fencing tokens</strong>: the lock server's token is incremented when a new leader is elected; the storage layer rejects writes with old tokens; (b) <strong>Epoch numbers</strong>: Raft's term numbers, ZooKeeper's epoch — any message from an old term/epoch is rejected; (c) Lease-based checks: before acting, the leader verifies its lease is still valid. The key principle: don't rely on the node's self-belief about being leader. Make the decision at the resource or via quorum confirmation.</div>
+</div>
+
+<div style="margin-top:3rem;padding:1.5rem;background:var(--surface);border-radius:10px;border:1px solid var(--border)">
+  <div class="row" style="gap:2rem;flex-wrap:wrap">
+    <div>
+      <div style="font-size:.85rem;color:var(--muted)">← Previous</div>
+      <div><a href="chapter-8-distributed-systems-part2.html" style="color:var(--accent);text-decoration:none">Part 2: Clocks, Pauses &amp; Truth</a></div>
+    </div>
+    <div>
+      <div style="font-size:.85rem;color:var(--muted)">Next Chapter →</div>
+      <div><a href="chapter-9-consistency-consensus-part1.html" style="color:var(--accent);text-decoration:none">Chapter 9: Consistency &amp; Consensus</a></div>
+    </div>
+  </div>
+</div>
+</div>
+</body>
+</html>

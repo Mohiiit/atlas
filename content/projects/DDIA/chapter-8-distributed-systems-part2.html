@@ -3,749 +3,214 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DDIA Chapter 8 Part 2 — Process Pauses, Truth, and System Models</title>
+<title>DDIA Ch 8 Part 2 — Clocks, Pauses &amp; Truth</title>
 <style>
-  :root {
-    --bg: #0a0e17;
-    --surface: #111827;
-    --surface2: #1a2234;
-    --border: #1e293b;
-    --text: #e2e8f0;
-    --text-muted: #94a3b8;
-    --accent: #3b82f6;
-    --accent2: #8b5cf6;
-    --accent3: #10b981;
-    --red: #ef4444;
-    --orange: #f59e0b;
-    --pink: #ec4899;
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
-  .container { max-width: 900px; margin: 0 auto; padding: 40px 24px 100px; }
-  h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 48px; border-bottom: 1px solid var(--border); padding-bottom: 24px; }
-  h2 { font-size: 1.5rem; font-weight: 700; margin: 48px 0 16px; color: var(--accent); }
-  h3 { font-size: 1.15rem; font-weight: 600; margin: 32px 0 12px; color: var(--text); }
-  p { margin-bottom: 16px; color: var(--text-muted); }
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 20px 0; }
-  .card-accent { border-left: 4px solid var(--accent); }
-  .card-green { border-left: 4px solid var(--accent3); }
-  .card-orange { border-left: 4px solid var(--orange); }
-  .card-purple { border-left: 4px solid var(--accent2); }
-  .card-red { border-left: 4px solid var(--red); }
-  .card h4 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
-  .card ul { padding-left: 20px; color: var(--text-muted); }
-  .card li { margin-bottom: 6px; }
-  .key-term { color: var(--accent); font-weight: 600; }
-  .diagram { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 32px; margin: 24px 0; overflow-x: auto; }
-  .diagram-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent2); margin-bottom: 20px; }
-  .flow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; }
-  .flow-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; text-align: center; font-size: 0.9rem; min-width: 120px; }
-  .flow-box.primary { border-color: var(--accent); color: var(--accent); }
-  .flow-box.green { border-color: var(--accent3); color: var(--accent3); }
-  .flow-box.purple { border-color: var(--accent2); color: var(--accent2); }
-  .flow-box.orange { border-color: var(--orange); color: var(--orange); }
-  .flow-box.red { border-color: var(--red); color: var(--red); }
-  .flow-box.pink { border-color: var(--pink); color: var(--pink); }
-  .flow-arrow { color: var(--text-muted); font-size: 1.2rem; }
-  .flow-vert { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-  @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } .grid3 { grid-template-columns: 1fr; } }
-  .quote { background: var(--surface2); border-left: 3px solid var(--accent2); padding: 16px 20px; margin: 20px 0; border-radius: 0 8px 8px 0; font-style: italic; color: var(--text-muted); }
-  .tag { display: inline-block; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 2px 12px; font-size: 0.8rem; color: var(--text-muted); margin: 2px; }
-
-  /* Timeline styles */
-  .timeline { position: relative; padding: 20px 0; }
-  .timeline-track { position: relative; margin: 16px 0; padding-left: 24px; }
-  .timeline-track::before { content: ''; position: absolute; left: 8px; top: 0; bottom: 0; width: 2px; background: var(--border); }
-  .timeline-node { position: relative; padding: 12px 16px; margin-bottom: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
-  .timeline-node::before { content: ''; position: absolute; left: -20px; top: 18px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
-  .timeline-node.danger::before { background: var(--red); }
-  .timeline-node.warn::before { background: var(--orange); }
-  .timeline-node.ok::before { background: var(--accent3); }
-  .timeline-label { font-size: 0.75rem; color: var(--accent2); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
-  .timeline-text { font-size: 0.9rem; color: var(--text-muted); }
-
-  /* Sequence diagram styles */
-  .seq-diagram { display: flex; flex-direction: column; gap: 0; font-size: 0.85rem; }
-  .seq-row { display: grid; grid-template-columns: 120px 1fr 120px; gap: 0; min-height: 44px; align-items: center; }
-  .seq-actor { text-align: center; font-weight: 700; padding: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
-  .seq-actor.left { color: var(--accent); border-color: var(--accent); }
-  .seq-actor.right { color: var(--accent3); border-color: var(--accent3); }
-  .seq-actor.center { color: var(--accent2); border-color: var(--accent2); }
-  .seq-line { display: flex; align-items: center; justify-content: center; position: relative; }
-  .seq-msg { position: relative; text-align: center; padding: 4px 8px; color: var(--text-muted); }
-  .seq-msg .arrow-right { display: block; height: 2px; background: var(--text-muted); position: relative; margin: 4px 0; }
-  .seq-msg .arrow-right::after { content: ''; position: absolute; right: -1px; top: -4px; border: 5px solid transparent; border-left-color: var(--text-muted); }
-  .seq-msg .arrow-left { display: block; height: 2px; background: var(--text-muted); position: relative; margin: 4px 0; }
-  .seq-msg .arrow-left::after { content: ''; position: absolute; left: -1px; top: -4px; border: 5px solid transparent; border-right-color: var(--text-muted); }
-  .seq-event { grid-column: 1 / -1; text-align: center; padding: 6px 12px; margin: 4px 40px; border-radius: 6px; font-size: 0.82rem; }
-  .seq-event.danger { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
-  .seq-event.warn { background: rgba(245,158,11,0.15); color: var(--orange); border: 1px solid rgba(245,158,11,0.3); }
-  .seq-event.ok { background: rgba(16,185,129,0.15); color: var(--accent3); border: 1px solid rgba(16,185,129,0.3); }
-  .seq-event.info { background: rgba(59,130,246,0.15); color: var(--accent); border: 1px solid rgba(59,130,246,0.3); }
-
-  /* Grid table styles */
-  .grid-table { display: grid; gap: 2px; background: var(--border); border-radius: 8px; overflow: hidden; }
-  .grid-table-cell { background: var(--surface); padding: 12px 16px; font-size: 0.85rem; color: var(--text-muted); }
-  .grid-table-cell.header { background: var(--surface2); color: var(--text); font-weight: 700; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.5px; }
-  .grid-table-cell.row-header { background: var(--surface2); color: var(--accent); font-weight: 600; }
-  .grid-4col { grid-template-columns: 1fr 1fr 1fr 1fr; }
-  .grid-4col-wide { grid-template-columns: 140px 1fr 1fr 1fr; }
-
-  /* Voting diagram */
-  .vote-row { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
-  .vote-node { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; }
-  .vote-node.alive { background: rgba(16,185,129,0.2); border: 2px solid var(--accent3); color: var(--accent3); }
-  .vote-node.dead { background: rgba(239,68,68,0.2); border: 2px solid var(--red); color: var(--red); }
-  .vote-node.suspect { background: rgba(245,158,11,0.2); border: 2px solid var(--orange); color: var(--orange); }
-  .vote-label { font-size: 0.85rem; color: var(--text-muted); margin-left: 8px; }
-
-  /* Code block */
-  .code-block { background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 20px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.82rem; line-height: 1.8; overflow-x: auto; margin: 16px 0; }
-  .code-comment { color: #6a737d; }
-  .code-keyword { color: #ff7b72; }
-  .code-string { color: #a5d6ff; }
-  .code-fn { color: #d2a8ff; }
-  .code-var { color: #79c0ff; }
-  .code-highlight { background: rgba(239,68,68,0.12); display: block; margin: 0 -20px; padding: 0 20px; border-left: 3px solid var(--red); }
-
-  /* Quiz styles */
-  .quiz { margin: 24px 0; }
-  .quiz details { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin: 12px 0; }
-  .quiz summary { padding: 16px; cursor: pointer; font-weight: 600; color: var(--text); }
-  .quiz summary:hover { color: var(--accent); }
-  .quiz .answer { padding: 0 16px 16px; color: var(--text-muted); font-size: 0.95rem; }
+:root {
+  --bg:#0a0e17; --surface:#111827; --surface2:#1a2234; --border:#1e293b;
+  --text:#e2e8f0; --muted:#94a3b8; --accent:#3b82f6; --purple:#8b5cf6;
+  --green:#10b981; --red:#ef4444; --orange:#f59e0b; --pink:#ec4899; --cyan:#06b6d4;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.7;padding:2rem 1rem}
+.wrap{max-width:860px;margin:0 auto}
+h1{font-size:2rem;color:var(--accent);margin-bottom:.25rem}
+h2{font-size:1.4rem;color:var(--purple);margin:2.5rem 0 .75rem;padding-left:.75rem;border-left:3px solid var(--purple)}
+h3{font-size:1.1rem;color:var(--cyan);margin:1.5rem 0 .5rem}
+p{margin:.6rem 0}ul,ol{margin:.5rem 0 .5rem 1.5rem}li{margin:.25rem 0}
+code{background:var(--surface2);color:var(--cyan);padding:.1rem .4rem;border-radius:4px;font-size:.88rem}
+.nav{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:2rem}
+.nav a{padding:.4rem 1rem;border-radius:6px;text-decoration:none;font-size:.9rem;background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
+.nav a.cur{background:var(--accent);color:#fff;border-color:var(--accent)}
+.subtitle{color:var(--muted);font-size:1rem;margin-bottom:2rem}
+.diagram{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.5rem;margin:1.2rem 0;overflow-x:auto}
+.box{display:inline-block;padding:.4rem .9rem;border-radius:6px;font-size:.85rem;font-weight:600;text-align:center}
+.box.blue{background:#1e3a5f;border:1px solid var(--accent);color:var(--accent)}
+.box.purple{background:#2d1b69;border:1px solid var(--purple);color:var(--purple)}
+.box.green{background:#064e3b;border:1px solid var(--green);color:var(--green)}
+.box.orange{background:#451a03;border:1px solid var(--orange);color:var(--orange)}
+.box.cyan{background:#0c4a6e;border:1px solid var(--cyan);color:var(--cyan)}
+.box.red{background:#450a0a;border:1px solid var(--red);color:var(--red)}
+.box.muted{background:var(--surface2);border:1px solid var(--border);color:var(--muted)}
+.row{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin:.5rem 0}
+.vflow{display:flex;flex-direction:column;align-items:center;gap:.5rem}
+.arrow{color:var(--muted);font-size:1.2rem}
+.rarrow{color:var(--muted);font-size:1.1rem}
+.callout{border-left:3px solid var(--orange);background:var(--surface2);padding:.8rem 1rem;border-radius:0 6px 6px 0;margin:1rem 0;font-size:.92rem}
+.callout.blue{border-left-color:var(--accent);background:#0c1a2e}
+.callout.green{border-left-color:var(--green);background:#052015}
+.callout.red{border-left-color:var(--red);background:#200}
+.table-wrap{overflow-x:auto;margin:1rem 0}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th{background:var(--surface2);color:var(--accent);padding:.6rem .8rem;text-align:left;border:1px solid var(--border)}
+td{padding:.5rem .8rem;border:1px solid var(--border);vertical-align:top}
+tr:nth-child(even) td{background:var(--surface)}
 </style>
 </head>
 <body>
-<div class="container">
-
-<h1>Chapter 8 Part 2: Process Pauses, Truth, and System Models</h1>
-<p class="subtitle">The Trouble with Distributed Systems -- beyond unreliable networks and clocks, we confront process pauses, the meaning of truth in a system where no node can trust itself, and the formal models that let us reason about correctness.</p>
-
-<!-- ============================================================ -->
-<h2>1. Process Pauses</h2>
-
-<p>Consider a database partition leader that holds a <span class="key-term">lease</span> (a lock with a timeout). The leader must periodically renew the lease. But what if the leader's thread is paused for longer than the lease duration? The leader thinks it still holds the lease, but in reality another node has already taken over.</p>
-
-<h3>The Dangerous Lease Code</h3>
-
-<div class="code-block">
-<span class="code-keyword">while</span> (<span class="code-keyword">true</span>) {
-    request = <span class="code-fn">getIncomingRequest</span>();
-
-    <span class="code-comment">// Ensure that the lease always has at least 10 seconds remaining</span>
-    <span class="code-keyword">if</span> (lease.expiryTimeMillis - System.<span class="code-fn">currentTimeMillis</span>() &lt; <span class="code-var">10000</span>) {
-        lease = lease.<span class="code-fn">renew</span>();
-    }
-
-<span class="code-highlight">    <span class="code-comment">// DANGER: What if this thread pauses for 15 seconds right here?</span></span>
-    <span class="code-keyword">if</span> (lease.<span class="code-fn">isValid</span>()) {
-<span class="code-highlight">        <span class="code-fn">process</span>(request);  <span class="code-comment">// May run AFTER lease expired!</span></span>
-    }
-}
+<div class="wrap">
+<div class="nav">
+  <a href="chapter-8-distributed-systems-part1.html">Part 1: Faults &amp; Networks</a>
+  <a href="chapter-8-distributed-systems-part2.html" class="cur">Part 2: Clocks, Pauses &amp; Truth</a>
+  <a href="chapter-8-distributed-systems-part3.html">Part 3: Byzantine Faults &amp; Q&amp;A</a>
 </div>
+<h1>Chapter 8 — The Trouble with Distributed Systems</h1>
+<div class="subtitle">Part 2: Unreliable Clocks, Process Pauses, Truth and Fencing Tokens</div>
 
-<div class="card card-red">
-  <h4 style="color:var(--red);">Two Bugs in This Code</h4>
-  <ul>
-    <li><strong>Synchronized clock dependency:</strong> The lease expiry was set by a different machine, but compared to the local system clock. Clock skew breaks the check.</li>
-    <li><strong>Pause vulnerability:</strong> Even with a local monotonic clock, a 15-second pause between <code>isValid()</code> and <code>process(request)</code> means the lease may expire mid-processing -- and another leader has taken over.</li>
-  </ul>
-</div>
+<h2>Unreliable Clocks</h2>
+<p>Distributed systems need clocks to: measure timeouts, order events, set TTLs. But clocks on different machines are not synchronized — and even on one machine, clocks drift.</p>
 
-<!-- DIAGRAM 1: Lease expiration race condition timeline -->
+<h3>Monotonic vs. Time-of-Day Clocks</h3>
+
 <div class="diagram">
-  <div class="diagram-title">Diagram 1: Lease Expiration Race Condition Timeline</div>
-  <div class="timeline">
-    <div class="timeline-track">
-      <div class="timeline-node ok">
-        <div class="timeline-label">t = 0s -- Node A</div>
-        <div class="timeline-text">Acquires lease (expires at t = 30s). Checks lease: valid. Begins processing.</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px;border-left:3px solid var(--green)">
+      <div style="color:var(--green);font-weight:700;margin-bottom:.3rem">Monotonic clock</div>
+      <div style="font-size:.82rem">
+        <code>System.nanoTime()</code>, <code>clock_gettime(CLOCK_MONOTONIC)</code><br/>
+        Always increases. Safe for measuring <em>elapsed time</em> (timeout durations).<br/>
+        The absolute value is meaningless — only differences matter.<br/>
+        <span style="color:var(--green)">✓ Use for: timeouts, latency measurements</span>
       </div>
-      <div class="timeline-node ok">
-        <div class="timeline-label">t = 10s -- Node A</div>
-        <div class="timeline-text">Renews lease successfully. Lease now expires at t = 40s.</div>
-      </div>
-      <div class="timeline-node warn">
-        <div class="timeline-label">t = 25s -- Node A</div>
-        <div class="timeline-text">Calls <code>lease.isValid()</code> -- returns true (lease valid until t = 40s).</div>
-      </div>
-      <div class="timeline-node danger">
-        <div class="timeline-label">t = 25s -- Node A</div>
-        <div class="timeline-text">GC pause begins. Thread frozen for 20 seconds. No heartbeats sent.</div>
-      </div>
-      <div class="timeline-node ok">
-        <div class="timeline-label">t = 35s -- Cluster</div>
-        <div class="timeline-text">Other nodes detect Node A is unresponsive. Quorum declares Node A dead.</div>
-      </div>
-      <div class="timeline-node ok">
-        <div class="timeline-label">t = 41s -- Node B</div>
-        <div class="timeline-text">Node B acquires the lease. Becomes new leader. Starts accepting writes.</div>
-      </div>
-      <div class="timeline-node danger">
-        <div class="timeline-label">t = 45s -- Node A</div>
-        <div class="timeline-text">GC pause ends. Resumes at <code>process(request)</code>. Thinks it is still leader. Processes the write -- <strong style="color:var(--red);">DATA CORRUPTION!</strong></div>
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px;border-left:3px solid var(--orange)">
+      <div style="color:var(--orange);font-weight:700;margin-bottom:.3rem">Time-of-day clock</div>
+      <div style="font-size:.82rem">
+        <code>System.currentTimeMillis()</code>, <code>gettimeofday()</code><br/>
+        Returns current wall-clock time. Synchronized via NTP.<br/>
+        <em>Can jump backward</em> when NTP corrects the clock.<br/>
+        <span style="color:var(--red)">✗ Unreliable for: measuring durations, ordering events</span>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ============================================================ -->
-<h3>Six Causes of Process Pauses</h3>
-<p>A thread can be paused at any arbitrary point and resume later without noticing. Here are six reasons this can happen:</p>
+<h3>Clock Synchronization and Accuracy</h3>
+<p>NTP (Network Time Protocol) synchronizes clocks to within ~10ms on a well-run network. But:</p>
+<ul>
+  <li>A quartz clock drifts 200ms per day in a warm environment</li>
+  <li>A node that was rebooting or in sleep didn't run NTP for that period</li>
+  <li>NTP synchronization itself has network delay — the measurement is imprecise</li>
+  <li>VMs share a physical clock, and VM pauses (context switches to other VMs) cause the virtual clock to "freeze"</li>
+</ul>
 
-<!-- DIAGRAM 2: 6 causes visual grid -->
+<h3>Relying on Synchronized Clocks: Dangerous!</h3>
+<p>Classic example of timestamp-based ordering failing:</p>
+
 <div class="diagram">
-  <div class="diagram-title">Diagram 2: Six Sources of Process Pauses</div>
-  <div class="grid3">
-    <div class="card card-red" style="margin:0;">
-      <h4 style="color:var(--red);">1. Garbage Collection</h4>
-      <p style="font-size:0.85rem;">Stop-the-world GC pauses can last <strong>several minutes</strong>. Even "concurrent" collectors like CMS need occasional full pauses. Allocation patterns and tuning help, but cannot eliminate.</p>
+  <div style="font-size:.82rem;color:var(--muted);margin-bottom:.75rem">Last-write-wins (LWW) with clocks — why it's broken</div>
+  <div style="background:var(--surface2);padding:.75rem;border-radius:6px;font-size:.82rem">
+    <div>Node A (clock: 10:00:00.000) → write x=1 at timestamp 10:00:00.000</div>
+    <div>Node B (clock: 10:00:00.005, slightly fast) → write x=2 at timestamp 10:00:00.005</div>
+    <div style="margin-top:.4rem;color:var(--green)">LWW says: x=2 wins (later timestamp). Seems right.</div>
+    <div style="margin-top:.4rem;color:var(--red)">But: Node B's clock is 5ms ahead. "10:00:00.005" on B actually happened BEFORE "10:00:00.000" on A in real time.</div>
+    <div style="margin-top:.4rem;color:var(--orange)">Result: x=1 is silently discarded. Correct value may be lost.</div>
+  </div>
+</div>
+
+<div class="callout red">
+  Google Spanner uses TrueTime: GPS receivers + atomic clocks in every datacenter. TrueTime returns a time interval [earliest, latest], guaranteed to contain the true time. Spanner waits out the uncertainty before committing. This is expensive infrastructure most systems don't have.
+</div>
+
+<h3>Clock Readings Have a Confidence Interval</h3>
+<p>You can't know the current time exactly — you have an uncertainty range. Safe timestamp usage: compare timestamps only when the uncertainty intervals don't overlap.</p>
+
+<h2>Process Pauses</h2>
+<p>A running process can be paused for a surprisingly long time without knowing it:</p>
+
+<div class="diagram">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem;font-size:.82rem">
+    <div style="background:#200;padding:.6rem;border-radius:6px;border:1px solid var(--red)">
+      <div style="color:var(--red);font-weight:700;margin-bottom:.2rem">GC stop-the-world</div>
+      JVM GC can pause for 50ms–10 seconds. Thread is frozen, then resumes as if nothing happened.
     </div>
-    <div class="card card-orange" style="margin:0;">
-      <h4 style="color:var(--orange);">2. VM Suspend/Resume</h4>
-      <p style="font-size:0.85rem;">Virtual machines can be <strong>suspended</strong> (saved to disk) and resumed at any time. Used for live migration between hosts. Pause length depends on memory write rate.</p>
+    <div style="background:#200;padding:.6rem;border-radius:6px;border:1px solid var(--red)">
+      <div style="color:var(--red);font-weight:700;margin-bottom:.2rem">VM live migration</div>
+      Hypervisor suspends the VM, copies memory to another host, resumes it. VM's clock doesn't advance during the pause.
     </div>
-    <div class="card card-purple" style="margin:0;">
-      <h4 style="color:var(--accent2);">3. Context Switches</h4>
-      <p style="font-size:0.85rem;">OS context-switches or hypervisor switches to other VMs pause the thread at any point. Under heavy load, <strong>steal time</strong> can be significant -- long queues before rescheduled.</p>
+    <div style="background:#200;padding:.6rem;border-radius:6px;border:1px solid var(--red)">
+      <div style="color:var(--red);font-weight:700;margin-bottom:.2rem">OS context switch</div>
+      Thread preempted by the OS scheduler at any point. May not run again for milliseconds.
     </div>
-    <div class="card card-accent" style="margin:0;">
-      <h4 style="color:var(--accent);">4. Synchronous Disk I/O</h4>
-      <p style="font-size:0.85rem;">Blocking disk access pauses the thread. Surprisingly, even <strong>Java classloader</strong> lazily loads classes on first use. If disk is a network filesystem (e.g., EBS), network delays compound.</p>
-    </div>
-    <div class="card card-green" style="margin:0;">
-      <h4 style="color:var(--accent3);">5. Memory Paging (Swap)</h4>
-      <p style="font-size:0.85rem;">A page fault requires loading from disk. Under memory pressure, this triggers <strong>thrashing</strong> -- spending most time swapping pages in/out. Servers often disable swap entirely.</p>
-    </div>
-    <div class="card" style="margin:0; border-left: 4px solid var(--pink);">
-      <h4 style="color:var(--pink);">6. SIGSTOP Signal</h4>
-      <p style="font-size:0.85rem;">A Unix process paused with <code>SIGSTOP</code> (Ctrl-Z) gets <strong>zero CPU cycles</strong> until <code>SIGCONT</code> is sent. Can happen accidentally from an operations engineer.</p>
+    <div style="background:#200;padding:.6rem;border-radius:6px;border:1px solid var(--red)">
+      <div style="color:var(--red);font-weight:700;margin-bottom:.2rem">Disk I/O pause</div>
+      Memory-mapped file access can block if the page isn't cached. Can pause for seconds.
     </div>
   </div>
 </div>
 
-<div class="quote">"A node in a distributed system must assume that its execution can be paused for a significant length of time at any point, even in the middle of a function. During the pause, the rest of the world keeps moving and may even declare the paused node dead."</div>
-
-<!-- ============================================================ -->
-<h3>Real-Time vs. Regular Systems</h3>
-
-<!-- DIAGRAM 3: Real-time spectrum -->
 <div class="diagram">
-  <div class="diagram-title">Diagram 3: Real-Time Guarantees Spectrum</div>
-  <div style="display:flex; align-items:stretch; gap:2px; border-radius:8px; overflow:hidden; margin-bottom:16px;">
-    <div style="flex:1; background:rgba(239,68,68,0.2); padding:16px; text-align:center;">
-      <div style="font-weight:700; color:var(--red); font-size:0.9rem; margin-bottom:8px;">Hard Real-Time</div>
-      <div style="font-size:0.8rem; color:var(--text-muted);">Aircraft, airbags, rockets. Missing a deadline = system failure. Requires RTOS, no dynamic allocation, extreme testing.</div>
-    </div>
-    <div style="flex:1; background:rgba(245,158,11,0.2); padding:16px; text-align:center;">
-      <div style="font-weight:700; color:var(--orange); font-size:0.9rem; margin-bottom:8px;">Soft Real-Time</div>
-      <div style="font-size:0.8rem; color:var(--text-muted);">Video streaming, audio processing. Deadlines are important but occasional misses are tolerable.</div>
-    </div>
-    <div style="flex:1; background:rgba(59,130,246,0.2); padding:16px; text-align:center;">
-      <div style="font-weight:700; color:var(--accent); font-size:0.9rem; margin-bottom:8px;">Best-Effort (Most Servers)</div>
-      <div style="font-size:0.8rem; color:var(--text-muted);">Web apps, databases, data pipelines. No timing guarantees. Must tolerate pauses and clock instability.</div>
-    </div>
+  <div style="font-size:.82rem;color:var(--muted);margin-bottom:.75rem">Why process pauses break distributed lock assumptions</div>
+  <div style="background:var(--surface2);padding:.75rem;border-radius:6px;font-size:.82rem;line-height:1.8">
+    1. Client A acquires lease (distributed lock) with 30-second expiry<br/>
+    2. Client A reads current time: 12:00:00. Lease expires at 12:00:30.<br/>
+    3. <span style="color:var(--red)">GC pause for 45 seconds</span><br/>
+    4. Client A resumes. Its local time: 12:00:45. It reads 12:00:45 > 12:00:30 → knows lease expired → does NOT proceed<br/>
+    5. <span style="color:var(--green)">OK this time.</span><br/>
+    <span style="color:var(--orange)">But:</span> What if A doesn't check? What if A checks timestamp, decides it's safe, then gets paused <em>between the check and the write</em>?
   </div>
-  <p style="font-size:0.82rem; text-align:center;">"Real-time" in embedded systems means guaranteed timing -- not the vague "real-time" of web push notifications.</p>
 </div>
 
-<div class="card card-green">
-  <h4 style="color:var(--accent3);">Mitigating GC Impact (Without Real-Time)</h4>
-  <ul>
-    <li><strong>Treat GC as planned downtime:</strong> When GC is needed, stop sending requests to that node, drain outstanding work, run GC, then resume. Hides pauses from clients.</li>
-    <li><strong>Short-lived objects only:</strong> Use GC only for short-lived objects (fast to collect). Restart processes periodically before long-lived objects accumulate -- rolling upgrade style.</li>
-    <li><strong>Used in practice:</strong> Latency-sensitive financial trading systems use this "GC-aware load balancing" approach.</li>
-  </ul>
+<div class="callout red">
+  Any code that assumes "nothing bad happened while I was running" is broken in a distributed system. A thread can be paused at <em>any point</em>. When it resumes, the world has moved on. The only safe approach: use mechanisms (fencing tokens) that detect stale operations.
 </div>
 
-<!-- ============================================================ -->
-<h2>2. Knowledge, Truth, and Lies</h2>
+<h2>Knowledge, Truth, and Lies</h2>
+<p>A node cannot know anything for certain. It can only make inferences based on messages it has received. The network may deceive it.</p>
 
-<p>In a distributed system, a node cannot <em>know</em> anything for sure. It can only make guesses based on the messages it receives (or does not receive). If a remote node does not respond, there is no way to distinguish a network problem from a node crash. This leads to a philosophical question: <strong>what is truth in a system where perception is unreliable?</strong></p>
-
-<div class="card card-purple">
-  <h4 style="color:var(--accent2);">The Epistemological Challenge</h4>
-  <ul>
-    <li>No shared memory -- only messages over an unreliable network</li>
-    <li>A node cannot trust its own judgment (it may have been paused and declared dead)</li>
-    <li>The solution: define a <span class="key-term">system model</span> (formal assumptions about behavior) and prove algorithms correct within that model</li>
-    <li>Reliable behavior is achievable even with very few guarantees -- but it is not straightforward</li>
-  </ul>
-</div>
-
-<!-- ============================================================ -->
 <h3>The Truth Is Defined by the Majority</h3>
+<p>In many distributed algorithms, truth is determined by quorum — a majority of nodes. One node's belief doesn't matter; what the majority has agreed on does.</p>
 
-<p>A node cannot rely on its own view of the world. Instead, distributed algorithms rely on a <span class="key-term">quorum</span> -- voting among nodes. Decisions require some minimum number of votes to reduce dependence on any one node. If a quorum declares a node dead, it must be considered dead, even if the node still feels alive.</p>
+<div class="callout">
+  This is why single-node decisions are dangerous. A node may believe it's the leader when the rest of the cluster has moved on and elected a new leader. The node can't trust its own belief without confirmation from others.
+</div>
 
-<!-- DIAGRAM 4: Three scenarios of false self-belief -->
+<h3>The Leader and the Lock Problem</h3>
+<p>Consider: only one node is allowed to hold a distributed lock at a time. A node acquires the lock, then pauses (GC). The lease expires. Another node acquires the lock. The first node resumes and proceeds — now two nodes hold the lock.</p>
+
 <div class="diagram">
-  <div class="diagram-title">Diagram 4: Why a Node Cannot Trust Itself</div>
-  <div class="grid3">
-    <div style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:16px;">
-      <div style="font-weight:700; color:var(--red); margin-bottom:8px; font-size:0.9rem;">Scenario 1: Asymmetric Fault</div>
-      <div style="font-size:0.82rem; color:var(--text-muted);">Node receives all messages, but outgoing replies are dropped. Node works fine from its own perspective. Others declare it dead after timeout. "I'm not dead!" -- but nobody hears.</div>
-    </div>
-    <div style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:16px;">
-      <div style="font-weight:700; color:var(--orange); margin-bottom:8px; font-size:0.9rem;">Scenario 2: Semi-Disconnected</div>
-      <div style="font-size:0.82rem; color:var(--text-muted);">Node notices its messages are not acknowledged. Realizes there is a network fault. But it is still declared dead by others and cannot do anything about it.</div>
-    </div>
-    <div style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:16px;">
-      <div style="font-weight:700; color:var(--accent2); margin-bottom:8px; font-size:0.9rem;">Scenario 3: GC Resurrection</div>
-      <div style="font-size:0.82rem; color:var(--text-muted);">Node enters 1-minute GC pause. Others declare it dead. GC finishes. Node "wakes up" and cheerfully starts chatting, not realizing a minute has passed.</div>
-    </div>
+  <div style="font-size:.82rem;margin-bottom:.5rem;color:var(--muted)">Without fencing — dangerous scenario</div>
+  <div style="background:var(--surface2);padding:.75rem;border-radius:6px;font-size:.82rem;line-height:1.8">
+    Client 1: Acquires lock (token 33). <span style="color:var(--red)">GC pause begins</span><br/>
+    Client 2: Acquires lock (token 34).<br/>
+    Client 2: Writes to storage with token 34. ✓<br/>
+    <span style="color:var(--red)">Client 1 resumes</span>: Writes to storage. Storage accepts! (doesn't know lock was stolen)<br/>
+    <span style="color:var(--red)">Result: Client 2's write overwritten. Corruption.</span>
   </div>
 </div>
 
-<!-- DIAGRAM 5: Quorum voting diagram -->
+<h3>Fencing Tokens: The Solution</h3>
+<p>Every time a client acquires a lock, the server assigns a monotonically increasing <strong>fencing token</strong>. The storage service only accepts writes with a token higher than the last it processed.</p>
+
 <div class="diagram">
-  <div class="diagram-title">Diagram 5: Quorum Voting -- Truth by Majority</div>
-  <div style="display:flex; flex-direction:column; gap:20px; align-items:center;">
-
-    <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap; justify-content:center;">
-      <div class="vote-node alive">N1</div>
-      <div class="vote-node alive">N2</div>
-      <div class="vote-node alive">N3</div>
-      <div class="vote-node suspect">N4</div>
-      <div class="vote-node alive">N5</div>
-    </div>
-
-    <div style="font-size:0.85rem; color:var(--text-muted); text-align:center; max-width:500px;">
-      5-node cluster. N4 experiences a GC pause and stops responding.
-    </div>
-
-    <div style="display:flex; gap:24px; flex-wrap:wrap; justify-content:center;">
-      <div style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:16px; text-align:center; min-width:140px;">
-        <div style="font-weight:700; color:var(--accent3); margin-bottom:4px;">N1 votes: "N4 dead"</div>
-      </div>
-      <div style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:16px; text-align:center; min-width:140px;">
-        <div style="font-weight:700; color:var(--accent3); margin-bottom:4px;">N2 votes: "N4 dead"</div>
-      </div>
-      <div style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:16px; text-align:center; min-width:140px;">
-        <div style="font-weight:700; color:var(--accent3); margin-bottom:4px;">N3 votes: "N4 dead"</div>
-      </div>
-      <div style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:16px; text-align:center; min-width:140px;">
-        <div style="font-weight:700; color:var(--orange); margin-bottom:4px;">N5 votes: "N4 alive"</div>
-      </div>
-    </div>
-
-    <div style="background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3); border-radius:8px; padding:12px 24px; text-align:center;">
-      <span style="color:var(--red); font-weight:700;">Quorum decision (3/5 majority): N4 is DEAD</span>
-    </div>
-
-    <div style="font-size:0.82rem; color:var(--text-muted); text-align:center; max-width:500px;">
-      N4 must abide by the quorum decision and step down -- even if it still feels alive. With 5 nodes, 2 failures can be tolerated. There can only be <strong>one majority</strong>, preventing conflicting decisions.
-    </div>
+  <div style="font-size:.82rem;margin-bottom:.5rem;color:var(--muted)">With fencing — safe</div>
+  <div style="background:var(--surface2);padding:.75rem;border-radius:6px;font-size:.82rem;line-height:1.8">
+    Client 1: Acquires lock (token 33). <span style="color:var(--red)">GC pause begins</span><br/>
+    Client 2: Acquires lock (token <span style="color:var(--green)">34</span>).<br/>
+    Client 2: Writes to storage with token 34. Storage records: last token = 34. ✓<br/>
+    <span style="color:var(--red)">Client 1 resumes</span>: Tries to write with token <span style="color:var(--red)">33</span>.<br/>
+    Storage: 33 &lt; 34 → <span style="color:var(--green)">REJECT. Write refused.</span>
+  </div>
+  <div style="margin-top:.75rem;font-size:.8rem;color:var(--green)">
+    The storage service is the authority. It checks the token, not the client. No stale client can corrupt data.
   </div>
 </div>
 
-<!-- ============================================================ -->
-<h3>The Leader and the Lock</h3>
-
-<p>Many systems require exactly one of something: one leader per partition (to avoid split brain), one lock holder per resource (to prevent corruption), one owner per username. But a node that <em>believes</em> it is "the chosen one" may have already been demoted by a quorum -- and if it continues acting on that false belief, it can corrupt data.</p>
-
-<!-- DIAGRAM 6: Expired lease corruption -->
-<div class="diagram">
-  <div class="diagram-title">Diagram 6: Expired Lease Corruption (The HBase Bug)</div>
-  <div class="seq-diagram">
-    <div class="seq-row">
-      <div class="seq-actor left">Client 1</div>
-      <div class="seq-actor center">Lock Service</div>
-      <div class="seq-actor right">Storage</div>
-    </div>
-
-    <div class="seq-row" style="margin-top:12px;">
-      <div style="text-align:right; padding-right:8px; font-size:0.82rem; color:var(--accent);">Request lease</div>
-      <div class="seq-msg"><span class="arrow-right"></span></div>
-      <div></div>
-    </div>
-    <div class="seq-row">
-      <div></div>
-      <div class="seq-msg"><span class="arrow-left"></span></div>
-      <div style="font-size:0.82rem; color:var(--text-muted);"></div>
-    </div>
-    <div class="seq-event ok">Client 1 obtains lease -- is now authorized to write to file</div>
-
-    <div class="seq-event danger" style="margin-top:8px;">Client 1 enters long GC pause (15+ seconds). Lease expires.</div>
-
-    <div class="seq-row" style="margin-top:8px;">
-      <div></div>
-      <div></div>
-      <div style="text-align:left; padding-left:8px; font-size:0.82rem; color:var(--accent3);"></div>
-    </div>
-
-    <div class="seq-event info">Client 2 requests and obtains the same lease (Client 1's expired)</div>
-
-    <div class="seq-row" style="margin-top:8px;">
-      <div></div>
-      <div></div>
-      <div style="text-align:center; font-size:0.82rem; color:var(--accent3);">Client 2 writes to file</div>
-    </div>
-    <div class="seq-event ok">Client 2 writes data to file -- legitimate write</div>
-
-    <div class="seq-event danger" style="margin-top:8px;">Client 1 wakes up from GC. Still believes lease is valid.</div>
-
-    <div class="seq-row" style="margin-top:8px;">
-      <div style="text-align:right; padding-right:8px; font-size:0.82rem; color:var(--red);">Write to file</div>
-      <div></div>
-      <div style="text-align:center; font-size:0.82rem; color:var(--red);">Accepted!</div>
-    </div>
-    <div class="seq-event danger">Both clients wrote to the same file -- FILE CORRUPTED</div>
-  </div>
+<div class="callout blue">
+  ZooKeeper's <code>zxid</code> and <code>epoch</code> numbers serve as fencing tokens. HBase uses ZooKeeper's epoch to prevent stale writes. The key insight: make the decision about "is this still the current lock holder?" at the resource, not the client.
 </div>
 
-<!-- ============================================================ -->
-<h3>Fencing Tokens</h3>
-
-<p>The solution to the expired-lease problem is <span class="key-term">fencing tokens</span>. Every time the lock service grants a lock or lease, it also returns a monotonically increasing number. The storage service tracks the highest token it has seen and rejects any write with a lower token.</p>
-
-<!-- DIAGRAM 7: Fencing tokens detailed sequence -->
-<div class="diagram">
-  <div class="diagram-title">Diagram 7: Fencing Tokens -- Safe Resource Access</div>
-  <div class="seq-diagram">
-    <div class="seq-row">
-      <div class="seq-actor left">Client 1</div>
-      <div class="seq-actor center">Lock Service</div>
-      <div class="seq-actor right">Storage</div>
+<div style="margin-top:3rem;padding:1.5rem;background:var(--surface);border-radius:10px;border:1px solid var(--border)">
+  <div class="row" style="gap:2rem;flex-wrap:wrap">
+    <div>
+      <div style="font-size:.85rem;color:var(--muted)">← Previous</div>
+      <div><a href="chapter-8-distributed-systems-part1.html" style="color:var(--accent);text-decoration:none">Part 1: Faults &amp; Networks</a></div>
     </div>
-
-    <div class="seq-event info" style="margin-top:12px;">Step 1: Client 1 acquires lease, receives fencing token = 33</div>
-
-    <div class="seq-event danger">Step 2: Client 1 enters long GC pause. Lease expires.</div>
-
-    <div class="seq-event info">Step 3: Client 2 acquires lease, receives fencing token = 34</div>
-
-    <div class="seq-event ok">Step 4: Client 2 sends write to Storage with token 34. Storage accepts (highest seen = 34).</div>
-
-    <div class="seq-event warn">Step 5: Client 1 wakes up. Sends write to Storage with token 33.</div>
-
-    <div class="seq-event danger">Step 6: Storage REJECTS write -- token 33 &lt; highest seen (34). Data integrity preserved!</div>
-  </div>
-</div>
-
-<!-- DIAGRAM 8: Fencing token flow -->
-<div class="diagram">
-  <div class="diagram-title">Diagram 8: Fencing Token Mechanism Flow</div>
-  <div class="flow">
-    <div class="flow-box primary">Lock Service<br><small>grants token (monotonic++)</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-box green">Client<br><small>includes token in every write</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-box purple">Storage Service<br><small>tracks max token seen</small></div>
-    <div class="flow-arrow">&rarr;</div>
-    <div class="flow-vert">
-      <div class="flow-box green">token &ge; max?<br><small>Accept write</small></div>
-      <div class="flow-box red">token &lt; max?<br><small>Reject write</small></div>
-    </div>
-  </div>
-  <p style="font-size:0.82rem; text-align:center; margin-top:16px;">ZooKeeper's <code>zxid</code> or node version <code>cversion</code> can serve as fencing tokens (guaranteed monotonically increasing). The resource itself must enforce the check -- clients cannot be trusted to check their own lock status.</p>
-</div>
-
-<div class="card card-orange">
-  <h4 style="color:var(--orange);">Key Insight: Server-Side Checking is Essential</h4>
-  <p>It is not sufficient for clients to check their own lock status. The resource (storage service) must actively reject writes with stale tokens. This is good practice anyway -- a service should protect itself from accidentally abusive clients whose priorities may differ from those running the service.</p>
-</div>
-
-<!-- ============================================================ -->
-<h2>3. Byzantine Faults</h2>
-
-<p>Fencing tokens protect against nodes that <em>inadvertently</em> act in error. But what if a node <strong>deliberately</strong> sends a fake fencing token? This is the domain of <span class="key-term">Byzantine faults</span> -- where nodes may "lie" (send arbitrary faulty or corrupted responses).</p>
-
-<!-- DIAGRAM 9: Byzantine Generals Problem -->
-<div class="diagram">
-  <div class="diagram-title">Diagram 9: The Byzantine Generals Problem</div>
-  <div style="display:flex; flex-direction:column; gap:16px; align-items:center;">
-
-    <div style="display:flex; gap:16px; flex-wrap:wrap; justify-content:center;">
-      <div style="text-align:center;">
-        <div class="vote-node alive" style="width:56px; height:56px; font-size:0.75rem;">G1<br>Loyal</div>
-      </div>
-      <div style="text-align:center;">
-        <div class="vote-node alive" style="width:56px; height:56px; font-size:0.75rem;">G2<br>Loyal</div>
-      </div>
-      <div style="text-align:center;">
-        <div class="vote-node dead" style="width:56px; height:56px; font-size:0.75rem;">G3<br>Traitor</div>
-      </div>
-      <div style="text-align:center;">
-        <div class="vote-node alive" style="width:56px; height:56px; font-size:0.75rem;">G4<br>Loyal</div>
-      </div>
-    </div>
-
-    <div style="font-size:0.85rem; color:var(--text-muted); text-align:center; max-width:550px;">
-      N generals must agree on a battle plan. Some are <strong style="color:var(--red);">traitors</strong> who send contradictory messages to sow confusion. The loyal generals must reach consensus despite the traitors. Byzantine fault-tolerant algorithms require a <strong>supermajority (&gt;2/3)</strong> of correct nodes.
-    </div>
-
-    <div class="grid2" style="max-width:500px; width:100%;">
-      <div class="card card-accent" style="margin:0;">
-        <h4 style="color:var(--accent); font-size:0.9rem;">When BFT Matters</h4>
-        <ul style="font-size:0.82rem;">
-          <li>Aerospace (radiation corrupts memory)</li>
-          <li>Blockchain / peer-to-peer (mutually untrusting parties)</li>
-          <li>Multi-organization systems</li>
-        </ul>
-      </div>
-      <div class="card card-green" style="margin:0;">
-        <h4 style="color:var(--accent3); font-size:0.9rem;">When BFT is Overkill</h4>
-        <ul style="font-size:0.82rem;">
-          <li>Single-org datacenters (nodes are trusted)</li>
-          <li>Web apps (use auth + input validation instead)</li>
-          <li>Same software on all nodes (bug affects all)</li>
-        </ul>
-      </div>
+    <div>
+      <div style="font-size:.85rem;color:var(--muted)">Next →</div>
+      <div><a href="chapter-8-distributed-systems-part3.html" style="color:var(--accent);text-decoration:none">Part 3: Byzantine Faults, System Models &amp; Q&amp;A</a></div>
     </div>
   </div>
 </div>
-
-<div class="card card-purple">
-  <h4 style="color:var(--accent2);">Weak Forms of Lying</h4>
-  <p>Even without full BFT, it is worth guarding against "weak lies" -- invalid messages from hardware issues, bugs, or misconfiguration:</p>
-  <ul>
-    <li><strong>Network corruption:</strong> TCP/UDP checksums catch most, but not all. Add application-level checksums.</li>
-    <li><strong>Input sanitization:</strong> Validate ranges, limit string sizes to prevent denial-of-service.</li>
-    <li><strong>NTP cross-checking:</strong> Use multiple NTP servers. Exclude outliers. Majority agreement makes NTP robust.</li>
-  </ul>
-</div>
-
-<!-- ============================================================ -->
-<h2>4. System Models</h2>
-
-<p>To reason about distributed algorithms formally, we define a <span class="key-term">system model</span>: an abstraction that describes what faults an algorithm may assume can occur. This involves two orthogonal dimensions: <strong>timing assumptions</strong> and <strong>failure assumptions</strong>.</p>
-
-<h3>Three Timing Models</h3>
-
-<div class="grid3">
-  <div class="card card-accent" style="margin:0;">
-    <h4 style="color:var(--accent);">Synchronous</h4>
-    <p style="font-size:0.85rem;">Bounded network delay, bounded process pauses, bounded clock error. Does <strong>not</strong> mean zero delay -- just a known upper bound. <em>Not realistic for most systems.</em></p>
-  </div>
-  <div class="card card-orange" style="margin:0;">
-    <h4 style="color:var(--orange);">Partially Synchronous</h4>
-    <p style="font-size:0.85rem;">Behaves synchronously <strong>most of the time</strong>, but occasionally exceeds bounds. The <em>most realistic model</em> for practical systems. Timing assumptions may be "shattered" sometimes.</p>
-  </div>
-  <div class="card card-purple" style="margin:0;">
-    <h4 style="color:var(--accent2);">Asynchronous</h4>
-    <p style="font-size:0.85rem;">No timing assumptions at all. No clock, no timeouts. Very restrictive. Some algorithms can be designed for this, but it is the hardest model.</p>
-  </div>
-</div>
-
-<h3>Three Failure Models</h3>
-
-<div class="grid3" style="margin-top:16px;">
-  <div class="card card-green" style="margin:0;">
-    <h4 style="color:var(--accent3);">Crash-Stop</h4>
-    <p style="font-size:0.85rem;">A node fails by crashing and <strong>never comes back</strong>. Simplest model. Once gone, gone forever.</p>
-  </div>
-  <div class="card card-orange" style="margin:0;">
-    <h4 style="color:var(--orange);">Crash-Recovery</h4>
-    <p style="font-size:0.85rem;">Nodes may crash and <strong>later restart</strong>. Stable storage survives; in-memory state is lost. The <em>most practical model.</em></p>
-  </div>
-  <div class="card card-red" style="margin:0;">
-    <h4 style="color:var(--red);">Byzantine (Arbitrary)</h4>
-    <p style="font-size:0.85rem;">Nodes may do <strong>anything</strong> -- including lying, sending fake messages, colluding. Hardest to handle. Requires &gt;2/3 honest nodes.</p>
-  </div>
-</div>
-
-<!-- DIAGRAM 10: 3x3 System Models Grid -->
-<div class="diagram">
-  <div class="diagram-title">Diagram 10: System Models Matrix (3 Timing x 3 Failure Models)</div>
-  <div class="grid-table grid-4col-wide">
-    <div class="grid-table-cell header"></div>
-    <div class="grid-table-cell header" style="color:var(--accent3);">Crash-Stop</div>
-    <div class="grid-table-cell header" style="color:var(--orange);">Crash-Recovery</div>
-    <div class="grid-table-cell header" style="color:var(--red);">Byzantine</div>
-
-    <div class="grid-table-cell row-header">Synchronous</div>
-    <div class="grid-table-cell">Easiest. Bounded delays + permanent crashes. Theoretical baseline. Not realistic.</div>
-    <div class="grid-table-cell">Bounded delays + restarts with stable storage. Useful for modeling specific scenarios.</div>
-    <div class="grid-table-cell">Bounded delays but nodes lie. Used in aerospace, specific fault-tolerant hardware.</div>
-
-    <div class="grid-table-cell row-header">Partially Synchronous</div>
-    <div class="grid-table-cell">Mostly bounded delays + permanent crashes. Common for simple consensus proofs.</div>
-    <div class="grid-table-cell" style="background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.3);"><strong style="color:var(--accent);">Most practical model.</strong> Used for real-world distributed databases, Raft, Paxos.</div>
-    <div class="grid-table-cell">Mostly bounded + lying nodes. Blockchain consensus (e.g., PBFT). Expensive.</div>
-
-    <div class="grid-table-cell row-header">Asynchronous</div>
-    <div class="grid-table-cell">No timing + permanent crashes. FLP impossibility result lives here.</div>
-    <div class="grid-table-cell">No timing + restarts. Very restrictive. Few practical algorithms.</div>
-    <div class="grid-table-cell">Hardest possible model. No timing, nodes lie. Theoretical frontier.</div>
-  </div>
-</div>
-
-<!-- ============================================================ -->
-<h3>Safety vs. Liveness Properties</h3>
-
-<p>Algorithm correctness is defined by <span class="key-term">properties</span>. These come in two flavors with fundamentally different characteristics:</p>
-
-<!-- DIAGRAM 11: Safety vs Liveness -->
-<div class="diagram">
-  <div class="diagram-title">Diagram 11: Safety vs. Liveness Properties</div>
-  <div class="grid2">
-    <div style="background:var(--surface); border:2px solid var(--accent3); border-radius:8px; padding:20px;">
-      <h4 style="color:var(--accent3); margin-bottom:12px;">Safety ("Nothing bad happens")</h4>
-      <ul style="font-size:0.85rem; color:var(--text-muted); padding-left:16px;">
-        <li>If violated, you can point to the <strong>exact moment</strong> it broke</li>
-        <li>Once violated, <strong>cannot be undone</strong> -- damage is done</li>
-        <li><strong>Must always hold</strong>, even if all nodes crash or network fails</li>
-        <li>Examples: uniqueness, monotonic sequence of fencing tokens</li>
-      </ul>
-    </div>
-    <div style="background:var(--surface); border:2px solid var(--accent); border-radius:8px; padding:20px;">
-      <h4 style="color:var(--accent); margin-bottom:12px;">Liveness ("Something good eventually happens")</h4>
-      <ul style="font-size:0.85rem; color:var(--text-muted); padding-left:16px;">
-        <li>May not hold <strong>right now</strong>, but there is hope for the future</li>
-        <li>Often includes the word <strong>"eventually"</strong></li>
-        <li><strong>Allowed to have caveats</strong> (e.g., only if majority alive, network recovers)</li>
-        <li>Examples: availability, eventual consistency</li>
-      </ul>
-    </div>
-  </div>
-
-  <div style="margin-top:20px; text-align:center;">
-    <div style="display:inline-block; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:16px 24px;">
-      <div style="font-size:0.85rem; color:var(--text-muted);">
-        <strong style="color:var(--accent2);">The deal:</strong> Safety properties must <em>always</em> hold (no exceptions). Liveness properties must hold only under certain conditions (majority alive, network eventually recovers).
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="card card-accent">
-  <h4 style="color:var(--accent);">Fencing Token Algorithm: Properties Example</h4>
-  <ul>
-    <li><span class="tag" style="border-color:var(--accent3); color:var(--accent3);">Safety</span> <strong>Uniqueness:</strong> No two requests return the same fencing token value</li>
-    <li><span class="tag" style="border-color:var(--accent3); color:var(--accent3);">Safety</span> <strong>Monotonic sequence:</strong> If request x completed before y began, then token_x &lt; token_y</li>
-    <li><span class="tag" style="border-color:var(--accent); color:var(--accent);">Liveness</span> <strong>Availability:</strong> A node that requests a token and does not crash <em>eventually</em> receives a response</li>
-  </ul>
-</div>
-
-<!-- ============================================================ -->
-<h3>Mapping Models to Reality</h3>
-
-<div class="quote">"Proving an algorithm correct does not mean its implementation on a real system will necessarily always behave correctly. But it's a very good first step."</div>
-
-<div class="card card-orange">
-  <h4 style="color:var(--orange);">Theory Meets Practice: The Gaps</h4>
-  <ul>
-    <li>Crash-recovery models assume stable storage survives. But disks get corrupted, firmware bugs prevent recognition on reboot.</li>
-    <li>Quorum algorithms require nodes to remember stored data. If a node has "amnesia," quorum conditions break.</li>
-    <li>Real implementations must handle "impossible" cases too -- even if just <code>printf("Sucks to be you")</code> and <code>exit(666)</code>.</li>
-    <li>This is "the difference between computer science and software engineering."</li>
-  </ul>
-</div>
-
-<!-- ============================================================ -->
-<h2>5. Chapter 8 Summary: Three Categories of Trouble</h2>
-
-<p>Distributed systems face three fundamental categories of problems. All three can happen simultaneously, and a robust system must handle them all.</p>
-
-<!-- DIAGRAM 12: Summary - 3 categories -->
-<div class="diagram">
-  <div class="diagram-title">Diagram 12: The Three Categories of Distributed Systems Trouble</div>
-  <div class="grid3">
-    <div style="background:var(--surface); border:2px solid var(--red); border-radius:12px; padding:24px; text-align:center;">
-      <div style="font-size:2rem; margin-bottom:8px;">&#x1F310;</div>
-      <div style="font-weight:700; color:var(--red); font-size:1.1rem; margin-bottom:12px;">Unreliable Networks</div>
-      <ul style="text-align:left; font-size:0.82rem; color:var(--text-muted); padding-left:16px;">
-        <li>Packets lost or delayed arbitrarily</li>
-        <li>Replies lost -- you don't know if msg arrived</li>
-        <li>No way to distinguish network vs. node failure</li>
-        <li>Timeouts are the only option, but cause false positives</li>
-      </ul>
-    </div>
-    <div style="background:var(--surface); border:2px solid var(--orange); border-radius:12px; padding:24px; text-align:center;">
-      <div style="font-size:2rem; margin-bottom:8px;">&#x23F0;</div>
-      <div style="font-weight:700; color:var(--orange); font-size:1.1rem; margin-bottom:12px;">Unreliable Clocks</div>
-      <ul style="text-align:left; font-size:0.82rem; color:var(--text-muted); padding-left:16px;">
-        <li>Clocks out of sync with other nodes</li>
-        <li>Time-of-day clocks may jump forward or backward</li>
-        <li>Relying on clocks for ordering is dangerous (LWW)</li>
-        <li>Clock errors go unnoticed (silent data loss)</li>
-      </ul>
-    </div>
-    <div style="background:var(--surface); border:2px solid var(--accent2); border-radius:12px; padding:24px; text-align:center;">
-      <div style="font-size:2rem; margin-bottom:8px;">&#x23F8;</div>
-      <div style="font-weight:700; color:var(--accent2); font-size:1.1rem; margin-bottom:12px;">Process Pauses</div>
-      <ul style="text-align:left; font-size:0.82rem; color:var(--text-muted); padding-left:16px;">
-        <li>GC, VM suspend, context switches, disk I/O, paging, SIGSTOP</li>
-        <li>Node declared dead while paused, then "resurrects"</li>
-        <li>Lease/lock expiration race conditions</li>
-        <li>Fencing tokens required for safety</li>
-      </ul>
-    </div>
-  </div>
-
-  <div style="margin-top:24px; text-align:center;">
-    <div style="display:inline-flex; gap:12px; flex-wrap:wrap; justify-content:center;">
-      <div class="flow-box primary" style="min-width:180px;">No shared memory</div>
-      <div class="flow-box orange" style="min-width:180px;">No global clock</div>
-      <div class="flow-box purple" style="min-width:180px;">No common knowledge</div>
-    </div>
-    <p style="font-size:0.85rem; margin-top:16px;">The only way information flows: <strong>messages over the unreliable network</strong>. Major decisions require <strong>quorum agreement</strong>.</p>
-  </div>
-</div>
-
-<div class="card card-green">
-  <h4 style="color:var(--accent3);">The Pragmatic Takeaway</h4>
-  <ul>
-    <li>If you can solve a problem on a single machine, <strong>do it</strong>. A single computer can do a lot.</li>
-    <li>But scalability, fault tolerance, and low latency (geographic placement) force us into distributed systems.</li>
-    <li>Fault detection is hard (timeouts are the best we have). Fault tolerance requires quorum protocols.</li>
-    <li>Use <strong>partially synchronous model + crash-recovery faults</strong> as the default mental model.</li>
-    <li>Theoretical analysis and empirical testing are <strong>equally important</strong>.</li>
-  </ul>
-</div>
-
-<!-- ============================================================ -->
-<h2>Review Questions</h2>
-
-<div class="quiz">
-  <details>
-    <summary>Q1: Why can't a node simply check its own lease expiry time to decide if it is still the leader?</summary>
-    <div class="answer">
-      Two reasons. First, the lease expiry was set by a different machine, so comparing it to the local clock depends on clock synchronization -- which may be off. Second, even with a local monotonic clock, the thread may pause (GC, VM suspend, etc.) between checking the lease and processing the request. During that pause, the lease can expire and another node can become leader, but the paused thread has no way to detect this when it resumes. The thread continues executing as if nothing happened.
-    </div>
-  </details>
-
-  <details>
-    <summary>Q2: What is a fencing token, and why must the check be enforced server-side rather than client-side?</summary>
-    <div class="answer">
-      A fencing token is a monotonically increasing number returned by the lock service every time it grants a lock or lease. The storage service tracks the highest token it has seen and rejects writes with lower tokens. This must be enforced server-side because a client cannot be trusted to check its own lock status -- it may be paused, buggy, or have stale state. The resource itself must be the authority, rejecting stale writes regardless of what the client believes. ZooKeeper's <code>zxid</code> or <code>cversion</code> can serve as fencing tokens.
-    </div>
-  </details>
-
-  <details>
-    <summary>Q3: Name three of the six causes of process pauses and explain why each is dangerous in a distributed system.</summary>
-    <div class="answer">
-      (1) <strong>Garbage Collection:</strong> Stop-the-world GC pauses can last minutes, during which the node sends no heartbeats and is declared dead by others. (2) <strong>VM Suspend/Resume:</strong> A VM can be frozen to disk for live migration, pausing all processes for arbitrary duration -- the node has no awareness it was paused. (3) <strong>Memory Paging:</strong> Under memory pressure, a simple memory access triggers a page fault requiring disk I/O. Thrashing can effectively halt a process. All three are dangerous because the thread resumes without knowing time passed, potentially acting on stale state (expired leases, outdated data).
-    </div>
-  </details>
-
-  <details>
-    <summary>Q4: What is the difference between a Byzantine fault and a crash-recovery fault? When would you choose to handle each?</summary>
-    <div class="answer">
-      In the <strong>crash-recovery</strong> model, nodes are "honest" -- they either respond correctly or not at all (crashed). They may restart, and stable storage survives. This is appropriate for most server-side systems where all nodes are controlled by one organization. In the <strong>Byzantine</strong> model, nodes may "lie" -- sending arbitrary, corrupted, or deliberately misleading messages. This requires >2/3 of nodes to be honest. Byzantine fault tolerance is needed in aerospace (radiation corrupts memory), blockchain/peer-to-peer systems (untrusting parties), and multi-organization systems where participants may cheat. BFT is impractical for most datacenter systems due to cost and complexity.
-    </div>
-  </details>
-
-  <details>
-    <summary>Q5: Explain the difference between safety and liveness properties with an example from fencing tokens.</summary>
-    <div class="answer">
-      <strong>Safety</strong> ("nothing bad happens") must hold at all times with no exceptions. If violated, you can identify the exact moment. Example: <em>uniqueness</em> -- no two fencing token requests return the same value. If this is violated, it cannot be undone. <strong>Liveness</strong> ("something good eventually happens") may not hold right now but should eventually. It is allowed to have caveats (e.g., only if majority of nodes are alive). Example: <em>availability</em> -- a node that requests a fencing token and doesn't crash eventually receives a response. The key design principle: safety must always hold (even during total failures), while liveness may be conditional.
-    </div>
-  </details>
-
-  <details>
-    <summary>Q6: Why is the partially synchronous model with crash-recovery faults considered the most practical system model?</summary>
-    <div class="answer">
-      The <strong>synchronous model</strong> is too optimistic -- it assumes bounded delays, which real networks violate during congestion or failures. The <strong>asynchronous model</strong> is too restrictive -- no timeouts at all makes many algorithms impossible (FLP result). <strong>Partial synchrony</strong> captures reality: the system behaves well most of the time but occasionally exceeds bounds. Similarly, <strong>crash-stop</strong> is too pessimistic (nodes do restart in practice), while <strong>Byzantine</strong> is too expensive for trusted environments. <strong>Crash-recovery</strong> matches real servers: they crash, reboot, and rejoin with data from stable storage. Together, this model enables practical algorithms like Raft and Paxos while being honest about real-world failure modes.
-    </div>
-  </details>
-</div>
-
 </div>
 </body>
 </html>
