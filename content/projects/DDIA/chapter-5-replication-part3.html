@@ -3,947 +3,245 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DDIA Chapter 5 — Replication Part 3: Leaderless Replication & Concurrency</title>
+<title>DDIA Ch 5 Part 3 — Leaderless Replication &amp; Q&amp;A</title>
 <style>
-  :root {
-    --bg: #0a0e17;
-    --surface: #111827;
-    --surface2: #1a2234;
-    --border: #1e293b;
-    --text: #e2e8f0;
-    --text-muted: #94a3b8;
-    --accent: #3b82f6;
-    --accent2: #8b5cf6;
-    --accent3: #10b981;
-    --red: #ef4444;
-    --orange: #f59e0b;
-    --pink: #ec4899;
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
-  .container { max-width: 900px; margin: 0 auto; padding: 40px 24px 100px; }
-  h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 48px; border-bottom: 1px solid var(--border); padding-bottom: 24px; }
-  h2 { font-size: 1.5rem; font-weight: 700; margin: 48px 0 16px; color: var(--accent); }
-  h3 { font-size: 1.15rem; font-weight: 600; margin: 32px 0 12px; color: var(--text); }
-  p { margin-bottom: 16px; color: var(--text-muted); }
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 20px 0; }
-  .card-accent { border-left: 4px solid var(--accent); }
-  .card-green { border-left: 4px solid var(--accent3); }
-  .card-orange { border-left: 4px solid var(--orange); }
-  .card-purple { border-left: 4px solid var(--accent2); }
-  .card-red { border-left: 4px solid var(--red); }
-  .card h4 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
-  .card ul { padding-left: 20px; color: var(--text-muted); }
-  .card li { margin-bottom: 6px; }
-  .key-term { color: var(--accent); font-weight: 600; }
-  .diagram { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 32px; margin: 24px 0; overflow-x: auto; }
-  .diagram-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent2); margin-bottom: 20px; }
-  .flow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; }
-  .flow-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; text-align: center; font-size: 0.9rem; min-width: 120px; }
-  .flow-box.primary { border-color: var(--accent); color: var(--accent); }
-  .flow-box.green { border-color: var(--accent3); color: var(--accent3); }
-  .flow-box.purple { border-color: var(--accent2); color: var(--accent2); }
-  .flow-box.orange { border-color: var(--orange); color: var(--orange); }
-  .flow-box.red { border-color: var(--red); color: var(--red); }
-  .flow-box.pink { border-color: var(--pink); color: var(--pink); }
-  .flow-arrow { color: var(--text-muted); font-size: 1.2rem; }
-  .flow-vert { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-  @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } .grid3 { grid-template-columns: 1fr; } }
-  .quote { background: var(--surface2); border-left: 3px solid var(--accent2); padding: 16px 20px; margin: 20px 0; border-radius: 0 8px 8px 0; font-style: italic; color: var(--text-muted); }
-  .tag { display: inline-block; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 2px 12px; font-size: 0.8rem; color: var(--text-muted); margin: 2px; }
-  .bar-chart { display: flex; align-items: flex-end; gap: 3px; height: 160px; padding: 0 10px; }
-  .bar { background: var(--accent); border-radius: 3px 3px 0 0; min-width: 6px; flex: 1; transition: all .3s; position: relative; }
-  .bar:hover { background: var(--accent2); }
-  .bar-label { position: absolute; bottom: -22px; left: 50%; transform: translateX(-50%); font-size: 0.65rem; color: var(--text-muted); white-space: nowrap; }
-  .bar.tail { background: var(--red); }
-  .chart-footer { display: flex; justify-content: space-between; margin-top: 28px; font-size: 0.75rem; color: var(--text-muted); }
-  .size-bar-container { margin: 8px 0; }
-  .size-bar-label { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; display: flex; justify-content: space-between; }
-  .size-bar-track { background: var(--surface); border-radius: 6px; height: 24px; overflow: hidden; border: 1px solid var(--border); }
-  .size-bar { height: 100%; border-radius: 6px 0 0 6px; display: flex; align-items: center; padding-left: 8px; font-size: 0.7rem; font-weight: 600; color: white; }
-  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
-  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
-  th { color: var(--accent); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
-  td { color: var(--text-muted); }
-  .question-block { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin: 16px 0; overflow: hidden; }
-  .question-header { padding: 16px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 0.95rem; }
-  .question-header:hover { background: var(--surface2); }
-  .question-body { padding: 0 20px 16px; display: none; color: var(--text-muted); border-top: 1px solid var(--border); padding-top: 16px; }
-  .question-block.open .question-body { display: block; }
-  .q-num { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: var(--accent); color: white; border-radius: 50%; font-size: 0.8rem; font-weight: 700; margin-right: 12px; flex-shrink: 0; }
-  .chevron { transition: transform .2s; color: var(--text-muted); }
-  .question-block.open .chevron { transform: rotate(180deg); }
-  .section-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--accent2); font-weight: 700; margin-bottom: 8px; }
-  .fanout-diagram { display: flex; flex-direction: column; align-items: center; gap: 16px; }
-  .fanout-row { display: flex; gap: 12px; align-items: center; }
-  .fanout-node { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; }
-  .fanout-node.user { background: var(--accent); color: white; }
-  .fanout-node.cache { background: var(--accent3); color: white; }
-  .fanout-line { width: 2px; height: 20px; background: var(--text-muted); }
-  .arch-box { border: 2px solid var(--border); border-radius: 10px; padding: 16px; margin: 8px; text-align: center; }
-  .arch-box.blue { border-color: var(--accent); background: rgba(59,130,246,0.08); }
-  .arch-box.green { border-color: var(--accent3); background: rgba(16,185,129,0.08); }
-  .arch-box.purple { border-color: var(--accent2); background: rgba(139,92,246,0.08); }
-  .arch-box.orange { border-color: var(--orange); background: rgba(245,158,11,0.08); }
-  .arch-box.red { border-color: var(--red); background: rgba(239,68,68,0.08); }
-  .arch-box.pink { border-color: var(--pink); background: rgba(236,72,153,0.08); }
-  .arch-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
-  .arch-detail { font-size: 0.8rem; color: var(--text-muted); }
-  .timeline { position: relative; padding-left: 32px; margin: 16px 0; }
-  .timeline::before { content: ''; position: absolute; left: 12px; top: 0; bottom: 0; width: 2px; background: var(--border); }
-  .timeline-item { position: relative; margin-bottom: 20px; }
-  .timeline-item::before { content: ''; position: absolute; left: -26px; top: 6px; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: 2px solid var(--surface2); }
-  .timeline-item.green::before { background: var(--accent3); }
-  .timeline-item.orange::before { background: var(--orange); }
-  .timeline-item.red::before { background: var(--red); }
-  .timeline-item.purple::before { background: var(--accent2); }
-  .timeline-title { font-weight: 600; font-size: 0.9rem; color: var(--text); }
-  .timeline-desc { font-size: 0.85rem; color: var(--text-muted); }
-  .concept-map { display: flex; flex-direction: column; align-items: center; gap: 12px; }
-  .concept-row { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
-  .concept-node { background: var(--surface); border: 2px solid var(--border); border-radius: 12px; padding: 10px 16px; text-align: center; font-size: 0.85rem; min-width: 100px; }
-  .concept-node.root { border-color: var(--accent); color: var(--accent); font-weight: 700; font-size: 1rem; padding: 14px 24px; }
-  .concept-connector { color: var(--text-muted); font-size: 1.4rem; }
-  .layer-stack { display: flex; flex-direction: column; gap: 4px; }
-  .layer { padding: 14px 20px; border-radius: 8px; text-align: center; font-size: 0.85rem; font-weight: 600; }
-  .number-badge { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; font-size: 0.85rem; font-weight: 700; margin-right: 8px; }
-  /* Venn diagram styles */
-  .venn-container { position: relative; height: 220px; display: flex; align-items: center; justify-content: center; }
-  .venn-circle { position: absolute; width: 180px; height: 180px; border-radius: 50%; opacity: 0.25; }
-  .venn-label { position: absolute; font-size: 0.8rem; font-weight: 700; }
-  .venn-center { position: absolute; font-size: 0.85rem; font-weight: 700; color: var(--text); text-align: center; }
-  /* Step boxes */
-  .step-box { display: flex; align-items: flex-start; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--border); }
-  .step-box:last-child { border-bottom: none; }
-  .step-num { min-width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 700; color: white; flex-shrink: 0; }
-  .step-content { font-size: 0.9rem; color: var(--text-muted); }
-  .step-content strong { color: var(--text); }
-  /* Parallel lines diagram */
-  .parallel-diagram { display: flex; flex-direction: column; gap: 6px; }
-  .parallel-row { display: flex; align-items: center; gap: 8px; }
-  .parallel-label { min-width: 80px; font-size: 0.8rem; font-weight: 600; text-align: right; }
-  .parallel-track { flex: 1; height: 36px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; position: relative; overflow: hidden; }
-  .parallel-event { position: absolute; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 600; border-radius: 4px; padding: 0 8px; }
-  /* Version table */
-  .ver-grid { display: grid; grid-template-columns: auto 1fr 1fr 1fr; gap: 1px; background: var(--border); border-radius: 8px; overflow: hidden; margin: 16px 0; }
-  .ver-cell { padding: 10px 12px; font-size: 0.8rem; background: var(--surface); }
-  .ver-cell.header { background: var(--surface2); font-weight: 700; color: var(--accent); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; }
-  .ver-cell.step-label { background: var(--surface2); font-weight: 700; color: var(--text); }
+:root {
+  --bg:#0a0e17; --surface:#111827; --surface2:#1a2234; --border:#1e293b;
+  --text:#e2e8f0; --muted:#94a3b8; --accent:#3b82f6; --purple:#8b5cf6;
+  --green:#10b981; --red:#ef4444; --orange:#f59e0b; --pink:#ec4899; --cyan:#06b6d4;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.7;padding:2rem 1rem}
+.wrap{max-width:860px;margin:0 auto}
+h1{font-size:2rem;color:var(--accent);margin-bottom:.25rem}
+h2{font-size:1.4rem;color:var(--purple);margin:2.5rem 0 .75rem;padding-left:.75rem;border-left:3px solid var(--purple)}
+h3{font-size:1.1rem;color:var(--cyan);margin:1.5rem 0 .5rem}
+p{margin:.6rem 0}ul,ol{margin:.5rem 0 .5rem 1.5rem}li{margin:.25rem 0}
+code{background:var(--surface2);color:var(--cyan);padding:.1rem .4rem;border-radius:4px;font-size:.88rem}
+.nav{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:2rem}
+.nav a{padding:.4rem 1rem;border-radius:6px;text-decoration:none;font-size:.9rem;background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
+.nav a.cur{background:var(--accent);color:#fff;border-color:var(--accent)}
+.subtitle{color:var(--muted);font-size:1rem;margin-bottom:2rem}
+.diagram{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.5rem;margin:1.2rem 0;overflow-x:auto}
+.box{display:inline-block;padding:.4rem .9rem;border-radius:6px;font-size:.85rem;font-weight:600;text-align:center}
+.box.blue{background:#1e3a5f;border:1px solid var(--accent);color:var(--accent)}
+.box.purple{background:#2d1b69;border:1px solid var(--purple);color:var(--purple)}
+.box.green{background:#064e3b;border:1px solid var(--green);color:var(--green)}
+.box.orange{background:#451a03;border:1px solid var(--orange);color:var(--orange)}
+.box.cyan{background:#0c4a6e;border:1px solid var(--cyan);color:var(--cyan)}
+.box.red{background:#450a0a;border:1px solid var(--red);color:var(--red)}
+.box.muted{background:var(--surface2);border:1px solid var(--border);color:var(--muted)}
+.row{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin:.5rem 0}
+.vflow{display:flex;flex-direction:column;align-items:center;gap:.5rem}
+.arrow{color:var(--muted);font-size:1.2rem}
+.rarrow{color:var(--muted);font-size:1.1rem}
+.callout{border-left:3px solid var(--orange);background:var(--surface2);padding:.8rem 1rem;border-radius:0 6px 6px 0;margin:1rem 0;font-size:.92rem}
+.callout.blue{border-left-color:var(--accent);background:#0c1a2e}
+.callout.green{border-left-color:var(--green);background:#052015}
+.callout.red{border-left-color:var(--red);background:#200}
+.table-wrap{overflow-x:auto;margin:1rem 0}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th{background:var(--surface2);color:var(--accent);padding:.6rem .8rem;text-align:left;border:1px solid var(--border)}
+td{padding:.5rem .8rem;border:1px solid var(--border);vertical-align:top}
+tr:nth-child(even) td{background:var(--surface)}
+.qa{border:1px solid var(--border);border-radius:8px;margin:.6rem 0;overflow:hidden}
+.qa-header{display:flex;align-items:center;gap:.75rem;padding:.8rem 1rem;cursor:pointer;background:var(--surface);user-select:none}
+.qa-header:hover{background:var(--surface2)}
+.qa-num{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0;background:var(--purple);color:#fff}
+.qa-q{flex:1;font-weight:600;font-size:.92rem}
+.chev{color:var(--muted);transition:.3s}
+.qa.open .chev{transform:rotate(90deg)}
+.qa-body{display:none;padding:.8rem 1rem;border-top:1px solid var(--border);background:var(--surface2);font-size:.9rem;line-height:1.7}
+.qa.open .qa-body{display:block}
 </style>
 </head>
 <body>
-<div class="container">
+<div class="wrap">
+<div class="nav">
+  <a href="chapter-5-replication-part1.html">Part 1: Single-Leader</a>
+  <a href="chapter-5-replication-part2.html">Part 2: Replication Lag &amp; Multi-Leader</a>
+  <a href="chapter-5-replication-part3.html" class="cur">Part 3: Leaderless &amp; Q&amp;A</a>
+</div>
+<h1>Chapter 5 — Replication</h1>
+<div class="subtitle">Part 3: Leaderless (Dynamo-Style) Replication, Quorums, Version Vectors, Q&amp;A</div>
 
-<p class="section-label">Chapter 5 &mdash; Part 3 of 3</p>
-<h1>Leaderless Replication & Concurrency</h1>
-<p class="subtitle">Dynamo-style systems, quorum math, sloppy quorums, hinted handoff, and the algorithms that detect concurrent writes across distributed replicas.</p>
-
-<!-- ========== SECTION 1: LEADERLESS ARCHITECTURE ========== -->
 <h2>Leaderless Replication (Dynamo-Style)</h2>
+<p>Amazon's Dynamo paper (2007) popularized an approach where there is no designated leader. Clients send writes to multiple replicas directly (or via a coordinator). Any replica can accept any write. Cassandra, Riak, and Voldemort use this model.</p>
 
-<p>Some datastores abandon the concept of a leader entirely. Instead of funneling all writes through a single node, <span class="key-term">any replica</span> can directly accept writes from clients. Amazon's in-house Dynamo system popularized this approach, inspiring open-source databases like <span class="key-term">Riak</span>, <span class="key-term">Cassandra</span>, and <span class="key-term">Voldemort</span>.</p>
-
-<p>In some implementations the client sends writes directly to multiple replicas. In others, a <span class="key-term">coordinator node</span> forwards the write on the client's behalf &mdash; but crucially, that coordinator does not enforce any ordering. There is no concept of failover because there is no leader to fail.</p>
-
-<!-- Diagram 1: Leaderless architecture -->
 <div class="diagram">
-  <div class="diagram-title">Diagram 1: Leaderless Architecture vs Leader-Based</div>
-  <div class="grid2">
-    <div>
-      <div class="arch-box blue" style="margin-bottom:8px">
-        <div class="arch-label" style="color:var(--accent)">Leader-Based</div>
-        <div class="arch-detail">Client &rarr; Leader &rarr; Followers</div>
+  <div class="row" style="justify-content:center;gap:1rem;flex-wrap:wrap">
+    <div class="box muted">Client</div>
+    <div style="display:flex;flex-direction:column;align-items:center">
+      <div class="row" style="gap:2rem">
+        <div class="arrow" style="font-size:1.5rem">↙</div>
+        <div class="arrow" style="font-size:1.5rem">↓</div>
+        <div class="arrow" style="font-size:1.5rem">↘</div>
       </div>
-      <div style="text-align:center; font-size:0.8rem; color:var(--text-muted)">Single point of write entry.<br>Leader determines write order.</div>
-    </div>
-    <div>
-      <div class="arch-box green" style="margin-bottom:8px">
-        <div class="arch-label" style="color:var(--accent3)">Leaderless (Dynamo-Style)</div>
-        <div class="arch-detail">Client &rarr; All Replicas in Parallel</div>
+      <div class="row" style="gap:1rem">
+        <div class="box blue">Node 1<br/><span style="font-size:.72rem">✓ ack</span></div>
+        <div class="box blue">Node 2<br/><span style="font-size:.72rem">✓ ack</span></div>
+        <div class="box red">Node 3<br/><span style="font-size:.72rem">✗ down</span></div>
       </div>
-      <div style="text-align:center; font-size:0.8rem; color:var(--text-muted)">No single write entry point.<br>No enforced write ordering.</div>
     </div>
   </div>
-  <div style="margin-top:20px;">
-    <div class="flow">
-      <div class="flow-vert">
-        <div class="flow-box primary" style="min-width:90px">Client</div>
-      </div>
-      <div class="flow-arrow">&rarr;</div>
-      <div class="flow-vert">
-        <div class="flow-box green" style="min-width:80px">Node 1</div>
-        <div class="flow-box green" style="min-width:80px">Node 2</div>
-        <div class="flow-box red" style="min-width:80px; opacity:0.4">Node 3<br><span style="font-size:0.7rem">(down)</span></div>
-      </div>
-      <div class="flow-arrow">&rarr;</div>
-      <div class="flow-vert">
-        <div class="flow-box purple" style="min-width:110px">2 of 3 OK<br><span style="font-size:0.75rem">Write succeeds</span></div>
-      </div>
-    </div>
+  <div style="margin-top:.75rem;font-size:.8rem;color:var(--green);text-align:center">
+    2 out of 3 acks = write succeeds. Node 3 will catch up later.
   </div>
 </div>
 
-<!-- ========== SECTION 2: WRITING & READING TO MULTIPLE NODES ========== -->
-<h3>Writing and Reading to Multiple Nodes</h3>
+<h3>Quorums for Reading and Writing</h3>
+<p>With <em>n</em> replicas, a write that requires <em>w</em> nodes to acknowledge, and a read that queries <em>r</em> nodes:</p>
 
-<p>When a node is down, writes still succeed as long as enough replicas acknowledge them. But when that node comes back online, it has <span class="key-term">stale data</span>. The solution: reads are also sent to multiple nodes in parallel. The client uses <span class="key-term">version numbers</span> to determine which response is most recent.</p>
-
-<!-- Diagram 2: Parallel read/write requests -->
 <div class="diagram">
-  <div class="diagram-title">Diagram 2: Parallel Writes and Reads</div>
-  <div style="display:flex; flex-direction:column; gap:24px;">
-    <div>
-      <div style="font-size:0.85rem; font-weight:700; color:var(--accent3); margin-bottom:10px;">Write Phase (node 3 is down)</div>
-      <div class="flow">
-        <div class="flow-box primary">Client<br><span style="font-size:0.75rem">SET x=42</span></div>
-        <div class="flow-arrow">&xrarr;</div>
-        <div class="flow-box green">Node 1<br><span style="font-size:0.75rem;color:var(--accent3)">OK v7</span></div>
-        <div class="flow-box green">Node 2<br><span style="font-size:0.75rem;color:var(--accent3)">OK v7</span></div>
-        <div class="flow-box red" style="opacity:0.4">Node 3<br><span style="font-size:0.7rem">offline</span></div>
-      </div>
+  <div style="text-align:center;font-size:1.1rem;color:var(--orange);font-weight:700;margin-bottom:1rem">
+    w + r > n → reads will see the most recent write
+  </div>
+  <div class="row" style="justify-content:center;gap:2rem;flex-wrap:wrap">
+    <div class="vflow" style="text-align:center">
+      <div class="box blue">n=3 replicas</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.3rem">Typical: w=2, r=2</div>
+      <div style="font-size:.8rem;color:var(--green)">w+r=4 > 3 ✓ guaranteed to overlap</div>
     </div>
-    <div>
-      <div style="font-size:0.85rem; font-weight:700; color:var(--accent); margin-bottom:10px;">Read Phase (node 3 back online, stale)</div>
-      <div class="flow">
-        <div class="flow-box primary">Client<br><span style="font-size:0.75rem">GET x</span></div>
-        <div class="flow-arrow">&xlarr;</div>
-        <div class="flow-box green">Node 1<br><span style="font-size:0.75rem;color:var(--accent3)">x=42 v7</span></div>
-        <div class="flow-box green">Node 2<br><span style="font-size:0.75rem;color:var(--accent3)">x=42 v7</span></div>
-        <div class="flow-box orange">Node 3<br><span style="font-size:0.75rem;color:var(--orange)">x=40 v6</span></div>
-      </div>
-      <div style="text-align:center; margin-top:10px; font-size:0.8rem; color:var(--text-muted);">Client picks highest version (v7 = 42) and triggers <span style="color:var(--accent)">read repair</span> on node 3.</div>
+    <div class="vflow" style="text-align:center">
+      <div class="box purple">n=5 replicas</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.3rem">Typical: w=3, r=3</div>
+      <div style="font-size:.8rem;color:var(--green)">w+r=6 > 5 ✓</div>
     </div>
+    <div class="vflow" style="text-align:center">
+      <div class="box orange">Fast reads</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.3rem">w=n, r=1</div>
+      <div style="font-size:.8rem;color:var(--orange)">Write all replicas, read one. Very fast reads, slow writes.</div>
+    </div>
+  </div>
+  <div style="margin-top:.75rem;font-size:.82rem;color:var(--muted);text-align:center">
+    Common choice: w=quorum(n), r=quorum(n) e.g., n=3, w=r=2 (majority quorum)
   </div>
 </div>
 
-<!-- ========== SECTION 3: READ REPAIR & ANTI-ENTROPY ========== -->
-<h2>Read Repair and Anti-Entropy</h2>
+<p>When a read returns values from multiple nodes, the client takes the <strong>most recent version</strong> (by timestamp or version number). The client (or coordinator) then does <strong>read repair</strong> — writes the up-to-date value back to any lagging replicas.</p>
 
-<p>After an unavailable node comes back online, it needs to catch up. Dynamo-style datastores use two mechanisms:</p>
+<h3>Sloppy Quorums and Hinted Handoff</h3>
 
-<div class="grid2">
-  <div class="card card-green">
-    <h4 style="color:var(--accent3)">Read Repair</h4>
-    <p style="margin-bottom:8px">When a client reads from multiple nodes and detects a stale response, it <strong style="color:var(--text)">writes the newer value back</strong> to the stale replica.</p>
-    <ul>
-      <li>Triggered on every read</li>
-      <li>Works well for frequently-read values</li>
-      <li>Infrequently-read data may stay stale forever</li>
-    </ul>
-  </div>
-  <div class="card card-purple">
-    <h4 style="color:var(--accent2)">Anti-Entropy Process</h4>
-    <p style="margin-bottom:8px">A <strong style="color:var(--text)">background process</strong> continuously scans for differences between replicas and copies missing data.</p>
-    <ul>
-      <li>Runs independently of reads</li>
-      <li>Does NOT copy writes in any particular order</li>
-      <li>May have significant delay</li>
-      <li>Not implemented by all systems (e.g., Voldemort lacks it)</li>
-    </ul>
-  </div>
-</div>
+<p>What if a network partition means the client can only reach nodes outside the "home" set? Should the write fail, or be accepted by any available node?</p>
 
-<!-- Diagram 3: Read repair + anti-entropy flow -->
 <div class="diagram">
-  <div class="diagram-title">Diagram 3: Read Repair & Anti-Entropy Mechanisms</div>
-  <div style="display:flex; flex-direction:column; gap:20px;">
-    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:center;">
-      <div class="arch-box blue" style="width:130px">
-        <div class="arch-label" style="color:var(--accent)">Client Read</div>
-        <div class="arch-detail">GET key from 3 nodes</div>
-      </div>
-      <div class="flow-arrow">&rarr;</div>
-      <div class="arch-box orange" style="width:150px">
-        <div class="arch-label" style="color:var(--orange)">Detect Stale</div>
-        <div class="arch-detail">Node 3 returns v6, others v7</div>
-      </div>
-      <div class="flow-arrow">&rarr;</div>
-      <div class="arch-box green" style="width:150px">
-        <div class="arch-label" style="color:var(--accent3)">Read Repair</div>
-        <div class="arch-detail">Write v7 back to Node 3</div>
-      </div>
+  <div class="row" style="gap:2rem;flex-wrap:wrap;align-items:flex-start">
+    <div class="vflow" style="text-align:center">
+      <div class="box red">Strict quorum</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.3rem;max-width:140px">Write must go to w of n "home" nodes. Partition → write fails. Higher consistency.</div>
     </div>
-    <div style="text-align:center; color:var(--text-muted); font-size:0.85rem; font-weight:600;">+ Background Process (independent of client reads)</div>
-    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:center;">
-      <div class="arch-box purple" style="width:160px">
-        <div class="arch-label" style="color:var(--accent2)">Anti-Entropy</div>
-        <div class="arch-detail">Scan all replicas for diffs</div>
-      </div>
-      <div class="flow-arrow">&rarr;</div>
-      <div class="arch-box purple" style="width:160px">
-        <div class="arch-label" style="color:var(--accent2)">Copy Missing</div>
-        <div class="arch-detail">Replicate data (unordered)</div>
-      </div>
-      <div class="flow-arrow">&rarr;</div>
-      <div class="arch-box green" style="width:140px">
-        <div class="arch-label" style="color:var(--accent3)">Consistent</div>
-        <div class="arch-detail">All replicas converge</div>
-      </div>
+    <div class="vflow" style="text-align:center">
+      <div class="box green">Sloppy quorum</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.3rem;max-width:160px">Write accepted by any w reachable nodes — even if they're not the "home" n nodes. When network heals: hinted handoff sends data to proper home nodes.</div>
     </div>
+  </div>
+  <div class="callout" style="margin-top:1rem">
+    Sloppy quorums improve availability (writes succeed during partitions) but weaken consistency (reads of home nodes may not see latest value). Cassandra uses sloppy quorums by default.
   </div>
 </div>
 
-<div class="card card-orange">
-  <h4 style="color:var(--orange)">Warning: Reduced Durability</h4>
-  <p>Without an anti-entropy process, values that are rarely read may be missing from some replicas indefinitely, because read repair only runs when the application actually reads the value.</p>
-</div>
-
-<!-- ========== SECTION 4: QUORUMS ========== -->
-<h2>Quorums for Reading and Writing</h2>
-
-<p>If there are <span class="key-term">n</span> replicas, every write must be confirmed by <span class="key-term">w</span> nodes, and every read must query at least <span class="key-term">r</span> nodes. As long as <strong style="color:var(--text)">w + r > n</strong>, at least one node in the read set must have the latest write. These are called <span class="key-term">quorum reads</span> and <span class="key-term">quorum writes</span>.</p>
-
-<!-- Diagram 4: Venn-style quorum overlap -->
-<div class="diagram">
-  <div class="diagram-title">Diagram 4: Quorum Overlap &mdash; w + r > n</div>
-  <div class="venn-container" style="height:260px;">
-    <div class="venn-circle" style="width:200px;height:200px;background:var(--accent);left:calc(50% - 140px);top:30px;"></div>
-    <div class="venn-circle" style="width:200px;height:200px;background:var(--accent3);left:calc(50% - 60px);top:30px;"></div>
-    <div class="venn-label" style="left:calc(50% - 170px);top:8px;color:var(--accent);">Write nodes (w)</div>
-    <div class="venn-label" style="right:calc(50% - 170px);top:8px;color:var(--accent3);">Read nodes (r)</div>
-    <div class="venn-center" style="top:110px;">
-      <div style="font-size:1.1rem; font-weight:800; color:var(--orange);">Overlap</div>
-      <div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">At least 1 node<br>has latest write</div>
-    </div>
-  </div>
-  <div style="text-align:center; margin-top:8px;">
-    <div style="font-size:1.3rem; font-weight:800; color:var(--text);">w + r &gt; n</div>
-    <div style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;">Guarantees overlap between write set and read set</div>
-  </div>
-  <div style="margin-top:20px; display:flex; justify-content:center; gap:24px; flex-wrap:wrap;">
-    <div style="text-align:center;">
-      <div style="font-size:2rem; font-weight:800; color:var(--accent);">n=3</div>
-      <div style="font-size:0.8rem; color:var(--text-muted);">w=2, r=2</div>
-      <div style="font-size:0.75rem; color:var(--accent3);">Tolerate 1 failure</div>
-    </div>
-    <div style="text-align:center;">
-      <div style="font-size:2rem; font-weight:800; color:var(--accent);">n=5</div>
-      <div style="font-size:0.8rem; color:var(--text-muted);">w=3, r=3</div>
-      <div style="font-size:0.75rem; color:var(--accent3);">Tolerate 2 failures</div>
-    </div>
-  </div>
-</div>
-
-<h3>Common Quorum Configurations</h3>
-
-<table>
-  <thead>
-    <tr>
-      <th>Config</th>
-      <th>n</th>
-      <th>w</th>
-      <th>r</th>
-      <th>Fault Tolerance</th>
-      <th>Best For</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="color:var(--text);font-weight:600">Standard</td>
-      <td>3</td>
-      <td>2</td>
-      <td>2</td>
-      <td>1 node failure</td>
-      <td>Balanced read/write workloads</td>
-    </tr>
-    <tr>
-      <td style="color:var(--text);font-weight:600">Larger cluster</td>
-      <td>5</td>
-      <td>3</td>
-      <td>3</td>
-      <td>2 node failures</td>
-      <td>Higher fault tolerance</td>
-    </tr>
-    <tr>
-      <td style="color:var(--text);font-weight:600">Read-heavy</td>
-      <td>5</td>
-      <td>5</td>
-      <td>1</td>
-      <td>0 write failures / 4 read failures</td>
-      <td>Fast reads, can tolerate slow writes</td>
-    </tr>
-    <tr>
-      <td style="color:var(--text);font-weight:600">Write-heavy</td>
-      <td>5</td>
-      <td>1</td>
-      <td>5</td>
-      <td>4 write failures / 0 read failures</td>
-      <td>Fast writes, can tolerate slow reads</td>
-    </tr>
-    <tr>
-      <td style="color:var(--text);font-weight:600">Weak (w+r &le; n)</td>
-      <td>5</td>
-      <td>2</td>
-      <td>2</td>
-      <td>3 node failures for availability</td>
-      <td>High availability, tolerates stale reads</td>
-    </tr>
-  </tbody>
-</table>
-
-<div class="card card-accent">
-  <h4 style="color:var(--accent)">Key Insight</h4>
-  <p>Reads and writes are always sent to <strong style="color:var(--text)">all n replicas</strong> in parallel. The parameters w and r only determine <strong style="color:var(--text)">how many responses we wait for</strong> before considering the operation successful. Think of w and r as the minimum number of "votes" required.</p>
-</div>
-
-<!-- ========== SECTION 5: QUORUM LIMITATIONS ========== -->
-<h3>Limitations of Quorum Consistency</h3>
-
-<p>Even with <strong style="color:var(--text)">w + r > n</strong>, stale reads can still occur. The quorum guarantee is weaker than it appears:</p>
-
-<div class="card card-red">
-  <h4 style="color:var(--red)">Edge Cases Where Quorums Fail</h4>
-  <ul>
-    <li><strong style="color:var(--text)">Sloppy quorum:</strong> w writes land on different nodes than the r reads &mdash; no guaranteed overlap</li>
-    <li><strong style="color:var(--text)">Concurrent writes:</strong> No clear ordering; if LWW is used, writes can be lost due to clock skew</li>
-    <li><strong style="color:var(--text)">Concurrent read + write:</strong> The write may appear on only some replicas; read result is undefined</li>
-    <li><strong style="color:var(--text)">Partial write failure:</strong> Write succeeds on some nodes but fails overall (&lt; w); not rolled back on successful nodes</li>
-    <li><strong style="color:var(--text)">Node restoration:</strong> A failed node restored from a stale replica drops below w copies of the new value</li>
-    <li><strong style="color:var(--text)">Timing edge cases:</strong> Linearizability violations even when everything is "working correctly"</li>
-  </ul>
-</div>
-
-<div class="quote">
-  "Dynamo-style databases are generally optimized for use cases that can tolerate eventual consistency. The parameters w and r allow you to adjust the probability of stale values being read, but it's wise to not take them as absolute guarantees."
-</div>
-
-<!-- ========== SECTION 6: SLOPPY QUORUMS & HINTED HANDOFF ========== -->
-<h2>Sloppy Quorums and Hinted Handoff</h2>
-
-<p>In a large cluster, a network partition might cut the client off from the "home" nodes for a key. The client can still reach other nodes, but not the designated n replicas. Database designers face a trade-off:</p>
-
-<!-- Diagram 5: Strict vs Sloppy quorum comparison -->
-<div class="diagram">
-  <div class="diagram-title">Diagram 5: Strict Quorum vs Sloppy Quorum</div>
-  <div class="grid2">
-    <div style="text-align:center;">
-      <div style="font-size:1rem; font-weight:700; color:var(--accent); margin-bottom:12px;">Strict Quorum</div>
-      <div class="flow" style="flex-direction:column; gap:10px;">
-        <div class="flow-box primary" style="min-width:180px">Client writes to home nodes only</div>
-        <div class="flow-arrow" style="transform:rotate(90deg)">&rarr;</div>
-        <div style="display:flex; gap:8px; justify-content:center;">
-          <div class="flow-box green" style="min-width:60px;padding:8px;">N1</div>
-          <div class="flow-box green" style="min-width:60px;padding:8px;">N2</div>
-          <div class="flow-box red" style="min-width:60px;padding:8px;opacity:0.4">N3</div>
-        </div>
-        <div style="font-size:0.8rem; color:var(--red); font-weight:600;">If &lt; w reachable: ERROR</div>
-      </div>
-      <div style="margin-top:12px; padding:10px; background:var(--surface); border-radius:8px; border:1px solid var(--border);">
-        <div style="font-size:0.8rem; color:var(--accent3);">+ Consistency guarantee</div>
-        <div style="font-size:0.8rem; color:var(--red);">- Lower availability</div>
-      </div>
-    </div>
-    <div style="text-align:center;">
-      <div style="font-size:1rem; font-weight:700; color:var(--orange); margin-bottom:12px;">Sloppy Quorum</div>
-      <div class="flow" style="flex-direction:column; gap:10px;">
-        <div class="flow-box orange" style="min-width:180px">Client writes to ANY reachable nodes</div>
-        <div class="flow-arrow" style="transform:rotate(90deg)">&rarr;</div>
-        <div style="display:flex; gap:8px; justify-content:center;">
-          <div class="flow-box green" style="min-width:60px;padding:8px;">N1</div>
-          <div class="flow-box orange" style="min-width:60px;padding:8px;">N4<br><span style="font-size:0.6rem">(temp)</span></div>
-          <div class="flow-box orange" style="min-width:60px;padding:8px;">N5<br><span style="font-size:0.6rem">(temp)</span></div>
-        </div>
-        <div style="font-size:0.8rem; color:var(--accent3); font-weight:600;">Writes accepted on "neighbor" nodes</div>
-      </div>
-      <div style="margin-top:12px; padding:10px; background:var(--surface); border-radius:8px; border:1px solid var(--border);">
-        <div style="font-size:0.8rem; color:var(--accent3);">+ Higher availability</div>
-        <div style="font-size:0.8rem; color:var(--red);">- No read consistency guarantee</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="card card-orange">
-  <h4 style="color:var(--orange)">Sloppy Quorum &ne; True Quorum</h4>
-  <p>A sloppy quorum is only a <strong style="color:var(--text)">durability assurance</strong>: data is stored on w nodes <em>somewhere</em>. There is no guarantee a read of r nodes will see it until hinted handoff completes. It is like knocking on your neighbor's door when you're locked out &mdash; you have a place to stay, but your mail still goes to your house.</p>
-</div>
-
-<div class="card card-accent">
-  <h4 style="color:var(--accent)">Default Settings in Practice</h4>
-  <ul>
-    <li><strong style="color:var(--text)">Riak:</strong> Sloppy quorums enabled by default</li>
-    <li><strong style="color:var(--text)">Cassandra:</strong> Sloppy quorums disabled by default</li>
-    <li><strong style="color:var(--text)">Voldemort:</strong> Sloppy quorums disabled by default</li>
-  </ul>
-</div>
-
-<!-- Diagram 6: Hinted Handoff Flow -->
-<div class="diagram">
-  <div class="diagram-title">Diagram 6: Hinted Handoff Flow</div>
-  <div class="timeline">
-    <div class="timeline-item red">
-      <div class="timeline-title">1. Network Partition Occurs</div>
-      <div class="timeline-desc">Client cannot reach Node 3 (one of the "home" nodes for key X)</div>
-    </div>
-    <div class="timeline-item orange">
-      <div class="timeline-title">2. Sloppy Quorum Write</div>
-      <div class="timeline-desc">Write for key X is accepted by Node 5 (a "neighbor") instead of Node 3. Node 5 stores the value with a <strong style="color:var(--text)">hint</strong>: "this belongs to Node 3."</div>
-    </div>
-    <div class="timeline-item">
-      <div class="timeline-title">3. Client Receives w Acknowledgments</div>
-      <div class="timeline-desc">Write succeeds because w nodes responded (even though one is a temporary stand-in).</div>
-    </div>
-    <div class="timeline-item green">
-      <div class="timeline-title">4. Network Heals</div>
-      <div class="timeline-desc">Node 3 becomes reachable again.</div>
-    </div>
-    <div class="timeline-item purple">
-      <div class="timeline-title">5. Hinted Handoff</div>
-      <div class="timeline-desc">Node 5 sends the temporarily stored writes to Node 3 (the rightful "home" node) and deletes its temporary copy.</div>
-    </div>
-  </div>
-</div>
-
-<!-- ========== SECTION 7: MULTI-DATACENTER LEADERLESS ========== -->
-<h2>Multi-Datacenter Leaderless Replication</h2>
-
-<p>Leaderless replication is well-suited for multi-datacenter operation because it is designed to tolerate conflicting concurrent writes, network interruptions, and latency spikes.</p>
-
-<!-- Diagram 7: Multi-datacenter leaderless -->
-<div class="diagram">
-  <div class="diagram-title">Diagram 7: Multi-Datacenter Approaches</div>
-  <div class="grid2">
-    <div class="card card-accent" style="margin:0">
-      <h4 style="color:var(--accent)">Cassandra / Voldemort</h4>
-      <ul>
-        <li><strong style="color:var(--text)">n</strong> spans ALL datacenters</li>
-        <li>Config specifies replicas per datacenter</li>
-        <li>Writes go to all replicas, all DCs</li>
-        <li>Client waits for <strong style="color:var(--text)">local DC quorum</strong> only</li>
-        <li>Cross-DC writes happen asynchronously</li>
-      </ul>
-    </div>
-    <div class="card card-green" style="margin:0">
-      <h4 style="color:var(--accent3)">Riak</h4>
-      <ul>
-        <li><strong style="color:var(--text)">n</strong> scoped to one datacenter</li>
-        <li>Client-to-DB traffic stays local</li>
-        <li>Cross-DC replication runs in background</li>
-        <li>Style similar to multi-leader replication</li>
-      </ul>
-    </div>
-  </div>
-  <div style="margin-top:20px;">
-    <div class="flow">
-      <div class="flow-vert">
-        <div class="flow-box primary" style="min-width:80px">Client</div>
-      </div>
-      <div class="flow-arrow">&rarr;</div>
-      <div class="flow-vert" style="border:1px dashed var(--accent); padding:12px; border-radius:8px;">
-        <div style="font-size:0.7rem; color:var(--accent); margin-bottom:4px; font-weight:700;">DC 1 (local)</div>
-        <div style="display:flex; gap:6px;">
-          <div class="flow-box green" style="min-width:50px;padding:6px 10px;font-size:0.75rem">R1</div>
-          <div class="flow-box green" style="min-width:50px;padding:6px 10px;font-size:0.75rem">R2</div>
-        </div>
-        <div style="font-size:0.7rem; color:var(--accent3); margin-top:4px">Quorum ack here</div>
-      </div>
-      <div class="flow-arrow" style="font-size:0.9rem; color:var(--text-muted);">async &rarr;</div>
-      <div class="flow-vert" style="border:1px dashed var(--accent2); padding:12px; border-radius:8px;">
-        <div style="font-size:0.7rem; color:var(--accent2); margin-bottom:4px; font-weight:700;">DC 2 (remote)</div>
-        <div style="display:flex; gap:6px;">
-          <div class="flow-box purple" style="min-width:50px;padding:6px 10px;font-size:0.75rem">R3</div>
-          <div class="flow-box purple" style="min-width:50px;padding:6px 10px;font-size:0.75rem">R4</div>
-        </div>
-        <div style="font-size:0.7rem; color:var(--text-muted); margin-top:4px">Replicated later</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ========== SECTION 8: DETECTING CONCURRENT WRITES ========== -->
 <h2>Detecting Concurrent Writes</h2>
+<p>Leaderless databases allow concurrent writes to the same key. The system must detect when writes conflict and decide which wins.</p>
 
-<p>In Dynamo-style databases, multiple clients can write to the same key concurrently, even with strict quorums. Events may arrive in different orders at different nodes due to variable network delays. If each node simply overwrites on every write request, nodes become <span class="key-term">permanently inconsistent</span>.</p>
+<h3>Last Write Wins (LWW)</h3>
+<p>Each write is tagged with a timestamp. On conflict, the write with the higher timestamp wins; others are discarded. Simple but lossy — concurrent writes are silently dropped. Cassandra uses LWW as its default. DynamoDB does too.</p>
 
-<!-- Diagram 8: Concurrent writes, different node orders -->
-<div class="diagram">
-  <div class="diagram-title">Diagram 8: Concurrent Writes &mdash; No Well-Defined Ordering</div>
-  <div class="parallel-diagram">
-    <div class="parallel-row">
-      <div class="parallel-label" style="color:var(--accent)">Node 1</div>
-      <div class="parallel-track">
-        <div class="parallel-event" style="left:10%;width:35%;background:var(--accent);color:white;">Write A</div>
-      </div>
-    </div>
-    <div class="parallel-row">
-      <div class="parallel-label" style="color:var(--accent3)">Node 2</div>
-      <div class="parallel-track">
-        <div class="parallel-event" style="left:10%;width:25%;background:var(--accent);color:white;">A</div>
-        <div class="parallel-event" style="left:45%;width:30%;background:var(--accent3);color:white;">B</div>
-      </div>
-    </div>
-    <div class="parallel-row">
-      <div class="parallel-label" style="color:var(--accent2)">Node 3</div>
-      <div class="parallel-track">
-        <div class="parallel-event" style="left:10%;width:25%;background:var(--accent3);color:white;">B</div>
-        <div class="parallel-event" style="left:45%;width:30%;background:var(--accent);color:white;">A</div>
-      </div>
-    </div>
-  </div>
-  <div style="margin-top:16px; text-align:center;">
-    <div style="display:flex; justify-content:center; gap:24px; flex-wrap:wrap; margin-top:8px;">
-      <div style="font-size:0.85rem;"><span style="color:var(--accent); font-weight:700">Node 1:</span> <span style="color:var(--text-muted)">final = A</span></div>
-      <div style="font-size:0.85rem;"><span style="color:var(--accent3); font-weight:700">Node 2:</span> <span style="color:var(--text-muted)">final = B</span></div>
-      <div style="font-size:0.85rem;"><span style="color:var(--accent2); font-weight:700">Node 3:</span> <span style="color:var(--text-muted)">final = A</span></div>
-    </div>
-    <div style="font-size:0.85rem; color:var(--red); font-weight:600; margin-top:8px;">Nodes are permanently inconsistent!</div>
-  </div>
+<div class="callout red">
+  LWW achieves eventual consistency by <em>discarding data</em>. If two clients concurrently write to the same key, one write is silently lost. The only safe use: if each write is intended to replace the previous one (not to be merged), and data loss is acceptable.
 </div>
 
-<!-- ========== SECTION 9: HAPPENS-BEFORE ========== -->
-<h3>The "Happens-Before" Relationship and Concurrency</h3>
-
-<p>Two operations have three possible relationships:</p>
-
-<div class="grid3">
-  <div class="card card-accent" style="text-align:center">
-    <h4 style="color:var(--accent)">A &rarr; B</h4>
-    <p style="font-size:0.85rem">A <em>happens before</em> B.<br>B knows about / depends on A.</p>
-  </div>
-  <div class="card card-green" style="text-align:center">
-    <h4 style="color:var(--accent3)">B &rarr; A</h4>
-    <p style="font-size:0.85rem">B <em>happens before</em> A.<br>A knows about / depends on B.</p>
-  </div>
-  <div class="card card-orange" style="text-align:center">
-    <h4 style="color:var(--orange)">A || B</h4>
-    <p style="font-size:0.85rem">A and B are <em>concurrent</em>.<br>Neither knows about the other.</p>
-  </div>
-</div>
-
-<!-- Diagram 9: Happens-before vs Concurrency -->
-<div class="diagram">
-  <div class="diagram-title">Diagram 9: Happens-Before vs Concurrency</div>
-  <div class="grid2">
-    <div style="text-align:center;">
-      <div style="font-size:0.95rem; font-weight:700; color:var(--accent); margin-bottom:16px;">Happens-Before (Causal)</div>
-      <div style="display:flex; flex-direction:column; align-items:center; gap:6px;">
-        <div class="flow-box primary" style="min-width:160px">A: INSERT user</div>
-        <div style="font-size:1.5rem; color:var(--accent);">&darr; <span style="font-size:0.7rem">B knows about A</span></div>
-        <div class="flow-box green" style="min-width:160px">B: UPDATE user.name</div>
-      </div>
-      <div style="margin-top:10px; font-size:0.8rem; color:var(--text-muted);">B <em>depends on</em> A. There is a clear order.<br>The later operation overwrites the earlier one.</div>
-    </div>
-    <div style="text-align:center;">
-      <div style="font-size:0.95rem; font-weight:700; color:var(--orange); margin-bottom:16px;">Concurrent (No Causal Link)</div>
-      <div style="display:flex; justify-content:center; gap:16px;">
-        <div class="flow-vert">
-          <div class="flow-box primary" style="min-width:120px">A: SET x=1</div>
-          <div style="font-size:0.7rem; color:var(--text-muted);">No knowledge of B</div>
-        </div>
-        <div style="display:flex; align-items:center; font-size:1.5rem; color:var(--orange); font-weight:700;">||</div>
-        <div class="flow-vert">
-          <div class="flow-box orange" style="min-width:120px">B: SET x=2</div>
-          <div style="font-size:0.7rem; color:var(--text-muted);">No knowledge of A</div>
-        </div>
-      </div>
-      <div style="margin-top:10px; font-size:0.8rem; color:var(--text-muted);">Neither knows about the other.<br>This is a <span style="color:var(--red);font-weight:600">conflict</span> that must be resolved.</div>
-    </div>
-  </div>
-  <div class="card card-purple" style="margin-top:16px; margin-bottom:0;">
-    <h4 style="color:var(--accent2)">Concurrency &ne; Simultaneity</h4>
-    <p style="margin-bottom:0">Two operations are concurrent if they are <strong style="color:var(--text)">both unaware of each other</strong>, regardless of physical clock time. Due to network delays, operations separated by seconds (or even minutes) can be concurrent if neither could observe the other.</p>
-  </div>
-</div>
-
-<!-- ========== SECTION 10: LAST WRITE WINS ========== -->
-<h3>Last Write Wins (LWW) and Its Dangers</h3>
-
-<p>The simplest convergence strategy: attach a timestamp to every write, pick the biggest timestamp as the "winner," discard all others. Used as the <em>only</em> conflict resolution in Cassandra and optionally in Riak.</p>
-
-<div class="grid2">
-  <div class="card card-green">
-    <h4 style="color:var(--accent3)">Advantages</h4>
-    <ul>
-      <li>Simple to implement</li>
-      <li>Achieves eventual convergence</li>
-      <li>No extra application logic needed</li>
-    </ul>
-  </div>
-  <div class="card card-red">
-    <h4 style="color:var(--red)">Dangers</h4>
-    <ul>
-      <li><strong style="color:var(--text)">Silent data loss:</strong> Concurrent writes reported as successful, but only one survives</li>
-      <li><strong style="color:var(--text)">Clock skew:</strong> Can discard even non-concurrent (causally later) writes</li>
-      <li><strong style="color:var(--text)">Durability violation:</strong> Client receives "success" for a write that will be discarded</li>
-    </ul>
-  </div>
-</div>
-
-<div class="card card-accent">
-  <h4 style="color:var(--accent)">Safe Usage Pattern</h4>
-  <p>The only safe way to use LWW: ensure a key is <strong style="color:var(--text)">written once and treated as immutable</strong>. For example, Cassandra recommends using a <span class="key-term">UUID</span> as the key so each write operation targets a unique key, avoiding concurrent updates entirely.</p>
-</div>
-
-<!-- ========== SECTION 11: VERSION NUMBER ALGORITHM ========== -->
-<h2>Capturing Happens-Before with Version Numbers</h2>
-
-<p>To detect concurrent writes without losing data, the server maintains a <span class="key-term">version number</span> per key. Here is the step-by-step algorithm:</p>
-
-<!-- Diagram 10: Version number algorithm -->
-<div class="diagram">
-  <div class="diagram-title">Diagram 10: Version Number Algorithm (Single Replica)</div>
-  <div class="card" style="margin:0 0 16px 0; background:var(--surface);">
-    <div class="step-box">
-      <div class="step-num" style="background:var(--accent);">1</div>
-      <div class="step-content"><strong>Server maintains a version number</strong> for every key. Increments on each write. Stores new version alongside the value.</div>
-    </div>
-    <div class="step-box">
-      <div class="step-num" style="background:var(--accent3);">2</div>
-      <div class="step-content"><strong>Client reads a key:</strong> Server returns <em>all values not yet overwritten</em> plus the latest version number. Client must read before writing.</div>
-    </div>
-    <div class="step-box">
-      <div class="step-num" style="background:var(--accent2);">3</div>
-      <div class="step-content"><strong>Client writes a key:</strong> Must include the version number from the prior read AND merge all values received in that read.</div>
-    </div>
-    <div class="step-box">
-      <div class="step-num" style="background:var(--orange);">4</div>
-      <div class="step-content"><strong>Server receives write with version V:</strong> Overwrites all values with version &le; V (they've been merged). <span style="color:var(--red);font-weight:600">Keeps all values with version &gt; V</span> (those are concurrent).</div>
-    </div>
-    <div class="step-box">
-      <div class="step-num" style="background:var(--red);">5</div>
-      <div class="step-content"><strong>No version number included?</strong> The write is concurrent with everything &mdash; it won't overwrite anything, just becomes another sibling.</div>
-    </div>
-  </div>
-</div>
-
-<h3>Shopping Cart Example: Step by Step</h3>
+<h3>The "Happens-Before" Relationship</h3>
+<p>Operation A <em>happens-before</em> B if B knows about A or depends on A. If neither happens-before the other, they are <em>concurrent</em> — the system cannot tell which came first.</p>
 
 <div class="diagram">
-  <div class="diagram-title">Version Number Algorithm in Action</div>
-  <div class="ver-grid" style="grid-template-columns: auto 1fr 1fr 1fr;">
-    <div class="ver-cell header">Step</div>
-    <div class="ver-cell header">Client 1</div>
-    <div class="ver-cell header">Client 2</div>
-    <div class="ver-cell header">Server State</div>
-
-    <div class="ver-cell step-label">1</div>
-    <div class="ver-cell"><span style="color:var(--accent)">PUT [milk]</span><br><span style="font-size:0.75rem">no prior version</span></div>
-    <div class="ver-cell" style="color:var(--border)">&mdash;</div>
-    <div class="ver-cell"><span style="color:var(--accent3)">v1: [milk]</span></div>
-
-    <div class="ver-cell step-label">2</div>
-    <div class="ver-cell" style="color:var(--border)">&mdash;</div>
-    <div class="ver-cell"><span style="color:var(--accent2)">PUT [eggs]</span><br><span style="font-size:0.75rem">no prior version</span></div>
-    <div class="ver-cell"><span style="color:var(--accent3)">v1: [milk]</span><br><span style="color:var(--accent3)">v2: [eggs]</span></div>
-
-    <div class="ver-cell step-label">3</div>
-    <div class="ver-cell"><span style="color:var(--accent)">PUT [milk, flour]</span><br><span style="font-size:0.75rem">based on v1</span></div>
-    <div class="ver-cell" style="color:var(--border)">&mdash;</div>
-    <div class="ver-cell"><span style="color:var(--accent3)">v2: [eggs]</span><br><span style="color:var(--accent3)">v3: [milk, flour]</span><br><span style="font-size:0.7rem; color:var(--text-muted)">v1 overwritten by v3</span></div>
-
-    <div class="ver-cell step-label">4</div>
-    <div class="ver-cell" style="color:var(--border)">&mdash;</div>
-    <div class="ver-cell"><span style="color:var(--accent2)">PUT [eggs, milk, ham]</span><br><span style="font-size:0.75rem">based on v2</span></div>
-    <div class="ver-cell"><span style="color:var(--accent3)">v3: [milk, flour]</span><br><span style="color:var(--accent3)">v4: [eggs, milk, ham]</span><br><span style="font-size:0.7rem; color:var(--text-muted)">v2 overwritten by v4</span></div>
-
-    <div class="ver-cell step-label">5</div>
-    <div class="ver-cell"><span style="color:var(--accent)">PUT [milk, flour, eggs, bacon]</span><br><span style="font-size:0.75rem">based on v3</span></div>
-    <div class="ver-cell" style="color:var(--border)">&mdash;</div>
-    <div class="ver-cell"><span style="color:var(--accent3)">v4: [eggs, milk, ham]</span><br><span style="color:var(--accent3)">v5: [milk, flour, eggs, bacon]</span><br><span style="font-size:0.7rem; color:var(--text-muted)">v3 overwritten by v5</span></div>
-  </div>
-  <div style="text-align:center; font-size:0.85rem; color:var(--text-muted); margin-top:12px;">
-    No data is lost &mdash; concurrent values (siblings) are kept until merged by the client.<br>
-    <span style="color:var(--accent)">Final merge: union of v4 and v5 = [milk, flour, eggs, bacon, ham]</span>
+  <div style="font-size:.82rem;color:var(--muted);margin-bottom:.75rem">Shopping cart example: tracking causality with version numbers</div>
+  <div style="font-size:.82rem">
+    <div style="background:var(--surface2);padding:.5rem;border-radius:4px;margin-bottom:.4rem">
+      Client 1: <span style="color:var(--accent)">GET cart → v1:[milk]</span>. Adds eggs. <span style="color:var(--green)">PUT cart [milk,eggs] v1 → server returns v2:[milk,eggs]</span>
+    </div>
+    <div style="background:var(--surface2);padding:.5rem;border-radius:4px;margin-bottom:.4rem">
+      Client 2 (concurrently): <span style="color:var(--accent)">GET cart → v1:[milk]</span>. Adds flour. <span style="color:var(--green)">PUT cart [milk,flour] v1 → server has CONFLICT with v2</span>
+    </div>
+    <div style="background:#200;padding:.5rem;border-radius:4px;border:1px solid var(--red)">
+      Server stores <span style="color:var(--orange)">both versions</span>: v2:[milk,eggs] and v3:[milk,flour]. Client must merge: [milk,eggs,flour].
+    </div>
   </div>
 </div>
 
-<div class="card card-purple">
-  <h4 style="color:var(--accent2)">Siblings and Tombstones</h4>
-  <p>Concurrent values are called <span class="key-term">siblings</span> (Riak's terminology). Merging siblings is the client's responsibility. For shopping carts, taking the <strong style="color:var(--text)">union</strong> of sibling sets works well. But for <em>deletions</em>, you cannot simply remove an item &mdash; you must leave a <span class="key-term">tombstone</span> marker with a version number, or removed items will reappear when sibling sets are unioned.</p>
-</div>
+<h3>Version Vectors</h3>
+<p>In a multi-replica leaderless system, each replica tracks versions independently. A <strong>version vector</strong> (or vector clock) maps each replica ID to its counter. This allows detecting which writes are concurrent vs. causally related.</p>
 
-<!-- ========== SECTION 12: VERSION VECTORS ========== -->
-<h2>Version Vectors: Multi-Replica Concurrency Detection</h2>
-
-<p>The single version number approach works for one replica. With multiple replicas accepting writes, we need a <span class="key-term">version number per replica per key</span>. The collection of all replica version numbers is called a <span class="key-term">version vector</span>.</p>
-
-<!-- Diagram 11: Version vectors -->
 <div class="diagram">
-  <div class="diagram-title">Diagram 11: Version Vectors for Multi-Replica Detection</div>
-  <div style="display:flex; flex-direction:column; gap:20px;">
-    <div style="text-align:center;">
-      <div style="font-size:0.95rem; font-weight:700; color:var(--accent); margin-bottom:12px;">Single Replica: One Version Number</div>
-      <div class="flow">
-        <div class="flow-box primary" style="min-width:200px">Key X &rarr; version: 7</div>
+  <div style="font-size:.82rem">
+    <div class="row" style="gap:1rem;flex-wrap:wrap">
+      <div style="background:var(--surface2);padding:.5rem;border-radius:4px">
+        Replica 1 sees: {R1:3, R2:1}<br/>
+        <span style="color:var(--muted)">← knows about 3 writes on R1, 1 on R2</span>
+      </div>
+      <div style="background:var(--surface2);padding:.5rem;border-radius:4px">
+        Replica 2 sees: {R1:2, R2:2}<br/>
+        <span style="color:var(--muted)">← knows about 2 writes on each</span>
       </div>
     </div>
-    <div style="text-align:center; font-size:1.2rem; color:var(--text-muted);">&darr; Generalize to multiple replicas &darr;</div>
-    <div style="text-align:center;">
-      <div style="font-size:0.95rem; font-weight:700; color:var(--accent2); margin-bottom:12px;">Multiple Replicas: Version Vector</div>
-      <div class="flow" style="gap:16px;">
-        <div class="flow-box green" style="min-width:130px">
-          <div style="font-size:0.75rem; font-weight:700; color:var(--accent3)">Replica A</div>
-          Key X &rarr; v<sub>A</sub>=3
-        </div>
-        <div class="flow-box primary" style="min-width:130px">
-          <div style="font-size:0.75rem; font-weight:700; color:var(--accent)">Replica B</div>
-          Key X &rarr; v<sub>B</sub>=5
-        </div>
-        <div class="flow-box purple" style="min-width:130px">
-          <div style="font-size:0.75rem; font-weight:700; color:var(--accent2)">Replica C</div>
-          Key X &rarr; v<sub>C</sub>=2
-        </div>
-      </div>
-      <div style="margin-top:12px; padding:12px; background:var(--surface); border-radius:8px; border:1px solid var(--border); display:inline-block;">
-        <span style="font-size:0.9rem; font-weight:700; color:var(--orange);">Version Vector:</span>
-        <span style="font-size:0.9rem; color:var(--text); font-family:monospace;"> [A:3, B:5, C:2]</span>
-      </div>
-    </div>
-    <div style="padding:16px; background:var(--surface); border-radius:8px; border:1px solid var(--border);">
-      <div style="font-size:0.85rem; font-weight:700; color:var(--accent); margin-bottom:8px;">How Version Vectors Work:</div>
-      <ul style="color:var(--text-muted); font-size:0.85rem; padding-left:20px;">
-        <li>Each replica increments <strong style="color:var(--text)">its own</strong> version number on every write it processes</li>
-        <li>Each replica tracks version numbers <strong style="color:var(--text)">from all other replicas</strong></li>
-        <li>Sent to clients on reads; clients send it back on writes (Riak calls this the <span class="key-term">causal context</span>)</li>
-        <li>Allows the database to distinguish <strong style="color:var(--text)">overwrites</strong> (one vector dominates) from <strong style="color:var(--text)">concurrent writes</strong> (neither dominates)</li>
-        <li>Safe to read from one replica and write to another &mdash; siblings may be created, but no data is lost</li>
-      </ul>
+    <div style="margin-top:.75rem;font-size:.8rem;color:var(--muted)">
+      Client collects version vectors from all replicas. If one dominates (all counters ≥), it's a causal successor. If neither dominates, they're concurrent → both kept → client merges.
     </div>
   </div>
 </div>
 
-<div class="card card-accent">
-  <h4 style="color:var(--accent)">Version Vector vs Vector Clock</h4>
-  <p>The terms are sometimes used interchangeably, but they are subtly different. A <span class="key-term">version vector</span> tracks versions per replica, while a <span class="key-term">vector clock</span> tracks events per process. For comparing replica state, version vectors are the correct data structure. Riak 2.0 uses a refinement called a <span class="key-term">dotted version vector</span>.</p>
+<div class="callout blue">
+  Riak uses <strong>dotted version vectors</strong>. CRDTs (Conflict-free Replicated Data Types) like counters and sets merge automatically. For text documents, operational transformation or CRDTs are needed (Google Docs uses OT).
 </div>
 
-<!-- ========== CHAPTER 5 FULL SUMMARY ========== -->
-<h2>Chapter 5 Summary: Three Replication Approaches Compared</h2>
+<h2>Review Q&amp;A</h2>
 
-<p>Replication serves four key purposes: <strong style="color:var(--text)">high availability</strong> (keep running despite failures), <strong style="color:var(--text)">disconnected operation</strong> (tolerate network interruptions), <strong style="color:var(--text)">latency</strong> (keep data close to users), and <strong style="color:var(--text)">scalability</strong> (handle more reads via replicas).</p>
-
-<!-- Diagram 12: Full comparison -->
-<div class="diagram">
-  <div class="diagram-title">Diagram 12: Replication Approaches &mdash; Complete Comparison</div>
-  <table>
-    <thead>
-      <tr>
-        <th>Aspect</th>
-        <th style="color:var(--accent)">Single-Leader</th>
-        <th style="color:var(--accent2)">Multi-Leader</th>
-        <th style="color:var(--accent3)">Leaderless</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td style="color:var(--text);font-weight:600">Write path</td>
-        <td>Client &rarr; 1 leader &rarr; followers</td>
-        <td>Client &rarr; any leader &rarr; other leaders + followers</td>
-        <td>Client &rarr; all n replicas in parallel</td>
-      </tr>
-      <tr>
-        <td style="color:var(--text);font-weight:600">Read path</td>
-        <td>Any node (followers may be stale)</td>
-        <td>Any node</td>
-        <td>Read from r of n nodes; pick newest</td>
-      </tr>
-      <tr>
-        <td style="color:var(--text);font-weight:600">Write ordering</td>
-        <td>Determined by leader's replication log</td>
-        <td>No global order; conflicts possible</td>
-        <td>No ordering; concurrent writes expected</td>
-      </tr>
-      <tr>
-        <td style="color:var(--text);font-weight:600">Conflict handling</td>
-        <td>None needed (single writer)</td>
-        <td>Must resolve conflicts (CRDTs, LWW, custom)</td>
-        <td>Siblings + version vectors; client merges</td>
-      </tr>
-      <tr>
-        <td style="color:var(--text);font-weight:600">Failover</td>
-        <td>Promote follower to leader (complex)</td>
-        <td>Other leaders continue</td>
-        <td>No failover concept; w+r quorum tolerates failures</td>
-      </tr>
-      <tr>
-        <td style="color:var(--text);font-weight:600">Consistency</td>
-        <td>Strong (with sync replication) or eventual</td>
-        <td>Eventual; weaker guarantees</td>
-        <td>Eventual; quorum gives probabilistic freshness</td>
-      </tr>
-      <tr>
-        <td style="color:var(--text);font-weight:600">Multi-DC</td>
-        <td>Followers in remote DCs (async)</td>
-        <td>Natural fit; leader per DC</td>
-        <td>Natural fit; quorum scoped to local DC</td>
-      </tr>
-      <tr>
-        <td style="color:var(--text);font-weight:600">Examples</td>
-        <td>PostgreSQL, MySQL, MongoDB</td>
-        <td>CouchDB, Tungsten, BDR</td>
-        <td>Riak, Cassandra, Voldemort</td>
-      </tr>
-      <tr>
-        <td style="color:var(--text);font-weight:600">Complexity</td>
-        <td style="color:var(--accent3)">Low</td>
-        <td style="color:var(--orange)">Medium-High</td>
-        <td style="color:var(--red)">High</td>
-      </tr>
-    </tbody>
-  </table>
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">1</div><div class="qa-q">Why is async replication faster but potentially data-losing?</div><div class="chev">›</div></div>
+  <div class="qa-body">Async replication means the leader acknowledges the write to the client <em>before</em> it replicates to followers. The write is in the leader's memory/WAL and confirmed to the client, but only on one node. If the leader crashes before replicating, those writes are gone — the new leader doesn't have them. Sync replication waits for at least one follower to confirm before acking the client, ensuring 2+ copies exist before the client is told "success".</div>
 </div>
 
-<div class="card card-green">
-  <h4 style="color:var(--accent3)">Consistency Models Under Replication Lag</h4>
-  <ul>
-    <li><strong style="color:var(--text)">Read-after-write consistency:</strong> Users always see their own submitted data</li>
-    <li><strong style="color:var(--text)">Monotonic reads:</strong> Once you've seen data at time T, you never see older data</li>
-    <li><strong style="color:var(--text)">Consistent prefix reads:</strong> Causally related events appear in the correct order</li>
-  </ul>
-  <p style="margin-top:8px; margin-bottom:0;">Stronger guarantees (e.g., linearizability) require <strong style="color:var(--text)">transactions or consensus</strong>, covered in Chapters 7 and 9.</p>
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">2</div><div class="qa-q">What is split brain and how is it dangerous?</div><div class="chev">›</div></div>
+  <div class="qa-body">Split brain occurs when two nodes both believe they are the leader and both accept writes. This typically happens during a network partition: one side can't communicate with the other, so each promotes its own leader. Both leaders accept client writes. When the partition heals, the two leaders have diverged data with no way to automatically reconcile. Depending on the application, this could mean duplicate orders, duplicate payments, corrupted data, or inconsistent state. STONITH (forcibly shutting down the old leader) prevents split brain but risks unnecessary shutdowns during false alarms.</div>
 </div>
 
-<!-- ========== FIRST-PRINCIPLES QUESTIONS ========== -->
-<h2>First-Principles Questions</h2>
-
-<div class="question-block" onclick="this.classList.toggle('open')">
-  <div class="question-header">
-    <div style="display:flex;align-items:center"><span class="q-num">1</span>Why does w + r > n guarantee that a read will see the latest write, and what are two real-world scenarios where this guarantee breaks down?</div>
-    <span class="chevron">&#9660;</span>
-  </div>
-  <div class="question-body">
-    <p>The pigeonhole principle: if w nodes have the write and we read r nodes, and w + r > n, the read set and write set must overlap in at least one node that has the latest value. The client picks the highest-versioned response.</p>
-    <p>This breaks down when: (1) <strong>Sloppy quorums</strong> are used &mdash; the w writes may land on "neighbor" nodes outside the designated n, so the r read nodes have zero overlap with write nodes. (2) <strong>Concurrent writes with LWW</strong> &mdash; clock skew can cause a causally later write to receive a smaller timestamp, making it "lose" to an earlier write, effectively discarding data even though quorum was satisfied.</p>
-  </div>
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">3</div><div class="qa-q">What is read-your-own-writes consistency and when does it matter?</div><div class="chev">›</div></div>
+  <div class="qa-body">Read-your-own-writes (aka read-after-write consistency) guarantees that after you write something, you can immediately read it back and see your own write. Without this guarantee, if your write goes to the leader and you then read from a lagging follower, you see the old value — as if your write was lost. This matters everywhere users expect to see their own changes immediately: social media posts, profile edits, form submissions, etc. Implementations route the user's own reads to the leader, or track a "write timestamp" and only read from followers that are caught up past that timestamp.</div>
 </div>
 
-<div class="question-block" onclick="this.classList.toggle('open')">
-  <div class="question-header">
-    <div style="display:flex;align-items:center"><span class="q-num">2</span>Why is "concurrent" defined by mutual unawareness rather than physical clock time, and what consequence does this have for conflict detection?</div>
-    <span class="chevron">&#9660;</span>
-  </div>
-  <div class="question-body">
-    <p>In a distributed system, clocks cannot be trusted to be perfectly synchronized (Chapter 8). Two operations separated by seconds on a wall clock can still be "concurrent" if network delays prevented either from observing the other. Conversely, two operations at the exact same millisecond are NOT concurrent if one causally depends on the other (e.g., a read followed by a dependent write).</p>
-    <p>The consequence: we cannot use timestamps for conflict detection. Instead, we use <strong>version numbers</strong> (single replica) or <strong>version vectors</strong> (multiple replicas) to track the causal "happens-before" relationship. Operations that are neither before nor after each other are concurrent and produce siblings that the client must merge.</p>
-  </div>
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">4</div><div class="qa-q">Explain the quorum condition w + r > n and why it guarantees seeing the latest write.</div><div class="chev">›</div></div>
+  <div class="qa-body">With n replicas, a write goes to w nodes and a read goes to r nodes. If w + r > n, then the sets of w nodes that received the write and r nodes queried for the read must overlap by at least one node (pigeonhole principle). That overlapping node has the latest write. So among the r values returned, at least one will be up-to-date. The client picks the highest-version value. Classic setup: n=3, w=2, r=2. Write goes to 2 of 3 nodes; read queries 2 of 3 — they must share at least 1 node. Note: this is only guaranteed for strict quorums, not sloppy ones.</div>
 </div>
 
-<div class="question-block" onclick="this.classList.toggle('open')">
-  <div class="question-header">
-    <div style="display:flex;align-items:center"><span class="q-num">3</span>A sloppy quorum trades consistency for availability. Explain the exact mechanism: what is written where, and why does hinted handoff not immediately fix the problem?</div>
-    <span class="chevron">&#9660;</span>
-  </div>
-  <div class="question-body">
-    <p>When a network partition prevents the client from reaching the designated "home" nodes for a key, a sloppy quorum allows the write to proceed on w reachable nodes that are NOT among the key's n home nodes. Each stand-in node stores the data along with a <strong>hint</strong> indicating which home node the data truly belongs to.</p>
-    <p>Once the partition heals, <strong>hinted handoff</strong> transfers the data from the stand-in nodes to the correct home nodes. However, until handoff completes, reads querying the home nodes will not see the write &mdash; even if w + r > n. The sloppy quorum only provides a <strong>durability guarantee</strong> (data is stored on w nodes somewhere), NOT a consistency guarantee. This window of inconsistency can be arbitrarily long if the partition persists.</p>
-  </div>
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">5</div><div class="qa-q">What is the problem with Last Write Wins (LWW) in practice?</div><div class="chev">›</div></div>
+  <div class="qa-body">LWW silently discards data. If two clients concurrently write to the same key with different values, the one with the higher timestamp "wins" and the other is dropped — the losing client's write is lost with no error. The problem is amplified because timestamps are typically wall-clock times, and clocks across nodes can't be perfectly synchronized (Chapter 8 covers this). So "which timestamp is higher" is unreliable for concurrent writes. The only safe usage: each key is only written by one client at a time (so true concurrency never occurs), and the data is safe to lose (e.g., caching). For anything else, LWW is risky.</div>
 </div>
 
-<div class="question-block" onclick="this.classList.toggle('open')">
-  <div class="question-header">
-    <div style="display:flex;align-items:center"><span class="q-num">4</span>Why do version vectors need a version number per replica (not just one global version), and how does this enable safe cross-replica reads and writes?</div>
-    <span class="chevron">&#9660;</span>
-  </div>
-  <div class="question-body">
-    <p>With multiple replicas accepting writes concurrently, a single global version number would require coordination (defeating the purpose of leaderless replication). Each replica independently increments its own counter, producing a vector like [A:3, B:5, C:2].</p>
-    <p>To compare two version vectors: if every component of vector V1 is &ge; the corresponding component in V2, then V1 <strong>dominates</strong> V2 (the V1 state includes everything in V2 &mdash; it can overwrite). If neither dominates, the operations are concurrent and must be kept as siblings.</p>
-    <p>This enables safe cross-replica operations: you can read from Replica A (receiving its version vector), then write to Replica B. B uses the version vector to determine what the write has "seen" and what is concurrent. Siblings may be created, but <strong>no data is lost</strong> as long as the application correctly merges siblings.</p>
-  </div>
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">6</div><div class="qa-q">What is hinted handoff and when is it used?</div><div class="chev">›</div></div>
+  <div class="qa-body">Hinted handoff is used with sloppy quorums. When a write can't reach its "home" replicas (due to network partition), it's accepted by other available nodes instead. These nodes tag the write with a "hint" indicating which home node it belongs to. When the network heals and the home node becomes reachable, the node holding the hint forwards the write to the correct home node. This allows writes to succeed during partial failures, at the cost of temporarily having data in the wrong place. After hinted handoff completes, the home node has the data and strict quorum reads can see it.</div>
 </div>
 
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">7</div><div class="qa-q">What is monotonic reads and how do you implement it in a replicated system?</div><div class="chev">›</div></div>
+  <div class="qa-body">Monotonic reads guarantees that if you make multiple reads, you never see an older state than you've already seen — data doesn't appear to go "back in time." Without it, you might read from a fast follower (seeing a new comment), then read from a slow follower (the comment disappeared). Implementation: assign each user a consistent replica to read from — e.g., hash their user_id to a specific replica. They always read from that replica, so their view only moves forward. If that replica fails, they're re-routed to another, but start from the latest known position.</div>
+</div>
+
+<div style="margin-top:3rem;padding:1.5rem;background:var(--surface);border-radius:10px;border:1px solid var(--border)">
+  <div class="row" style="gap:2rem;flex-wrap:wrap">
+    <div>
+      <div style="font-size:.85rem;color:var(--muted)">← Previous</div>
+      <div><a href="chapter-5-replication-part2.html" style="color:var(--accent);text-decoration:none">Part 2: Replication Lag &amp; Multi-Leader</a></div>
+    </div>
+    <div>
+      <div style="font-size:.85rem;color:var(--muted)">Next Chapter →</div>
+      <div><a href="chapter-6-partitioning-part1.html" style="color:var(--accent);text-decoration:none">Chapter 6: Partitioning</a></div>
+    </div>
+  </div>
+</div>
 </div>
 </body>
 </html>

@@ -3,819 +3,236 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DDIA Chapter 5 — Replication Part 1: Leaders, Followers, and Replication Logs</title>
+<title>DDIA Ch 5 Part 1 — Single-Leader Replication</title>
 <style>
-  :root {
-    --bg: #0a0e17;
-    --surface: #111827;
-    --surface2: #1a2234;
-    --border: #1e293b;
-    --text: #e2e8f0;
-    --text-muted: #94a3b8;
-    --accent: #3b82f6;
-    --accent2: #8b5cf6;
-    --accent3: #10b981;
-    --red: #ef4444;
-    --orange: #f59e0b;
-    --pink: #ec4899;
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
-  .container { max-width: 900px; margin: 0 auto; padding: 40px 24px 100px; }
-  h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 48px; border-bottom: 1px solid var(--border); padding-bottom: 24px; }
-  h2 { font-size: 1.5rem; font-weight: 700; margin: 48px 0 16px; color: var(--accent); }
-  h3 { font-size: 1.15rem; font-weight: 600; margin: 32px 0 12px; color: var(--text); }
-  p { margin-bottom: 16px; color: var(--text-muted); }
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 20px 0; }
-  .card-accent { border-left: 4px solid var(--accent); }
-  .card-green { border-left: 4px solid var(--accent3); }
-  .card-orange { border-left: 4px solid var(--orange); }
-  .card-purple { border-left: 4px solid var(--accent2); }
-  .card-red { border-left: 4px solid var(--red); }
-  .card h4 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
-  .card ul { padding-left: 20px; color: var(--text-muted); }
-  .card li { margin-bottom: 6px; }
-  .key-term { color: var(--accent); font-weight: 600; }
-  .diagram { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 32px; margin: 24px 0; overflow-x: auto; }
-  .diagram-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent2); margin-bottom: 20px; }
-  .flow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; }
-  .flow-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; text-align: center; font-size: 0.9rem; min-width: 120px; }
-  .flow-box.primary { border-color: var(--accent); color: var(--accent); }
-  .flow-box.green { border-color: var(--accent3); color: var(--accent3); }
-  .flow-box.purple { border-color: var(--accent2); color: var(--accent2); }
-  .flow-box.orange { border-color: var(--orange); color: var(--orange); }
-  .flow-box.red { border-color: var(--red); color: var(--red); }
-  .flow-box.pink { border-color: var(--pink); color: var(--pink); }
-  .flow-arrow { color: var(--text-muted); font-size: 1.2rem; }
-  .flow-vert { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-  @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } .grid3 { grid-template-columns: 1fr; } }
-  .quote { background: var(--surface2); border-left: 3px solid var(--accent2); padding: 16px 20px; margin: 20px 0; border-radius: 0 8px 8px 0; font-style: italic; color: var(--text-muted); }
-  .tag { display: inline-block; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 2px 12px; font-size: 0.8rem; color: var(--text-muted); margin: 2px; }
-  .bar-chart { display: flex; align-items: flex-end; gap: 3px; height: 160px; padding: 0 10px; }
-  .bar { background: var(--accent); border-radius: 3px 3px 0 0; min-width: 6px; flex: 1; transition: all .3s; position: relative; }
-  .bar:hover { background: var(--accent2); }
-  .bar-label { position: absolute; bottom: -22px; left: 50%; transform: translateX(-50%); font-size: 0.65rem; color: var(--text-muted); white-space: nowrap; }
-  .bar.tail { background: var(--red); }
-  .chart-footer { display: flex; justify-content: space-between; margin-top: 28px; font-size: 0.75rem; color: var(--text-muted); }
-  .size-bar-container { margin: 8px 0; }
-  .size-bar-label { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; display: flex; justify-content: space-between; }
-  .size-bar-track { background: var(--surface); border-radius: 6px; height: 24px; overflow: hidden; border: 1px solid var(--border); }
-  .size-bar { height: 100%; border-radius: 6px 0 0 6px; display: flex; align-items: center; padding-left: 8px; font-size: 0.7rem; font-weight: 600; color: white; }
-  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
-  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
-  th { color: var(--accent); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
-  td { color: var(--text-muted); }
-  .question-block { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin: 16px 0; overflow: hidden; }
-  .question-header { padding: 16px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 0.95rem; }
-  .question-header:hover { background: var(--surface2); }
-  .question-body { padding: 0 20px 16px; display: none; color: var(--text-muted); border-top: 1px solid var(--border); padding-top: 16px; }
-  .question-block.open .question-body { display: block; }
-  .q-num { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: var(--accent); color: white; border-radius: 50%; font-size: 0.8rem; font-weight: 700; margin-right: 12px; flex-shrink: 0; }
-  .chevron { transition: transform .2s; color: var(--text-muted); }
-  .question-block.open .chevron { transform: rotate(180deg); }
-  .section-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--accent2); font-weight: 700; margin-bottom: 8px; }
-  .fanout-diagram { display: flex; flex-direction: column; align-items: center; gap: 16px; }
-  .fanout-row { display: flex; gap: 12px; align-items: center; }
-  .fanout-node { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; }
-  .fanout-node.user { background: var(--accent); color: white; }
-  .fanout-node.cache { background: var(--accent3); color: white; }
-  .fanout-line { width: 2px; height: 20px; background: var(--text-muted); }
-  .arch-box { border: 2px solid var(--border); border-radius: 10px; padding: 16px; margin: 8px; text-align: center; }
-  .arch-box.blue { border-color: var(--accent); background: rgba(59,130,246,0.08); }
-  .arch-box.green { border-color: var(--accent3); background: rgba(16,185,129,0.08); }
-  .arch-box.purple { border-color: var(--accent2); background: rgba(139,92,246,0.08); }
-  .arch-box.orange { border-color: var(--orange); background: rgba(245,158,11,0.08); }
-  .arch-box.red { border-color: var(--red); background: rgba(239,68,68,0.08); }
-  .arch-box.pink { border-color: var(--pink); background: rgba(236,72,153,0.08); }
-  .arch-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
-  .arch-detail { font-size: 0.8rem; color: var(--text-muted); }
-  .timeline { position: relative; padding-left: 32px; margin: 16px 0; }
-  .timeline::before { content: ''; position: absolute; left: 12px; top: 0; bottom: 0; width: 2px; background: var(--border); }
-  .timeline-item { position: relative; margin-bottom: 20px; }
-  .timeline-item::before { content: ''; position: absolute; left: -26px; top: 6px; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: 2px solid var(--surface2); }
-  .timeline-item.green::before { background: var(--accent3); }
-  .timeline-item.orange::before { background: var(--orange); }
-  .timeline-item.red::before { background: var(--red); }
-  .timeline-item.purple::before { background: var(--accent2); }
-  .timeline-title { font-weight: 600; font-size: 0.9rem; color: var(--text); }
-  .timeline-desc { font-size: 0.85rem; color: var(--text-muted); }
-  .concept-map { display: flex; flex-direction: column; align-items: center; gap: 12px; }
-  .concept-row { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
-  .concept-node { background: var(--surface); border: 2px solid var(--border); border-radius: 12px; padding: 10px 16px; text-align: center; font-size: 0.85rem; min-width: 100px; }
-  .concept-node.root { border-color: var(--accent); color: var(--accent); font-weight: 700; font-size: 1rem; padding: 14px 24px; }
-  .concept-connector { color: var(--text-muted); font-size: 1.4rem; }
-  .layer-stack { display: flex; flex-direction: column; gap: 4px; }
-  .layer { padding: 14px 20px; border-radius: 8px; text-align: center; font-size: 0.85rem; font-weight: 600; }
-  .number-badge { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; font-size: 0.85rem; font-weight: 700; margin-right: 8px; }
+:root {
+  --bg:#0a0e17; --surface:#111827; --surface2:#1a2234; --border:#1e293b;
+  --text:#e2e8f0; --muted:#94a3b8; --accent:#3b82f6; --purple:#8b5cf6;
+  --green:#10b981; --red:#ef4444; --orange:#f59e0b; --pink:#ec4899; --cyan:#06b6d4;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.7;padding:2rem 1rem}
+.wrap{max-width:860px;margin:0 auto}
+h1{font-size:2rem;color:var(--accent);margin-bottom:.25rem}
+h2{font-size:1.4rem;color:var(--purple);margin:2.5rem 0 .75rem;padding-left:.75rem;border-left:3px solid var(--purple)}
+h3{font-size:1.1rem;color:var(--cyan);margin:1.5rem 0 .5rem}
+p{margin:.6rem 0}ul,ol{margin:.5rem 0 .5rem 1.5rem}li{margin:.25rem 0}
+code{background:var(--surface2);color:var(--cyan);padding:.1rem .4rem;border-radius:4px;font-size:.88rem}
+.nav{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:2rem}
+.nav a{padding:.4rem 1rem;border-radius:6px;text-decoration:none;font-size:.9rem;background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
+.nav a.cur{background:var(--accent);color:#fff;border-color:var(--accent)}
+.subtitle{color:var(--muted);font-size:1rem;margin-bottom:2rem}
+.diagram{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.5rem;margin:1.2rem 0;overflow-x:auto}
+.box{display:inline-block;padding:.4rem .9rem;border-radius:6px;font-size:.85rem;font-weight:600;text-align:center}
+.box.blue{background:#1e3a5f;border:1px solid var(--accent);color:var(--accent)}
+.box.purple{background:#2d1b69;border:1px solid var(--purple);color:var(--purple)}
+.box.green{background:#064e3b;border:1px solid var(--green);color:var(--green)}
+.box.orange{background:#451a03;border:1px solid var(--orange);color:var(--orange)}
+.box.cyan{background:#0c4a6e;border:1px solid var(--cyan);color:var(--cyan)}
+.box.red{background:#450a0a;border:1px solid var(--red);color:var(--red)}
+.box.muted{background:var(--surface2);border:1px solid var(--border);color:var(--muted)}
+.row{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin:.5rem 0}
+.vflow{display:flex;flex-direction:column;align-items:center;gap:.5rem}
+.arrow{color:var(--muted);font-size:1.2rem}
+.rarrow{color:var(--muted);font-size:1.1rem}
+.callout{border-left:3px solid var(--orange);background:var(--surface2);padding:.8rem 1rem;border-radius:0 6px 6px 0;margin:1rem 0;font-size:.92rem}
+.callout.blue{border-left-color:var(--accent);background:#0c1a2e}
+.callout.green{border-left-color:var(--green);background:#052015}
+.callout.red{border-left-color:var(--red);background:#200}
+.pill{display:inline-block;padding:.2rem .6rem;border-radius:999px;font-size:.78rem;font-weight:600}
+.pill.green{background:#064e3b;color:var(--green)}
+.pill.red{background:#450a0a;color:var(--red)}
+.pill.orange{background:#451a03;color:var(--orange)}
+.table-wrap{overflow-x:auto;margin:1rem 0}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th{background:var(--surface2);color:var(--accent);padding:.6rem .8rem;text-align:left;border:1px solid var(--border)}
+td{padding:.5rem .8rem;border:1px solid var(--border);vertical-align:top}
+tr:nth-child(even) td{background:var(--surface)}
 </style>
 </head>
 <body>
-<div class="container">
-  <p class="section-label">DDIA — Part II: Distributed Data / Chapter 5, Part 1 of 3</p>
-  <h1>Chapter 5: Replication — Leaders, Followers, and Replication Logs</h1>
-  <p class="subtitle">Replication means keeping a copy of the same data on multiple machines connected via a network. This first part covers the foundational architecture of leader-based replication: how leaders and followers coordinate, how data flows between them, what happens when nodes fail, and the different ways replication logs are implemented under the hood.</p>
+<div class="wrap">
+<div class="nav">
+  <a href="chapter-5-replication-part1.html" class="cur">Part 1: Single-Leader</a>
+  <a href="chapter-5-replication-part2.html">Part 2: Replication Lag &amp; Multi-Leader</a>
+  <a href="chapter-5-replication-part3.html">Part 3: Leaderless &amp; Q&amp;A</a>
+</div>
+<h1>Chapter 5 — Replication</h1>
+<div class="subtitle">Part 1: Why Replicate, Single-Leader Replication, Synchronous vs Async, Failover</div>
 
-  <div class="quote">"The major difference between a thing that might go wrong and a thing that cannot possibly go wrong is that when a thing that cannot possibly go wrong goes wrong it usually turns out to be impossible to get at or repair." — Douglas Adams, <em>Mostly Harmless</em> (1992)</div>
+<p>Replication means keeping copies of the same data on multiple machines. Every write to the data needs to be processed by every replica — <em>how</em> you handle that coordination is where distributed systems get complex.</p>
 
-  <!-- ===== CONCEPT MAP ===== -->
-  <div class="diagram">
-    <div class="diagram-title">Part 1 Concept Map</div>
-    <div class="concept-map">
-      <div class="concept-node root">Replication</div>
-      <div class="concept-connector">&#9475;<br>Why and How?</div>
-      <div class="concept-row">
-        <div class="concept-node" style="border-color:var(--accent); color:var(--accent);">Leader-Follower<br><span style="font-size:0.75rem; color:var(--text-muted);">Architecture</span></div>
-        <div class="concept-node" style="border-color:var(--accent3); color:var(--accent3);">Sync vs Async<br><span style="font-size:0.75rem; color:var(--text-muted);">Replication modes</span></div>
-        <div class="concept-node" style="border-color:var(--orange); color:var(--orange);">Node Outages<br><span style="font-size:0.75rem; color:var(--text-muted);">Failover &amp; recovery</span></div>
-        <div class="concept-node" style="border-color:var(--accent2); color:var(--accent2);">Replication Logs<br><span style="font-size:0.75rem; color:var(--text-muted);">4 implementation methods</span></div>
-      </div>
+<h2>Why Replicate Data?</h2>
+<div class="diagram">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem">
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px;border-left:3px solid var(--accent)">
+      <div style="color:var(--accent);font-weight:700;margin-bottom:.3rem">Latency</div>
+      <div style="font-size:.82rem;color:var(--muted)">Keep data geographically close to users. A Tokyo user shouldn't wait for transatlantic round-trips.</div>
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px;border-left:3px solid var(--purple)">
+      <div style="color:var(--purple);font-weight:700;margin-bottom:.3rem">Availability</div>
+      <div style="font-size:.82rem;color:var(--muted)">System keeps working even if some nodes fail. Other replicas serve requests while one is down.</div>
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px;border-left:3px solid var(--green)">
+      <div style="color:var(--green);font-weight:700;margin-bottom:.3rem">Read throughput</div>
+      <div style="font-size:.82rem;color:var(--muted)">Scale out reads across many replicas. 10 replicas ≈ 10× read capacity (writes still bottleneck on leader).</div>
     </div>
   </div>
-
-  <!-- ===== WHY REPLICATE ===== -->
-  <h2>Why Replicate Data?</h2>
-  <p>If the data that you are replicating does not change over time, replication is trivial: copy the data to every node once and you are done. All of the difficulty in replication lies in handling <span class="key-term">changes to replicated data</span>. But first, why bother at all?</p>
-
-  <!-- DIAGRAM 1: Why Replicate -->
-  <div class="diagram">
-    <div class="diagram-title">Diagram 1 — Three Reasons to Replicate</div>
-    <div class="grid3">
-      <div class="arch-box blue">
-        <div class="arch-label" style="color:var(--accent);">Reduce Latency</div>
-        <div class="arch-detail">Keep data geographically close to users. A replica in Tokyo serves Japanese users faster than a single server in Virginia.</div>
-      </div>
-      <div class="arch-box green">
-        <div class="arch-label" style="color:var(--accent3);">Increase Availability</div>
-        <div class="arch-detail">If some parts of the system fail, the system continues working. Redundancy means no single point of failure.</div>
-      </div>
-      <div class="arch-box purple">
-        <div class="arch-label" style="color:var(--accent2);">Scale Read Throughput</div>
-        <div class="arch-detail">Scale out the number of machines that can serve read queries. Distribute read load across many followers.</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="card card-accent">
-    <h4>Key Assumption for This Chapter</h4>
-    <p style="margin-bottom:0;">The dataset is small enough that each machine can hold a copy of the <strong>entire</strong> dataset. Chapter 6 relaxes this assumption by introducing partitioning (sharding) for datasets too big for a single machine.</p>
-  </div>
-
-  <p>There are three popular algorithms for replicating changes between nodes: <span class="key-term">single-leader</span>, <span class="key-term">multi-leader</span>, and <span class="key-term">leaderless</span> replication. This part focuses on single-leader replication, which is the most common approach used in production databases.</p>
-
-  <!-- ===== LEADERS AND FOLLOWERS ===== -->
-  <h2>Leaders and Followers</h2>
-  <p>Each node that stores a copy of the database is called a <span class="key-term">replica</span>. With multiple replicas, the fundamental question is: how do we ensure that all the data ends up on all the replicas? Every write must be processed by every replica, or they will diverge.</p>
-
-  <p>The most common solution is <span class="key-term">leader-based replication</span> (also known as active/passive or master-slave replication). It works in three steps:</p>
-
-  <div class="card card-accent">
-    <h4>How Leader-Based Replication Works</h4>
-    <ul>
-      <li><strong>Step 1:</strong> One replica is designated the <span class="key-term">leader</span> (master/primary). All client writes go to the leader, which writes new data to its local storage.</li>
-      <li><strong>Step 2:</strong> Other replicas are <span class="key-term">followers</span> (read replicas/slaves/secondaries). The leader sends data changes to all followers via a <span class="key-term">replication log</span> or change stream. Followers apply writes in the same order as the leader.</li>
-      <li><strong>Step 3:</strong> Clients can read from the leader <em>or</em> any follower. However, writes are <strong>only accepted on the leader</strong>.</li>
-    </ul>
-  </div>
-
-  <!-- DIAGRAM 2: Leader-Follower Architecture -->
-  <div class="diagram">
-    <div class="diagram-title">Diagram 2 — Leader-Based Replication Architecture</div>
-    <div style="display:flex; flex-direction:column; align-items:center; gap:20px;">
-      <!-- Clients -->
-      <div style="display:flex; gap:16px; flex-wrap:wrap; justify-content:center;">
-        <div class="flow-box orange" style="min-width:80px; font-size:0.8rem;">Client A<br><span style="font-size:0.7rem; color:var(--text-muted);">write</span></div>
-        <div class="flow-box orange" style="min-width:80px; font-size:0.8rem;">Client B<br><span style="font-size:0.7rem; color:var(--text-muted);">write</span></div>
-        <div class="flow-box" style="min-width:80px; font-size:0.8rem; border-color:var(--text-muted); color:var(--text-muted);">Client C<br><span style="font-size:0.7rem;">read</span></div>
-        <div class="flow-box" style="min-width:80px; font-size:0.8rem; border-color:var(--text-muted); color:var(--text-muted);">Client D<br><span style="font-size:0.7rem;">read</span></div>
-      </div>
-      <!-- Arrows down -->
-      <div style="display:flex; gap:60px; align-items:center;">
-        <div style="color:var(--orange); font-size:1.2rem;">&#9660; writes only</div>
-        <div style="color:var(--text-muted); font-size:1.2rem;">&#9660; reads</div>
-      </div>
-      <!-- Leader -->
-      <div class="arch-box blue" style="min-width:280px;">
-        <div class="arch-label" style="color:var(--accent);">Leader (Primary)</div>
-        <div class="arch-detail">Accepts all writes. Writes to local storage first, then sends replication log to followers.</div>
-      </div>
-      <!-- Replication arrows -->
-      <div style="display:flex; gap:40px; align-items:center;">
-        <div style="color:var(--accent2); font-size:0.8rem;">&#9660; replication log</div>
-        <div style="color:var(--accent2); font-size:0.8rem;">&#9660; replication log</div>
-        <div style="color:var(--accent2); font-size:0.8rem;">&#9660; replication log</div>
-      </div>
-      <!-- Followers -->
-      <div style="display:flex; gap:16px; flex-wrap:wrap; justify-content:center;">
-        <div class="arch-box green" style="min-width:160px;">
-          <div class="arch-label" style="color:var(--accent3);">Follower 1</div>
-          <div class="arch-detail">Read replica. Applies writes from replication log in order.</div>
-        </div>
-        <div class="arch-box green" style="min-width:160px;">
-          <div class="arch-label" style="color:var(--accent3);">Follower 2</div>
-          <div class="arch-detail">Read replica. Applies writes from replication log in order.</div>
-        </div>
-        <div class="arch-box green" style="min-width:160px;">
-          <div class="arch-label" style="color:var(--accent3);">Follower 3</div>
-          <div class="arch-detail">Read replica. Applies writes from replication log in order.</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="card card-green">
-    <h4>Where Is Leader-Based Replication Used?</h4>
-    <p style="margin-bottom:8px;">This is a built-in feature of many systems:</p>
-    <div style="display:flex; flex-wrap:wrap; gap:4px;">
-      <span class="tag">PostgreSQL (9.0+)</span>
-      <span class="tag">MySQL</span>
-      <span class="tag">Oracle Data Guard</span>
-      <span class="tag">SQL Server AlwaysOn</span>
-      <span class="tag">MongoDB</span>
-      <span class="tag">RethinkDB</span>
-      <span class="tag">Espresso</span>
-      <span class="tag">Kafka</span>
-      <span class="tag">RabbitMQ HA Queues</span>
-      <span class="tag">DRBD</span>
-    </div>
-  </div>
-
-  <!-- ===== SYNCHRONOUS VS ASYNCHRONOUS ===== -->
-  <h2>Synchronous vs. Asynchronous Replication</h2>
-  <p>An important detail of a replicated system is whether the replication happens <span class="key-term">synchronously</span> or <span class="key-term">asynchronously</span>. This is often a configurable option in relational databases.</p>
-
-  <!-- DIAGRAM 3: Sync vs Async Timeline -->
-  <div class="diagram">
-    <div class="diagram-title">Diagram 3 — Synchronous vs. Asynchronous Replication Timeline</div>
-    <div style="display:flex; flex-direction:column; gap:8px; font-size:0.85rem;">
-      <!-- Header row -->
-      <div style="display:grid; grid-template-columns:100px 1fr; gap:8px; margin-bottom:8px;">
-        <div style="font-weight:700; color:var(--text);">Actor</div>
-        <div style="font-weight:700; color:var(--text);">Timeline &#8594;</div>
-      </div>
-      <!-- Client -->
-      <div style="display:grid; grid-template-columns:100px 1fr; gap:8px; align-items:center;">
-        <div style="color:var(--orange); font-weight:600;">Client</div>
-        <div style="display:flex; align-items:center; gap:4px;">
-          <div style="background:var(--orange); color:white; padding:4px 10px; border-radius:4px; font-size:0.75rem;">WRITE req</div>
-          <div style="flex:1; height:2px; background:var(--border);"></div>
-          <div style="background:var(--orange); color:white; padding:4px 10px; border-radius:4px; font-size:0.75rem; white-space:nowrap;">&#10003; ACK (after sync follower confirms)</div>
-        </div>
-      </div>
-      <!-- Leader -->
-      <div style="display:grid; grid-template-columns:100px 1fr; gap:8px; align-items:center;">
-        <div style="color:var(--accent); font-weight:600;">Leader</div>
-        <div style="display:flex; align-items:center; gap:4px;">
-          <div style="width:50px;"></div>
-          <div style="background:var(--accent); color:white; padding:4px 10px; border-radius:4px; font-size:0.75rem;">Write locally</div>
-          <div style="color:var(--accent2); font-size:0.8rem;">&#8594; send to followers</div>
-          <div style="flex:1; height:2px; background:var(--border);"></div>
-          <div style="color:var(--accent3); font-size:0.75rem;">&#10003; from F1</div>
-        </div>
-      </div>
-      <!-- Follower 1 sync -->
-      <div style="display:grid; grid-template-columns:100px 1fr; gap:8px; align-items:center;">
-        <div style="color:var(--accent3); font-weight:600;">Follower 1<br><span style="font-size:0.7rem; color:var(--accent3);">(synchronous)</span></div>
-        <div style="display:flex; align-items:center; gap:4px;">
-          <div style="width:180px;"></div>
-          <div style="background:var(--accent3); color:white; padding:4px 10px; border-radius:4px; font-size:0.75rem;">Receive &amp; apply write</div>
-          <div style="color:var(--accent3); font-size:0.8rem;">&#8594; ACK to leader</div>
-        </div>
-      </div>
-      <!-- Follower 2 async -->
-      <div style="display:grid; grid-template-columns:100px 1fr; gap:8px; align-items:center;">
-        <div style="color:var(--text-muted); font-weight:600;">Follower 2<br><span style="font-size:0.7rem; color:var(--red);">(asynchronous)</span></div>
-        <div style="display:flex; align-items:center; gap:4px;">
-          <div style="width:180px;"></div>
-          <div style="flex:1; height:2px; background:var(--border); border-top:2px dashed var(--red);"></div>
-          <div style="background:var(--surface); border:1px solid var(--red); color:var(--red); padding:4px 10px; border-radius:4px; font-size:0.75rem; white-space:nowrap;">Applies write later (substantial delay possible)</div>
-        </div>
-      </div>
-    </div>
-    <div style="margin-top:16px; font-size:0.8rem; color:var(--text-muted);">
-      <strong style="color:var(--accent3);">Synchronous:</strong> Leader waits for follower to confirm before acknowledging to client. Guaranteed up-to-date copy, but blocks on follower failure.<br>
-      <strong style="color:var(--red);">Asynchronous:</strong> Leader sends the message but does not wait. Fast, but follower may fall behind by seconds or even minutes.
-    </div>
-  </div>
-
-  <div class="grid2">
-    <div class="card card-green">
-      <h4 style="color:var(--accent3);">Synchronous Advantages</h4>
-      <ul>
-        <li>Follower <strong>guaranteed</strong> to have up-to-date copy consistent with leader</li>
-        <li>If leader suddenly fails, data is still available on the synchronous follower</li>
-        <li>Strong durability guarantees</li>
-      </ul>
-    </div>
-    <div class="card card-red">
-      <h4 style="color:var(--red);">Synchronous Disadvantages</h4>
-      <ul>
-        <li>If sync follower does not respond (crash, network fault), the <strong>write cannot be processed</strong></li>
-        <li>Leader must block <strong>all writes</strong> and wait</li>
-        <li>One node outage can halt the entire system</li>
-      </ul>
-    </div>
-  </div>
-
-  <h3>The Semi-Synchronous Compromise</h3>
-  <p>It is impractical for <em>all</em> followers to be synchronous: any one node outage would cause the whole system to grind to a halt. In practice, <span class="key-term">semi-synchronous</span> replication means:</p>
-
-  <!-- DIAGRAM 4: Semi-Synchronous -->
-  <div class="diagram">
-    <div class="diagram-title">Diagram 4 — Semi-Synchronous Replication</div>
-    <div style="display:flex; flex-direction:column; align-items:center; gap:16px;">
-      <div class="arch-box blue" style="min-width:200px;">
-        <div class="arch-label" style="color:var(--accent);">Leader</div>
-        <div class="arch-detail">Writes go here first</div>
-      </div>
-      <div style="display:flex; gap:30px; align-items:flex-start; flex-wrap:wrap; justify-content:center;">
-        <div style="display:flex; flex-direction:column; align-items:center; gap:6px;">
-          <div style="color:var(--accent3); font-size:0.8rem; font-weight:700;">&#9660; SYNC</div>
-          <div class="arch-box green" style="min-width:140px;">
-            <div class="arch-label" style="color:var(--accent3);">Follower 1</div>
-            <div class="arch-detail">Synchronous: leader waits for ACK</div>
-          </div>
-          <div style="font-size:0.7rem; color:var(--text-muted); text-align:center; max-width:150px;">If this follower becomes unavailable, one of the async followers is promoted to sync</div>
-        </div>
-        <div style="display:flex; flex-direction:column; align-items:center; gap:6px;">
-          <div style="color:var(--red); font-size:0.8rem; font-weight:700;">&#9660; ASYNC</div>
-          <div class="arch-box" style="min-width:140px; border-color:var(--text-muted);">
-            <div class="arch-label" style="color:var(--text-muted);">Follower 2</div>
-            <div class="arch-detail">Asynchronous: no wait</div>
-          </div>
-        </div>
-        <div style="display:flex; flex-direction:column; align-items:center; gap:6px;">
-          <div style="color:var(--red); font-size:0.8rem; font-weight:700;">&#9660; ASYNC</div>
-          <div class="arch-box" style="min-width:140px; border-color:var(--text-muted);">
-            <div class="arch-label" style="color:var(--text-muted);">Follower 3</div>
-            <div class="arch-detail">Asynchronous: no wait</div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div style="margin-top:16px; padding:12px; background:var(--surface); border-radius:8px; font-size:0.85rem; color:var(--text-muted);">
-      <strong style="color:var(--accent);">Guarantee:</strong> Up-to-date data on at least <strong>two nodes</strong> (the leader + one synchronous follower) at all times. If the sync follower becomes slow or unavailable, an async follower is promoted to synchronous.
-    </div>
-  </div>
-
-  <div class="card card-orange">
-    <h4>Fully Asynchronous: The Trade-off</h4>
-    <p style="margin-bottom:8px;">Often, leader-based replication is configured to be <strong>completely asynchronous</strong>. If the leader fails and is not recoverable, any writes that have not yet been replicated to followers are <strong>lost</strong>. The write is not guaranteed to be durable, even if it has been confirmed to the client.</p>
-    <p style="margin-bottom:0;">However, the advantage is that the leader can continue processing writes even if all of its followers have fallen behind. This is why asynchronous replication is nevertheless <strong>widely used</strong>, especially with many followers or geographically distributed replicas.</p>
-  </div>
-
-  <!-- ===== SETTING UP NEW FOLLOWERS ===== -->
-  <h2>Setting Up New Followers</h2>
-  <p>From time to time you need to set up new followers — to increase replicas or replace failed nodes. Simply copying data files is not sufficient because clients are constantly writing; a standard file copy would see different parts of the database at different points in time. Locking the database would violate availability. Fortunately, it can be done <strong>without downtime</strong>:</p>
-
-  <!-- DIAGRAM 5: New Follower Setup -->
-  <div class="diagram">
-    <div class="diagram-title">Diagram 5 — Setting Up a New Follower (4 Steps)</div>
-    <div class="timeline">
-      <div class="timeline-item">
-        <div class="timeline-title"><span class="number-badge" style="background:var(--accent); color:white;">1</span> Take a Consistent Snapshot</div>
-        <div class="timeline-desc">Take a consistent snapshot of the leader's database at some point in time, without taking a lock on the entire database. Most databases have this feature (it is also required for backups). For MySQL, tools like <code>innobackupex</code> can be used.</div>
-      </div>
-      <div class="timeline-item green">
-        <div class="timeline-title"><span class="number-badge" style="background:var(--accent3); color:white;">2</span> Copy Snapshot to New Follower</div>
-        <div class="timeline-desc">Copy the snapshot to the new follower node. This can be done over the network or via physical media for very large datasets.</div>
-      </div>
-      <div class="timeline-item orange">
-        <div class="timeline-title"><span class="number-badge" style="background:var(--orange); color:white;">3</span> Request Changes Since Snapshot</div>
-        <div class="timeline-desc">The follower connects to the leader and requests all data changes that happened <strong>since the snapshot</strong>. This requires the snapshot to be associated with an exact position in the leader's replication log. PostgreSQL calls this the <span class="key-term">log sequence number</span>; MySQL calls it the <span class="key-term">binlog coordinates</span>.</div>
-      </div>
-      <div class="timeline-item purple">
-        <div class="timeline-title"><span class="number-badge" style="background:var(--accent2); color:white;">4</span> Caught Up!</div>
-        <div class="timeline-desc">When the follower has processed the backlog of data changes since the snapshot, we say it has <span class="key-term">caught up</span>. It can now continue to process data changes from the leader as they happen in real time.</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ===== HANDLING NODE OUTAGES ===== -->
-  <h2>Handling Node Outages</h2>
-  <p>Any node can go down — unexpectedly due to a fault, or due to planned maintenance like rebooting for a kernel security patch. The goal is to keep the system as a whole running despite individual node failures and keep the impact of a node outage as small as possible.</p>
-
-  <h3>Follower Failure: Catch-Up Recovery</h3>
-  <p>Each follower keeps a log of the data changes it has received from the leader on its local disk. Recovery is straightforward:</p>
-
-  <!-- DIAGRAM 6: Follower Catch-Up -->
-  <div class="diagram">
-    <div class="diagram-title">Diagram 6 — Follower Catch-Up Recovery</div>
-    <div style="display:flex; flex-direction:column; align-items:center; gap:12px;">
-      <div style="display:flex; gap:24px; align-items:center; flex-wrap:wrap; justify-content:center;">
-        <div class="arch-box blue" style="min-width:140px;">
-          <div class="arch-label" style="color:var(--accent);">Leader</div>
-          <div class="arch-detail">Continuous writes: tx101, tx102, tx103, tx104...</div>
-        </div>
-        <div style="color:var(--accent2); font-size:1.2rem;">&#8594;</div>
-        <div class="arch-box green" style="min-width:180px;">
-          <div class="arch-label" style="color:var(--accent3);">Follower</div>
-          <div class="arch-detail">Local log: tx101, tx102</div>
-        </div>
-      </div>
-      <div style="display:flex; align-items:center; gap:12px;">
-        <div style="background:var(--red); color:white; padding:6px 16px; border-radius:6px; font-size:0.85rem; font-weight:600;">CRASH at tx102!</div>
-      </div>
-      <div style="color:var(--text-muted); font-size:0.85rem;">&#9660; Follower restarts...</div>
-      <div style="display:flex; gap:24px; align-items:center; flex-wrap:wrap; justify-content:center;">
-        <div class="arch-box green" style="min-width:180px;">
-          <div class="arch-label" style="color:var(--accent3);">Follower (restarted)</div>
-          <div class="arch-detail">Checks local log: last processed = tx102</div>
-        </div>
-        <div style="color:var(--accent2); font-size:0.8rem;">&#8594; requests tx103, tx104, ...</div>
-        <div class="arch-box blue" style="min-width:140px;">
-          <div class="arch-label" style="color:var(--accent);">Leader</div>
-          <div class="arch-detail">Sends missing changes</div>
-        </div>
-      </div>
-      <div style="background:var(--accent3); color:white; padding:6px 16px; border-radius:6px; font-size:0.85rem; font-weight:600;">Caught up! Resumes normal streaming.</div>
-    </div>
-  </div>
-
-  <h3>Leader Failure: Failover</h3>
-  <p>Handling a failure of the leader is trickier: one of the followers needs to be <span class="key-term">promoted</span> to be the new leader, clients need to be reconfigured to send their writes to the new leader, and other followers need to start consuming data changes from the new leader. This process is called <span class="key-term">failover</span>.</p>
-
-  <!-- DIAGRAM 7: Failover 3-Step Process -->
-  <div class="diagram">
-    <div class="diagram-title">Diagram 7 — Automatic Failover: 3-Step Process</div>
-    <div style="display:flex; flex-direction:column; gap:20px;">
-      <!-- Step 1 -->
-      <div style="display:flex; gap:16px; align-items:flex-start;">
-        <div class="number-badge" style="background:var(--red); color:white; flex-shrink:0;">1</div>
-        <div>
-          <div style="font-weight:700; color:var(--text); margin-bottom:4px;">Determine That the Leader Has Failed</div>
-          <div style="font-size:0.85rem; color:var(--text-muted);">No foolproof way to detect what has gone wrong. Most systems use a <span class="key-term">timeout</span>: nodes frequently bounce messages back and forth, and if a node does not respond for some period (e.g., 30 seconds), it is assumed to be dead.</div>
-          <div style="display:flex; gap:12px; margin-top:8px; align-items:center;">
-            <div class="arch-box red" style="padding:8px 12px; margin:0; font-size:0.8rem;">
-              <div style="color:var(--red); font-weight:700;">Old Leader</div>
-              <div class="arch-detail">No heartbeat for 30s</div>
-            </div>
-            <div style="color:var(--red); font-size:0.8rem;">&#10007; TIMEOUT &#8594; declared dead</div>
-          </div>
-        </div>
-      </div>
-      <!-- Step 2 -->
-      <div style="display:flex; gap:16px; align-items:flex-start;">
-        <div class="number-badge" style="background:var(--accent2); color:white; flex-shrink:0;">2</div>
-        <div>
-          <div style="font-weight:700; color:var(--text); margin-bottom:4px;">Choose a New Leader</div>
-          <div style="font-size:0.85rem; color:var(--text-muted);">Done through an <span class="key-term">election process</span> (majority of remaining replicas vote) or appointed by a previously elected <span class="key-term">controller node</span>. Best candidate: the replica with the most up-to-date data changes from the old leader, minimizing data loss. This is a consensus problem (Chapter 9).</div>
-          <div style="display:flex; gap:12px; margin-top:8px; align-items:center; flex-wrap:wrap;">
-            <div class="arch-box green" style="padding:8px 12px; margin:0; font-size:0.8rem;">
-              <div style="color:var(--accent3); font-weight:700;">Follower 1</div>
-              <div class="arch-detail">tx up to 103</div>
-            </div>
-            <div class="arch-box purple" style="padding:8px 12px; margin:0; font-size:0.8rem;">
-              <div style="color:var(--accent2); font-weight:700;">Follower 2 &#9733;</div>
-              <div class="arch-detail">tx up to 104 (most recent)</div>
-            </div>
-            <div style="color:var(--accent2); font-size:0.8rem;">&#8592; elected as new leader</div>
-          </div>
-        </div>
-      </div>
-      <!-- Step 3 -->
-      <div style="display:flex; gap:16px; align-items:flex-start;">
-        <div class="number-badge" style="background:var(--accent3); color:white; flex-shrink:0;">3</div>
-        <div>
-          <div style="font-weight:700; color:var(--text); margin-bottom:4px;">Reconfigure the System</div>
-          <div style="font-size:0.85rem; color:var(--text-muted);">Clients must now send write requests to the new leader. If the old leader comes back, the system must ensure it becomes a follower and recognizes the new leader — it might still believe it is the leader.</div>
-          <div style="display:flex; gap:12px; margin-top:8px; align-items:center; flex-wrap:wrap;">
-            <div class="arch-box blue" style="padding:8px 12px; margin:0; font-size:0.8rem;">
-              <div style="color:var(--accent); font-weight:700;">New Leader</div>
-              <div class="arch-detail">(was Follower 2)</div>
-            </div>
-            <div style="color:var(--accent2); font-size:0.8rem;">&#8592; clients redirect writes here</div>
-            <div class="arch-box" style="padding:8px 12px; margin:0; font-size:0.8rem; border-color:var(--text-muted);">
-              <div style="color:var(--text-muted); font-weight:700;">Old Leader</div>
-              <div class="arch-detail">Demoted to follower on return</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <h3>Things That Can Go Wrong During Failover</h3>
-  <p>Failover is fraught with dangers. These are not edge cases — they are real problems that have caused production incidents:</p>
-
-  <!-- DIAGRAM 8: Failover Dangers -->
-  <div class="diagram">
-    <div class="diagram-title">Diagram 8 — Failover Dangers</div>
-    <div style="display:flex; flex-direction:column; gap:16px;">
-      <!-- Danger 1: Lost writes -->
-      <div class="card card-red" style="margin:0;">
-        <h4 style="color:var(--red);">Danger 1: Lost Writes (Discarded Data)</h4>
-        <p style="margin-bottom:8px;">With asynchronous replication, the new leader may not have received all writes from the old leader before it failed. If the old leader rejoins, what happens to those unreplicated writes? The most common solution: the old leader's unreplicated writes are <strong>simply discarded</strong>. This violates clients' durability expectations.</p>
-        <div style="display:flex; gap:12px; align-items:center; font-size:0.8rem; flex-wrap:wrap;">
-          <div style="background:var(--red); color:white; padding:4px 10px; border-radius:4px;">Old Leader: tx100-tx105</div>
-          <div style="color:var(--text-muted);">&#8594;</div>
-          <div style="background:var(--accent3); color:white; padding:4px 10px; border-radius:4px;">New Leader: tx100-tx103 only</div>
-          <div style="color:var(--red); font-weight:700;">tx104, tx105 LOST!</div>
-        </div>
-      </div>
-      <!-- Danger 2: GitHub incident -->
-      <div class="card card-orange" style="margin:0;">
-        <h4 style="color:var(--orange);">Danger 2: Coordinated Systems Diverge (The GitHub Incident)</h4>
-        <p style="margin-bottom:8px;">Discarding writes is especially dangerous when other storage systems must stay coordinated with the database. At GitHub, an out-of-date MySQL follower was promoted to leader. The database used an autoincrementing counter for primary keys, but the new leader's counter lagged behind, so it <strong>reused primary keys</strong> previously assigned by the old leader. These keys were also used in Redis, causing <strong>private data to be disclosed to the wrong users</strong>.</p>
-        <div style="display:flex; gap:8px; align-items:center; font-size:0.8rem; flex-wrap:wrap;">
-          <div style="background:var(--surface2); border:1px solid var(--orange); padding:4px 10px; border-radius:4px; color:var(--orange);">New MySQL Leader</div>
-          <div style="color:var(--text-muted);">reuses PK #1234 &#8594;</div>
-          <div style="background:var(--surface2); border:1px solid var(--red); padding:4px 10px; border-radius:4px; color:var(--red);">Redis still maps PK #1234 to old user</div>
-          <div style="color:var(--red); font-weight:700;">Data leak!</div>
-        </div>
-      </div>
-      <!-- Danger 3: Split Brain -->
-      <div class="card card-purple" style="margin:0;">
-        <h4 style="color:var(--accent2);">Danger 3: Split Brain</h4>
-        <p style="margin-bottom:8px;">In certain fault scenarios, two nodes both believe they are the leader. This is called <span class="key-term">split brain</span>. If both leaders accept writes with no conflict resolution process, data is likely to be lost or corrupted. Some systems have a mechanism to shut down one node if two leaders are detected — but if not carefully designed, you can end up with <strong>both nodes being shut down</strong>.</p>
-        <div style="display:flex; gap:16px; align-items:center; justify-content:center; flex-wrap:wrap;">
-          <div class="arch-box red" style="min-width:120px; margin:0; padding:10px;">
-            <div style="color:var(--red); font-weight:700; font-size:0.85rem;">Node A</div>
-            <div class="arch-detail">"I am leader!"</div>
-          </div>
-          <div style="color:var(--red); font-size:1.5rem; font-weight:700;">&#9876;</div>
-          <div class="arch-box red" style="min-width:120px; margin:0; padding:10px;">
-            <div style="color:var(--red); font-weight:700; font-size:0.85rem;">Node B</div>
-            <div class="arch-detail">"I am leader!"</div>
-          </div>
-          <div style="color:var(--red); font-size:0.8rem;">Both accept writes &#8594; conflict!</div>
-        </div>
-      </div>
-      <!-- Danger 4: Timeout tuning -->
-      <div class="card card-accent" style="margin:0;">
-        <h4>Danger 4: Wrong Timeout</h4>
-        <p style="margin-bottom:0;"><strong>Too long:</strong> Longer time to recovery when the leader actually fails. <strong>Too short:</strong> Unnecessary failovers caused by temporary load spikes or network glitches. An unnecessary failover during high load makes the situation <em>worse</em>, not better.</p>
-      </div>
-    </div>
-  </div>
-
-  <div class="quote">Some operations teams prefer to perform failovers <strong>manually</strong>, even if the software supports automatic failover, because of these dangers.</div>
-
-  <!-- ===== IMPLEMENTATION OF REPLICATION LOGS ===== -->
-  <h2>Implementation of Replication Logs</h2>
-  <p>How does leader-based replication work under the hood? Several different methods are used in practice. Each has different trade-offs around coupling, compatibility, flexibility, and performance.</p>
-
-  <h3>1. Statement-Based Replication</h3>
-  <p>The leader logs every write request (<span class="key-term">statement</span>) it executes and sends that statement log to followers. For a relational database, this means every <code>INSERT</code>, <code>UPDATE</code>, or <code>DELETE</code> statement is forwarded to followers, which parse and execute the SQL as if received from a client.</p>
-
-  <!-- DIAGRAM 9: Statement-Based -->
-  <div class="diagram">
-    <div class="diagram-title">Diagram 9 — Statement-Based Replication</div>
-    <div style="display:flex; flex-direction:column; align-items:center; gap:12px;">
-      <div class="flow">
-        <div class="flow-box primary">Leader</div>
-        <div class="flow-arrow">&#8594;</div>
-        <div class="flow-box purple" style="min-width:240px; font-size:0.8rem;">
-          <code>INSERT INTO users VALUES(...);</code><br>
-          <code>UPDATE users SET name='...';</code><br>
-          <code>DELETE FROM sessions WHERE...;</code>
-        </div>
-        <div class="flow-arrow">&#8594;</div>
-        <div class="flow-box green">Follower</div>
-      </div>
-      <div style="font-size:0.8rem; color:var(--text-muted); text-align:center;">The follower <strong>parses and executes</strong> each SQL statement independently</div>
-    </div>
-  </div>
-
-  <div class="card card-red">
-    <h4 style="color:var(--red);">Problems with Statement-Based Replication</h4>
-    <ul>
-      <li><strong>Nondeterministic functions:</strong> <code>NOW()</code>, <code>RAND()</code> produce different values on each replica</li>
-      <li><strong>Autoincrementing columns:</strong> Statements depending on existing data (e.g., <code>UPDATE ... WHERE &lt;condition&gt;</code>) must execute in exactly the same order on each replica</li>
-      <li><strong>Side effects:</strong> Triggers, stored procedures, user-defined functions may produce different results on each replica unless absolutely deterministic</li>
-    </ul>
-    <p style="margin-top:8px; margin-bottom:0;">The leader can replace nondeterministic function calls with fixed values when logging, but the edge cases are numerous. MySQL used this before v5.1; VoltDB still uses it but requires transactions to be deterministic.</p>
-  </div>
-
-  <h3>2. Write-Ahead Log (WAL) Shipping</h3>
-  <p>Every write is appended to a log: in LSM-tree storage engines, this log is the main storage; in B-tree engines, modifications are written to a <span class="key-term">write-ahead log</span> before the actual data structure. This exact same log can be used to build a replica: the leader sends the log across the network to followers.</p>
-
-  <!-- DIAGRAM 10: WAL Shipping -->
-  <div class="diagram">
-    <div class="diagram-title">Diagram 10 — Write-Ahead Log (WAL) Shipping</div>
-    <div style="display:flex; flex-direction:column; align-items:center; gap:12px;">
-      <div class="flow">
-        <div class="flow-box primary" style="min-width:160px;">
-          <strong>Leader</strong><br>
-          <span style="font-size:0.75rem; color:var(--text-muted);">Storage Engine</span>
-        </div>
-        <div class="flow-arrow">&#8594;</div>
-        <div class="flow-box orange" style="min-width:240px; font-size:0.8rem;">
-          <strong>WAL bytes</strong><br>
-          <span style="font-size:0.75rem;">Block 42, offset 0x1A0: write 64 bytes...</span><br>
-          <span style="font-size:0.75rem;">Block 97, offset 0x040: write 128 bytes...</span>
-        </div>
-        <div class="flow-arrow">&#8594;</div>
-        <div class="flow-box green" style="min-width:160px;">
-          <strong>Follower</strong><br>
-          <span style="font-size:0.75rem; color:var(--text-muted);">Builds identical data structures</span>
-        </div>
-      </div>
-      <div style="margin-top:8px; padding:12px; background:var(--surface); border-radius:8px; border:1px solid var(--orange); font-size:0.85rem; color:var(--text-muted);">
-        <strong style="color:var(--orange);">Key drawback:</strong> The log describes data at a very <strong>low level</strong> (which bytes changed in which disk blocks). This makes replication <strong>tightly coupled to the storage engine</strong>. You typically cannot run different versions of the database software on leader and followers, meaning <strong>zero-downtime upgrades become impossible</strong>.
-      </div>
-    </div>
-  </div>
-
-  <div class="card card-accent">
-    <h4>Operational Impact</h4>
-    <p style="margin-bottom:0;">If the replication protocol allows version mismatch (follower on newer version), you can perform a <strong>zero-downtime upgrade</strong>: upgrade followers first, then failover to make an upgraded node the new leader. WAL shipping often does <em>not</em> allow this. Used by PostgreSQL and Oracle.</p>
-  </div>
-
-  <h3>3. Logical (Row-Based) Log Replication</h3>
-  <p>An alternative is to use a different log format for replication than for the storage engine, <span class="key-term">decoupling</span> the replication log from storage internals. This is called a <span class="key-term">logical log</span>. A logical log for a relational database is a sequence of records describing writes at the granularity of a row:</p>
-
-  <!-- DIAGRAM 11: Logical Log -->
-  <div class="diagram">
-    <div class="diagram-title">Diagram 11 — Logical (Row-Based) Log Replication</div>
-    <div style="display:flex; flex-direction:column; gap:12px;">
-      <div style="display:flex; gap:16px; flex-wrap:wrap; justify-content:center;">
-        <div class="arch-box green" style="flex:1; min-width:200px;">
-          <div class="arch-label" style="color:var(--accent3);">INSERT</div>
-          <div class="arch-detail">Log contains: <strong>new values of all columns</strong></div>
-          <div style="font-size:0.75rem; color:var(--accent3); margin-top:4px; font-family:monospace;">users: {id:42, name:"Alice", email:"a@b.com"}</div>
-        </div>
-        <div class="arch-box orange" style="flex:1; min-width:200px;">
-          <div class="arch-label" style="color:var(--orange);">DELETE</div>
-          <div class="arch-detail">Log contains: enough info to <strong>uniquely identify</strong> the row (typically the primary key)</div>
-          <div style="font-size:0.75rem; color:var(--orange); margin-top:4px; font-family:monospace;">users: {id:42} (or all old column values if no PK)</div>
-        </div>
-        <div class="arch-box blue" style="flex:1; min-width:200px;">
-          <div class="arch-label" style="color:var(--accent);">UPDATE</div>
-          <div class="arch-detail">Log contains: row identifier + <strong>new values of changed columns</strong></div>
-          <div style="font-size:0.75rem; color:var(--accent); margin-top:4px; font-family:monospace;">users: {id:42, name:"Bob"}</div>
-        </div>
-      </div>
-      <div style="font-size:0.85rem; color:var(--text-muted); text-align:center;">A transaction modifying several rows generates several log records, followed by a <strong>commit record</strong>.</div>
-    </div>
-  </div>
-
-  <div class="grid2">
-    <div class="card card-green">
-      <h4 style="color:var(--accent3);">Advantages</h4>
-      <ul>
-        <li>Decoupled from storage engine: leader and follower can run <strong>different versions</strong> or even different storage engines</li>
-        <li>Easier to keep <strong>backward compatible</strong></li>
-        <li>Easier for external applications to parse (enables <span class="key-term">change data capture</span> — Chapter 11)</li>
-        <li>Can send data to data warehouses, custom indexes, caches</li>
-      </ul>
-    </div>
-    <div class="card card-accent">
-      <h4>Who Uses This?</h4>
-      <p style="margin-bottom:0;">MySQL's binlog (when configured for row-based replication) uses this approach. It is the default in modern MySQL (5.1+). The logical log format is the foundation of <span class="key-term">change data capture (CDC)</span> systems.</p>
-    </div>
-  </div>
-
-  <h3>4. Trigger-Based Replication</h3>
-  <p>The approaches above are all implemented by the database system itself. But sometimes you need more flexibility: replicate only a subset of data, replicate between different kinds of databases, or apply conflict resolution logic. In these cases, replication moves up to the <strong>application layer</strong>.</p>
-
-  <!-- DIAGRAM 12: Trigger-Based -->
-  <div class="diagram">
-    <div class="diagram-title">Diagram 12 — Trigger-Based Replication</div>
-    <div style="display:flex; flex-direction:column; align-items:center; gap:12px;">
-      <div class="flow">
-        <div class="flow-box primary">Client Write</div>
-        <div class="flow-arrow">&#8594;</div>
-        <div class="flow-box orange" style="min-width:160px;">
-          <strong>Database</strong><br>
-          <span style="font-size:0.75rem;">Trigger fires on write</span>
-        </div>
-        <div class="flow-arrow">&#8594;</div>
-        <div class="flow-box purple" style="min-width:160px;">
-          <strong>Shadow Table</strong><br>
-          <span style="font-size:0.75rem;">Change logged here</span>
-        </div>
-        <div class="flow-arrow">&#8594;</div>
-        <div class="flow-box green" style="min-width:160px;">
-          <strong>External Process</strong><br>
-          <span style="font-size:0.75rem;">Reads changes, applies app logic, replicates</span>
-        </div>
-      </div>
-      <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:8px;">
-        <span class="tag">Oracle GoldenGate</span>
-        <span class="tag">Databus for Oracle</span>
-        <span class="tag">Bucardo for Postgres</span>
-      </div>
-    </div>
-  </div>
-
-  <div class="card card-orange">
-    <h4>Trade-off</h4>
-    <p style="margin-bottom:0;">Trigger-based replication has <strong>greater overhead</strong> than database-native replication methods and is <strong>more prone to bugs and limitations</strong>. However, it can be useful due to its flexibility — it is the only approach that gives application code control over what is replicated and how.</p>
-  </div>
-
-  <!-- ===== COMPARISON TABLE ===== -->
-  <h3>Replication Log Methods: Comparison</h3>
-
-  <div style="overflow-x:auto;">
-    <table>
-      <thead>
-        <tr>
-          <th>Method</th>
-          <th>What Is Shipped</th>
-          <th>Coupling</th>
-          <th>Version Compat.</th>
-          <th>Key Weakness</th>
-          <th>Used By</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><strong style="color:var(--accent);">Statement-Based</strong></td>
-          <td>SQL statements (INSERT, UPDATE, DELETE)</td>
-          <td style="color:var(--accent3);">Low</td>
-          <td style="color:var(--accent3);">Good</td>
-          <td style="color:var(--red);">Nondeterminism breaks replicas</td>
-          <td>MySQL &lt;5.1, VoltDB</td>
-        </tr>
-        <tr>
-          <td><strong style="color:var(--orange);">WAL Shipping</strong></td>
-          <td>Raw byte-level changes to disk blocks</td>
-          <td style="color:var(--red);">Very High</td>
-          <td style="color:var(--red);">Poor (no version mismatch)</td>
-          <td style="color:var(--red);">Tightly coupled to storage engine</td>
-          <td>PostgreSQL, Oracle</td>
-        </tr>
-        <tr>
-          <td><strong style="color:var(--accent3);">Logical (Row-Based)</strong></td>
-          <td>Row-level changes (new/old column values)</td>
-          <td style="color:var(--accent3);">Low</td>
-          <td style="color:var(--accent3);">Good (backward compat.)</td>
-          <td style="color:var(--orange);">Larger log size than WAL</td>
-          <td>MySQL 5.1+ (binlog)</td>
-        </tr>
-        <tr>
-          <td><strong style="color:var(--accent2);">Trigger-Based</strong></td>
-          <td>Application-defined change records</td>
-          <td style="color:var(--accent3);">None (app layer)</td>
-          <td style="color:var(--accent3);">N/A</td>
-          <td style="color:var(--red);">High overhead, bug-prone</td>
-          <td>GoldenGate, Bucardo</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-
-  <!-- ===== FIRST PRINCIPLES QUESTIONS ===== -->
-  <h2>First-Principles Questions</h2>
-  <p>Test your understanding of the core concepts. Click each question to reveal the answer.</p>
-
-  <div class="question-block" onclick="this.classList.toggle('open')">
-    <div class="question-header">
-      <span><span class="q-num">1</span>Why is fully synchronous replication impractical, and what compromise do production systems actually use?</span>
-      <span class="chevron">&#9662;</span>
-    </div>
-    <div class="question-body">
-      <p>If all followers are synchronous, any single node outage (crash, network fault, slow disk) blocks <strong>all writes</strong> to the entire system — the leader must wait for every follower to acknowledge before confirming to the client. With N followers, the probability of at least one being unavailable at any moment is high.</p>
-      <p>The practical compromise is <strong>semi-synchronous replication</strong>: one follower is synchronous (guaranteeing an up-to-date copy on at least two nodes), and the rest are asynchronous. If the synchronous follower becomes unavailable, an asynchronous follower is automatically promoted to synchronous. This provides a balance between durability (data on 2+ nodes) and availability (one slow follower does not block the system).</p>
-    </div>
-  </div>
-
-  <div class="question-block" onclick="this.classList.toggle('open')">
-    <div class="question-header">
-      <span><span class="q-num">2</span>During leader failover, why can't the new leader simply replay the old leader's unreplicated writes when it comes back online?</span>
-      <span class="chevron">&#9662;</span>
-    </div>
-    <div class="question-body">
-      <p>The new leader may have already accepted <strong>conflicting writes</strong> in the meantime — writes that were not on the old leader. If the old leader had autoincrementing IDs, the new leader may have reused those same IDs for different data. Simply replaying the old leader's writes could cause primary key collisions, constraint violations, or data corruption.</p>
-      <p>Furthermore, external systems (Redis caches, search indexes, analytics stores) may have already been updated based on the new leader's data. Replaying old writes would create <strong>inconsistencies between the database and these external systems</strong> — as demonstrated by the GitHub incident where primary key reuse caused private data disclosure to wrong users.</p>
-      <p>The most common (if unfortunate) solution is to <strong>discard</strong> the old leader's unreplicated writes, accepting a violation of durability guarantees.</p>
-    </div>
-  </div>
-
-  <div class="question-block" onclick="this.classList.toggle('open')">
-    <div class="question-header">
-      <span><span class="q-num">3</span>Why is WAL shipping considered tightly coupled to the storage engine, while logical log replication is not?</span>
-      <span class="chevron">&#9662;</span>
-    </div>
-    <div class="question-body">
-      <p>A WAL describes changes at the <strong>physical byte level</strong>: "write these 64 bytes at offset 0x1A0 in disk block 42." This format is intimately tied to the storage engine's internal data structures — the layout of B-tree pages, the format of LSM-tree segments, etc. If the storage engine changes its format between versions (reorganizing pages, changing compression, etc.), the WAL format changes too, making it impossible for a follower running a different version to interpret the log.</p>
-      <p>A logical log, by contrast, describes changes at the <strong>row level</strong>: "in table <code>users</code>, insert row with id=42, name='Alice'." This is a <strong>higher-level abstraction</strong> that does not depend on how the data is physically stored on disk. The leader could use a B-tree and the follower could use an LSM-tree — the logical log would work for both. This decoupling enables zero-downtime upgrades (upgrade followers first, then failover) and enables change data capture by external systems.</p>
-    </div>
-  </div>
-
-  <div class="question-block" onclick="this.classList.toggle('open')">
-    <div class="question-header">
-      <span><span class="q-num">4</span>When setting up a new follower, why must the snapshot be associated with an exact position in the replication log?</span>
-      <span class="chevron">&#9662;</span>
-    </div>
-    <div class="question-body">
-      <p>The snapshot represents the state of the database at one specific point in time. After the snapshot is taken, the leader continues accepting writes. The new follower needs to "catch up" by requesting <strong>all changes that happened after the snapshot</strong>. Without an exact log position associated with the snapshot, the follower has no way to know <em>where to start</em> in the replication log.</p>
-      <p>If it starts too early, it might try to apply writes that are already reflected in the snapshot, causing duplicates or errors. If it starts too late, it misses writes, causing the follower to have <strong>gaps in its data</strong>. The log position (called <span class="key-term">log sequence number</span> in PostgreSQL or <span class="key-term">binlog coordinates</span> in MySQL) is the precise pointer that connects the snapshot to the ongoing stream of changes, ensuring a gapless, duplicate-free transition from snapshot to live replication.</p>
-    </div>
-  </div>
-
-  <div style="margin-top:48px; padding-top:24px; border-top:1px solid var(--border); color:var(--text-muted); font-size:0.85rem;">
-    <p><strong>Part 1 of 3</strong> for Chapter 5: Replication. This part covered leader-based replication architecture, synchronous vs. asynchronous modes, node outage handling, failover, and the four methods of implementing replication logs.</p>
-    <p style="margin-bottom:0;"><strong>Up next in Part 2:</strong> Problems with Replication Lag — read-after-write consistency, monotonic reads, consistent prefix reads, and solutions for replication lag.</p>
-  </div>
-
 </div>
 
-<script>
-// Question blocks are handled by inline onclick
-</script>
+<h2>Three Replication Approaches</h2>
+<div class="diagram">
+  <div class="row" style="justify-content:center;gap:2rem;flex-wrap:wrap">
+    <div class="vflow" style="text-align:center">
+      <div class="box blue" style="padding:.75rem 1.2rem">Single-Leader</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.4rem;max-width:140px">One node accepts all writes, replicates to followers. Simple, widely used.</div>
+    </div>
+    <div class="vflow" style="text-align:center">
+      <div class="box purple" style="padding:.75rem 1.2rem">Multi-Leader</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.4rem;max-width:140px">Multiple nodes accept writes, replicate to each other. Good for multi-datacenter setups.</div>
+    </div>
+    <div class="vflow" style="text-align:center">
+      <div class="box green" style="padding:.75rem 1.2rem">Leaderless</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.4rem;max-width:140px">No leader — clients write to multiple replicas directly. Dynamo, Cassandra, Riak.</div>
+    </div>
+  </div>
+</div>
+
+<h2>Leaders and Followers (Single-Leader)</h2>
+<p>One replica is the <strong>leader</strong>. All writes go through it. The leader writes locally, then sends the change to all <strong>followers</strong> (aka read replicas) via a replication log. Followers apply changes in the same order. Reads can go to any replica.</p>
+
+<div class="diagram">
+  <div class="vflow">
+    <div class="row" style="justify-content:center;gap:2rem">
+      <div class="box muted">Client (write)</div>
+      <div class="box muted">Client (read)</div>
+    </div>
+    <div class="row" style="justify-content:center;gap:5rem">
+      <div class="arrow">↓</div>
+      <div class="arrow">↘</div>
+    </div>
+    <div class="box blue" style="padding:.75rem 2rem">Leader Node</div>
+    <div style="font-size:.78rem;color:var(--muted)">Write locally → send replication log to all followers</div>
+    <div class="row" style="gap:3rem;margin-top:.5rem">
+      <div class="arrow">↙</div>
+      <div class="arrow">↓</div>
+      <div class="arrow">↘</div>
+    </div>
+    <div class="row" style="gap:1.5rem">
+      <div class="box green">Follower 1<br/><span style="font-size:.72rem;color:var(--muted)">reads OK</span></div>
+      <div class="box green">Follower 2<br/><span style="font-size:.72rem;color:var(--muted)">reads OK</span></div>
+      <div class="box green">Follower 3<br/><span style="font-size:.72rem;color:var(--muted)">reads OK</span></div>
+    </div>
+  </div>
+  <div style="margin-top:.75rem;font-size:.8rem;color:var(--muted)">Used by: PostgreSQL, MySQL, MongoDB, Kafka, RabbitMQ</div>
+</div>
+
+<h3>Synchronous vs. Asynchronous Replication</h3>
+<p>Does the leader wait for follower acknowledgment before confirming the write to the client?</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Mode</th><th>Guarantee</th><th>Risk</th><th>Write Latency</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>Fully sync</strong></td>
+      <td>All followers have data before ack to client</td>
+      <td>Writes block if any follower is slow or down</td>
+      <td>High</td>
+    </tr>
+    <tr>
+      <td><strong>Semi-sync</strong> (1 sync follower)</td>
+      <td>At least 2 nodes have data at all times</td>
+      <td>If sync follower fails, promote one async to sync</td>
+      <td>Moderate</td>
+    </tr>
+    <tr>
+      <td><strong>Fully async</strong></td>
+      <td>Leader doesn't wait for followers</td>
+      <td>If leader crashes before replicating, writes are lost</td>
+      <td>Low</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="diagram">
+  <div style="font-size:.82rem;color:var(--muted);margin-bottom:.75rem">Semi-sync: one sync follower, one async follower</div>
+  <div style="font-size:.82rem;display:flex;flex-direction:column;gap:.4rem">
+    <div class="row" style="gap:.5rem">
+      <div class="box blue" style="min-width:60px;font-size:.75rem">Leader</div>
+      <div style="color:var(--green);font-size:.8rem">────── replication ──────→</div>
+      <div class="box green" style="min-width:80px;font-size:.75rem">Follower 1<br/>SYNC</div>
+      <div style="color:var(--green);font-size:.8rem">←── ACK ─── wait for this</div>
+    </div>
+    <div class="row" style="gap:.5rem">
+      <div class="box blue" style="min-width:60px;font-size:.75rem">Leader</div>
+      <div style="color:var(--muted);font-size:.8rem">────── replication ────────────────────────→</div>
+      <div class="box muted" style="min-width:80px;font-size:.75rem">Follower 2<br/>ASYNC</div>
+      <div style="color:var(--muted);font-size:.75rem">no wait</div>
+    </div>
+  </div>
+</div>
+
+<div class="callout">
+  Most production systems use semi-sync: one sync follower ensures at least 2 nodes always have the latest data. All others async. PostgreSQL's <code>synchronous_standby_names</code> controls this.
+</div>
+
+<h3>Setting Up New Followers</h3>
+<p>You can't just copy files — the leader is continuously accepting writes. The standard approach:</p>
+
+<div class="diagram">
+  <div class="vflow">
+    <div class="box cyan">1. Snapshot leader (without locking — use MVCC consistent snapshot)</div>
+    <div class="arrow">↓</div>
+    <div class="box blue">2. Copy snapshot to new follower</div>
+    <div class="arrow">↓</div>
+    <div class="box green">3. Follower connects to leader, requests all changes since snapshot's log position (LSN in PostgreSQL, binlog coordinates in MySQL)</div>
+    <div class="arrow">↓</div>
+    <div class="box purple">4. Process replication backlog until caught up</div>
+    <div class="arrow">↓</div>
+    <div class="box orange">5. Now in sync — ready to serve reads</div>
+  </div>
+</div>
+
+<h3>Handling Node Outages</h3>
+
+<p><strong>Follower failure — catch-up recovery:</strong> The follower reads its local log to find the last processed transaction, reconnects to the leader, and requests all changes since that point. Straightforward.</p>
+
+<p><strong>Leader failure — failover:</strong> Far more complex. Three steps:</p>
+
+<div class="diagram">
+  <div class="vflow">
+    <div class="box red">1. Detect failure — leader hasn't responded for timeout (~30s). Hard to distinguish crashed vs. slow vs. network partition.</div>
+    <div class="arrow">↓</div>
+    <div class="box orange">2. Elect new leader — follower with most up-to-date replication log, or by controller node consensus. Remaining nodes must agree.</div>
+    <div class="arrow">↓</div>
+    <div class="box cyan">3. Reconfigure — redirect client writes to new leader. Old leader must recognize new leader when it returns (to avoid split-brain).</div>
+  </div>
+</div>
+
+<h3>What Can Go Wrong During Failover</h3>
+
+<div class="callout red">
+  <strong>Lost writes</strong>: If the old leader had uncommitted writes not yet replicated, those are lost when new leader is promoted. The old leader may return and try to commit them — conflicting with the new leader's state.
+</div>
+
+<div class="callout red">
+  <strong>Split brain</strong>: Two nodes both believe they are leader. Both accept writes. Data diverges. This is catastrophic. Some systems use STONITH (Shoot The Other Node In The Head) — forcibly shut down the suspected old leader.
+</div>
+
+<div class="callout red">
+  <strong>Auto-increment ID reuse</strong>: If old leader issued IDs 100–150 before crashing, new leader's IDs may overlap with those used by other systems (e.g., Redis cache, application code).
+</div>
+
+<div class="callout blue">
+  These problems don't have clean solutions — they're inherent to distributed systems. Many teams prefer <strong>manual failover</strong> (operator triggers it) over automatic, accepting longer downtime for safety.
+</div>
+
+<div style="margin-top:3rem;padding:1.5rem;background:var(--surface);border-radius:10px;border:1px solid var(--border)">
+  <div style="font-size:.85rem;color:var(--muted)">Next →</div>
+  <div style="margin:.5rem 0"><a href="chapter-5-replication-part2.html" style="color:var(--accent);text-decoration:none">Part 2: Replication Logs, Replication Lag &amp; Consistency, Multi-Leader Replication</a></div>
+</div>
+</div>
 </body>
 </html>

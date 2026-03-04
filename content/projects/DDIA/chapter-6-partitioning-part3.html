@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Ch 6 Part 3 — Request Routing &amp; Q&amp;A</title>
+<style>
+:root {
+  --bg:#0a0e17; --surface:#111827; --surface2:#1a2234; --border:#1e293b;
+  --text:#e2e8f0; --muted:#94a3b8; --accent:#3b82f6; --purple:#8b5cf6;
+  --green:#10b981; --red:#ef4444; --orange:#f59e0b; --pink:#ec4899; --cyan:#06b6d4;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.7;padding:2rem 1rem}
+.wrap{max-width:860px;margin:0 auto}
+h1{font-size:2rem;color:var(--accent);margin-bottom:.25rem}
+h2{font-size:1.4rem;color:var(--purple);margin:2.5rem 0 .75rem;padding-left:.75rem;border-left:3px solid var(--purple)}
+h3{font-size:1.1rem;color:var(--cyan);margin:1.5rem 0 .5rem}
+p{margin:.6rem 0}ul,ol{margin:.5rem 0 .5rem 1.5rem}li{margin:.25rem 0}
+code{background:var(--surface2);color:var(--cyan);padding:.1rem .4rem;border-radius:4px;font-size:.88rem}
+.nav{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:2rem}
+.nav a{padding:.4rem 1rem;border-radius:6px;text-decoration:none;font-size:.9rem;background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
+.nav a.cur{background:var(--accent);color:#fff;border-color:var(--accent)}
+.subtitle{color:var(--muted);font-size:1rem;margin-bottom:2rem}
+.diagram{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.5rem;margin:1.2rem 0;overflow-x:auto}
+.box{display:inline-block;padding:.4rem .9rem;border-radius:6px;font-size:.85rem;font-weight:600;text-align:center}
+.box.blue{background:#1e3a5f;border:1px solid var(--accent);color:var(--accent)}
+.box.purple{background:#2d1b69;border:1px solid var(--purple);color:var(--purple)}
+.box.green{background:#064e3b;border:1px solid var(--green);color:var(--green)}
+.box.orange{background:#451a03;border:1px solid var(--orange);color:var(--orange)}
+.box.cyan{background:#0c4a6e;border:1px solid var(--cyan);color:var(--cyan)}
+.box.red{background:#450a0a;border:1px solid var(--red);color:var(--red)}
+.box.muted{background:var(--surface2);border:1px solid var(--border);color:var(--muted)}
+.row{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin:.5rem 0}
+.vflow{display:flex;flex-direction:column;align-items:center;gap:.5rem}
+.arrow{color:var(--muted);font-size:1.2rem}
+.rarrow{color:var(--muted);font-size:1.1rem}
+.callout{border-left:3px solid var(--orange);background:var(--surface2);padding:.8rem 1rem;border-radius:0 6px 6px 0;margin:1rem 0;font-size:.92rem}
+.callout.blue{border-left-color:var(--accent);background:#0c1a2e}
+.callout.green{border-left-color:var(--green);background:#052015}
+.qa{border:1px solid var(--border);border-radius:8px;margin:.6rem 0;overflow:hidden}
+.qa-header{display:flex;align-items:center;gap:.75rem;padding:.8rem 1rem;cursor:pointer;background:var(--surface);user-select:none}
+.qa-header:hover{background:var(--surface2)}
+.qa-num{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0;background:var(--purple);color:#fff}
+.qa-q{flex:1;font-weight:600;font-size:.92rem}
+.chev{color:var(--muted);transition:.3s}
+.qa.open .chev{transform:rotate(90deg)}
+.qa-body{display:none;padding:.8rem 1rem;border-top:1px solid var(--border);background:var(--surface2);font-size:.9rem;line-height:1.7}
+.qa.open .qa-body{display:block}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="nav">
+  <a href="chapter-6-partitioning-part1.html">Part 1: Partitioning Strategies</a>
+  <a href="chapter-6-partitioning-part2.html">Part 2: Secondary Indexes &amp; Rebalancing</a>
+  <a href="chapter-6-partitioning-part3.html" class="cur">Part 3: Routing &amp; Q&amp;A</a>
+</div>
+<h1>Chapter 6 — Partitioning</h1>
+<div class="subtitle">Part 3: Request Routing, Parallel Query Execution, Summary, Q&amp;A</div>
+
+<h2>Request Routing</h2>
+<p>When a client wants to read or write a key, which node do they talk to? The partition-to-node mapping changes as partitions rebalance. Three approaches to routing:</p>
+
+<div class="diagram">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;font-size:.82rem">
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px;border-left:3px solid var(--accent)">
+      <div style="color:var(--accent);font-weight:700;margin-bottom:.3rem">1. Client-side routing</div>
+      Client knows partition mapping and contacts the right node directly. Requires clients to track routing info.
+      <div style="color:var(--muted);margin-top:.3rem;font-size:.78rem">Used by: Cassandra, Riak (gossip protocol)</div>
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px;border-left:3px solid var(--purple)">
+      <div style="color:var(--purple);font-weight:700;margin-bottom:.3rem">2. Routing tier</div>
+      All requests go to a load balancer / routing layer that knows partition ownership and forwards to correct node.
+      <div style="color:var(--muted);margin-top:.3rem;font-size:.78rem">Used by: CouchBase, Elasticsearch</div>
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px;border-left:3px solid var(--green)">
+      <div style="color:var(--green);font-weight:700;margin-bottom:.3rem">3. Contact any node</div>
+      Client contacts any node. If that node owns the partition, handle it. Otherwise, forward to the correct node and proxy the response.
+      <div style="color:var(--muted);margin-top:.3rem;font-size:.78rem">Used by: Cassandra, Riak coordinator</div>
+    </div>
+  </div>
+</div>
+
+<h3>Service Discovery: How to Stay Up-to-Date</h3>
+<p>All three approaches require some component to know the partition-to-node mapping. How is this kept current as partitions move?</p>
+
+<div class="diagram">
+  <div class="row" style="gap:2rem;flex-wrap:wrap;align-items:flex-start">
+    <div class="vflow" style="text-align:center">
+      <div class="box cyan">ZooKeeper</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.3rem;max-width:160px">
+        Authoritative registry of partition assignment. Nodes register themselves. Clients / routing tier subscribe to changes. Notified when partitions move. Used by: HBase, Kafka, SolrCloud.
+      </div>
+    </div>
+    <div class="vflow" style="text-align:center">
+      <div class="box purple">Gossip protocol</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.3rem;max-width:160px">
+        Nodes gossip cluster state to each other. No single coordinator. Eventually consistent view. Request goes to any node; it forwards. Used by: Cassandra, Riak.
+      </div>
+    </div>
+    <div class="vflow" style="text-align:center">
+      <div class="box orange">Config server</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.3rem;max-width:160px">
+        Dedicated config nodes track routing table. mongos router queries config servers. Used by: MongoDB.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="callout blue">
+  Consistent hashing (the ring model used by Cassandra) allows nodes to be added/removed with minimal remapping. Each node owns a range on the ring; adding a node only steals half of one neighbor's range. Virtual nodes (vnodes) spread each physical node across multiple ring positions for better load balance.
+</div>
+
+<h2>Parallel Query Execution</h2>
+<p>Massive Parallel Processing (MPP) databases for analytics (Teradata, Redshift, BigQuery) break complex SQL queries into stages and execute them in parallel across all partitions simultaneously.</p>
+
+<div class="diagram">
+  <div style="font-size:.82rem;color:var(--muted);margin-bottom:.75rem">SQL query: SELECT product, SUM(revenue) FROM sales GROUP BY product</div>
+  <div class="vflow">
+    <div class="box blue">Query optimizer decomposes query into stages</div>
+    <div class="arrow">↓</div>
+    <div class="row" style="justify-content:center;gap:.5rem">
+      <div class="box green" style="font-size:.78rem">Node 1<br/>partial SUM<br/>from shard 1</div>
+      <div class="box green" style="font-size:.78rem">Node 2<br/>partial SUM<br/>from shard 2</div>
+      <div class="box green" style="font-size:.78rem">Node 3<br/>partial SUM<br/>from shard 3</div>
+      <div class="box green" style="font-size:.78rem">Node 4<br/>partial SUM<br/>from shard 4</div>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="box purple">Coordinator aggregates partial results → final answer</div>
+  </div>
+  <div style="margin-top:.75rem;font-size:.8rem;color:var(--muted)">
+    A query that takes 10 minutes on one node takes ~10 seconds on 60 nodes. Data warehouses achieve petabyte-scale analytics this way.
+  </div>
+</div>
+
+<h2>Review Q&amp;A</h2>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">1</div><div class="qa-q">Why is hash mod N a bad partitioning strategy?</div><div class="chev">›</div></div>
+  <div class="qa-body">With <code>hash(key) % N</code>, the partition number depends on N — the total number of nodes. When you add node N+1, almost every key remaps to a different partition: keys where <code>hash(key) % N ≠ hash(key) % (N+1)</code> must move, which is approximately N/(N+1) of all keys. On a 10-node cluster, adding one node triggers 91% of all data to migrate. This makes rebalancing prohibitively expensive. The correct approach is consistent hashing or fixed-partition assignment where adding a node only moves the partitions assigned to it.</div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">2</div><div class="qa-q">What is the scatter-gather problem with local secondary indexes?</div><div class="chev">›</div></div>
+  <div class="qa-body">With document-partitioned (local) secondary indexes, each partition maintains its own index of its own data. A query on the indexed field (e.g., "all red cars") can't route to a single partition — it doesn't know which partitions have red cars. It must broadcast to all partitions, each returns its local results, and the coordinator merges the responses. This "scatter-gather" operation is expensive: latency is determined by the slowest partition, and all partitions incur load. For N partitions, every secondary index query does N parallel reads. Global (term-partitioned) indexes avoid this but complicate writes.</div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">3</div><div class="qa-q">How does Cassandra's compound partition key combine hash and range partitioning benefits?</div><div class="chev">›</div></div>
+  <div class="qa-body">Cassandra's primary key has two parts: (1) the <strong>partition key</strong> — hashed to determine which partition the data lives on, ensuring even distribution; (2) the <strong>clustering columns</strong> — sorted within the partition, enabling range queries within a specific partition. Example: <code>PRIMARY KEY (user_id, timestamp)</code>. All data for user_id is on the same partition (hash-distributed by user_id), and within that partition, rows are sorted by timestamp, enabling efficient "all events for user X between time A and B" queries. The tradeoff: range queries across different users (different partition keys) still require scatter-gather.</div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">4</div><div class="qa-q">What is a virtual node (vnode) and why does Cassandra use them?</div><div class="chev">›</div></div>
+  <div class="qa-body">Instead of each physical node owning one contiguous range on the consistent hash ring, a physical node owns many small non-contiguous ranges (virtual nodes). For example, a 3-node cluster with 256 vnodes: each physical node might own 85 vnodes scattered around the ring. Benefits: (1) When a node is added, it takes vnodes from every existing node — the new load is spread across the entire cluster, not just the two neighbors; (2) Heterogeneous hardware: more powerful nodes get more vnodes; (3) A failed node's load distributes evenly across all remaining nodes, not just its two neighbors. The trade-off: more metadata to track and slightly more complex coordination.</div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">5</div><div class="qa-q">How does ZooKeeper help with routing in systems like HBase and Kafka?</div><div class="chev">›</div></div>
+  <div class="qa-body">ZooKeeper maintains an authoritative, strongly-consistent directory of cluster state. For HBase: it tracks which RegionServer owns which region (partition). For Kafka: it tracks which broker is leader for which partition. When a partition moves (rebalancing) or a node fails (failover), the new ownership is written to ZooKeeper atomically. Clients and routing components subscribe to ZooKeeper change notifications, so they learn about the new mapping immediately. This provides a centralized source of truth for routing decisions. The trade-off: ZooKeeper itself is a bottleneck and single point of failure (mitigated by its own replication). Kafka has been moving away from ZooKeeper (KRaft protocol).</div>
+</div>
+
+<div style="margin-top:3rem;padding:1.5rem;background:var(--surface);border-radius:10px;border:1px solid var(--border)">
+  <div class="row" style="gap:2rem;flex-wrap:wrap">
+    <div>
+      <div style="font-size:.85rem;color:var(--muted)">← Previous</div>
+      <div><a href="chapter-6-partitioning-part2.html" style="color:var(--accent);text-decoration:none">Part 2: Secondary Indexes &amp; Rebalancing</a></div>
+    </div>
+    <div>
+      <div style="font-size:.85rem;color:var(--muted)">Next Chapter →</div>
+      <div><a href="chapter-7-part1.html" style="color:var(--accent);text-decoration:none">Chapter 7: Transactions</a></div>
+    </div>
+  </div>
+</div>
+</div>
+</body>
+</html>
