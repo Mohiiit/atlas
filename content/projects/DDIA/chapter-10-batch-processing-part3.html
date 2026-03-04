@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Ch 10 Part 3 — Beyond MapReduce &amp; Q&amp;A</title>
+<style>
+:root {
+  --bg:#0a0e17; --surface:#111827; --surface2:#1a2234; --border:#1e293b;
+  --text:#e2e8f0; --muted:#94a3b8; --accent:#3b82f6; --purple:#8b5cf6;
+  --green:#10b981; --red:#ef4444; --orange:#f59e0b; --pink:#ec4899; --cyan:#06b6d4;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.7;padding:2rem 1rem}
+.wrap{max-width:860px;margin:0 auto}
+h1{font-size:2rem;color:var(--accent);margin-bottom:.25rem}
+h2{font-size:1.4rem;color:var(--purple);margin:2.5rem 0 .75rem;padding-left:.75rem;border-left:3px solid var(--purple)}
+h3{font-size:1.1rem;color:var(--cyan);margin:1.5rem 0 .5rem}
+p{margin:.6rem 0}ul,ol{margin:.5rem 0 .5rem 1.5rem}li{margin:.25rem 0}
+code{background:var(--surface2);color:var(--cyan);padding:.1rem .4rem;border-radius:4px;font-size:.88rem}
+.nav{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:2rem}
+.nav a{padding:.4rem 1rem;border-radius:6px;text-decoration:none;font-size:.9rem;background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
+.nav a.cur{background:var(--accent);color:#fff;border-color:var(--accent)}
+.subtitle{color:var(--muted);font-size:1rem;margin-bottom:2rem}
+.diagram{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.5rem;margin:1.2rem 0;overflow-x:auto}
+.box{display:inline-block;padding:.4rem .9rem;border-radius:6px;font-size:.85rem;font-weight:600;text-align:center}
+.box.blue{background:#1e3a5f;border:1px solid var(--accent);color:var(--accent)}
+.box.purple{background:#2d1b69;border:1px solid var(--purple);color:var(--purple)}
+.box.green{background:#064e3b;border:1px solid var(--green);color:var(--green)}
+.box.orange{background:#451a03;border:1px solid var(--orange);color:var(--orange)}
+.box.cyan{background:#0c4a6e;border:1px solid var(--cyan);color:var(--cyan)}
+.box.red{background:#450a0a;border:1px solid var(--red);color:var(--red)}
+.box.muted{background:var(--surface2);border:1px solid var(--border);color:var(--muted)}
+.row{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin:.5rem 0}
+.vflow{display:flex;flex-direction:column;align-items:center;gap:.5rem}
+.arrow{color:var(--muted);font-size:1.2rem}
+.rarrow{color:var(--muted);font-size:1.1rem}
+.callout{border-left:3px solid var(--orange);background:var(--surface2);padding:.8rem 1rem;border-radius:0 6px 6px 0;margin:1rem 0;font-size:.92rem}
+.callout.blue{border-left-color:var(--accent);background:#0c1a2e}
+.callout.green{border-left-color:var(--green);background:#052015}
+.callout.red{border-left-color:var(--red);background:#200}
+.table-wrap{overflow-x:auto;margin:1rem 0}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th{background:var(--surface2);color:var(--accent);padding:.6rem .8rem;text-align:left;border:1px solid var(--border)}
+td{padding:.5rem .8rem;border:1px solid var(--border);vertical-align:top}
+tr:nth-child(even) td{background:var(--surface)}
+.qa{border:1px solid var(--border);border-radius:8px;margin:.6rem 0;overflow:hidden}
+.qa-header{display:flex;align-items:center;gap:.75rem;padding:.8rem 1rem;cursor:pointer;background:var(--surface);user-select:none}
+.qa-header:hover{background:var(--surface2)}
+.qa-num{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0;background:var(--purple);color:#fff}
+.qa-q{flex:1;font-weight:600;font-size:.92rem}
+.chev{color:var(--muted);transition:.3s}
+.qa.open .chev{transform:rotate(90deg)}
+.qa-body{display:none;padding:.8rem 1rem;border-top:1px solid var(--border);background:var(--surface2);font-size:.9rem;line-height:1.7}
+.qa.open .qa-body{display:block}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="nav">
+  <a href="chapter-10-batch-processing-part1.html">Part 1: MapReduce</a>
+  <a href="chapter-10-batch-processing-part2.html">Part 2: Joins &amp; Dataflow</a>
+  <a href="chapter-10-batch-processing-part3.html" class="cur">Part 3: Beyond MapReduce &amp; Q&amp;A</a>
+</div>
+<h1>Chapter 10 — Batch Processing</h1>
+<div class="subtitle">Part 3: Batch Output Types, Graph Processing, Declarative APIs, Q&amp;A</div>
+
+<h2>Batch Processing Output Types</h2>
+<p>Batch jobs produce different kinds of output depending on the use case. The output type influences how the job is structured and what the consumer expects.</p>
+
+<h3>1. Building Search Indexes</h3>
+<p>MapReduce's original purpose at Google: building inverted indexes for web search. Crawled web pages in → inverted index out (term → list of doc IDs). The index is then served by a separate search engine.</p>
+
+<div class="diagram">
+  <div class="vflow" style="font-size:.82rem">
+    <div class="box muted" style="font-size:.78rem">Web crawl data (billions of pages)</div>
+    <div class="arrow">↓</div>
+    <div style="background:var(--surface2);padding:.6rem;border-radius:6px;font-size:.78rem;width:100%;max-width:400px">
+      <div style="color:var(--green)">Mapper: tokenize → emit (word, doc_id)</div>
+    </div>
+    <div class="arrow">↓ shuffle by word</div>
+    <div style="background:var(--surface2);padding:.6rem;border-radius:6px;font-size:.78rem;width:100%;max-width:400px">
+      <div style="color:var(--purple)">Reducer: for each word → collect all doc_ids → write posting list</div>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="box green" style="font-size:.78rem">Inverted index on HDFS (served by Lucene/Elasticsearch)</div>
+  </div>
+</div>
+
+<h3>2. Key-Value Stores from Batch</h3>
+<p>Build a key-value store entirely from a batch job and load it into production. Eliminates the need for online writes. The batch job produces SST files (sorted string table files) that are directly importable into RocksDB, HBase, etc.</p>
+
+<div class="callout">
+  This is called "bulk loading." Advantages: no write amplification on the DB during import; the SST files are pre-sorted so compaction cost is minimal; the import is a simple file copy. Used by Facebook's data pipeline, LinkedIn, etc.
+</div>
+
+<h3>3. Machine Learning Models</h3>
+<p>Training: a batch job processes the entire training dataset, runs gradient descent iterations, outputs a trained model file. Serving: the model file is loaded by inference servers. The batch job is the training pipeline.</p>
+
+<h3>4. ETL and Data Warehouses</h3>
+<p>Extract-Transform-Load: batch jobs clean, normalize, and reshape raw data before loading into a data warehouse. The output is a set of relational tables in the warehouse, ready for analysts to query.</p>
+
+<h2>Comparing Hadoop to Distributed Databases</h2>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Aspect</th><th>Hadoop/MapReduce</th><th>Massively Parallel DB (Redshift, Vertica)</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>Storage</td>
+      <td>Open file format in HDFS (Parquet, ORC, Avro)</td>
+      <td>Proprietary format managed by the DB</td>
+    </tr>
+    <tr>
+      <td>Computation</td>
+      <td>Arbitrary code (Java, Python, Scala)</td>
+      <td>SQL queries only (or UDFs)</td>
+    </tr>
+    <tr>
+      <td>Schema</td>
+      <td>Schema-on-read: apply schema at query time</td>
+      <td>Schema-on-write: enforce at load time</td>
+    </tr>
+    <tr>
+      <td>Fault tolerance</td>
+      <td>Rerun individual tasks from HDFS</td>
+      <td>Usually restart the entire query</td>
+    </tr>
+    <tr>
+      <td>Use case</td>
+      <td>Diverse: ETL, ML training, indexing, analytics</td>
+      <td>Primarily analytics SQL</td>
+    </tr>
+    <tr>
+      <td>Scale</td>
+      <td>Petabytes, thousands of nodes</td>
+      <td>Typically tens to hundreds of terabytes</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout blue">
+  The "data lake" pattern: store raw data in HDFS/S3 in open formats. Run multiple different tools over it: SQL engines (Hive, Presto, BigQuery) for analytics; Spark for ML; MapReduce for batch ETL. The data is not locked into any proprietary format. This is the dominant enterprise data architecture today.
+</div>
+
+<h2>Graph Processing with Batch</h2>
+<p>Many problems (PageRank, social network analysis, shortest paths) are naturally graph algorithms. Running these iteratively in MapReduce is inefficient — each iteration is a separate MapReduce job.</p>
+
+<h3>Pregel Model (Bulk Synchronous Parallel)</h3>
+<p>Google's Pregel (and Apache Giraph, GraphX in Spark) uses the "think like a vertex" model:</p>
+
+<div class="diagram">
+  <div style="background:var(--surface2);padding:.75rem;border-radius:6px;font-size:.82rem;line-height:1.8">
+    <div style="color:var(--cyan);font-weight:700;margin-bottom:.3rem">Pregel BSP model:</div>
+    1. Each vertex is a computing unit<br/>
+    2. Each superstep (iteration): every vertex receives messages from its neighbors, updates its state, sends messages to its neighbors<br/>
+    3. Repeat until no more messages are sent (convergence)<br/>
+    4. Vertex can "vote to halt" when done — woken up if it receives a message<br/><br/>
+    <div style="color:var(--muted)">PageRank in Pregel: each vertex (web page) sends its current rank / number of outgoing links to each neighbor. Neighbors sum up received ranks. Repeat until ranks stabilize.</div>
+  </div>
+</div>
+
+<div class="callout">
+  Pregel is inefficient for graphs with high-degree vertices (e.g., social network celebrities with millions of followers). A single vertex receives millions of messages each superstep, creating a bottleneck. Partitioning schemes that keep high-degree vertices and their neighbors together help.
+</div>
+
+<h2>Declarative APIs: Pig, Hive, Spark SQL</h2>
+<p>Writing MapReduce jobs in Java is verbose. High-level declarative APIs compile to MapReduce or dataflow plans:</p>
+
+<div class="diagram">
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;font-size:.82rem;text-align:center">
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--orange);font-weight:700;margin-bottom:.3rem">Apache Pig / PigLatin</div>
+      Dataflow language. Write the steps as relations. Compiled to MapReduce jobs. Good for ETL-style pipelines.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--yellow);font-weight:700;margin-bottom:.3rem;color:var(--green)">Apache Hive / HiveQL</div>
+      SQL-like language. Compiled to MapReduce or Tez. Enables SQL users to query HDFS data. Schema stored in Hive metastore.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--accent);font-weight:700;margin-bottom:.3rem">Spark SQL / DataFrames</div>
+      SQL or DataFrame API over Spark engine. Catalyst optimizer chooses join strategies, pushes filters, prunes columns. Very fast.
+    </div>
+  </div>
+</div>
+
+<h2>Chapter 10 Summary</h2>
+<div class="diagram">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.75rem;font-size:.82rem">
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--accent);font-weight:700;margin-bottom:.3rem">Unix philosophy</div>
+      Small composable tools, immutable input, text streams. The template for distributed batch processing. Scale = distribute the same ideas.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--green);font-weight:700;margin-bottom:.3rem">MapReduce</div>
+      Map → shuffle → reduce. Fault tolerant via HDFS materialization. Simple model, high overhead per stage. Still used for massive-scale ETL.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--purple);font-weight:700;margin-bottom:.3rem">Joins</div>
+      Sort-merge join (both large), broadcast hash join (one small), partitioned hash join (pre-bucketed). Skew → salting. Combiner for aggregation.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--cyan);font-weight:700;margin-bottom:.3rem">Spark / Dataflow</div>
+      Keep intermediates in memory. General DAG, not just map/reduce. Lineage for fault tolerance. 10–100× faster for iterative algorithms.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--orange);font-weight:700;margin-bottom:.3rem">Output types</div>
+      Search indexes, key-value stores (bulk load), ML models, ETL into warehouse. Batch is a pipeline: immutable input → transform → durable output.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--pink);font-weight:700;margin-bottom:.3rem">Graph processing</div>
+      Pregel BSP: "think like a vertex." Supersteps of message passing. GraphX, Giraph. Inefficient for high-degree nodes.
+    </div>
+  </div>
+</div>
+
+<h2>Review Q&amp;A</h2>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">1</div><div class="qa-q">What is the shuffle phase in MapReduce and why is it expensive?</div><div class="chev">›</div></div>
+  <div class="qa-body">The shuffle phase takes the output of all mappers (key-value pairs) and delivers to each reducer all pairs with the same key. This requires: (1) Each mapper writes its output to local disk, sorted by key; (2) Each reducer fetches ("pulls") its relevant key ranges from every mapper's local disk across the network; (3) The reducer merges the fetched data (sorted merge) to process keys in order. The shuffle is expensive because it involves: all-to-all network transfer (every mapper sends data to every reducer), disk I/O (mapper output is written to local disk before transfer), and memory for merge buffers. In a 1000-node cluster doing a join, the shuffle generates up to 1000×1000 = 1 million network connections. Combiners reduce shuffle volume by pre-aggregating on the mapper side. In Spark, the shuffle is still needed for groupBy/join operations but intermediates don't go through HDFS.</div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">2</div><div class="qa-q">What is a combiner and when can you use one?</div><div class="chev">›</div></div>
+  <div class="qa-body">A combiner is a mini-reducer that runs locally on each mapper node after the map phase, before the shuffle. It applies the same aggregation function as the reducer to the mapper's local output, reducing the amount of data sent across the network during the shuffle. For word count: instead of sending (the, 1), (the, 1), (the, 1) across the network, the combiner reduces them to (the, 3) locally. Network traffic: 1 record instead of 3. Combiners can only be used when the aggregation function is: (1) <strong>Commutative</strong> (order of operands doesn't matter: a+b = b+a), (2) <strong>Associative</strong> (grouping doesn't matter: (a+b)+c = a+(b+c)). Valid: sum, count, max, min, set union. Invalid: average (you need the sum AND count separately; pre-averaging partial results and averaging those gives wrong answers). Combiners are optional optimizations — the correctness of the job doesn't depend on them running.</div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">3</div><div class="qa-q">Compare sort-merge join, broadcast hash join, and partitioned hash join. When would you use each?</div><div class="chev">›</div></div>
+  <div class="qa-body"><strong>Sort-merge join (reduce-side)</strong>: Both datasets are emitted with join key by mappers, shuffled together, and the reducer joins matching keys. Works for any size datasets. Cost: full shuffle of both datasets. Use when: both datasets are large (hundreds of GB to PB). <br/><br/><strong>Broadcast hash join (map-side)</strong>: Load the smaller dataset into a hash table in memory. Broadcast it to all mappers. Each mapper streams through the large dataset and probes the hash table. No shuffle needed. Cost: memory on every mapper for the small dataset. Use when: one dataset is small enough to fit in mapper RAM (typically &lt;1GB). Much faster than sort-merge. <br/><br/><strong>Partitioned hash join</strong>: Both datasets are pre-partitioned by the same hash of the join key into equal-sized buckets. Mapper for bucket K only needs to load bucket K of the small dataset — much less memory per mapper. No shuffle needed at join time. Cost: datasets must be pre-bucketed at write time. Use when: datasets are large but re-reading is expensive, and you can pay the cost of pre-bucketing once at write time.</div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">4</div><div class="qa-q">Why is Spark significantly faster than MapReduce for iterative algorithms?</div><div class="chev">›</div></div>
+  <div class="qa-body">Iterative algorithms (machine learning, PageRank, graph algorithms) process the same dataset multiple times. In MapReduce: each iteration is a separate MapReduce job. Between jobs, the intermediate data is written to HDFS (disk) and read back. A 100-iteration training job does 200 HDFS reads/writes for the intermediate model state — plus the data reads each iteration. Disk I/O dominates. In Spark: the dataset (RDD) is loaded into memory once and cached (if it fits). Each iteration is a new set of transformations on the in-memory RDD. Intermediates stay in memory — no disk write between iterations. Only the final result is written out. Result: for iterative ML, Spark is typically 10–100× faster than MapReduce. For single-pass ETL jobs (where MapReduce excels), the speedup is more modest (2–5×) because the bottleneck is I/O from the input data, not intermediates. Spark's RDD lineage also provides fault tolerance: if a partition is lost, it's recomputed from its lineage, not from an HDFS checkpoint.</div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">5</div><div class="qa-q">What is the "schema on read" approach and what are its trade-offs vs. schema on write?</div><div class="chev">›</div></div>
+  <div class="qa-body"><strong>Schema on write</strong> (traditional databases): The schema is defined before loading data. Data is validated and rejected if it doesn't conform at write time. The benefit: queries are faster (data is guaranteed to be well-formed); issues are caught early. The cost: schema changes require migrations; you need to know the schema before you have the data; if requirements change, old data may not fit the new schema. <br/><br/><strong>Schema on read</strong> (Hadoop/data lakes): Data is stored in raw form (JSON, log files, Parquet with flexible schema). The schema is applied at query time — the query defines how to interpret the bytes. Benefits: store data now, figure out the schema later; different queries can impose different schemas on the same data; schema evolution is trivial (old and new schema can coexist in the same files). Costs: queries are slower (no optimization at write time); bad data is discovered only at query time; no guarantee of consistency across records. In practice: modern data lakes use semi-structured formats like Parquet with embedded schema metadata, getting benefits of both: efficient columnar storage with schema flexibility.</div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">6</div><div class="qa-q">How does data locality work in MapReduce and why does it matter?</div><div class="chev">›</div></div>
+  <div class="qa-body">Data locality is the practice of scheduling computation close to where the data already lives, avoiding unnecessary network transfer. In HDFS, each block (128MB) is replicated across 3 DataNodes. The MapReduce scheduler knows the location of each block (from the NameNode) and the location of worker nodes. When scheduling a map task, the scheduler tries to run it on a DataNode that already holds the input block: (1) Same node: best — zero network transfer for input; (2) Same rack: good — only intra-rack transfer; (3) Different rack: worst — cross-rack transfer. Why it matters: in a 1000-node cluster processing 1PB, if every mapper had to fetch input over the network, the network bandwidth would be the bottleneck. By reading from local disk, each mapper processes at local disk speed (100–200MB/s), and only the smaller intermediate output (shuffled key-value pairs) traverses the network. This is why Google's insight "bring computation to data" (vs. "bring data to computation" in traditional RDBMS) was transformative for large-scale analytics.</div>
+</div>
+
+<div style="margin-top:3rem;padding:1.5rem;background:var(--surface);border-radius:10px;border:1px solid var(--border)">
+  <div class="row" style="gap:2rem;flex-wrap:wrap">
+    <div>
+      <div style="font-size:.85rem;color:var(--muted)">← Previous</div>
+      <div><a href="chapter-10-batch-processing-part2.html" style="color:var(--accent);text-decoration:none">Part 2: Joins &amp; Dataflow Engines</a></div>
+    </div>
+    <div>
+      <div style="font-size:.85rem;color:var(--muted)">Next Chapter →</div>
+      <div><a href="chapter-11-stream-processing-part1.html" style="color:var(--accent);text-decoration:none">Chapter 11: Stream Processing</a></div>
+    </div>
+  </div>
+</div>
+</div>
+</body>
+</html>

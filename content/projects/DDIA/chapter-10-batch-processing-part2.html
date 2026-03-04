@@ -3,854 +3,249 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DDIA Chapter 10 — Batch Processing: Part 2</title>
+<title>DDIA Ch 10 Part 2 — Joins &amp; Dataflow Engines</title>
 <style>
-  :root {
-    --bg: #0a0e17;
-    --surface: #111827;
-    --surface2: #1a2234;
-    --border: #1e293b;
-    --text: #e2e8f0;
-    --text-muted: #94a3b8;
-    --accent: #3b82f6;
-    --accent2: #8b5cf6;
-    --accent3: #10b981;
-    --red: #ef4444;
-    --orange: #f59e0b;
-    --pink: #ec4899;
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
-  .container { max-width: 900px; margin: 0 auto; padding: 40px 24px 100px; }
-  h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-  .subtitle { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 48px; border-bottom: 1px solid var(--border); padding-bottom: 24px; }
-  h2 { font-size: 1.5rem; font-weight: 700; margin: 48px 0 16px; color: var(--accent); }
-  h3 { font-size: 1.15rem; font-weight: 600; margin: 32px 0 12px; color: var(--text); }
-  p { margin-bottom: 16px; color: var(--text-muted); }
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 20px 0; }
-  .card-accent { border-left: 4px solid var(--accent); }
-  .card-green { border-left: 4px solid var(--accent3); }
-  .card-orange { border-left: 4px solid var(--orange); }
-  .card-purple { border-left: 4px solid var(--accent2); }
-  .card-red { border-left: 4px solid var(--red); }
-  .card h4 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
-  .card ul { padding-left: 20px; color: var(--text-muted); }
-  .card li { margin-bottom: 6px; }
-  .key-term { color: var(--accent); font-weight: 600; }
-  .diagram { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 32px; margin: 24px 0; overflow-x: auto; }
-  .diagram-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent2); margin-bottom: 20px; }
-  .flow { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; }
-  .flow-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; text-align: center; font-size: 0.9rem; min-width: 120px; }
-  .flow-box.primary { border-color: var(--accent); color: var(--accent); }
-  .flow-box.green { border-color: var(--accent3); color: var(--accent3); }
-  .flow-box.purple { border-color: var(--accent2); color: var(--accent2); }
-  .flow-box.orange { border-color: var(--orange); color: var(--orange); }
-  .flow-box.red { border-color: var(--red); color: var(--red); }
-  .flow-box.pink { border-color: var(--pink); color: var(--pink); }
-  .flow-arrow { color: var(--text-muted); font-size: 1.2rem; }
-  .flow-vert { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-  @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } .grid3 { grid-template-columns: 1fr; } }
-  .quote { background: var(--surface2); border-left: 3px solid var(--accent2); padding: 16px 20px; margin: 20px 0; border-radius: 0 8px 8px 0; font-style: italic; color: var(--text-muted); }
-  .tag { display: inline-block; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 2px 12px; font-size: 0.8rem; color: var(--text-muted); margin: 2px; }
-  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
-  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
-  th { color: var(--accent); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
-  td { color: var(--text-muted); }
-  .question-block { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin: 16px 0; overflow: hidden; }
-  .question-header { padding: 16px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 0.95rem; }
-  .question-header:hover { background: var(--surface2); }
-  .question-body { padding: 0 20px 16px; display: none; color: var(--text-muted); border-top: 1px solid var(--border); padding-top: 16px; }
-  .question-block.open .question-body { display: block; }
-  .q-num { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: var(--accent); color: white; border-radius: 50%; font-size: 0.8rem; font-weight: 700; margin-right: 12px; flex-shrink: 0; }
-  .chevron { transition: transform .2s; color: var(--text-muted); }
-  .question-block.open .chevron { transform: rotate(180deg); }
-  .section-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--accent2); font-weight: 700; margin-bottom: 8px; }
-  .timeline { position: relative; padding-left: 32px; margin: 16px 0; }
-  .timeline::before { content: ''; position: absolute; left: 12px; top: 0; bottom: 0; width: 2px; background: var(--border); }
-  .timeline-item { position: relative; margin-bottom: 20px; }
-  .timeline-item::before { content: ''; position: absolute; left: -26px; top: 6px; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: 2px solid var(--surface2); }
-  .timeline-item.green::before { background: var(--accent3); }
-  .timeline-item.orange::before { background: var(--orange); }
-  .timeline-item.red::before { background: var(--red); }
-  .timeline-item.purple::before { background: var(--accent2); }
-  .timeline-title { font-weight: 600; font-size: 0.9rem; color: var(--text); }
-  .timeline-desc { font-size: 0.85rem; color: var(--text-muted); }
-  .concept-map { display: flex; flex-direction: column; align-items: center; gap: 12px; }
-  .concept-row { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
-  .concept-node { background: var(--surface); border: 2px solid var(--border); border-radius: 12px; padding: 10px 16px; text-align: center; font-size: 0.85rem; min-width: 100px; }
-  .concept-node.root { border-color: var(--accent); color: var(--accent); font-weight: 700; font-size: 1rem; padding: 14px 24px; }
-  .concept-connector { color: var(--text-muted); font-size: 1.4rem; }
-  .layer-stack { display: flex; flex-direction: column; gap: 4px; }
-  .layer { padding: 14px 20px; border-radius: 8px; text-align: center; font-size: 0.85rem; font-weight: 600; }
-  .number-badge { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; font-size: 0.85rem; font-weight: 700; margin-right: 8px; }
-  .arch-box { border: 2px solid var(--border); border-radius: 10px; padding: 16px; margin: 8px; text-align: center; }
-  .arch-box.blue { border-color: var(--accent); background: rgba(59,130,246,0.08); }
-  .arch-box.green { border-color: var(--accent3); background: rgba(16,185,129,0.08); }
-  .arch-box.purple { border-color: var(--accent2); background: rgba(139,92,246,0.08); }
-  .arch-box.orange { border-color: var(--orange); background: rgba(245,158,11,0.08); }
-  .arch-box.red { border-color: var(--red); background: rgba(239,68,68,0.08); }
-  .arch-box.pink { border-color: var(--pink); background: rgba(236,72,153,0.08); }
-  .arch-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
-  .arch-detail { font-size: 0.8rem; color: var(--text-muted); }
-  /* DAG styles */
-  .dag-container { display: flex; flex-direction: column; align-items: center; gap: 16px; }
-  .dag-row { display: flex; gap: 24px; align-items: center; justify-content: center; }
-  .dag-node { width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; text-align: center; line-height: 1.1; }
-  .dag-edge { color: var(--text-muted); font-size: 1.2rem; }
-  /* Superstep styles */
-  .superstep-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; text-align: center; }
-  .superstep-cell { padding: 10px 6px; border-radius: 8px; font-size: 0.8rem; }
-  .superstep-header { font-weight: 700; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; padding: 8px; color: var(--text-muted); }
-  /* Lineage styles */
-  .lineage-row { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
-  .lineage-box { border-radius: 8px; padding: 8px 14px; font-size: 0.8rem; font-weight: 600; text-align: center; min-width: 90px; }
+:root {
+  --bg:#0a0e17; --surface:#111827; --surface2:#1a2234; --border:#1e293b;
+  --text:#e2e8f0; --muted:#94a3b8; --accent:#3b82f6; --purple:#8b5cf6;
+  --green:#10b981; --red:#ef4444; --orange:#f59e0b; --pink:#ec4899; --cyan:#06b6d4;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.7;padding:2rem 1rem}
+.wrap{max-width:860px;margin:0 auto}
+h1{font-size:2rem;color:var(--accent);margin-bottom:.25rem}
+h2{font-size:1.4rem;color:var(--purple);margin:2.5rem 0 .75rem;padding-left:.75rem;border-left:3px solid var(--purple)}
+h3{font-size:1.1rem;color:var(--cyan);margin:1.5rem 0 .5rem}
+p{margin:.6rem 0}ul,ol{margin:.5rem 0 .5rem 1.5rem}li{margin:.25rem 0}
+code{background:var(--surface2);color:var(--cyan);padding:.1rem .4rem;border-radius:4px;font-size:.88rem}
+.nav{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:2rem}
+.nav a{padding:.4rem 1rem;border-radius:6px;text-decoration:none;font-size:.9rem;background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
+.nav a.cur{background:var(--accent);color:#fff;border-color:var(--accent)}
+.subtitle{color:var(--muted);font-size:1rem;margin-bottom:2rem}
+.diagram{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.5rem;margin:1.2rem 0;overflow-x:auto}
+.box{display:inline-block;padding:.4rem .9rem;border-radius:6px;font-size:.85rem;font-weight:600;text-align:center}
+.box.blue{background:#1e3a5f;border:1px solid var(--accent);color:var(--accent)}
+.box.purple{background:#2d1b69;border:1px solid var(--purple);color:var(--purple)}
+.box.green{background:#064e3b;border:1px solid var(--green);color:var(--green)}
+.box.orange{background:#451a03;border:1px solid var(--orange);color:var(--orange)}
+.box.cyan{background:#0c4a6e;border:1px solid var(--cyan);color:var(--cyan)}
+.box.red{background:#450a0a;border:1px solid var(--red);color:var(--red)}
+.box.muted{background:var(--surface2);border:1px solid var(--border);color:var(--muted)}
+.row{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin:.5rem 0}
+.vflow{display:flex;flex-direction:column;align-items:center;gap:.5rem}
+.arrow{color:var(--muted);font-size:1.2rem}
+.rarrow{color:var(--muted);font-size:1.1rem}
+.callout{border-left:3px solid var(--orange);background:var(--surface2);padding:.8rem 1rem;border-radius:0 6px 6px 0;margin:1rem 0;font-size:.92rem}
+.callout.blue{border-left-color:var(--accent);background:#0c1a2e}
+.callout.green{border-left-color:var(--green);background:#052015}
+.callout.red{border-left-color:var(--red);background:#200}
+.table-wrap{overflow-x:auto;margin:1rem 0}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th{background:var(--surface2);color:var(--accent);padding:.6rem .8rem;text-align:left;border:1px solid var(--border)}
+td{padding:.5rem .8rem;border:1px solid var(--border);vertical-align:top}
+tr:nth-child(even) td{background:var(--surface)}
 </style>
 </head>
 <body>
-<div class="container">
-  <p class="section-label">DDIA -- Chapter 10: Batch Processing (Part 2 of 2)</p>
-  <h1>Outputs, Hadoop vs MPP, and Beyond MapReduce</h1>
-  <p class="subtitle">We move beyond the mechanics of MapReduce to explore <strong>what batch jobs produce</strong>, how Hadoop compares with MPP databases, and why dataflow engines like Spark and Flink superseded the original MapReduce model. This part covers materialization problems, operator DAGs, graph processing with Pregel, and the evolution toward declarative high-level APIs.</p>
+<div class="wrap">
+<div class="nav">
+  <a href="chapter-10-batch-processing-part1.html">Part 1: MapReduce</a>
+  <a href="chapter-10-batch-processing-part2.html" class="cur">Part 2: Joins &amp; Dataflow</a>
+  <a href="chapter-10-batch-processing-part3.html">Part 3: Beyond MapReduce &amp; Q&amp;A</a>
+</div>
+<h1>Chapter 10 — Batch Processing</h1>
+<div class="subtitle">Part 2: Joins in MapReduce, Group-By, Skew, Dataflow Engines</div>
 
-  <div class="quote">"Raw data is better." -- The sushi principle. Hadoop embraces dumping data first and worrying about schema later, shifting the burden of interpretation to consumers rather than producers.</div>
+<h2>Joins in MapReduce</h2>
+<p>Joins are common in analytics: enrich log data with user info, combine orders with product details. In MapReduce, joins require careful design — there's no SQL optimizer, and poor join strategies can create bottlenecks.</p>
 
-  <!-- ============================================================ -->
-  <!-- SECTION 1: OUTPUT OF BATCH WORKFLOWS -->
-  <!-- ============================================================ -->
-  <h2>1. Output of Batch Workflows</h2>
-  <p>A batch processing job reads input and produces output. But what form does that output take? The two most common outputs are <span class="key-term">search indexes</span> and <span class="key-term">key-value stores</span> (or other pre-computed databases).</p>
+<h3>Sort-Merge Join (Reduce-Side Join)</h3>
+<p>The most straightforward join in MapReduce. Both datasets are processed by mappers, keyed on the join key, and sent to reducers. The reducer receives all records for a given join key and performs the join.</p>
 
-  <h3>Building Search Indexes</h3>
-  <p>Google's original use of MapReduce was to build indexes for its search engine. Mappers partition documents, each reducer builds the index for its partition (term dictionary + postings lists), and the resulting index files are written to the distributed filesystem. These indexes are <strong>immutable</strong> once created, and querying by keyword is a read-only operation. When documents change, you either rerun the entire indexing workflow or build indexes incrementally (as Lucene does with segment merging).</p>
-
-  <h3>Key-Value Stores as Batch Output</h3>
-  <p>Another common output is a database for serving queries -- for example, a recommendation system that maps user IDs to suggested friends, or a classifier's output. Rather than writing directly to a production database from within the batch job (which causes performance and consistency problems), the best practice is to <strong>build a brand-new database file inside the batch job</strong> and bulk-load it into read-only serving nodes. Systems like Voldemort, Terrapin, ElephantDB, and HBase bulk loading support this pattern.</p>
-
-  <!-- DIAGRAM 1: Batch Output Flow -->
-  <div class="diagram">
-    <div class="diagram-title">Diagram 1: Batch Workflow Output Paths</div>
-    <div class="flow" style="margin-bottom: 20px;">
-      <div class="flow-box primary" style="min-width: 160px;">HDFS Input<br><small style="color:var(--text-muted)">logs, events, dumps</small></div>
-      <div class="flow-arrow">&rarr;</div>
-      <div class="flow-box purple" style="min-width: 160px;">MapReduce / Spark<br><small style="color:var(--text-muted)">batch processing</small></div>
-      <div class="flow-arrow">&rarr;</div>
-      <div class="flow-vert">
-        <div class="flow-box green" style="min-width: 180px;">Search Index Files<br><small style="color:var(--text-muted)">Lucene segments</small></div>
-        <div class="flow-box orange" style="min-width: 180px;">KV Store Files<br><small style="color:var(--text-muted)">Voldemort / HBase</small></div>
-        <div class="flow-box pink" style="min-width: 180px;">ML Model / Stats<br><small style="color:var(--text-muted)">classifiers, rankings</small></div>
+<div class="diagram">
+  <div style="font-size:.82rem;color:var(--muted);margin-bottom:.5rem">Join user_events (large) with users (large) on user_id</div>
+  <div class="vflow">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;width:100%">
+      <div style="background:var(--surface2);padding:.6rem;border-radius:6px;font-size:.78rem">
+        <div style="color:var(--green);font-weight:700;margin-bottom:.3rem">Mapper A (events)</div>
+        Input: event records<br/>
+        Output: (user_id, {type:"event", ...})
+      </div>
+      <div style="background:var(--surface2);padding:.6rem;border-radius:6px;font-size:.78rem">
+        <div style="color:var(--blue);font-weight:700;margin-bottom:.3rem;color:var(--accent)">Mapper B (users)</div>
+        Input: user records<br/>
+        Output: (user_id, {type:"user", ...})
       </div>
     </div>
-    <div style="text-align:center; font-size:0.8rem; color:var(--text-muted); margin-top: 12px;">
-      Output files are immutable and bulk-loaded into serving nodes. The serving layer atomically switches to new files.
+    <div class="arrow">↓ Shuffle: both outputs grouped by user_id</div>
+    <div style="background:var(--surface2);padding:.6rem;border-radius:6px;font-size:.78rem;width:100%">
+      <div style="color:var(--purple);font-weight:700;margin-bottom:.3rem">Reducer receives all records for user_id=123:</div>
+      [{type:"user", name:"Alice"}, {type:"event", page:"/home"}, {type:"event", page:"/about"}]<br/>
+      → Output: {user: "Alice", events: ["/home", "/about"]}
     </div>
   </div>
-
-  <div class="card card-orange">
-    <h4 style="color:var(--orange);">Why Not Write Directly to a Database?</h4>
-    <ul>
-      <li><strong>Performance:</strong> Network request per record is orders of magnitude slower than batch throughput</li>
-      <li><strong>Overload:</strong> Parallel mappers/reducers can overwhelm the database, degrading query performance</li>
-      <li><strong>Consistency:</strong> Partial job output becomes externally visible, breaking MapReduce's clean all-or-nothing guarantee</li>
-    </ul>
+  <div style="margin-top:.75rem;font-size:.8rem;color:var(--muted)">
+    Both datasets must be sorted and shuffled. Works even if both datasets are huge. No data stays in memory.
   </div>
-
-  <!-- ============================================================ -->
-  <!-- SECTION 2: PHILOSOPHY OF BATCH OUTPUTS -->
-  <!-- ============================================================ -->
-  <h2>2. Philosophy of Batch Process Outputs</h2>
-  <p>The Unix philosophy carries directly into MapReduce: a program reads its input, writes its output, leaves the input unchanged, completely replaces any previous output, and produces no other side effects. This makes batch jobs easy to reason about and safe to rerun.</p>
-
-  <!-- DIAGRAM 2: Philosophy Principles -->
-  <div class="diagram">
-    <div class="diagram-title">Diagram 2: Four Pillars of Batch Output Philosophy</div>
-    <div class="grid2">
-      <div class="arch-box blue">
-        <div class="arch-label" style="color:var(--accent);">Immutable Inputs</div>
-        <div class="arch-detail">Input data is never modified. The same files can feed multiple jobs safely.</div>
-      </div>
-      <div class="arch-box green">
-        <div class="arch-label" style="color:var(--accent3);">No Side Effects</div>
-        <div class="arch-detail">Jobs produce only their designated output. No writes to external databases mid-job.</div>
-      </div>
-      <div class="arch-box purple">
-        <div class="arch-label" style="color:var(--accent2);">Easy Rollback</div>
-        <div class="arch-detail">If code has a bug, roll back to previous code version and rerun. Old output stays intact in a separate directory.</div>
-      </div>
-      <div class="arch-box orange">
-        <div class="arch-label" style="color:var(--orange);">Automatic Retry</div>
-        <div class="arch-detail">Failed tasks are retried safely because inputs are immutable and partial output is discarded.</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="card card-green">
-    <h4 style="color:var(--accent3);">Human Fault Tolerance</h4>
-    <p style="margin-bottom:0;">The ability to recover from buggy code (not just hardware faults) is sometimes called <span class="key-term">human fault tolerance</span>. Because batch outputs are immutable and replaceable, you can always rerun with corrected code. This minimizes irreversibility and enables faster feature development -- a principle aligned with Agile software development.</p>
-  </div>
-
-  <div class="card card-accent">
-    <h4 style="color:var(--accent);">Separation of Logic and Wiring</h4>
-    <p style="margin-bottom:0;">Like Unix tools, MapReduce jobs separate <em>what</em> the job does from <em>where</em> its input comes from and where output goes. One team writes the processing logic; other teams decide when and where to run it. This separation of concerns enables code reuse and loose coupling -- jobs do not need to know who produces their input or consumes their output.</p>
-  </div>
-
-  <!-- ============================================================ -->
-  <!-- SECTION 3: HADOOP VS MPP DATABASES -->
-  <!-- ============================================================ -->
-  <h2>3. Comparing Hadoop to Distributed Databases</h2>
-  <p>When MapReduce was published, the algorithms it used (parallel joins, partitioned aggregation) had already been implemented in <span class="key-term">Massively Parallel Processing (MPP)</span> databases for over a decade (Gamma, Teradata, Tandem NonStop SQL). The key difference: MPP databases focus on parallel SQL analytics, while Hadoop + HDFS provides a general-purpose distributed operating system for running arbitrary programs.</p>
-
-  <!-- DIAGRAM 3: Hadoop vs MPP Architecture -->
-  <div class="diagram">
-    <div class="diagram-title">Diagram 3: Hadoop Ecosystem vs MPP Database Architecture</div>
-    <div class="grid2" style="gap: 24px;">
-      <div style="display:flex; flex-direction:column; gap:4px;">
-        <div style="text-align:center; font-weight:700; color:var(--accent); margin-bottom:8px; font-size:0.95rem;">Hadoop Ecosystem</div>
-        <div class="layer" style="background:rgba(59,130,246,0.15); color:var(--accent);">Hive / Pig / Spark SQL / Impala</div>
-        <div class="layer" style="background:rgba(139,92,246,0.12); color:var(--accent2);">MapReduce / Spark / Tez / Flink</div>
-        <div class="layer" style="background:rgba(16,185,129,0.12); color:var(--accent3);">YARN / Mesos (Resource Scheduling)</div>
-        <div class="layer" style="background:rgba(245,158,11,0.12); color:var(--orange);">HDFS (Distributed Filesystem)</div>
-        <div style="text-align:center; font-size:0.78rem; color:var(--text-muted); margin-top:6px;">Open, modular -- each layer replaceable</div>
-      </div>
-      <div style="display:flex; flex-direction:column; gap:4px;">
-        <div style="text-align:center; font-weight:700; color:var(--pink); margin-bottom:8px; font-size:0.95rem;">MPP Database</div>
-        <div class="layer" style="background:rgba(236,72,153,0.12); color:var(--pink);">SQL Query Interface</div>
-        <div class="layer" style="background:rgba(236,72,153,0.09); color:var(--pink);">Query Planner + Optimizer</div>
-        <div class="layer" style="background:rgba(236,72,153,0.06); color:var(--pink);">Execution Engine + Scheduler</div>
-        <div class="layer" style="background:rgba(236,72,153,0.04); color:var(--pink);">Proprietary Storage Format</div>
-        <div style="text-align:center; font-size:0.78rem; color:var(--text-muted); margin-top:6px;">Monolithic, tightly integrated</div>
-      </div>
-    </div>
-  </div>
-
-  <h3>Comparison Table</h3>
-  <div class="card" style="overflow-x:auto;">
-    <table>
-      <thead>
-        <tr>
-          <th>Dimension</th>
-          <th style="color:var(--accent);">Hadoop + MapReduce</th>
-          <th style="color:var(--pink);">MPP Database</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><strong>Data Model</strong></td>
-          <td>Any format (raw bytes, Avro, Parquet, JSON, images, genomes)</td>
-          <td>Structured relational / columnar (schema required upfront)</td>
-        </tr>
-        <tr>
-          <td><strong>Storage</strong></td>
-          <td>HDFS -- open filesystem, any encoding</td>
-          <td>Proprietary storage format, optimized for analytics</td>
-        </tr>
-        <tr>
-          <td><strong>Processing</strong></td>
-          <td>Arbitrary code (Java, Python, etc.) via map/reduce callbacks</td>
-          <td>SQL queries (UDFs possible but cumbersome)</td>
-        </tr>
-        <tr>
-          <td><strong>Schema</strong></td>
-          <td>Schema-on-read ("data lake"): dump first, interpret later</td>
-          <td>Schema-on-write: careful modeling before import</td>
-        </tr>
-        <tr>
-          <td><strong>Fault Tolerance</strong></td>
-          <td>Task-level retry; eager disk writes; tolerates preemption</td>
-          <td>Query-level retry: abort and rerun entire query on failure</td>
-        </tr>
-        <tr>
-          <td><strong>Fault Cost</strong></td>
-          <td>Retry one task (~minutes); suitable for long-running jobs</td>
-          <td>Retry whole query (~seconds to minutes); fine for short queries</td>
-        </tr>
-        <tr>
-          <td><strong>Memory Use</strong></td>
-          <td>Eager to write to disk; assumes data too big for RAM</td>
-          <td>Prefers in-memory processing (hash joins in RAM)</td>
-        </tr>
-        <tr>
-          <td><strong>Ecosystem</strong></td>
-          <td>Diverse: HBase, Impala, Spark, Flink on same cluster + HDFS</td>
-          <td>Monolithic: one integrated system</td>
-        </tr>
-        <tr>
-          <td><strong>Use Case</strong></td>
-          <td>ETL, ML, search indexing, graph processing, experimentation</td>
-          <td>Business intelligence, analytic SQL, reporting</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-
-  <div class="card card-purple">
-    <h4 style="color:var(--accent2);">The "Sushi Principle" and Data Lakes</h4>
-    <p>Hadoop popularized the idea of dumping raw data into HDFS first and figuring out how to process it later. This <span class="key-term">schema-on-read</span> approach (sometimes called a "data lake") shifts the burden of interpretation from producer to consumer. Multiple teams can create different views of the same raw data. The careful schema design required by MPP databases slows down data collection, while Hadoop's approach speeds it up.</p>
-    <p style="margin-bottom:0;">Hadoop is commonly used for <strong>ETL</strong>: raw transaction data is dumped into HDFS, MapReduce jobs clean and transform it into relational form, and the result is imported into an MPP data warehouse for analytics. Data modeling still happens, but it is decoupled from data collection.</p>
-  </div>
-
-  <h3>Designing for Frequent Faults</h3>
-  <p>MapReduce was designed at Google where batch jobs run at <strong>low priority</strong> on shared clusters. Higher-priority production services can preempt batch tasks at any time. At Google, a MapReduce task running for one hour has an approximately <strong>5% risk of being preempted</strong> -- more than 10x the rate of actual hardware failures. For a job with 100 tasks each running 10 minutes, there is a greater than 50% chance at least one task gets terminated.</p>
-
-  <!-- DIAGRAM 4: Preemption Risk -->
-  <div class="diagram">
-    <div class="diagram-title">Diagram 4: Why MapReduce Tolerates Frequent Task Termination</div>
-    <div style="display:flex; flex-direction:column; gap:16px; align-items:center;">
-      <div class="flow">
-        <div class="flow-box primary" style="min-width:180px;">Production Service<br><small style="color:var(--text-muted)">HIGH priority</small></div>
-        <div class="flow-arrow" style="font-size:1.5rem; color:var(--red);">&xrarr;</div>
-        <div class="flow-box red" style="min-width:180px;">Preempts Batch Task<br><small style="color:var(--text-muted)">needs resources</small></div>
-      </div>
-      <div style="color:var(--text-muted); font-size:0.85rem;">&darr; Task killed, but MapReduce retries at individual task granularity</div>
-      <div class="flow">
-        <div class="flow-box green" style="min-width:160px;">Task Retried<br><small style="color:var(--text-muted)">reads same input</small></div>
-        <div class="flow-arrow">&rarr;</div>
-        <div class="flow-box green" style="min-width:160px;">Job Continues<br><small style="color:var(--text-muted)">other tasks unaffected</small></div>
-      </div>
-      <div style="text-align:center; margin-top:8px;">
-        <div style="display:inline-block; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 20px; font-size:0.8rem;">
-          <span style="color:var(--red); font-weight:700;">5%</span> preemption risk/hour &nbsp;|&nbsp;
-          <span style="color:var(--orange); font-weight:700;">>50%</span> chance of at least 1 failure in 100-task job &nbsp;|&nbsp;
-          <span style="color:var(--accent3); font-weight:700;">10x</span> more common than hardware failures
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <p>This is why MapReduce eagerly writes to disk and recovers at task granularity -- not because hardware is unreliable, but because <strong>the freedom to arbitrarily terminate processes enables better resource utilization</strong> in a shared computing cluster. In open-source schedulers (YARN, Mesos), preemption is less common, which is one reason the MapReduce design has been questioned and superseded.</p>
-
-  <!-- ============================================================ -->
-  <!-- SECTION 4: MATERIALIZATION OF INTERMEDIATE STATE -->
-  <!-- ============================================================ -->
-  <h2>4. Materialization of Intermediate State</h2>
-  <p>In complex workflows (e.g., recommendation systems with 50-100 MapReduce jobs), the output of one job becomes the input to the next. When this output is only used by one downstream job, it is simply <span class="key-term">intermediate state</span>. Writing this intermediate state to HDFS files is called <span class="key-term">materialization</span> -- eagerly computing and storing a result rather than streaming it on demand.</p>
-
-  <div class="card card-red">
-    <h4 style="color:var(--red);">Three Problems with Full Materialization</h4>
-    <ul>
-      <li><strong>Straggler problem:</strong> A MapReduce job can only start when <em>all</em> tasks in the preceding job have completed. A few slow "straggler" tasks delay the entire workflow, unlike Unix pipes where processes run concurrently.</li>
-      <li><strong>Redundant mappers:</strong> Mappers in the next job often just read back the file a reducer just wrote, to re-partition and re-sort it. This mapper could be folded into the previous reducer -- but MapReduce forces alternating map/reduce stages.</li>
-      <li><strong>Over-replication:</strong> Intermediate state files on HDFS are replicated across several nodes (typically 3x), which is overkill for temporary data that will be discarded once the next job finishes.</li>
-    </ul>
-  </div>
-
-  <!-- DIAGRAM 5: Materialization vs Pipelining -->
-  <div class="diagram">
-    <div class="diagram-title">Diagram 5: MapReduce Materialization vs Unix-Style Pipelining</div>
-    <div style="display:flex; flex-direction:column; gap:24px;">
-      <div>
-        <div style="font-weight:600; color:var(--red); margin-bottom:10px; font-size:0.9rem;">MapReduce: Full Materialization</div>
-        <div class="flow">
-          <div class="flow-box primary">Map 1</div>
-          <div class="flow-arrow">&rarr;</div>
-          <div class="flow-box red" style="min-width:100px;">HDFS<br><small style="color:var(--text-muted)">3x repl.</small></div>
-          <div class="flow-arrow">&rarr;</div>
-          <div class="flow-box primary">Reduce 1</div>
-          <div class="flow-arrow">&rarr;</div>
-          <div class="flow-box red" style="min-width:100px;">HDFS<br><small style="color:var(--text-muted)">3x repl.</small></div>
-          <div class="flow-arrow">&rarr;</div>
-          <div class="flow-box primary">Map 2</div>
-          <div class="flow-arrow">&rarr;</div>
-          <div class="flow-box primary">Reduce 2</div>
-        </div>
-        <div style="font-size:0.78rem; color:var(--text-muted); margin-top:6px; text-align:center;">Each stage must wait for the previous to fully complete. Intermediate files replicated to HDFS.</div>
-      </div>
-      <div>
-        <div style="font-weight:600; color:var(--accent3); margin-bottom:10px; font-size:0.9rem;">Dataflow Engines: Pipelined Execution</div>
-        <div class="flow">
-          <div class="flow-box green">Op A</div>
-          <div class="flow-arrow" style="color:var(--accent3);">&rarr;</div>
-          <div class="flow-box green">Op B</div>
-          <div class="flow-arrow" style="color:var(--accent3);">&rarr;</div>
-          <div class="flow-box green">Op C</div>
-          <div class="flow-arrow" style="color:var(--accent3);">&rarr;</div>
-          <div class="flow-box green">Op D</div>
-        </div>
-        <div style="font-size:0.78rem; color:var(--text-muted); margin-top:6px; text-align:center;">Operators connected by in-memory buffers or local disk. Data flows as soon as produced, like Unix pipes.</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ============================================================ -->
-  <!-- SECTION 5: DATAFLOW ENGINES -->
-  <!-- ============================================================ -->
-  <h2>5. Dataflow Engines: Spark, Tez, and Flink</h2>
-  <p>To fix the problems with MapReduce's materialization, new execution engines were developed. The most well-known are <span class="key-term">Spark</span>, <span class="key-term">Tez</span>, and <span class="key-term">Flink</span>. They handle an entire workflow as <strong>one job</strong> rather than breaking it into independent sub-jobs, and they model the flow of data through processing stages as a <span class="key-term">directed acyclic graph (DAG) of operators</span>.</p>
-
-  <h3>Operators Instead of Map/Reduce</h3>
-  <p>Unlike MapReduce's strict alternation of map and reduce functions, dataflow engines use flexible <span class="key-term">operators</span> that can be assembled in any order. Three connection strategies between operators:</p>
-
-  <div class="grid3">
-    <div class="card card-accent">
-      <h4 style="color:var(--accent); font-size:0.9rem;">Repartition + Sort</h4>
-      <p style="margin-bottom:0; font-size:0.85rem;">Like MapReduce shuffle. Enables sort-merge joins and grouping. Used when order matters.</p>
-    </div>
-    <div class="card card-green">
-      <h4 style="color:var(--accent3); font-size:0.9rem;">Repartition Only</h4>
-      <p style="margin-bottom:0; font-size:0.85rem;">Partition by key but skip sorting. Saves effort for partitioned hash joins where order is irrelevant.</p>
-    </div>
-    <div class="card card-purple">
-      <h4 style="color:var(--accent2); font-size:0.9rem;">Broadcast</h4>
-      <p style="margin-bottom:0; font-size:0.85rem;">Send same output to all partitions of the next operator. Used for broadcast hash joins with small inputs.</p>
-    </div>
-  </div>
-
-  <!-- DIAGRAM 6: Operator DAG -->
-  <div class="diagram">
-    <div class="diagram-title">Diagram 6: Operator DAG -- Dataflow Engine vs MapReduce</div>
-    <div class="grid2" style="gap:32px;">
-      <div style="display:flex; flex-direction:column; align-items:center; gap:12px;">
-        <div style="font-weight:700; color:var(--red); font-size:0.9rem;">MapReduce Chain</div>
-        <div class="dag-container">
-          <div class="dag-row">
-            <div class="dag-node" style="background:rgba(59,130,246,0.2); border:2px solid var(--accent); color:var(--accent);">M1</div>
-          </div>
-          <div class="dag-edge">&darr;</div>
-          <div class="dag-row">
-            <div class="dag-node" style="background:rgba(239,68,68,0.15); border:2px solid var(--red); color:var(--red);">HDFS</div>
-          </div>
-          <div class="dag-edge">&darr;</div>
-          <div class="dag-row">
-            <div class="dag-node" style="background:rgba(139,92,246,0.2); border:2px solid var(--accent2); color:var(--accent2);">R1</div>
-          </div>
-          <div class="dag-edge">&darr;</div>
-          <div class="dag-row">
-            <div class="dag-node" style="background:rgba(239,68,68,0.15); border:2px solid var(--red); color:var(--red);">HDFS</div>
-          </div>
-          <div class="dag-edge">&darr;</div>
-          <div class="dag-row">
-            <div class="dag-node" style="background:rgba(59,130,246,0.2); border:2px solid var(--accent); color:var(--accent);">M2</div>
-          </div>
-          <div class="dag-edge">&darr;</div>
-          <div class="dag-row">
-            <div class="dag-node" style="background:rgba(139,92,246,0.2); border:2px solid var(--accent2); color:var(--accent2);">R2</div>
-          </div>
-        </div>
-        <div style="font-size:0.75rem; color:var(--text-muted);">Linear chain. HDFS between every stage.</div>
-      </div>
-      <div style="display:flex; flex-direction:column; align-items:center; gap:12px;">
-        <div style="font-weight:700; color:var(--accent3); font-size:0.9rem;">Dataflow Engine DAG</div>
-        <div class="dag-container">
-          <div class="dag-row">
-            <div class="dag-node" style="background:rgba(16,185,129,0.2); border:2px solid var(--accent3); color:var(--accent3);">A</div>
-            <div style="width:40px;"></div>
-            <div class="dag-node" style="background:rgba(16,185,129,0.2); border:2px solid var(--accent3); color:var(--accent3);">B</div>
-          </div>
-          <div style="display:flex; gap:40px;">
-            <div class="dag-edge">&searr;</div>
-            <div class="dag-edge">&swarr;</div>
-          </div>
-          <div class="dag-row">
-            <div class="dag-node" style="background:rgba(245,158,11,0.2); border:2px solid var(--orange); color:var(--orange);">Join</div>
-          </div>
-          <div style="display:flex; gap:40px;">
-            <div class="dag-edge">&swarr;</div>
-            <div class="dag-edge">&searr;</div>
-          </div>
-          <div class="dag-row">
-            <div class="dag-node" style="background:rgba(139,92,246,0.2); border:2px solid var(--accent2); color:var(--accent2);">Agg</div>
-            <div style="width:40px;"></div>
-            <div class="dag-node" style="background:rgba(236,72,153,0.2); border:2px solid var(--pink); color:var(--pink);">Filter</div>
-          </div>
-          <div style="display:flex; gap:40px;">
-            <div class="dag-edge">&searr;</div>
-            <div class="dag-edge">&swarr;</div>
-          </div>
-          <div class="dag-row">
-            <div class="dag-node" style="background:rgba(16,185,129,0.2); border:2px solid var(--accent3); color:var(--accent3);">Out</div>
-          </div>
-        </div>
-        <div style="font-size:0.75rem; color:var(--text-muted);">Flexible DAG. Memory/local disk between operators.</div>
-      </div>
-    </div>
-  </div>
-
-  <h3>Advantages Over MapReduce</h3>
-  <div class="card card-green">
-    <h4 style="color:var(--accent3);">Six Key Improvements</h4>
-    <ul>
-      <li><strong>Sort only when needed:</strong> Expensive sorting is performed only where required, not by default between every stage.</li>
-      <li><strong>No redundant mappers:</strong> Mapper work is incorporated into the preceding operator when partitioning does not change.</li>
-      <li><strong>Locality optimization:</strong> All data dependencies are declared, so the scheduler can place tasks that produce and consume data on the same machine.</li>
-      <li><strong>In-memory intermediate state:</strong> Data between operators stays in memory or local disk -- no HDFS replication overhead.</li>
-      <li><strong>Pipelined execution:</strong> Operators start as soon as input is ready, no need to wait for the entire preceding stage.</li>
-      <li><strong>JVM reuse:</strong> Existing JVM processes run new operators, reducing startup overhead (MapReduce launches a new JVM per task).</li>
-    </ul>
-  </div>
-
-  <h3>MapReduce vs Dataflow Engines: Comparison</h3>
-  <div class="card" style="overflow-x:auto;">
-    <table>
-      <thead>
-        <tr>
-          <th>Aspect</th>
-          <th style="color:var(--red);">MapReduce</th>
-          <th style="color:var(--accent3);">Dataflow Engines (Spark/Tez/Flink)</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><strong>Execution unit</strong></td>
-          <td>Independent jobs (one M+R per job)</td>
-          <td>One job = entire workflow (DAG of operators)</td>
-        </tr>
-        <tr>
-          <td><strong>Intermediate state</strong></td>
-          <td>Materialized to HDFS (replicated)</td>
-          <td>In-memory or local disk (no replication)</td>
-        </tr>
-        <tr>
-          <td><strong>Operator flexibility</strong></td>
-          <td>Strict Map &rarr; Shuffle &rarr; Reduce alternation</td>
-          <td>Arbitrary operator DAG; sort only when needed</td>
-        </tr>
-        <tr>
-          <td><strong>Pipelining</strong></td>
-          <td>No -- must wait for all preceding tasks</td>
-          <td>Yes -- operators start as input becomes ready</td>
-        </tr>
-        <tr>
-          <td><strong>Fault tolerance</strong></td>
-          <td>Re-read materialized input from HDFS</td>
-          <td>Recompute from earlier stage or original input (RDD lineage / checkpoints)</td>
-        </tr>
-        <tr>
-          <td><strong>JVM overhead</strong></td>
-          <td>New JVM per task</td>
-          <td>Reuse existing JVM processes</td>
-        </tr>
-        <tr>
-          <td><strong>Code compatibility</strong></td>
-          <td>N/A (baseline)</td>
-          <td>Pig/Hive/Cascading code runs on Tez or Spark with config change only</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-
-  <!-- ============================================================ -->
-  <!-- SECTION 6: FAULT TOLERANCE -- RDD LINEAGE -->
-  <!-- ============================================================ -->
-  <h2>6. Fault Tolerance in Dataflow Engines</h2>
-  <p>MapReduce's fault tolerance is simple: intermediate state is on HDFS, so a failed task re-reads its input. Dataflow engines keep intermediate state in memory, so they need a different approach: <strong>recomputation</strong>.</p>
-
-  <p>Spark tracks the <span class="key-term">lineage</span> of each <span class="key-term">Resilient Distributed Dataset (RDD)</span> -- the chain of transformations that produced it. If a partition is lost, Spark recomputes it by replaying transformations from the nearest available ancestor. Flink takes a different approach: it periodically <span class="key-term">checkpoints</span> operator state, allowing it to resume from the last checkpoint.</p>
-
-  <!-- DIAGRAM 7: Spark RDD Lineage -->
-  <div class="diagram">
-    <div class="diagram-title">Diagram 7: Spark RDD Lineage for Fault Tolerance</div>
-    <div style="display:flex; flex-direction:column; gap:16px; align-items:center;">
-      <div class="lineage-row">
-        <div class="lineage-box" style="background:rgba(59,130,246,0.2); border:2px solid var(--accent); color:var(--accent);">HDFS Input</div>
-        <div style="color:var(--text-muted);">&xrarr;</div>
-        <div style="font-size:0.75rem; color:var(--accent3); font-weight:600;">filter()</div>
-        <div style="color:var(--text-muted);">&xrarr;</div>
-        <div class="lineage-box" style="background:rgba(16,185,129,0.15); border:2px solid var(--accent3); color:var(--accent3);">RDD-1</div>
-        <div style="color:var(--text-muted);">&xrarr;</div>
-        <div style="font-size:0.75rem; color:var(--orange); font-weight:600;">map()</div>
-        <div style="color:var(--text-muted);">&xrarr;</div>
-        <div class="lineage-box" style="background:rgba(245,158,11,0.15); border:2px solid var(--orange); color:var(--orange);">RDD-2</div>
-        <div style="color:var(--text-muted);">&xrarr;</div>
-        <div style="font-size:0.75rem; color:var(--accent2); font-weight:600;">reduceByKey()</div>
-        <div style="color:var(--text-muted);">&xrarr;</div>
-        <div class="lineage-box" style="background:rgba(139,92,246,0.15); border:2px solid var(--accent2); color:var(--accent2);">RDD-3</div>
-      </div>
-      <div style="display:flex; align-items:center; gap:12px;">
-        <div style="font-size:2rem; color:var(--red);">&#x26A0;</div>
-        <div style="font-size:0.85rem; color:var(--red); font-weight:600;">Node failure loses RDD-2 partition</div>
-      </div>
-      <div class="lineage-row">
-        <div class="lineage-box" style="background:rgba(59,130,246,0.2); border:2px solid var(--accent); color:var(--accent);">HDFS Input</div>
-        <div style="color:var(--accent3);">&xrarr;</div>
-        <div style="font-size:0.75rem; color:var(--accent3); font-weight:600;">filter()</div>
-        <div style="color:var(--accent3);">&xrarr;</div>
-        <div class="lineage-box" style="background:rgba(16,185,129,0.25); border:2px solid var(--accent3); color:var(--accent3);">RDD-1</div>
-        <div style="color:var(--accent3);">&xrarr;</div>
-        <div style="font-size:0.75rem; color:var(--accent3); font-weight:600;">map()</div>
-        <div style="color:var(--accent3);">&xrarr;</div>
-        <div class="lineage-box" style="background:rgba(16,185,129,0.25); border:2px solid var(--accent3); color:var(--accent3);">RDD-2 <small>(recomputed)</small></div>
-      </div>
-      <div style="font-size:0.8rem; color:var(--text-muted); text-align:center;">Spark replays the lineage chain from the nearest available ancestor to recompute the lost partition.</div>
-    </div>
-  </div>
-
-  <div class="card card-orange">
-    <h4 style="color:var(--orange);">Determinism Matters</h4>
-    <p>When recomputing data, operators must be <span class="key-term">deterministic</span> -- given the same input, they must produce the same output. If recomputed data differs from the original, downstream operators face contradictions. Sources of accidental nondeterminism include: hash table iteration order, random number generators, system clock reads, and external data lookups. Fix these by using fixed seeds and avoiding external dependencies.</p>
-    <p style="margin-bottom:0;">If intermediate data is much smaller than the source or if computation is very CPU-intensive, it may be cheaper to <strong>materialize it</strong> (like MapReduce) rather than recompute. This is a trade-off, not a universal rule.</p>
-  </div>
-
-  <!-- ============================================================ -->
-  <!-- SECTION 7: GRAPHS AND ITERATIVE PROCESSING -->
-  <!-- ============================================================ -->
-  <h2>7. Graphs and Iterative Processing</h2>
-  <p>Graph processing in a batch context means performing offline analysis on an <em>entire</em> graph -- for example, PageRank (estimating web page popularity) or recommendation engines. Many graph algorithms work by traversing edges one at a time, propagating information between adjacent vertices, and repeating until convergence.</p>
-
-  <p>Plain MapReduce cannot express "repeat until done" -- it performs only a single pass. An external scheduler can loop over MapReduce jobs, but this is inefficient because MapReduce reads the <strong>entire input</strong> and produces a <strong>completely new output</strong> each iteration, even if only a small part of the graph changed.</p>
-
-  <h3>The Pregel / BSP Model</h3>
-  <p>The <span class="key-term">Bulk Synchronous Parallel (BSP)</span> model, popularized by Google's Pregel paper, optimizes graph batch processing. It is implemented by Apache Giraph, Spark GraphX, and Flink Gelly. The core idea: vertices send messages to each other (typically along edges), and computation proceeds in synchronized rounds called <span class="key-term">supersteps</span>.</p>
-
-  <!-- DIAGRAM 8: Pregel/BSP Superstep -->
-  <div class="diagram">
-    <div class="diagram-title">Diagram 8: Pregel / BSP Superstep Execution Model</div>
-    <div style="display:flex; flex-direction:column; gap:16px; align-items:center;">
-      <div class="superstep-grid" style="width:100%; max-width:700px;">
-        <div class="superstep-header"></div>
-        <div class="superstep-header" style="color:var(--accent);">Superstep 0</div>
-        <div class="superstep-header" style="color:var(--accent3);">Superstep 1</div>
-        <div class="superstep-header" style="color:var(--accent2);">Superstep 2</div>
-
-        <div class="superstep-cell" style="font-weight:600; color:var(--text);">Vertex A</div>
-        <div class="superstep-cell" style="background:rgba(59,130,246,0.15); color:var(--accent); border:1px solid rgba(59,130,246,0.3); border-radius:8px;">Compute<br><small>Send msg &rarr; B,C</small></div>
-        <div class="superstep-cell" style="background:rgba(16,185,129,0.12); color:var(--accent3); border:1px solid rgba(16,185,129,0.3); border-radius:8px;">Receive msg<br><small>Update state</small></div>
-        <div class="superstep-cell" style="background:rgba(139,92,246,0.12); color:var(--accent2); border:1px solid rgba(139,92,246,0.3); border-radius:8px;">Vote to halt<br><small>(converged)</small></div>
-
-        <div class="superstep-cell" style="font-weight:600; color:var(--text);">Vertex B</div>
-        <div class="superstep-cell" style="background:rgba(59,130,246,0.15); color:var(--accent); border:1px solid rgba(59,130,246,0.3); border-radius:8px;">Compute<br><small>Send msg &rarr; A</small></div>
-        <div class="superstep-cell" style="background:rgba(16,185,129,0.12); color:var(--accent3); border:1px solid rgba(16,185,129,0.3); border-radius:8px;">Receive msg<br><small>Send msg &rarr; C</small></div>
-        <div class="superstep-cell" style="background:rgba(139,92,246,0.12); color:var(--accent2); border:1px solid rgba(139,92,246,0.3); border-radius:8px;">Receive msg<br><small>Update state</small></div>
-
-        <div class="superstep-cell" style="font-weight:600; color:var(--text);">Vertex C</div>
-        <div class="superstep-cell" style="background:rgba(59,130,246,0.15); color:var(--accent); border:1px solid rgba(59,130,246,0.3); border-radius:8px;">Compute<br><small>Send msg &rarr; B</small></div>
-        <div class="superstep-cell" style="background:rgba(16,185,129,0.12); color:var(--accent3); border:1px solid rgba(16,185,129,0.3); border-radius:8px;">Receive msg<br><small>Update state</small></div>
-        <div class="superstep-cell" style="background:rgba(139,92,246,0.12); color:var(--accent2); border:1px solid rgba(139,92,246,0.3); border-radius:8px;">Vote to halt<br><small>(converged)</small></div>
-      </div>
-      <div style="display:flex; gap:24px; flex-wrap:wrap; justify-content:center;">
-        <div style="font-size:0.8rem; color:var(--text-muted);"><span style="color:var(--accent);">&#9632;</span> Each vertex processes incoming messages and sends new ones</div>
-        <div style="font-size:0.8rem; color:var(--text-muted);"><span style="color:var(--orange);">&#9632;</span> Messages from step N delivered at step N+1</div>
-        <div style="font-size:0.8rem; color:var(--text-muted);"><span style="color:var(--accent3);">&#9632;</span> Vertices remember state across iterations</div>
-      </div>
-      <div style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px 20px; font-size:0.82rem; color:var(--text-muted); max-width:600px; text-align:center;">
-        <strong style="color:var(--text);">Barrier synchronization:</strong> All messages from superstep N must be delivered before superstep N+1 begins. Like the actor model, but with fixed round-based timing guarantees.
-      </div>
-    </div>
-  </div>
-
-  <div class="grid2">
-    <div class="card card-accent">
-      <h4 style="color:var(--accent);">Key Properties of Pregel</h4>
-      <ul>
-        <li>Vertices communicate <strong>only by message passing</strong> (not direct queries)</li>
-        <li>Vertices <strong>remember state</strong> across iterations (unlike MapReduce which re-reads everything)</li>
-        <li>If no messages are sent to a part of the graph, <strong>no work is done there</strong></li>
-        <li>Messages are guaranteed to be processed <strong>exactly once</strong> at destination</li>
-      </ul>
-    </div>
-    <div class="card card-orange">
-      <h4 style="color:var(--orange);">Pregel Fault Tolerance</h4>
-      <ul>
-        <li>Periodically <strong>checkpoints all vertex state</strong> to durable storage at end of iteration</li>
-        <li>On failure: roll back entire graph to last checkpoint and restart</li>
-        <li>With deterministic algorithms + message logging: can selectively recover only the lost partition</li>
-      </ul>
-    </div>
-  </div>
-
-  <div class="card card-purple">
-    <h4 style="color:var(--accent2);">Practical Consideration: Single Machine May Win</h4>
-    <p style="margin-bottom:0;">Distributed graph algorithms have high cross-machine communication overhead -- often the messages are bigger than the graph itself. If your graph fits in memory on a single machine, a single-threaded algorithm will likely outperform a distributed batch process. Even for graphs bigger than memory, single-machine frameworks like <strong>GraphChi</strong> can process graphs that fit on disk. Use Pregel-style distributed processing only when the graph is too big for a single machine.</p>
-  </div>
-
-  <!-- ============================================================ -->
-  <!-- SECTION 8: HIGH-LEVEL APIS EVOLUTION -->
-  <!-- ============================================================ -->
-  <h2>8. High-Level APIs and Languages</h2>
-  <p>As batch processing infrastructure matured (petabytes on 10,000+ machine clusters), attention shifted from operational challenges to <strong>improving the programming model</strong>. Writing raw MapReduce jobs by hand is laborious -- you need to implement join algorithms from scratch.</p>
-
-  <!-- DIAGRAM 9: Evolution Timeline -->
-  <div class="diagram">
-    <div class="diagram-title">Diagram 9: Evolution of Batch Processing APIs</div>
-    <div class="timeline">
-      <div class="timeline-item red">
-        <div class="timeline-title">2004 -- Raw MapReduce</div>
-        <div class="timeline-desc">Google publishes the MapReduce paper. Engineers write Java map/reduce functions by hand. Implementing joins requires writing algorithms from scratch. Powerful but extremely laborious.</div>
-      </div>
-      <div class="timeline-item orange">
-        <div class="timeline-title">2007-2009 -- Pig, Hive, Cascading</div>
-        <div class="timeline-desc">Higher-level abstractions on top of MapReduce. Hive provides SQL-like interface (HiveQL). Pig offers a dataflow scripting language. Cascading provides a Java API. All compile down to MapReduce jobs but are much easier to use.</div>
-      </div>
-      <div class="timeline-item">
-        <div class="timeline-title">2010-2012 -- Tez and Dataflow Engines</div>
-        <div class="timeline-desc">Apache Tez emerges as an alternative execution engine. Pig and Hive can switch from MapReduce to Tez with a configuration change -- no code rewrites. Significant performance improvement by eliminating unnecessary materialization.</div>
-      </div>
-      <div class="timeline-item green">
-        <div class="timeline-title">2012-2014 -- Spark, Flink, High-Level DataFlow APIs</div>
-        <div class="timeline-desc">Spark introduces RDDs and a rich functional API (map, filter, reduceByKey, join). Flink offers pipelined execution with operator state checkpointing. Both include their own schedulers, network layers, and high-level APIs inspired by FlumeJava.</div>
-      </div>
-      <div class="timeline-item purple">
-        <div class="timeline-title">2014+ -- Declarative / SQL Convergence</div>
-        <div class="timeline-desc">Spark SQL, Hive LLAP, Impala bring cost-based query optimizers to batch processing. Vectorized execution, JVM bytecode generation (Spark), LLVM native code generation (Impala). Batch frameworks begin to look like MPP databases in performance while retaining the flexibility to run arbitrary code.</div>
-      </div>
-    </div>
-  </div>
-
-  <h3>The Move Toward Declarative Queries</h3>
-  <p>By specifying joins as <strong>relational operators</strong> rather than hand-coded algorithms, the framework's query optimizer can automatically choose the best join algorithm (sort-merge, broadcast hash, partitioned hash) and even reorder joins to minimize intermediate state. Hive, Spark, and Flink all have cost-based optimizers for this.</p>
-
-  <div class="card card-accent">
-    <h4 style="color:var(--accent);">Declarative Benefits</h4>
-    <ul>
-      <li><strong>Automatic join selection:</strong> The optimizer picks the best algorithm based on input properties</li>
-      <li><strong>Column-oriented storage:</strong> Declarative filters allow reading only required columns from disk (Parquet, ORC)</li>
-      <li><strong>Vectorized execution:</strong> Tight inner loops friendly to CPU caches; avoids function call overhead</li>
-      <li><strong>Code generation:</strong> Spark generates JVM bytecode; Impala uses LLVM for native inner loop code</li>
-      <li><strong>Interactive exploration:</strong> High-level APIs allow writing analysis code incrementally in a shell</li>
-    </ul>
-  </div>
-
-  <!-- DIAGRAM 10: Convergence -->
-  <div class="diagram">
-    <div class="diagram-title">Diagram 10: Convergence of Batch Processing and MPP Databases</div>
-    <div style="display:flex; flex-direction:column; align-items:center; gap:16px;">
-      <div class="flow">
-        <div class="flow-vert">
-          <div class="flow-box primary" style="min-width:200px;">Batch Processing<br><small style="color:var(--text-muted)">Hadoop / Spark / Flink</small></div>
-          <div style="font-size:0.75rem; color:var(--text-muted);">Adding: SQL, query optimizers,<br>vectorized execution, code generation</div>
-        </div>
-        <div style="display:flex; flex-direction:column; align-items:center; gap:4px; padding:0 20px;">
-          <div class="flow-arrow" style="font-size:1.5rem;">&larr;</div>
-          <div style="font-size:0.75rem; color:var(--accent2); font-weight:600;">Converging</div>
-          <div class="flow-arrow" style="font-size:1.5rem;">&rarr;</div>
-        </div>
-        <div class="flow-vert">
-          <div class="flow-box pink" style="min-width:200px;">MPP Databases<br><small style="color:var(--text-muted)">Teradata / Redshift / Impala</small></div>
-          <div style="font-size:0.75rem; color:var(--text-muted);">Adding: UDFs, flexible formats,<br>programmable extensions</div>
-        </div>
-      </div>
-      <div class="flow-arrow" style="font-size:1.5rem;">&darr;</div>
-      <div class="flow-box purple" style="min-width:320px; padding:16px 24px;">
-        <strong>Unified Data Processing</strong><br>
-        <small style="color:var(--text-muted)">SQL + arbitrary code, any format, declarative optimization</small>
-      </div>
-    </div>
-  </div>
-
-  <h3>Specialization for Different Domains</h3>
-  <div class="grid3">
-    <div class="card card-accent">
-      <h4 style="color:var(--accent); font-size:0.9rem;">Machine Learning</h4>
-      <p style="margin-bottom:0; font-size:0.85rem;">Mahout (on MapReduce/Spark/Flink), MADlib (in MPP databases). Classification, recommendation, feature engineering.</p>
-    </div>
-    <div class="card card-green">
-      <h4 style="color:var(--accent3); font-size:0.9rem;">Spatial Algorithms</h4>
-      <p style="margin-bottom:0; font-size:0.85rem;">k-nearest neighbors for similarity search in multi-dimensional space. Used in location services, recommendations.</p>
-    </div>
-    <div class="card card-purple">
-      <h4 style="color:var(--accent2); font-size:0.9rem;">Genome Analysis</h4>
-      <p style="margin-bottom:0; font-size:0.85rem;">Approximate string matching algorithms for finding similar (but not identical) DNA sequences at scale.</p>
-    </div>
-  </div>
-
-  <!-- ============================================================ -->
-  <!-- SECTION 9: CHAPTER SUMMARY -->
-  <!-- ============================================================ -->
-  <h2>9. Chapter Summary</h2>
-  <p>This chapter explored batch processing from Unix tools through MapReduce to modern dataflow engines. The design principles that emerged:</p>
-
-  <div class="card card-green">
-    <h4 style="color:var(--accent3);">Core Design Principles</h4>
-    <ul>
-      <li><strong>Inputs are immutable:</strong> outputs become the input to another (as yet unknown) program</li>
-      <li><strong>Complex problems</strong> are solved by composing small tools that "do one thing well"</li>
-      <li>The <strong>uniform interface</strong> is a distributed filesystem (HDFS), analogous to Unix files and pipes</li>
-      <li>Dataflow engines add <strong>pipe-like transport</strong> to avoid materializing intermediate state</li>
-    </ul>
-  </div>
-
-  <div class="grid2">
-    <div class="card card-accent">
-      <h4 style="color:var(--accent);">Partitioning</h4>
-      <p style="margin-bottom:0;">Mappers partition by input file blocks. Output is repartitioned, sorted, and merged into reducer partitions to bring related data together. Post-MapReduce engines avoid sorting unless required but take a similar approach to partitioning.</p>
-    </div>
-    <div class="card card-purple">
-      <h4 style="color:var(--accent2);">Fault Tolerance</h4>
-      <p style="margin-bottom:0;">MapReduce writes frequently to disk (easy recovery, slow execution). Dataflow engines keep more in memory (faster execution, must recompute on failure). Deterministic operators reduce the amount of recomputation needed.</p>
-    </div>
-  </div>
-
-  <div class="card card-orange">
-    <h4 style="color:var(--orange);">Key Takeaways</h4>
-    <ul>
-      <li>Batch processing jobs are <strong>stateless callbacks</strong> with no externally visible side effects -- the framework hides distributed systems complexity</li>
-      <li>The framework guarantees output is the same as if no faults occurred, providing <strong>much stronger semantics</strong> than online services</li>
-      <li>Batch input is <strong>bounded</strong> (known, fixed size), so jobs eventually complete. The next chapter covers <strong>stream processing</strong> where input is unbounded and jobs never finish.</li>
-    </ul>
-  </div>
-
-  <!-- ============================================================ -->
-  <!-- QUESTIONS -->
-  <!-- ============================================================ -->
-  <h2>Test Your Understanding</h2>
-
-  <div class="question-block">
-    <div class="question-header" onclick="this.parentElement.classList.toggle('open')">
-      <span><span class="q-num">1</span>Why is it better to build database files inside a batch job and bulk-load them, rather than writing directly to a production database from mappers/reducers?</span>
-      <span class="chevron">&#9662;</span>
-    </div>
-    <div class="question-body">
-      <p>Three reasons: (1) <strong>Performance</strong> -- making a network request per record is orders of magnitude slower than batch throughput. (2) <strong>Overload</strong> -- parallel mappers/reducers can overwhelm the database, degrading its query performance and causing operational problems. (3) <strong>Consistency</strong> -- writing to an external database produces externally visible side effects, breaking MapReduce's all-or-nothing guarantee. Partial job output becomes visible, and you must handle speculative execution and task retries. Building immutable files and atomically switching is cleaner and safer.</p>
-    </div>
-  </div>
-
-  <div class="question-block">
-    <div class="question-header" onclick="this.parentElement.classList.toggle('open')">
-      <span><span class="q-num">2</span>What are the three main problems with MapReduce's full materialization of intermediate state, and how do dataflow engines solve them?</span>
-      <span class="chevron">&#9662;</span>
-    </div>
-    <div class="question-body">
-      <p>(1) <strong>Straggler blocking:</strong> A job cannot start until all tasks in the preceding job finish. Dataflow engines pipeline execution -- operators start as soon as input is available. (2) <strong>Redundant mappers:</strong> The next job's mapper just re-reads and re-partitions what the previous reducer wrote. Dataflow engines fold this work into the preceding operator. (3) <strong>Over-replication:</strong> HDFS replicates intermediate files 3x across nodes, which is overkill for temporary data. Dataflow engines use in-memory buffers or local disk instead.</p>
-    </div>
-  </div>
-
-  <div class="question-block">
-    <div class="question-header" onclick="this.parentElement.classList.toggle('open')">
-      <span><span class="q-num">3</span>How does Spark's RDD lineage provide fault tolerance without writing intermediate state to HDFS?</span>
-      <span class="chevron">&#9662;</span>
-    </div>
-    <div class="question-body">
-      <p>Spark tracks the <strong>lineage</strong> (ancestry) of each RDD -- which input partitions it was derived from and which transformations were applied. If a machine fails and an RDD partition is lost, Spark recomputes it by replaying the transformation chain from the nearest available ancestor (a prior intermediate stage, or the original HDFS input). This works because transformations are deterministic: given the same input, they produce the same output. For CPU-intensive computations or when intermediate data is much smaller than the source, it may be cheaper to materialize (checkpoint) the intermediate data rather than recompute it.</p>
-    </div>
-  </div>
-
-  <div class="question-block">
-    <div class="question-header" onclick="this.parentElement.classList.toggle('open')">
-      <span><span class="q-num">4</span>In the Pregel/BSP model, how do vertices communicate, and why is this different from both MapReduce and the actor model?</span>
-      <span class="chevron">&#9662;</span>
-    </div>
-    <div class="question-body">
-      <p>In Pregel, vertices communicate exclusively through <strong>message passing</strong> along graph edges in synchronized rounds (supersteps). Unlike MapReduce, vertices <strong>remember their state</strong> across iterations, so only new incoming messages need processing -- if no messages reach a part of the graph, no work is done there. Unlike the actor model, Pregel has a <strong>fixed round-based timing guarantee</strong>: all messages sent in superstep N are delivered in superstep N+1 (actors have no such guarantee). Messages are processed exactly once at their destination. Fault tolerance is achieved by periodically checkpointing all vertex state to durable storage.</p>
-    </div>
-  </div>
-
-  <div class="question-block">
-    <div class="question-header" onclick="this.parentElement.classList.toggle('open')">
-      <span><span class="q-num">5</span>Why was MapReduce designed to tolerate frequent task termination, and is this design equally relevant in open-source cluster schedulers?</span>
-      <span class="chevron">&#9662;</span>
-    </div>
-    <div class="question-body">
-      <p>MapReduce was designed at Google where batch jobs run at <strong>low priority</strong> on shared clusters with production services. Higher-priority processes can preempt batch tasks at any time to reclaim resources. At Google, a task running for one hour has approximately a 5% chance of being preempted -- 10x more common than hardware failures. This "picking up scraps under the table" approach enables better resource utilization through overcommitting. However, in open-source schedulers (YARN, Mesos, Kubernetes), general priority preemption is less common, so MapReduce's eagerness to write to disk and its per-task recovery overhead are less justified -- which is one reason dataflow engines with lighter-weight fault tolerance have become preferred.</p>
-    </div>
-  </div>
-
-  <div class="question-block">
-    <div class="question-header" onclick="this.parentElement.classList.toggle('open')">
-      <span><span class="q-num">6</span>How are batch processing frameworks and MPP databases converging, and what does each side gain from the other?</span>
-      <span class="chevron">&#9662;</span>
-    </div>
-    <div class="question-body">
-      <p>Batch frameworks (Spark, Flink) are adopting <strong>declarative features from MPP databases</strong>: cost-based query optimizers that automatically choose join algorithms, column-oriented storage integration (Parquet/ORC), vectorized execution for CPU-cache-friendly inner loops, and code generation (Spark generates JVM bytecode, Impala uses LLVM). Meanwhile, MPP databases are becoming <strong>more programmable</strong>, with better UDF support and flexible data format handling. The result is convergence toward unified systems that combine SQL's declarative power and optimization with the flexibility to run arbitrary code on any data format. Both are ultimately "systems for storing and processing data."</p>
-    </div>
-  </div>
-
 </div>
 
-<script>
-// Allow clicking anywhere on the question header to toggle
-document.querySelectorAll('.question-header').forEach(h => {
-  h.style.userSelect = 'none';
-});
-</script>
+<h3>Broadcast Hash Join (Map-Side Join)</h3>
+<p>If one dataset is small enough to fit in memory, load it into a hash table and broadcast to all mappers. Each mapper does the join in-memory, no shuffle needed.</p>
+
+<div class="diagram">
+  <div style="background:var(--surface2);padding:.75rem;border-radius:6px;font-size:.82rem;line-height:1.8">
+    <div style="color:var(--green);font-weight:700">When to use:</div>
+    One dataset is small (fits in mapper's RAM — say &lt;1GB). Large dataset is partitioned across mappers.<br/>
+    <div style="margin-top:.3rem;color:var(--green)">Benefit: no shuffle phase at all. Much faster.</div>
+    <div style="color:var(--red);margin-top:.3rem">Limitation: small dataset must fit in memory of every mapper instance.</div>
+    <div style="margin-top:.3rem;color:var(--muted)">Example: large table of web logs joined with small table of ~1000 top products.</div>
+  </div>
+</div>
+
+<h3>Partitioned Hash Join</h3>
+<p>Both datasets are partitioned by the same hash of the join key. Mapper for partition K only needs to load partition K of the smaller dataset into a hash table. No network shuffle needed at all — each mapper independently joins its partition.</p>
+
+<div class="callout blue">
+  Hive calls this a "bucketed map join." Both tables must be bucketed in the same way (same key, same number of buckets). Requires pre-partitioning when writing the data. The reward: very fast joins at query time.
+</div>
+
+<h2>GROUP BY and Aggregations</h2>
+<p>SQL GROUP BY maps naturally to MapReduce: the map phase emits (group-by key, value), and the reduce phase aggregates all values per key.</p>
+
+<div class="diagram">
+  <div style="font-size:.82rem;color:var(--muted);margin-bottom:.5rem">SELECT country, COUNT(*) FROM events GROUP BY country</div>
+  <div style="background:var(--surface2);padding:.75rem;border-radius:6px;font-size:.82rem;line-height:1.8">
+    Mapper: for each event → emit (country, 1)<br/>
+    Combiner (local reduce): on each mapper node, pre-aggregate counts before shuffle → fewer bytes shuffled<br/>
+    Shuffle: all (country, count) pairs grouped by country<br/>
+    Reducer: sum all counts → emit (country, total)
+  </div>
+  <div style="margin-top:.75rem;font-size:.8rem;color:var(--orange)">
+    Combiners are a critical optimization: they apply the same function as the reducer but locally on each mapper. This can dramatically reduce the shuffle data volume. Only valid for commutative, associative functions (sum, count, max, min — but not average directly).
+  </div>
+</div>
+
+<h2>Handling Skew</h2>
+<p>Skew = some keys have far more records than others. In a join, a hot key (e.g., user_id=1 for an admin account) might cause one reducer to receive 1000× more data than others, creating a bottleneck.</p>
+
+<div class="diagram">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;font-size:.82rem">
+    <div style="background:#200;padding:.75rem;border-radius:6px;border:1px solid var(--red)">
+      <div style="color:var(--red);font-weight:700;margin-bottom:.3rem">Problem: reducer skew</div>
+      Key "US" → 50% of all records → 1 reducer does 50% of work.<br/>
+      Other reducers idle while the "US" reducer is the bottleneck.<br/>
+      Job completes only when the slowest reducer finishes.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--green);font-weight:700;margin-bottom:.3rem">Solution: salting</div>
+      Append random suffix to hot keys during map: "US_1", "US_2", ..., "US_10".<br/>
+      10 reducers share the work for "US".<br/>
+      Combine the 10 partial results in a second pass.
+    </div>
+  </div>
+</div>
+
+<div class="callout">
+  Pig's "skewed join" and Hive's "skewjoin" handle this automatically: they detect hot keys, salt them during the join, and merge the partial results. In Spark, broadcast joins are the alternative for skewed dimensions.
+</div>
+
+<h2>Dataflow Engines: Spark, Flink, Tez</h2>
+<p>MapReduce has a fundamental inefficiency: every intermediate result is written to HDFS (disk), then read back. A multi-stage job with 5 MapReduce steps does 10 HDFS writes/reads for intermediates. This is very slow.</p>
+
+<h3>The MapReduce Pipeline Problem</h3>
+<div class="diagram">
+  <div class="vflow" style="font-size:.82rem">
+    <div class="box blue" style="font-size:.78rem">Step 1: Map → Reduce</div>
+    <div style="color:var(--red);font-size:.8rem">↓ write to HDFS (disk)</div>
+    <div class="box blue" style="font-size:.78rem">Step 2: Map → Reduce</div>
+    <div style="color:var(--red);font-size:.8rem">↓ write to HDFS (disk)</div>
+    <div class="box blue" style="font-size:.78rem">Step 3: Map → Reduce</div>
+    <div style="color:var(--red);font-size:.8rem">↓ write to HDFS (disk)</div>
+    <div class="box green" style="font-size:.78rem">Final output</div>
+  </div>
+  <div style="margin-top:.75rem;font-size:.8rem;color:var(--muted)">
+    Disk I/O dominates. Mostly sequential reads (efficient), but the round-trips to HDFS per stage add up to minutes or hours for complex pipelines.
+  </div>
+</div>
+
+<h3>Dataflow Engines (Spark model)</h3>
+<p>Spark, Tez, and Flink represent the "dataflow" approach: express the entire job as a directed acyclic graph (DAG) of operators. Intermediates are kept in memory where possible; only shuffle across network when needed.</p>
+
+<div class="diagram">
+  <div style="background:var(--surface2);padding:.75rem;border-radius:6px;font-size:.82rem;line-height:1.8">
+    <div style="color:var(--cyan);font-weight:700;margin-bottom:.3rem">Key improvements over MapReduce:</div>
+    <div>1. Operators are general (not just map/reduce). Any function: filter, join, sort, window.</div>
+    <div>2. Intermediates stay in memory (no HDFS write between stages)</div>
+    <div>3. Shuffle only when necessary (not after every stage)</div>
+    <div>4. Lazy evaluation: build the full DAG first, then optimize and execute</div>
+    <div>5. Result: 10–100× faster for iterative algorithms (ML) and multi-stage pipelines</div>
+  </div>
+</div>
+
+<h3>Spark RDD and Lineage</h3>
+<div class="diagram">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;font-size:.82rem">
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--purple);font-weight:700;margin-bottom:.3rem">RDD (Resilient Distributed Dataset)</div>
+      Immutable collection of records distributed across nodes. Can be in memory or on disk. Operations on RDDs are lazy: they build a DAG (lineage graph) of transformations.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--green);font-weight:700;margin-bottom:.3rem">Fault tolerance via lineage</div>
+      If a partition is lost, Spark re-computes it from the lineage (the chain of transformations). No need to write to disk — just re-run the relevant part of the DAG. Much faster than HDFS-based recovery.
+    </div>
+  </div>
+</div>
+
+<div class="callout blue">
+  Spark's key advantage for machine learning: iterative algorithms (gradient descent, PageRank) process the same dataset many times. With MapReduce, each iteration reads from and writes to HDFS. With Spark, the dataset stays in memory across iterations — 100× speedup is common.
+</div>
+
+<h3>Comparing MapReduce and Spark</h3>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Aspect</th><th>MapReduce</th><th>Spark (dataflow)</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>Intermediate data</td>
+      <td>Always written to HDFS (disk)</td>
+      <td>Kept in memory (falls back to disk)</td>
+    </tr>
+    <tr>
+      <td>Execution model</td>
+      <td>Always map→shuffle→reduce cycles</td>
+      <td>General DAG of operators</td>
+    </tr>
+    <tr>
+      <td>Iterative algorithms</td>
+      <td>Requires new job per iteration. Very slow.</td>
+      <td>Same data stays in memory. 10–100× faster.</td>
+    </tr>
+    <tr>
+      <td>Fault tolerance</td>
+      <td>Re-run from HDFS checkpoints</td>
+      <td>Re-compute lost partitions via lineage</td>
+    </tr>
+    <tr>
+      <td>Cluster utilization</td>
+      <td>Often underutilized (mapper idle during reduce)</td>
+      <td>Better pipelining; operators run concurrently</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div style="margin-top:3rem;padding:1.5rem;background:var(--surface);border-radius:10px;border:1px solid var(--border)">
+  <div class="row" style="gap:2rem;flex-wrap:wrap">
+    <div>
+      <div style="font-size:.85rem;color:var(--muted)">← Previous</div>
+      <div><a href="chapter-10-batch-processing-part1.html" style="color:var(--accent);text-decoration:none">Part 1: MapReduce &amp; HDFS</a></div>
+    </div>
+    <div>
+      <div style="font-size:.85rem;color:var(--muted)">Next →</div>
+      <div><a href="chapter-10-batch-processing-part3.html" style="color:var(--accent);text-decoration:none">Part 3: Beyond MapReduce, Output Types &amp; Q&amp;A</a></div>
+    </div>
+  </div>
+</div>
+</div>
 </body>
 </html>
