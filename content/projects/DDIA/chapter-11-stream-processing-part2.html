@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Ch 11 Part 2 — Kafka &amp; Change Data Capture</title>
+<style>
+:root {
+  --bg:#0a0e17; --surface:#111827; --surface2:#1a2234; --border:#1e293b;
+  --text:#e2e8f0; --muted:#94a3b8; --accent:#3b82f6; --purple:#8b5cf6;
+  --green:#10b981; --red:#ef4444; --orange:#f59e0b; --pink:#ec4899; --cyan:#06b6d4;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.7;padding:2rem 1rem}
+.wrap{max-width:860px;margin:0 auto}
+h1{font-size:2rem;color:var(--accent);margin-bottom:.25rem}
+h2{font-size:1.4rem;color:var(--purple);margin:2.5rem 0 .75rem;padding-left:.75rem;border-left:3px solid var(--purple)}
+h3{font-size:1.1rem;color:var(--cyan);margin:1.5rem 0 .5rem}
+p{margin:.6rem 0}ul,ol{margin:.5rem 0 .5rem 1.5rem}li{margin:.25rem 0}
+code{background:var(--surface2);color:var(--cyan);padding:.1rem .4rem;border-radius:4px;font-size:.88rem}
+.nav{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:2rem}
+.nav a{padding:.4rem 1rem;border-radius:6px;text-decoration:none;font-size:.9rem;background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
+.nav a.cur{background:var(--accent);color:#fff;border-color:var(--accent)}
+.subtitle{color:var(--muted);font-size:1rem;margin-bottom:2rem}
+.diagram{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.5rem;margin:1.2rem 0;overflow-x:auto}
+.box{display:inline-block;padding:.4rem .9rem;border-radius:6px;font-size:.85rem;font-weight:600;text-align:center}
+.box.blue{background:#1e3a5f;border:1px solid var(--accent);color:var(--accent)}
+.box.purple{background:#2d1b69;border:1px solid var(--purple);color:var(--purple)}
+.box.green{background:#064e3b;border:1px solid var(--green);color:var(--green)}
+.box.orange{background:#451a03;border:1px solid var(--orange);color:var(--orange)}
+.box.cyan{background:#0c4a6e;border:1px solid var(--cyan);color:var(--cyan)}
+.box.red{background:#450a0a;border:1px solid var(--red);color:var(--red)}
+.box.muted{background:var(--surface2);border:1px solid var(--border);color:var(--muted)}
+.row{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin:.5rem 0}
+.vflow{display:flex;flex-direction:column;align-items:center;gap:.5rem}
+.arrow{color:var(--muted);font-size:1.2rem}
+.rarrow{color:var(--muted);font-size:1.1rem}
+.callout{border-left:3px solid var(--orange);background:var(--surface2);padding:.8rem 1rem;border-radius:0 6px 6px 0;margin:1rem 0;font-size:.92rem}
+.callout.blue{border-left-color:var(--accent);background:#0c1a2e}
+.callout.green{border-left-color:var(--green);background:#052015}
+.callout.red{border-left-color:var(--red);background:#200}
+.table-wrap{overflow-x:auto;margin:1rem 0}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th{background:var(--surface2);color:var(--accent);padding:.6rem .8rem;text-align:left;border:1px solid var(--border)}
+td{padding:.5rem .8rem;border:1px solid var(--border);vertical-align:top}
+tr:nth-child(even) td{background:var(--surface)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="nav">
+  <a href="chapter-11-stream-processing-part1.html">Part 1: Events &amp; Message Brokers</a>
+  <a href="chapter-11-stream-processing-part2.html" class="cur">Part 2: Log-Based Brokers &amp; Kafka</a>
+  <a href="chapter-11-stream-processing-part3.html">Part 3: Stream Processing &amp; Q&amp;A</a>
+</div>
+<h1>Chapter 11 — Stream Processing</h1>
+<div class="subtitle">Part 2: Log-Based Message Brokers, Kafka Architecture, Change Data Capture, Event Sourcing</div>
+
+<h2>Log-Based Message Brokers</h2>
+<p>The key insight behind Kafka: instead of a queue (where messages are deleted after acknowledgment), use an <em>append-only log</em>. Consumers track their position (offset) in the log. Rewinding is trivially possible.</p>
+
+<div class="diagram">
+  <div style="background:var(--surface2);padding:.75rem;border-radius:6px;font-size:.82rem">
+    <div style="color:var(--cyan);font-weight:700;margin-bottom:.4rem">Append-only log structure</div>
+    <div style="font-family:monospace;font-size:.8rem;line-height:2;color:var(--muted)">
+      offset: 0  | event: {user:1, action:"login"}<br/>
+      offset: 1  | event: {user:2, action:"purchase", item:"A"}<br/>
+      offset: 2  | event: {user:1, action:"logout"}<br/>
+      offset: 3  | event: {user:3, action:"login"}<br/>
+      offset: 4  | event: {user:2, action:"refund", item:"A"}<br/>
+    </div>
+    <div style="margin-top:.5rem">
+      Consumer A (fraud detection): at offset 4 — up to date<br/>
+      Consumer B (analytics): at offset 2 — processing at its own pace<br/>
+      Consumer C (audit): can rewind to offset 0 any time
+    </div>
+  </div>
+</div>
+
+<h2>Apache Kafka Architecture</h2>
+<p>Kafka implements the log-based message broker model at scale. Events are organized into <strong>topics</strong> → <strong>partitions</strong>. Partitions are the unit of parallelism and ordering.</p>
+
+<h3>Topics and Partitions</h3>
+<div class="diagram">
+  <div style="font-size:.82rem;color:var(--muted);margin-bottom:.5rem">Topic "orders" with 3 partitions, each replicated across 3 brokers</div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;font-size:.78rem">
+    <div style="background:var(--surface2);padding:.6rem;border-radius:6px">
+      <div style="color:var(--accent);font-weight:700;margin-bottom:.2rem">Partition 0</div>
+      Leader: Broker 1<br/>Replica: Broker 2<br/>Replica: Broker 3<br/>Offset: 0..1053
+    </div>
+    <div style="background:var(--surface2);padding:.6rem;border-radius:6px">
+      <div style="color:var(--accent);font-weight:700;margin-bottom:.2rem">Partition 1</div>
+      Leader: Broker 2<br/>Replica: Broker 3<br/>Replica: Broker 1<br/>Offset: 0..2107
+    </div>
+    <div style="background:var(--surface2);padding:.6rem;border-radius:6px">
+      <div style="color:var(--accent);font-weight:700;margin-bottom:.2rem">Partition 2</div>
+      Leader: Broker 3<br/>Replica: Broker 1<br/>Replica: Broker 2<br/>Offset: 0..891
+    </div>
+  </div>
+  <div style="margin-top:.75rem;font-size:.8rem;color:var(--muted)">
+    Ordering guaranteed within a partition. No ordering guarantee across partitions. Producers choose partition by key hash (all events for user_id=123 → same partition = ordered per user).
+  </div>
+</div>
+
+<h3>Producer Key Routing</h3>
+<div class="diagram">
+  <div style="background:var(--surface2);padding:.75rem;border-radius:6px;font-size:.82rem;line-height:1.8">
+    Producer: event has key="user_id:123"<br/>
+    <code>partition = hash("user_id:123") % num_partitions</code><br/>
+    All events for user 123 → same partition → same consumer → ordered per user<br/><br/>
+    No key: round-robin across partitions → maximum throughput, no ordering<br/>
+    Custom partitioner: e.g., VIP users → partition 0 (dedicated consumer)
+  </div>
+</div>
+
+<h3>Consumer Groups in Kafka</h3>
+<div class="diagram">
+  <div style="background:var(--surface2);padding:.75rem;border-radius:6px;font-size:.82rem">
+    <div style="color:var(--cyan);font-weight:700;margin-bottom:.4rem">Topic: 4 partitions</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-top:.3rem;font-size:.78rem">
+      <div>
+        <div style="color:var(--green);margin-bottom:.2rem">Consumer Group A (stream processor)</div>
+        Consumer A1 → P0, P1<br/>
+        Consumer A2 → P2, P3<br/>
+        <span style="color:var(--muted)">2 consumers share 4 partitions</span>
+      </div>
+      <div>
+        <div style="color:var(--purple);margin-bottom:.2rem">Consumer Group B (analytics)</div>
+        Consumer B1 → P0, P1, P2, P3<br/>
+        <span style="color:var(--muted)">1 consumer reads all partitions independently</span>
+      </div>
+    </div>
+    <div style="margin-top:.5rem;color:var(--muted)">Each group maintains its own offset. Groups don't interfere.</div>
+  </div>
+</div>
+
+<div class="callout blue">
+  Kafka's partition model: max parallelism = number of partitions. You can have more consumers than partitions in a group, but the extra consumers are idle. To increase parallelism, increase partitions (but this is a one-way operation — you can't easily decrease).
+</div>
+
+<h3>Kafka Guarantees</h3>
+<ul>
+  <li>Messages in a partition are <strong>totally ordered</strong> — consumer sees them in the order they were written</li>
+  <li>A message is durable once the leader writes it and <code>acks=all</code> replicas acknowledge</li>
+  <li>Consumer offset is stored in a special Kafka topic (<code>__consumer_offsets</code>), enabling crash recovery</li>
+  <li>Retention: default 7 days, configurable; compacted topics keep only the latest value per key</li>
+</ul>
+
+<h2>Change Data Capture (CDC)</h2>
+<p>Many systems have a central database (the "system of record") and want to propagate changes to derived systems: caches, search indexes, data warehouses, analytics. Change Data Capture extracts every write to the database as an event stream.</p>
+
+<h3>The CDC Problem</h3>
+<div class="diagram">
+  <div style="background:var(--surface2);padding:.75rem;border-radius:6px;font-size:.82rem;line-height:1.8">
+    <div style="color:var(--red);font-weight:700;margin-bottom:.3rem">Without CDC — dual-write problem:</div>
+    App: write to DB AND write to Elasticsearch<br/>
+    If DB write succeeds but Elasticsearch write fails → inconsistent<br/>
+    If app crashes between the two writes → inconsistent<br/>
+    <span style="color:var(--red)">No atomic guarantee across two different systems.</span>
+  </div>
+</div>
+
+<div class="diagram">
+  <div style="background:var(--surface2);padding:.75rem;border-radius:6px;font-size:.82rem;line-height:1.8">
+    <div style="color:var(--green);font-weight:700;margin-bottom:.3rem">With CDC — single write, derived streams:</div>
+    App: write to DB only<br/>
+    CDC reads DB's write-ahead log → emits change events to Kafka<br/>
+    Consumers: Elasticsearch indexer, data warehouse ETL, cache invalidator<br/>
+    <span style="color:var(--green)">DB is the single source of truth. All derivatives are eventually consistent with it.</span>
+  </div>
+</div>
+
+<h3>How CDC Works</h3>
+<div class="diagram">
+  <div class="vflow" style="font-size:.82rem">
+    <div style="background:var(--surface2);padding:.6rem 1rem;border-radius:6px;width:100%;max-width:500px">
+      <div style="color:var(--cyan);font-weight:700">PostgreSQL WAL / MySQL binlog / MongoDB oplog</div>
+      Every write (insert, update, delete) is recorded in the DB's replication log as a structured event.
+    </div>
+    <div class="arrow">↓</div>
+    <div style="background:var(--surface2);padding:.6rem 1rem;border-radius:6px;width:100%;max-width:500px">
+      <div style="color:var(--orange);font-weight:700">CDC connector (Debezium, Maxwell)</div>
+      Reads the WAL as a replication slave. Converts WAL entries to structured change events (JSON/Avro).
+    </div>
+    <div class="arrow">↓</div>
+    <div style="background:var(--surface2);padding:.6rem 1rem;border-radius:6px;width:100%;max-width:500px">
+      <div style="color:var(--purple);font-weight:700">Kafka topic per table</div>
+      Each DB table's changes → dedicated Kafka topic. Change events are ordered per row (keyed by primary key).
+    </div>
+    <div class="arrow">↓</div>
+    <div style="background:var(--surface2);padding:.6rem 1rem;border-radius:6px;width:100%;max-width:500px">
+      <div style="color:var(--green);font-weight:700">Consumers</div>
+      Elasticsearch indexer, data warehouse loader, cache updater, stream processor.
+    </div>
+  </div>
+</div>
+
+<div class="callout">
+  Debezium (open source) supports CDC for PostgreSQL, MySQL, MongoDB, Oracle, SQL Server. It handles the tricky details: initial snapshot (reading existing data), WAL position tracking, schema changes, tombstone records for deletes.
+</div>
+
+<h2>Event Sourcing</h2>
+<p>Event sourcing takes the CDC idea further: instead of storing the current state of a record, store the entire sequence of events that led to it. The current state is derived by replaying the event log.</p>
+
+<div class="diagram">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;font-size:.82rem">
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--orange);font-weight:700;margin-bottom:.3rem">Traditional (CRUD)</div>
+      Table: accounts<br/>
+      Row: {user_id:1, balance:$250}<br/><br/>
+      Update: balance = $250 → $150<br/>
+      Previous state: <span style="color:var(--red)">gone</span>. You only know current balance.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--green);font-weight:700;margin-bottom:.3rem">Event sourcing</div>
+      Events log:<br/>
+      {type:"deposit", amount:$300}<br/>
+      {type:"withdrawal", amount:$50}<br/>
+      {type:"withdrawal", amount:$100}<br/><br/>
+      Current balance: replay all events → $150. Full history preserved.
+    </div>
+  </div>
+</div>
+
+<h3>Benefits and Challenges of Event Sourcing</h3>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Benefits</th><th>Challenges</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>Full audit trail — every state change recorded</td>
+      <td>Current state requires replaying all events (mitigated by snapshots)</td>
+    </tr>
+    <tr>
+      <td>Debug time-travel: see exact state at any point in history</td>
+      <td>Event schema evolution: old events must be readable with new schema</td>
+    </tr>
+    <tr>
+      <td>Derived views: build new read models by replaying the event log</td>
+      <td>Queries on current state require a read model (CQRS pattern)</td>
+    </tr>
+    <tr>
+      <td>Natural fit for event-driven architectures and stream processing</td>
+      <td>Eventual consistency between write model (events) and read model (projections)</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout blue">
+  Event sourcing + CQRS (Command-Query Responsibility Segregation): commands produce events → events update the event store → projectors replay events to build read models (e.g., current account balance, user profile). Read models are derived, eventually consistent. This is the architecture of systems like Axon, EventStoreDB, and many DDD (domain-driven design) systems.
+</div>
+
+<div style="margin-top:3rem;padding:1.5rem;background:var(--surface);border-radius:10px;border:1px solid var(--border)">
+  <div class="row" style="gap:2rem;flex-wrap:wrap">
+    <div>
+      <div style="font-size:.85rem;color:var(--muted)">← Previous</div>
+      <div><a href="chapter-11-stream-processing-part1.html" style="color:var(--accent);text-decoration:none">Part 1: Events &amp; Message Brokers</a></div>
+    </div>
+    <div>
+      <div style="font-size:.85rem;color:var(--muted)">Next →</div>
+      <div><a href="chapter-11-stream-processing-part3.html" style="color:var(--accent);text-decoration:none">Part 3: Stream Processing Operators &amp; Q&amp;A</a></div>
+    </div>
+  </div>
+</div>
+</div>
+</body>
+</html>

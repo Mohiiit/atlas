@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDIA Ch 11 Part 3 — Stream Processing &amp; Q&amp;A</title>
+<style>
+:root {
+  --bg:#0a0e17; --surface:#111827; --surface2:#1a2234; --border:#1e293b;
+  --text:#e2e8f0; --muted:#94a3b8; --accent:#3b82f6; --purple:#8b5cf6;
+  --green:#10b981; --red:#ef4444; --orange:#f59e0b; --pink:#ec4899; --cyan:#06b6d4;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.7;padding:2rem 1rem}
+.wrap{max-width:860px;margin:0 auto}
+h1{font-size:2rem;color:var(--accent);margin-bottom:.25rem}
+h2{font-size:1.4rem;color:var(--purple);margin:2.5rem 0 .75rem;padding-left:.75rem;border-left:3px solid var(--purple)}
+h3{font-size:1.1rem;color:var(--cyan);margin:1.5rem 0 .5rem}
+p{margin:.6rem 0}ul,ol{margin:.5rem 0 .5rem 1.5rem}li{margin:.25rem 0}
+code{background:var(--surface2);color:var(--cyan);padding:.1rem .4rem;border-radius:4px;font-size:.88rem}
+.nav{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:2rem}
+.nav a{padding:.4rem 1rem;border-radius:6px;text-decoration:none;font-size:.9rem;background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
+.nav a.cur{background:var(--accent);color:#fff;border-color:var(--accent)}
+.subtitle{color:var(--muted);font-size:1rem;margin-bottom:2rem}
+.diagram{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.5rem;margin:1.2rem 0;overflow-x:auto}
+.box{display:inline-block;padding:.4rem .9rem;border-radius:6px;font-size:.85rem;font-weight:600;text-align:center}
+.box.blue{background:#1e3a5f;border:1px solid var(--accent);color:var(--accent)}
+.box.purple{background:#2d1b69;border:1px solid var(--purple);color:var(--purple)}
+.box.green{background:#064e3b;border:1px solid var(--green);color:var(--green)}
+.box.orange{background:#451a03;border:1px solid var(--orange);color:var(--orange)}
+.box.cyan{background:#0c4a6e;border:1px solid var(--cyan);color:var(--cyan)}
+.box.red{background:#450a0a;border:1px solid var(--red);color:var(--red)}
+.box.muted{background:var(--surface2);border:1px solid var(--border);color:var(--muted)}
+.row{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin:.5rem 0}
+.vflow{display:flex;flex-direction:column;align-items:center;gap:.5rem}
+.arrow{color:var(--muted);font-size:1.2rem}
+.rarrow{color:var(--muted);font-size:1.1rem}
+.callout{border-left:3px solid var(--orange);background:var(--surface2);padding:.8rem 1rem;border-radius:0 6px 6px 0;margin:1rem 0;font-size:.92rem}
+.callout.blue{border-left-color:var(--accent);background:#0c1a2e}
+.callout.green{border-left-color:var(--green);background:#052015}
+.callout.red{border-left-color:var(--red);background:#200}
+.table-wrap{overflow-x:auto;margin:1rem 0}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th{background:var(--surface2);color:var(--accent);padding:.6rem .8rem;text-align:left;border:1px solid var(--border)}
+td{padding:.5rem .8rem;border:1px solid var(--border);vertical-align:top}
+tr:nth-child(even) td{background:var(--surface)}
+.qa{border:1px solid var(--border);border-radius:8px;margin:.6rem 0;overflow:hidden}
+.qa-header{display:flex;align-items:center;gap:.75rem;padding:.8rem 1rem;cursor:pointer;background:var(--surface);user-select:none}
+.qa-header:hover{background:var(--surface2)}
+.qa-num{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0;background:var(--purple);color:#fff}
+.qa-q{flex:1;font-weight:600;font-size:.92rem}
+.chev{color:var(--muted);transition:.3s}
+.qa.open .chev{transform:rotate(90deg)}
+.qa-body{display:none;padding:.8rem 1rem;border-top:1px solid var(--border);background:var(--surface2);font-size:.9rem;line-height:1.7}
+.qa.open .qa-body{display:block}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="nav">
+  <a href="chapter-11-stream-processing-part1.html">Part 1: Events &amp; Message Brokers</a>
+  <a href="chapter-11-stream-processing-part2.html">Part 2: Log-Based Brokers &amp; Kafka</a>
+  <a href="chapter-11-stream-processing-part3.html" class="cur">Part 3: Stream Processing &amp; Q&amp;A</a>
+</div>
+<h1>Chapter 11 — Stream Processing</h1>
+<div class="subtitle">Part 3: Stream Processing Operators, Time, Fault Tolerance, Q&amp;A</div>
+
+<h2>Stream Processing</h2>
+<p>A stream processor takes one or more input streams, applies continuous computations, and produces output streams (or writes to a database/output). Unlike batch jobs, stream processors run continuously — no defined start/end.</p>
+
+<h3>Uses of Stream Processing</h3>
+<div class="diagram">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem;font-size:.82rem">
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--accent);font-weight:700;margin-bottom:.3rem">Complex event processing (CEP)</div>
+      Detect patterns across a stream: "alert if 5 failed logins from the same IP within 10 minutes."
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--green);font-weight:700;margin-bottom:.3rem">Stream analytics</div>
+      Rolling aggregations: windowed counts, averages, histograms. Dashboard metrics updated in near-real-time.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--purple);font-weight:700;margin-bottom:.3rem">Materialized view maintenance</div>
+      Keep a cache or read model updated as the underlying data changes (CDC → stream processor → cache).
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--orange);font-weight:700;margin-bottom:.3rem">Search on streams</div>
+      Stored queries matched against incoming events: "notify me of any new article mentioning keyword X."
+    </div>
+  </div>
+</div>
+
+<h2>Time in Stream Processing</h2>
+<p>Time is the hardest problem in stream processing. There are two notions of time:</p>
+
+<div class="diagram">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;font-size:.82rem">
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px;border-left:3px solid var(--green)">
+      <div style="color:var(--green);font-weight:700;margin-bottom:.3rem">Event time</div>
+      When the event actually occurred (recorded in the event's timestamp). This is what you usually care about.<br/>
+      Problem: events arrive out of order and late (mobile app offline for 2 hours, then sends a batch of events with old timestamps).
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px;border-left:3px solid var(--orange)">
+      <div style="color:var(--orange);font-weight:700;margin-bottom:.3rem">Processing time</div>
+      When the event arrives at the stream processor. Easy to measure (wall clock). Not meaningful for analytics — a late event's processing time has nothing to do with when it happened.
+    </div>
+  </div>
+</div>
+
+<h3>Windows</h3>
+<p>Windows group events by time for aggregation. Three main types:</p>
+
+<div class="diagram">
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;font-size:.82rem;text-align:center">
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--accent);font-weight:700;margin-bottom:.3rem">Tumbling window</div>
+      Fixed-size, non-overlapping.<br/>
+      Window [10:00–10:01], [10:01–10:02]...<br/>
+      Each event in exactly one window.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--purple);font-weight:700;margin-bottom:.3rem">Sliding window</div>
+      Fixed-size, overlapping.<br/>
+      "Events in the last 5 minutes" evaluated at every second.<br/>
+      Each event may be in multiple windows.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--green);font-weight:700;margin-bottom:.3rem">Session window</div>
+      Activity-based. Windows end after a gap of inactivity (e.g., 30 min no events).<br/>
+      Variable size. Used for user sessions.
+    </div>
+  </div>
+</div>
+
+<h3>Watermarks and Late Events</h3>
+<p>How long should a window wait for late events before emitting its result? The stream processor needs to know when it's "safe" to close a window.</p>
+
+<div class="diagram">
+  <div style="background:var(--surface2);padding:.75rem;border-radius:6px;font-size:.82rem;line-height:1.8">
+    <div style="color:var(--cyan);font-weight:700;margin-bottom:.3rem">Watermark definition:</div>
+    A watermark W(t) is an assertion: "all events with event time ≤ t have been received."<br/>
+    When the watermark passes t, the window [_, t] can be closed and its result emitted.<br/><br/>
+    <div style="color:var(--orange)">Heuristic watermark: estimate based on observed event timestamps (max seen - some lag)</div><br/>
+    <div style="color:var(--red)">Events after watermark: "late" events. Options: (1) ignore; (2) emit a correction; (3) reprocess the window (expensive)</div>
+  </div>
+</div>
+
+<div class="callout">
+  Google Dataflow and Apache Flink pioneered the event-time + watermarks model. The key insight: accuracy vs. latency trade-off. A generous watermark (wait longer) gives more accurate results. A tight watermark (emit quickly) gives lower latency but more late events. The watermark lag is a system parameter you tune per use case.
+</div>
+
+<h2>Stream Joins</h2>
+<p>Joining streams is harder than joining batches — you never have the full dataset.</p>
+
+<h3>Stream-Stream Join (Windowed Join)</h3>
+<div class="diagram">
+  <div style="background:var(--surface2);padding:.75rem;border-radius:6px;font-size:.82rem;line-height:1.8">
+    Match events from two streams within a time window.<br/>
+    Example: join search queries with ad clicks within 1 hour (to measure ad conversion).<br/>
+    Implementation: buffer each stream's events for the window duration. When an event arrives, look for matches in the other stream's buffer. Emit matches.<br/>
+    <span style="color:var(--orange)">State: buffer must be maintained in memory (or spilled to disk). Window must be bounded or state grows unbounded.</span>
+  </div>
+</div>
+
+<h3>Stream-Table Join (Enrichment)</h3>
+<div class="diagram">
+  <div style="background:var(--surface2);padding:.75rem;border-radius:6px;font-size:.82rem;line-height:1.8">
+    Enrich stream events with current state from a database or lookup table.<br/>
+    Example: add user demographics to click stream events based on user_id.<br/>
+    Implementation: stream processor loads the table into local state (or queries remotely per event).<br/>
+    Table updates: use CDC to keep the local copy updated as the table changes.<br/>
+    <span style="color:var(--green)">This pattern is very common: event stream enriched with reference data from a slowly-changing dimension table.</span>
+  </div>
+</div>
+
+<h3>Table-Table Join (Materialized View)</h3>
+<p>Both inputs are tables (change streams via CDC). Output is a materialized view of the join. When either table changes, the join output updates. This is how stream processors maintain derived read models.</p>
+
+<h2>Fault Tolerance in Stream Processing</h2>
+<p>A stream processor must handle failures without losing or duplicating events. Two main approaches:</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Approach</th><th>How it works</th><th>Trade-off</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>Microbatching</strong></td>
+      <td>Collect events into small batches (e.g., 1 second). Process each batch atomically. If it fails, retry the batch. Spark Streaming uses this.</td>
+      <td>Simpler implementation. Minimum latency = batch interval (1s). Not true continuous processing.</td>
+    </tr>
+    <tr>
+      <td><strong>Checkpointing</strong></td>
+      <td>Periodically snapshot the entire processing state to durable storage. On failure, recover from the last checkpoint and reprocess events from that point. Flink and Kafka Streams use this.</td>
+      <td>Lower latency (true streaming). Recovery cost = state size + events since last checkpoint.</td>
+    </tr>
+    <tr>
+      <td><strong>Idempotent writes + at-least-once</strong></td>
+      <td>Reprocess events on failure. Ensure output writes are idempotent (same event processed twice → same result). Simpler than exactly-once.</td>
+      <td>Depends on idempotency of output. Not always achievable (e.g., incrementing a counter is not idempotent).</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h2>Chapter 11 Summary</h2>
+<div class="diagram">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.75rem;font-size:.82rem">
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--accent);font-weight:700;margin-bottom:.3rem">Events</div>
+      Immutable facts. Small, time-stamped. Unbounded stream. Batch = bounded subset of a stream.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--orange);font-weight:700;margin-bottom:.3rem">Message brokers</div>
+      Traditional (RabbitMQ): push, delete on ack, competing consumers. Log-based (Kafka): pull, retain, replay, fan-out.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--cyan);font-weight:700;margin-bottom:.3rem">Kafka</div>
+      Topics → partitions → offsets. Consumer groups. Ordering per partition. Key-based routing. Compacted topics for state.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--green);font-weight:700;margin-bottom:.3rem">CDC</div>
+      DB WAL → change events → derived systems. DB is source of truth. No dual-write problem.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--purple);font-weight:700;margin-bottom:.3rem">Time</div>
+      Event time vs. processing time. Windows: tumbling, sliding, session. Watermarks for late events.
+    </div>
+    <div style="background:var(--surface2);padding:.75rem;border-radius:6px">
+      <div style="color:var(--pink);font-weight:700;margin-bottom:.3rem">Fault tolerance</div>
+      Microbatching (Spark), checkpointing (Flink), idempotent writes. Exactly-once via transactional APIs.
+    </div>
+  </div>
+</div>
+
+<h2>Review Q&amp;A</h2>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">1</div><div class="qa-q">What are the key differences between a log-based message broker (Kafka) and a traditional message queue (RabbitMQ)?</div><div class="chev">›</div></div>
+  <div class="qa-body"><strong>Retention</strong>: Traditional MQs delete messages after acknowledgment. Kafka retains messages for a configurable period (or forever for compacted topics). <strong>Consumer model</strong>: Traditional MQs push messages to consumers and use acknowledgments to track delivery. Kafka consumers pull at their own pace and track progress via offsets. <strong>Fan-out</strong>: In a traditional MQ, a message in a queue is delivered to one consumer (competing consumers). In Kafka, each consumer group independently reads all messages in a topic. Multiple groups can process the same events independently. <strong>Replay</strong>: Traditional MQ: once acknowledged, gone. Kafka: any consumer can rewind to an earlier offset and reprocess. Great for bug fixes, new consumer deployments, auditing. <strong>Ordering</strong>: Kafka guarantees ordering within a partition. Traditional MQs often don't guarantee order across concurrent consumers. <strong>Use case</strong>: Traditional MQ: task queues, RPC-style messaging, short-lived jobs. Kafka: event streams, audit logs, data pipelines, stream processing.</div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">2</div><div class="qa-q">What is at-least-once delivery and when is it a problem?</div><div class="chev">›</div></div>
+  <div class="qa-body">At-least-once delivery means: a message will be delivered to the consumer at least once, but possibly more times. This happens when: a consumer processes a message and crashes before acknowledging → the broker redelivers it to another consumer (or the same consumer on restart) → the message is processed twice. At-least-once is a problem when the consumer's operation is not idempotent — applying the same operation twice gives different results than once. Examples where it's a problem: (1) Incrementing a counter (count ends up too high); (2) Sending an email notification (user gets two emails); (3) Charging a payment (user charged twice). Solutions: (1) Make the operation idempotent (use a unique event ID and check if it's already been processed); (2) Use exactly-once semantics (Kafka's transactional API + idempotent producers); (3) Use a deduplication layer (track processed message IDs in a database). Many systems accept at-least-once for analytics (slightly wrong counts) but require exactly-once for financial or operational use cases.</div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">3</div><div class="qa-q">How does Kafka use partitions to achieve both parallelism and ordering?</div><div class="chev">›</div></div>
+  <div class="qa-body">Kafka topics are divided into partitions. Each partition is an ordered, append-only log. Within a partition, messages have monotonically increasing offsets and are consumed in order. Parallelism: each consumer in a consumer group is assigned one or more partitions. Multiple consumers can process different partitions simultaneously — the degree of parallelism equals the number of partitions. Ordering: messages within a partition are strictly ordered. A producer assigns messages to partitions by key (hash(key) % num_partitions). All messages with the same key go to the same partition → same consumer → processed in order. Example: all events for user_id=42 go to partition 7 → one consumer processes all user 42's events in order. Cross-partition: no ordering guarantee. If user A's events go to partition 0 and user B's to partition 1, the relative order of A's and B's events across partitions is undefined. This is the fundamental design trade-off: ordering is guaranteed only within a partition. To get total ordering across all events, you'd need a single partition — which eliminates parallelism.</div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">4</div><div class="qa-q">What is Change Data Capture (CDC) and what problem does it solve?</div><div class="chev">›</div></div>
+  <div class="qa-body">CDC captures every change (insert, update, delete) to a database and emits them as a stream of events. It solves the <strong>dual-write problem</strong>: if an application writes to both a database and an Elasticsearch index (or cache), the two writes are not atomic — a crash between them leaves the systems inconsistent. With CDC: the application only writes to the primary database. CDC reads the database's write-ahead log (WAL / binlog / oplog) and publishes change events to Kafka. All derived systems (Elasticsearch, cache, data warehouse) consume the change events and apply updates. The database is the single source of truth; all other systems are derived from it via CDC. Tools like Debezium implement CDC for PostgreSQL (WAL), MySQL (binlog), MongoDB (oplog), etc. The CDC pipeline preserves the exact order of changes as they occurred in the database. This enables reliable replication to derived systems without any application-level coordination.</div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">5</div><div class="qa-q">What is the difference between event time and processing time, and why does it matter for windowed aggregations?</div><div class="chev">›</div></div>
+  <div class="qa-body"><strong>Event time</strong>: when the event actually occurred (the timestamp in the event data). <strong>Processing time</strong>: when the event arrives at and is processed by the stream processor. The two differ because of: network latency, consumer lag, offline devices sending batched events, out-of-order delivery. Why it matters for windows: if you're computing "clicks per minute" and you use processing time windows, a mobile user who was offline for 2 hours and reconnects will dump 120 minutes of events in 1 processing-time minute — badly distorting the count for that minute. Using event time, those clicks are attributed to their actual minutes. The challenge with event-time windows: you don't know when all events for a given event-time window have arrived. You need watermarks — heuristic assertions that "all events before time T have been received" — to decide when to close a window. A loose watermark (wait a long time) → more accurate results but higher latency. A tight watermark → lower latency but more late events (missed from the window). Late events can trigger window corrections in systems like Flink.</div>
+</div>
+
+<div class="qa" onclick="this.classList.toggle('open')">
+  <div class="qa-header"><div class="qa-num">6</div><div class="qa-q">How does Flink achieve fault tolerance while maintaining low latency?</div><div class="chev">›</div></div>
+  <div class="qa-body">Flink uses <strong>distributed snapshots</strong> (Chandy-Lamport algorithm) to achieve fault tolerance without microbatching. Periodically, the job coordinator inserts barrier messages into all input streams. Barriers flow through the DAG of operators like regular events. When an operator receives barriers from all its input partitions, it: (1) snapshots its local state to durable storage (typically S3 or HDFS); (2) forwards the barrier to its downstream operators. Once all operators have checkpointed, the checkpoint is complete. On failure: recover the latest checkpoint (all operators restart from their checkpointed state) and replay input events from the position recorded at checkpoint time (Kafka offsets are part of the checkpoint). This is true event-at-a-time processing between checkpoints — no batching, so latency is milliseconds. The checkpoint cost is the state size (written to durable storage). The recovery cost is: time to restore state + time to reprocess events since last checkpoint. Checkpoint interval controls the trade-off: frequent checkpoints → less reprocessing on failure but more overhead during normal operation.</div>
+</div>
+
+<div style="margin-top:3rem;padding:1.5rem;background:var(--surface);border-radius:10px;border:1px solid var(--border)">
+  <div class="row" style="gap:2rem;flex-wrap:wrap">
+    <div>
+      <div style="font-size:.85rem;color:var(--muted)">← Previous</div>
+      <div><a href="chapter-11-stream-processing-part2.html" style="color:var(--accent);text-decoration:none">Part 2: Log-Based Brokers &amp; Kafka</a></div>
+    </div>
+    <div>
+      <div style="font-size:.85rem;color:var(--muted)">Next Chapter →</div>
+      <div><a href="chapter-12-future-of-data-systems-part1.html" style="color:var(--accent);text-decoration:none">Chapter 12: The Future of Data Systems</a></div>
+    </div>
+  </div>
+</div>
+</div>
+</body>
+</html>
