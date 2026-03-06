@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scans, Cursors & Projections · Ferrite Phase 3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0b0e14; --surface: #111520; --border: rgba(255,255,255,0.06);
+    --text: #e8ecf4; --dim: #6b7694;
+    --em: #34d399; --vi: #a78bfa;
+    --em-dim: rgba(52,211,153,0.12); --vi-dim: rgba(167,139,250,0.12);
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f4f6fb; --surface: #ffffff; --border: rgba(0,0,0,0.08);
+      --text: #111520; --dim: #5a6480; --em-dim: rgba(4,120,87,0.1); --vi-dim: rgba(109,40,217,0.1); }
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Space Grotesk', sans-serif;
+    font-size: 15px; line-height: 1.7; max-width: 900px; margin: 0 auto; padding: 48px 24px 80px; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--em); background: var(--em-dim);
+    border: 1px solid rgba(52,211,153,0.25); border-radius: 6px; padding: 3px 10px; margin-bottom: 16px; }
+  h1 { font-size: 2rem; font-weight: 700; line-height: 1.2; margin-bottom: 8px; }
+  h1 span { color: var(--em); }
+  .subtitle { color: var(--dim); font-size: 1rem; margin-bottom: 48px; }
+  h2 { font-size: 1.15rem; font-weight: 600; margin: 36px 0 14px;
+    display: flex; align-items: center; gap: 8px; }
+  h2::before { content: ''; display: block; width: 3px; height: 18px;
+    background: var(--em); border-radius: 2px; }
+  h2.vi::before { background: var(--vi); }
+  .card { background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 24px 28px; margin-bottom: 20px; }
+  .mermaid-wrap { background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 28px 20px; margin-bottom: 20px; overflow-x: auto; }
+  pre { background: #0d1117; border: 1px solid var(--border); border-radius: 10px;
+    padding: 20px 22px; overflow-x: auto; margin: 0; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.65; }
+  p code, li code { background: rgba(255,255,255,0.07); border-radius: 4px;
+    padding: 1px 6px; font-size: 12.5px; }
+  p { margin-bottom: 12px; color: var(--dim); }
+  ul { color: var(--dim); padding-left: 18px; }
+  li { margin-bottom: 6px; }
+  li strong { color: var(--text); }
+  .kw { color: #ff7b72; } .ty { color: var(--vi); } .fn { color: #79c0ff; }
+  .cm { color: #6b7694; font-style: italic; } .st { color: var(--em); }
+  .num { color: #f0c27f; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  @media (max-width: 620px) { .two-col { grid-template-columns: 1fr; } }
+  .two-col .mermaid-wrap { margin-bottom: 0; }
+  .col-label { font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .07em; margin-bottom: 10px; }
+  .col-label.em { color: var(--em); } .col-label.vi { color: var(--vi); }
+  .field-row { display: flex; gap: 10px; align-items: flex-start;
+    padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .field-row:last-child { border-bottom: none; }
+  .field-name { font-family: 'JetBrains Mono', monospace; font-size: 12.5px;
+    color: var(--vi); min-width: 130px; }
+  .field-type { font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    color: var(--em); min-width: 70px; }
+  .field-desc { font-size: 12.5px; color: var(--dim); }
+  .ops-list { list-style: none; padding: 0; }
+  .ops-list li { display: flex; gap: 12px; align-items: flex-start;
+    padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .ops-list li:last-child { border-bottom: none; }
+  .op-name { font-family: 'JetBrains Mono', monospace; font-size: 12.5px;
+    color: var(--em); min-width: 160px; flex-shrink: 0; }
+  .op-detail { font-size: 13px; color: var(--dim); }
+  .projection-demo { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px;
+    align-items: center; }
+  .proj-box { background: #0d1117; border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 14px; }
+  .proj-title { font-size: 11px; font-weight: 700; color: var(--dim);
+    text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+  .proj-col { font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    padding: 3px 0; }
+  .proj-col.kept { color: var(--em); }
+  .proj-col.dropped { color: #3d4460; text-decoration: line-through; }
+  .proj-arrow { color: var(--dim); font-size: 20px; text-align: center; }
+  .highlight-box { border-radius: 8px; padding: 14px 18px; margin-top: 14px; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:none; } }
+  .card, .mermaid-wrap, h2, pre, .two-col { animation: fadeUp .5s ease both; }
+</style>
+</head>
+<body>
+
+<div class="badge">Phase 3 · Lesson 02</div>
+<h1>Scans, <span>Cursors</span> & Projections</h1>
+<p class="subtitle">How a cursor abstracts B-tree position, and how full scans differ from key lookups.</p>
+
+<h2 class="vi">The Cursor Abstraction</h2>
+<div class="card">
+  <p style="margin-bottom:16px;">A <strong>cursor</strong> marks a position inside a table's B-tree. All execution operators talk to cursors, never directly to pages or cells. This is what lets the same <code>execute_select()</code> logic work whether the storage is a flat array or a multi-level B-tree.</p>
+  <div class="field-row">
+    <div class="field-name">table</div>
+    <div class="field-type">*mut Table</div>
+    <div class="field-desc">Raw pointer back to the owning table — lets cursor functions navigate pages</div>
+  </div>
+  <div class="field-row">
+    <div class="field-name">page_num</div>
+    <div class="field-type">usize</div>
+    <div class="field-desc">Which page (node) the cursor is currently positioned on</div>
+  </div>
+  <div class="field-row">
+    <div class="field-name">cell_num</div>
+    <div class="field-type">usize</div>
+    <div class="field-desc">Which cell (key-value slot) within that page the cursor points to</div>
+  </div>
+  <div class="field-row">
+    <div class="field-name">end_of_table</div>
+    <div class="field-type">bool</div>
+    <div class="field-desc">True when the cursor has moved past the last row — signals EOF to the executor</div>
+  </div>
+</div>
+<div class="card" style="padding:0;overflow:hidden;">
+<pre><code><span class="kw">struct</span> <span class="ty">Cursor</span> {
+    table:        *<span class="kw">mut</span> <span class="ty">Table</span>,
+    page_num:     <span class="ty">usize</span>,
+    cell_num:     <span class="ty">usize</span>,
+    end_of_table: <span class="ty">bool</span>,
+}
+
+<span class="kw">impl</span> <span class="ty">Cursor</span> {
+    <span class="cm">/// Read the row bytes at the current position</span>
+    <span class="kw">fn</span> <span class="fn">value</span>(&amp;<span class="kw">self</span>) -&gt; &amp;[<span class="ty">u8</span>] { <span class="cm">/* → cell payload bytes */</span> }
+
+    <span class="cm">/// Move to the next cell; set end_of_table when past last leaf cell</span>
+    <span class="kw">fn</span> <span class="fn">advance</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>) { <span class="cm">/* → increment cell_num, carry to next page */</span> }
+
+    <span class="cm">/// Position at leftmost leaf, cell 0 — ready for full scan</span>
+    <span class="kw">fn</span> <span class="fn">table_start</span>(table: *<span class="kw">mut</span> <span class="ty">Table</span>) -&gt; <span class="ty">Self</span> { <span class="cm">/* → walk left-spine from root */</span> }
+
+    <span class="cm">/// Position one past the last row — used by INSERT</span>
+    <span class="kw">fn</span> <span class="fn">table_end</span>(table: *<span class="kw">mut</span> <span class="ty">Table</span>) -&gt; <span class="ty">Self</span> { <span class="cm">/* → rightmost leaf, last cell + 1 */</span> }
+}</code></pre>
+</div>
+
+<h2>Cursor Walking a B-Tree</h2>
+<div class="mermaid-wrap">
+<div class="mermaid">
+%%{init: {'theme':'dark','themeVariables':{'primaryColor':'#111520','primaryBorderColor':'#6b7694','primaryTextColor':'#e8ecf4','lineColor':'#6b7694','background':'#0b0e14'}}}%%
+graph TD
+  R["Root Node\npage 0\n<i>Internal</i>"] -->|"key ≤ 4"| L1["Left Internal\npage 1"]
+  R -->|"key > 4"| L2["Right Internal\npage 2"]
+  L1 -->|"key ≤ 2"| LL["Leaf page 3\ncells: [1][2]"]
+  L1 -->|"key > 2"| LR["Leaf page 4\ncells: [3][4]"]
+  L2 -->|"key ≤ 6"| RL["Leaf page 5\ncells: [5][6]  ◀ cursor here"]
+  L2 -->|"key > 6"| RR["Leaf page 6\ncells: [7][8]"]
+  style RL fill:#1a2a20,stroke:#34d399,color:#34d399
+  style R fill:#111520,stroke:#6b7694,color:#e8ecf4
+  style L1 fill:#111520,stroke:#6b7694,color:#e8ecf4
+  style L2 fill:#111520,stroke:#6b7694,color:#e8ecf4
+  style LL fill:#111520,stroke:#6b7694,color:#e8ecf4
+  style LR fill:#111520,stroke:#6b7694,color:#e8ecf4
+  style RR fill:#111520,stroke:#6b7694,color:#e8ecf4
+</div>
+</div>
+
+<h2>Full Scan vs. Point Lookup</h2>
+<div class="two-col">
+  <div class="mermaid-wrap">
+    <div class="col-label em">Full Table Scan — SELECT *</div>
+    <div class="mermaid">
+%%{init:{'theme':'dark','themeVariables':{'primaryColor':'#111520','primaryBorderColor':'#34d399','primaryTextColor':'#e8ecf4','lineColor':'#6b7694'}}}%%
+flowchart TD
+  A["table_start()"] --> B["cursor.value() → Row"]
+  B --> C["cursor.advance()"]
+  C --> D{end_of_table?}
+  D -- No --> B
+  D -- Yes --> E["Done"]
+  style A fill:#111520,stroke:#34d399,color:#e8ecf4
+  style E fill:#111520,stroke:#34d399,color:#34d399
+  style D fill:#111520,stroke:#6b7694,color:#e8ecf4
+  style B fill:#111520,stroke:#6b7694,color:#e8ecf4
+  style C fill:#111520,stroke:#6b7694,color:#e8ecf4
+    </div>
+  </div>
+  <div class="mermaid-wrap">
+    <div class="col-label vi">Primary Key Lookup — WHERE id = 5</div>
+    <div class="mermaid">
+%%{init:{'theme':'dark','themeVariables':{'primaryColor':'#111520','primaryBorderColor':'#a78bfa','primaryTextColor':'#e8ecf4','lineColor':'#6b7694'}}}%%
+flowchart TD
+  A["Start at root page"] --> B["Read internal node keys"]
+  B --> C["Follow child pointer\nwhere key = 5"]
+  C --> D["Arrive at leaf page"]
+  D --> E["Binary search cells\nfor key = 5"]
+  E --> F["cursor.value() → Row"]
+  style A fill:#111520,stroke:#a78bfa,color:#e8ecf4
+  style F fill:#111520,stroke:#a78bfa,color:#a78bfa
+  style B fill:#111520,stroke:#6b7694,color:#e8ecf4
+  style C fill:#111520,stroke:#6b7694,color:#e8ecf4
+  style D fill:#111520,stroke:#6b7694,color:#e8ecf4
+  style E fill:#111520,stroke:#6b7694,color:#e8ecf4
+    </div>
+  </div>
+</div>
+
+<div class="card" style="margin-top:0;">
+  <ul style="margin-bottom:0;">
+    <li><strong>Full scan</strong> is O(n) — visits every leaf cell. Used for all non-PK WHERE clauses in Phase 3.</li>
+    <li><strong>Point lookup</strong> is O(log n) — follows the B-tree path from root to one specific leaf cell.</li>
+    <li>The same <code>Cursor</code> struct is used for both — only <em>how it is initialized</em> differs.</li>
+  </ul>
+</div>
+
+<h2 class="vi">Index Scan (Preview)</h2>
+<div class="card">
+  <p style="margin-bottom: 14px;">A secondary index is a separate B-tree keyed on a non-primary column. An index scan on <code>WHERE email = 'x'</code> works in two hops:</p>
+  <ul style="margin-bottom:0;">
+    <li>Lookup <code>email = 'x'</code> in the index B-tree → get the primary key (e.g., <code>id = 42</code>)</li>
+    <li>Use that primary key to do a point lookup in the main table B-tree → get the full row</li>
+    <li>This avoids scanning every row, but requires maintaining two B-trees on write</li>
+    <li><strong>We don't build secondary indexes in Phase 3</strong> — this is context for later phases</li>
+  </ul>
+</div>
+
+<h2>Column Projection</h2>
+<div class="card">
+  <p style="margin-bottom:16px;">After fetching a full row from the cursor, the Projection operator strips it down to only the requested columns. This happens at execution time, not storage time — the B-tree always stores complete rows.</p>
+  <div class="projection-demo">
+    <div class="proj-box">
+      <div class="proj-title">Full row from cursor</div>
+      <div class="proj-col kept">id: 42</div>
+      <div class="proj-col kept">name: "alice"</div>
+      <div class="proj-col dropped">age: 28</div>
+      <div class="proj-col dropped">email: "a@b.c"</div>
+      <div class="proj-col dropped">bio: "..."</div>
+    </div>
+    <div class="proj-arrow">→</div>
+    <div class="proj-box">
+      <div class="proj-title">SELECT id, name</div>
+      <div class="proj-col kept">id: 42</div>
+      <div class="proj-col kept">name: "alice"</div>
+    </div>
+  </div>
+</div>
+<div class="card" style="padding:0;overflow:hidden;">
+<pre><code><span class="kw">impl</span> <span class="ty">Executor</span> <span class="kw">for</span> <span class="ty">Project</span> {
+    <span class="kw">fn</span> <span class="fn">next</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>) -&gt; <span class="ty">Option</span>&lt;<span class="ty">Row</span>&gt; {
+        <span class="kw">let</span> full_row = <span class="kw">self</span>.source.<span class="fn">next</span>()?;
+        <span class="cm">// SELECT *  → return all columns unchanged</span>
+        <span class="cm">// SELECT id → return only the column at schema index 0</span>
+        <span class="ty">Some</span>(<span class="kw">self</span>.<span class="fn">project_columns</span>(full_row))
+    }
+}</code></pre>
+</div>
+
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'dark',
+    themeVariables: { background: '#0b0e14', primaryColor: '#111520',
+      primaryBorderColor: '#34d399', primaryTextColor: '#e8ecf4', lineColor: '#6b7694' }
+  });
+</script>
+</body>
+</html>

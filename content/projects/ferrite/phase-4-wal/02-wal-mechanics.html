@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WAL Mechanics — Ferrite Phase 4</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0b0e14; --surface: #111520; --surface2: #161b2e;
+    --text: #e8ecf4; --dim: #6b7694;
+    --rose: #fb7185; --amber: #f59e0b; --cyan: #22d3ee; --emerald: #34d399;
+    --border: rgba(255,255,255,0.06); --radius: 13px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f4f6fb; --surface: #ffffff; --surface2: #eef1f8;
+      --text: #1a1e2e; --dim: #5a6282; --border: rgba(0,0,0,0.08); }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Space Grotesk', sans-serif;
+    line-height: 1.7; padding: 2rem 1rem; }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  .badge { display: inline-block; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.1em;
+    text-transform: uppercase; padding: 0.25rem 0.75rem; border-radius: 99px;
+    background: rgba(245,158,11,0.15); color: var(--amber); margin-bottom: 1rem; }
+  h1 { font-size: 2.2rem; font-weight: 700; margin-bottom: 0.5rem; }
+  h1 span { color: var(--amber); }
+  .subtitle { color: var(--dim); font-size: 1.05rem; margin-bottom: 3rem; }
+  h2 { font-size: 1.15rem; font-weight: 600; margin-bottom: 1rem; color: var(--amber); }
+  h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.5rem; }
+  p { color: var(--dim); margin-bottom: 0.85rem; }
+  p strong { color: var(--text); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 1.75rem; margin-bottom: 1.5rem;
+    animation: fadeUp 0.5s ease both; }
+  .card:nth-child(2){animation-delay:.1s} .card:nth-child(3){animation-delay:.2s}
+  .card:nth-child(4){animation-delay:.3s} .card:nth-child(5){animation-delay:.4s}
+  .card:nth-child(6){animation-delay:.5s}
+  @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+
+  /* The rule banner */
+  .rule-banner { background: rgba(245,158,11,0.08); border: 1.5px solid rgba(245,158,11,0.35);
+    border-radius: 10px; padding: 1.2rem 1.6rem; text-align: center; margin-bottom: 2rem;
+    animation: fadeUp 0.5s ease both; }
+  .rule-banner p { font-size: 1.3rem; font-weight: 700; color: var(--amber);
+    margin: 0; font-family: 'JetBrains Mono', monospace; }
+
+  /* WAL file layout */
+  .wal-layout { display: flex; gap: 3px; align-items: stretch; overflow-x: auto;
+    padding: 1rem 0; }
+  .wal-seg { display: flex; flex-direction: column; align-items: center;
+    justify-content: center; border-radius: 8px; padding: 0.6rem 0.4rem;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; text-align: center;
+    flex-shrink: 0; }
+  .wal-header { width: 90px; background: rgba(34,211,238,0.12); border: 1.5px solid rgba(34,211,238,0.4);
+    color: var(--cyan); }
+  .wal-frame { width: 88px; background: rgba(245,158,11,0.1); border: 1.5px solid rgba(245,158,11,0.35);
+    color: var(--amber); }
+  .wal-frame.commit { background: rgba(52,211,153,0.1); border-color: rgba(52,211,153,0.4);
+    color: var(--emerald); }
+  .wal-plus { display: flex; align-items: center; color: var(--dim); padding: 0 2px; font-size:1rem; }
+
+  /* Frame anatomy */
+  .frame-anatomy { display: flex; gap: 4px; margin: 0.75rem 0; overflow-x: auto; }
+  .field { border-radius: 6px; padding: 0.5rem 0.5rem; font-family: 'JetBrains Mono',monospace;
+    font-size: 0.66rem; text-align: center; flex-shrink: 0; }
+  .f-num   { background: rgba(251,113,133,0.12); border: 1px solid rgba(251,113,133,0.3);
+    color: var(--rose); width: 70px; }
+  .f-size  { background: rgba(34,211,238,0.1); border: 1px solid rgba(34,211,238,0.3);
+    color: var(--cyan); width: 70px; }
+  .f-salt  { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3);
+    color: var(--amber); width: 80px; }
+  .f-csum  { background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.3);
+    color: #a78bfa; width: 80px; }
+  .f-data  { background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.3);
+    color: var(--emerald); flex: 1; min-width: 120px; }
+
+  /* Steps */
+  .steps { list-style: none; counter-reset: s; }
+  .steps li { counter-increment: s; display: flex; gap: 1rem; margin-bottom: 0.85rem;
+    align-items: flex-start; }
+  .steps li::before { content: counter(s); min-width: 26px; height: 26px; border-radius: 50%;
+    background: rgba(245,158,11,0.15); color: var(--amber); display: flex;
+    align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700;
+    flex-shrink: 0; margin-top: 3px; }
+  .steps li p { margin: 0; font-size: 0.9rem; }
+  .steps li code { font-family: 'JetBrains Mono',monospace; font-size: 0.82rem; color: var(--cyan); }
+
+  /* Read steps — cyan accent */
+  .steps.read li::before { background: rgba(34,211,238,0.15); color: var(--cyan); }
+
+  /* Speed comparison */
+  .speed-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+  @media(max-width:580px){ .speed-grid { grid-template-columns: 1fr; } }
+  .speed-box { background: var(--surface2); border-radius: 10px; padding: 1.1rem;
+    border-top: 3px solid; }
+  .speed-box.slow { border-color: var(--rose); }
+  .speed-box.fast { border-color: var(--emerald); }
+  .speed-box h3 { font-size: 0.85rem; }
+  .speed-box.slow h3 { color: var(--rose); }
+  .speed-box.fast h3 { color: var(--emerald); }
+  .speed-box p { font-size: 0.83rem; margin-bottom: 0; }
+
+  .callout { background: rgba(245,158,11,0.07); border: 1px solid rgba(245,158,11,0.22);
+    border-radius: 10px; padding: 1rem 1.2rem; margin-top: 1rem; }
+  .callout p { margin: 0; font-size: 0.88rem; }
+  .callout strong { color: var(--amber); }
+
+  .mermaid { margin: 1rem 0; }
+
+  /* Concurrency strip */
+  .concurrency { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+  @media(max-width:580px){ .concurrency { grid-template-columns: 1fr; } }
+  .thread { border-radius: 10px; padding: 1rem 1.1rem; }
+  .thread.reader { background: rgba(34,211,238,0.07); border: 1px solid rgba(34,211,238,0.2); }
+  .thread.writer { background: rgba(245,158,11,0.07); border: 1px solid rgba(245,158,11,0.2); }
+  .thread h3 { font-size: 0.85rem; margin-bottom: 0.4rem; }
+  .thread.reader h3 { color: var(--cyan); }
+  .thread.writer h3 { color: var(--amber); }
+  .thread p { font-size: 0.82rem; margin: 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="badge">Phase 4 · WAL Mechanics</div>
+  <h1>How <span>Write-Ahead Logging</span> Works</h1>
+  <p class="subtitle">Sequential appends, deferred DB writes, and the one rule that makes it all safe.</p>
+
+  <div class="rule-banner">
+    <p>"Write to the log before writing to the database."</p>
+  </div>
+
+  <!-- WAL File Structure -->
+  <div class="card">
+    <h2>WAL File Structure</h2>
+    <p>The WAL file is a simple append-only sequence of <strong>frames</strong>. Each frame contains a header describing which database page it holds, followed by a full copy of that page.</p>
+
+    <div class="wal-layout">
+      <div class="wal-seg wal-header">WAL<br>Header<br><span style="color:var(--dim)">32 bytes</span></div>
+      <div class="wal-plus">+</div>
+      <div class="wal-seg wal-frame">Frame 1<br>page 7<br><span style="color:var(--dim)">4112 B</span></div>
+      <div class="wal-plus">+</div>
+      <div class="wal-seg wal-frame">Frame 2<br>page 3<br><span style="color:var(--dim)">4112 B</span></div>
+      <div class="wal-plus">+</div>
+      <div class="wal-seg wal-frame commit">Frame 3<br>COMMIT<br><span style="color:var(--dim)">db_size≠0</span></div>
+      <div class="wal-plus">+</div>
+      <div class="wal-seg wal-frame">Frame 4<br>page 5<br><span style="color:var(--dim)">in-flight</span></div>
+      <div class="wal-plus">···</div>
+    </div>
+
+    <h3 style="margin-top:1rem; margin-bottom:0.5rem; color:var(--text)">Frame Header Layout (24 bytes)</h3>
+    <div class="frame-anatomy">
+      <div class="field f-num">page_num<br>4 bytes</div>
+      <div class="field f-size">db_size<br>4 bytes<br><span style="font-size:0.6rem;color:var(--dim)">0=non-commit</span></div>
+      <div class="field f-salt">salt-1<br>4 bytes<br><span style="font-size:0.6rem;color:var(--dim)">random</span></div>
+      <div class="field f-salt">salt-2<br>4 bytes<br><span style="font-size:0.6rem;color:var(--dim)">random</span></div>
+      <div class="field f-csum">checksum<br>8 bytes<br><span style="font-size:0.6rem;color:var(--dim)">cumulative</span></div>
+      <div class="field f-data">Page Data<br>4096 bytes</div>
+    </div>
+    <p style="font-size:0.83rem; margin-top:0.5rem">A frame is a <strong>commit frame</strong> when <code style="font-family:'JetBrains Mono',monospace;color:var(--cyan)">db_size != 0</code>. This marks the end of a committed transaction. Frames after the last valid commit checksum are ignored on recovery.</p>
+  </div>
+
+  <!-- Write Path -->
+  <div class="card">
+    <h2>How a Write Works</h2>
+    <p>The original database file is <strong>never touched during a transaction</strong>. All modifications go to the WAL first.</p>
+    <ol class="steps">
+      <li><p>Accumulate modified pages in memory (the write buffer).</p></li>
+      <li><p>Append each modified page as a new frame to the WAL file. Use <code>O_APPEND</code> — sequential writes only.</p></li>
+      <li><p>Write a commit frame with <code>db_size</code> set. This frame's checksum covers all previous frames in the transaction.</p></li>
+      <li><p><code>fsync(wal_fd)</code> — one single fsync makes the entire transaction durable. If crash happens before this: transaction never happened (WAL frames are incomplete). If crash after: frames are valid and will be replayed.</p></li>
+      <li><p>The original DB file is unchanged. Readers still see the pre-transaction state from the DB file OR can read new data from the WAL.</p></li>
+    </ol>
+    <div class="callout">
+      <p><strong>Key insight:</strong> One fsync per commit. Rollback journal needs two. This is why WAL mode achieves ~10× the insert throughput in benchmarks.</p>
+    </div>
+  </div>
+
+  <!-- Mermaid sequence -->
+  <div class="card">
+    <h2>Write Transaction Sequence</h2>
+    <div class="mermaid">
+sequenceDiagram
+  participant App
+  participant WAL File
+  participant DB File
+  App->>WAL File: append frame: page 7 (leaf)
+  App->>WAL File: append frame: page 3 (parent)
+  App->>WAL File: append commit frame (db_size=42)
+  App->>WAL File: fsync() — transaction durable
+  Note over DB File: unchanged — still has old data
+  Note over App,WAL File: Checkpoint (later, async)
+  WAL File-->>DB File: copy frames 1,2,3 → pages 7,3
+  WAL File-->>WAL File: truncate WAL to 0
+    </div>
+  </div>
+
+  <!-- Read Path -->
+  <div class="card">
+    <h2>How a Read Works</h2>
+    <p>Reads must check the WAL first. A reader always sees a consistent snapshot by setting an "end mark" at the last committed frame at the time the read begins.</p>
+    <ol class="steps read">
+      <li><p>Record the current WAL end mark: the index of the last committed frame visible to this reader.</p></li>
+      <li><p>For each page requested: scan the WAL index (in memory) for the <strong>latest frame</strong> for that page number, up to the end mark.</p></li>
+      <li><p>If found in WAL: read that frame's page data. This is the current version.</p></li>
+      <li><p>If not found in WAL: read from the DB file. This is older but still valid (WAL hasn't checkpointed yet).</p></li>
+    </ol>
+    <p style="font-size:0.85rem">The WAL index (a memory-mapped <code style="font-family:'JetBrains Mono',monospace;color:var(--cyan)">.shm</code> file) maps page numbers to their most recent WAL frame offset. Without it, every read would scan the entire WAL linearly — O(n) per lookup.</p>
+  </div>
+
+  <!-- Checkpoint -->
+  <div class="card">
+    <h2>Checkpointing: Copying WAL Back to DB</h2>
+    <p>The WAL grows with every write. Eventually it must be transferred back to the main database file and truncated. This is a <strong>checkpoint</strong>.</p>
+    <ol class="steps">
+      <li><p>Wait until all readers have end marks past the frames being checkpointed (no reader is still reading those frames).</p></li>
+      <li><p>Copy WAL frames to their corresponding page offsets in the DB file (random writes, but that's OK — this is a background operation).</p></li>
+      <li><p>fsync the DB file.</p></li>
+      <li><p>Truncate the WAL file back to zero (or reuse it — WAL reuse avoids filesystem metadata operations).</p></li>
+    </ol>
+    <div class="callout">
+      <p><strong>SQLite default:</strong> checkpoint automatically when WAL grows past 1000 frames (~4 MB). For a toy DB, checkpoint after every 100 frames to keep things simple.</p>
+    </div>
+  </div>
+
+  <!-- Concurrency -->
+  <div class="card">
+    <h2>Reader/Writer Concurrency</h2>
+    <p>This is WAL's killer feature over rollback journal. Readers and writers can operate simultaneously with zero blocking.</p>
+    <div class="concurrency">
+      <div class="thread reader">
+        <h3>Multiple Readers</h3>
+        <p>Each reader sets its own end mark at the last committed frame when it starts. Readers see a stable snapshot. A writer appending new frames doesn't affect any existing reader's end mark. Zero locks needed for reads.</p>
+      </div>
+      <div class="thread writer">
+        <h3>Single Writer</h3>
+        <p>Only one writer can append to the WAL at a time — a simple mutex. The writer never touches the DB file during the transaction. It doesn't block readers reading old data from the DB file.</p>
+      </div>
+    </div>
+    <div class="speed-grid" style="margin-top:1rem">
+      <div class="speed-box slow">
+        <h3>Rollback Journal Concurrency</h3>
+        <p>Writer takes an exclusive lock on the entire DB. All readers block until commit. Serialized access. OLTP killer.</p>
+      </div>
+      <div class="speed-box fast">
+        <h3>WAL Concurrency</h3>
+        <p>Readers and writers never block each other. Multiple concurrent SELECT queries while INSERT is running. OLTP friendly.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Why faster -->
+  <div class="card">
+    <h2>Why WAL Is Faster</h2>
+    <div class="speed-grid">
+      <div class="speed-box slow">
+        <h3>Random DB File Writes</h3>
+        <p>Rollback journal writes modified pages back to their positions in the DB file. Position = <code style="font-family:'JetBrains Mono',monospace;font-size:0.78rem">page_num × 4096</code>. Random seek + write for each modified page. SSD handles this better than HDD, but it's still scattered.</p>
+      </div>
+      <div class="speed-box fast">
+        <h3>Sequential WAL Appends</h3>
+        <p>WAL writes are always appended to the end of the WAL file. No seeking. Sequential I/O is the fastest pattern for both HDD and SSD. The OS can also batch consecutive small writes into fewer I/O operations.</p>
+      </div>
+    </div>
+    <div class="callout" style="margin-top:1rem">
+      <p><strong>Typical numbers:</strong> Rollback journal — ~5,000 inserts/sec. WAL mode — ~50,000–80,000 inserts/sec on the same hardware. The 10× gap comes from sequential vs random writes and 1× vs 2× fsync.</p>
+    </div>
+  </div>
+</div>
+<script>
+  mermaid.initialize({ theme: 'dark', themeVariables: {
+    primaryColor: '#111520', primaryTextColor: '#e8ecf4',
+    primaryBorderColor: 'rgba(255,255,255,0.12)',
+    lineColor: '#f59e0b', sequenceNumberColor: '#22d3ee',
+    actorBkg: '#161b2e', actorBorder: 'rgba(255,255,255,0.12)',
+    noteBkgColor: '#1a2035', noteTextColor: '#e8ecf4'
+  }, startOnLoad: true });
+</script>
+</body>
+</html>

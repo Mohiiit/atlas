@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQL Tokenization — Phase 2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0e14; --surface: #111520; --surface2: #161c2d;
+    --text: #e8ecf4; --dim: #6b7694; --border: rgba(255,255,255,0.06);
+    --cyan: #22d3ee; --rose: #fb7185; --green: #34d399; --purple: #a78bfa;
+    --radius: 13px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f4f6fb; --surface: #ffffff; --surface2: #eef0f7;
+      --text: #111520; --dim: #5a6280; --border: rgba(0,0,0,0.08); }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Space Grotesk', sans-serif;
+    line-height: 1.7; min-height: 100vh; }
+  .container { max-width: 900px; margin: 0 auto; padding: 48px 24px 80px; }
+  .phase-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(34,211,238,0.1);
+    border: 1px solid rgba(34,211,238,0.25); color: var(--cyan); font-size: 12px;
+    font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 5px 12px; border-radius: 20px; margin-bottom: 20px; }
+  h1 { font-size: clamp(28px, 5vw, 44px); font-weight: 700; line-height: 1.15; margin-bottom: 12px; }
+  h1 span { color: var(--cyan); }
+  .subtitle { color: var(--dim); font-size: 17px; margin-bottom: 48px; max-width: 640px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 28px 32px; margin-bottom: 20px;
+    animation: fadeUp 0.5s ease both; }
+  .card:nth-child(2) { animation-delay: 0.07s; }
+  .card:nth-child(3) { animation-delay: 0.14s; }
+  .card:nth-child(4) { animation-delay: 0.21s; }
+  .card:nth-child(5) { animation-delay: 0.28s; }
+  .card:nth-child(6) { animation-delay: 0.35s; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+  .card-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.09em;
+    color: var(--cyan); margin-bottom: 14px; }
+  h2 { font-size: 21px; font-weight: 600; margin-bottom: 10px; }
+  p { color: var(--dim); margin-bottom: 12px; }
+  p:last-child { margin-bottom: 0; }
+  pre { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 20px 22px; overflow-x: auto; font-family: 'JetBrains Mono', monospace;
+    font-size: 13.5px; line-height: 1.75; margin: 14px 0; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+  .kw { color: var(--cyan); font-weight: 600; }
+  .ty { color: var(--rose); }
+  .str { color: var(--green); }
+  .cmt { color: var(--dim); font-style: italic; }
+  .num { color: #f9a8d4; }
+
+  /* Pipeline diagram */
+  .pipeline { display: flex; align-items: center; gap: 0; flex-wrap: wrap;
+    background: var(--surface2); border-radius: var(--radius); padding: 24px 28px;
+    margin: 14px 0; gap: 4px; }
+  .pipe-box { background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 18px; text-align: center; font-size: 14px; font-weight: 500; }
+  .pipe-box.input { border-color: rgba(167,139,250,0.4); color: var(--purple); }
+  .pipe-box.process { border-color: rgba(34,211,238,0.4); color: var(--cyan); }
+  .pipe-box.output { border-color: rgba(52,211,153,0.4); color: var(--green); }
+  .pipe-arrow { color: var(--dim); font-size: 20px; padding: 0 4px; }
+  .pipe-box .label { font-size: 11px; color: var(--dim); margin-top: 3px; }
+
+  /* Token badges */
+  .token-stream { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+  .token { display: inline-flex; flex-direction: column; align-items: center;
+    padding: 7px 12px; border-radius: 8px; font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px; font-weight: 500; border: 1px solid transparent; }
+  .token .tok-val { font-weight: 600; font-size: 13px; }
+  .token .tok-type { font-size: 10px; margin-top: 3px; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.06em; }
+  .tok-keyword { background: rgba(34,211,238,0.1); border-color: rgba(34,211,238,0.3); color: var(--cyan); }
+  .tok-ident { background: rgba(52,211,153,0.1); border-color: rgba(52,211,153,0.3); color: var(--green); }
+  .tok-symbol { background: rgba(251,113,133,0.1); border-color: rgba(251,113,133,0.3); color: var(--rose); }
+  .tok-literal { background: rgba(167,139,250,0.1); border-color: rgba(167,139,250,0.3); color: var(--purple); }
+
+  /* Token type grid */
+  .type-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-top: 14px; }
+  .type-cell { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; }
+  .type-cell .tc-cat { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+    font-weight: 600; margin-bottom: 8px; }
+  .type-cell .tc-items { font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    color: var(--dim); line-height: 1.9; }
+  .tc-kw .tc-cat { color: var(--cyan); }
+  .tc-id .tc-cat { color: var(--green); }
+  .tc-lit .tc-cat { color: var(--purple); }
+  .tc-sym .tc-cat { color: var(--rose); }
+
+  .divider { height: 1px; background: var(--border); margin: 8px 0 20px; }
+  .sql-raw { background: var(--surface2); border-left: 3px solid var(--purple);
+    border-radius: 0 10px 10px 0; padding: 14px 18px; font-family: 'JetBrains Mono', monospace;
+    font-size: 14px; color: var(--text); margin: 12px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="phase-badge">Phase 2 &middot; SQL Parsing</div>
+  <h1>SQL <span>Tokenization</span></h1>
+  <p class="subtitle">How a raw SQL string becomes a structured stream of tokens — the first stage of every SQL parser.</p>
+
+  <!-- Pipeline overview -->
+  <div class="card">
+    <div class="card-title">The Lexer Pipeline</div>
+    <h2>From Characters to Tokens</h2>
+    <p>A lexer (or tokenizer) is the front door of any compiler or parser. It reads a raw string character by character and groups those characters into meaningful units called <strong>tokens</strong>. The parser never sees raw text — it only works with the token stream the lexer produces.</p>
+    <div class="pipeline">
+      <div class="pipe-box input"><div class="tok-val">"SELECT id FROM users"</div><div class="label">Raw SQL String</div></div>
+      <div class="pipe-arrow">&#8594;</div>
+      <div class="pipe-box process"><div class="tok-val">Lexer</div><div class="label">scan &amp; classify</div></div>
+      <div class="pipe-arrow">&#8594;</div>
+      <div class="pipe-box output"><div class="tok-val">[SELECT][IDENT][FROM][IDENT]</div><div class="label">Token Stream</div></div>
+    </div>
+    <p>The lexer handles whitespace, recognises reserved keywords, distinguishes identifiers from literals, and flags unknown input early — before the parser ever runs.</p>
+  </div>
+
+  <!-- Token types -->
+  <div class="card">
+    <div class="card-title">Token Taxonomy</div>
+    <h2>Four Categories of Tokens</h2>
+    <p>For a minimal SQL subset covering SELECT, INSERT, and CREATE TABLE, every token falls into one of four categories:</p>
+    <div class="type-grid">
+      <div class="type-cell tc-kw">
+        <div class="tc-cat">Keywords</div>
+        <div class="tc-items">SELECT<br>FROM<br>WHERE<br>INSERT<br>INTO<br>VALUES<br>CREATE<br>TABLE</div>
+      </div>
+      <div class="type-cell tc-id">
+        <div class="tc-cat">Identifiers</div>
+        <div class="tc-items">users<br>id<br>name<br>email<br>age<br><em style="color:var(--dim)">any user-defined name</em></div>
+      </div>
+      <div class="type-cell tc-lit">
+        <div class="tc-cat">Literals</div>
+        <div class="tc-items">42 <span style="color:var(--dim)">(integer)</span><br>'alice' <span style="color:var(--dim)">(string)</span><br>true / false</div>
+      </div>
+      <div class="type-cell tc-sym">
+        <div class="tc-cat">Symbols</div>
+        <div class="tc-items">*<br>=<br>, ( ) ;<br></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rust Token enum -->
+  <div class="card">
+    <div class="card-title">Rust Implementation</div>
+    <h2>The Token Enum</h2>
+    <p>In Rust, every token variant is represented as an enum. Variants that carry data — identifiers, integers, string literals — hold their value inline:</p>
+<pre><span class="cmt">/// Every lexeme the lexer can produce</span>
+<span class="kw">enum</span> <span class="ty">Token</span> {
+    <span class="cmt">// Keywords</span>
+    <span class="ty">Select</span>, <span class="ty">From</span>, <span class="ty">Where</span>,
+    <span class="ty">Insert</span>, <span class="ty">Into</span>, <span class="ty">Values</span>,
+    <span class="ty">Create</span>, <span class="ty">Table</span>,
+
+    <span class="cmt">// Identifiers &amp; literals</span>
+    <span class="ty">Ident</span>(<span class="ty">String</span>),
+    <span class="ty">Integer</span>(<span class="ty">i64</span>),
+    <span class="ty">StringLit</span>(<span class="ty">String</span>),
+
+    <span class="cmt">// Symbols</span>
+    <span class="ty">Star</span>, <span class="ty">Comma</span>, <span class="ty">Eq</span>,
+    <span class="ty">LParen</span>, <span class="ty">RParen</span>, <span class="ty">Semicolon</span>,
+
+    <span class="ty">Eof</span>, <span class="cmt">// signals end of input</span>
+}</pre>
+    <p>Keywords are unit variants — they carry no extra data because the variant name already conveys the meaning. <code>Ident</code> and <code>StringLit</code> wrap a <code>String</code>; <code>Integer</code> wraps an <code>i64</code>.</p>
+  </div>
+
+  <!-- Walkthrough -->
+  <div class="card">
+    <div class="card-title">Step-by-Step Walkthrough</div>
+    <h2>Tokenizing a Real Query</h2>
+    <p>Take this SQL statement:</p>
+    <div class="sql-raw">SELECT id, name FROM users WHERE id = 1</div>
+    <p>The lexer scans left-to-right, skipping whitespace, and emits the following token stream:</p>
+    <div class="token-stream">
+      <div class="token tok-keyword"><span class="tok-val">SELECT</span><span class="tok-type">keyword</span></div>
+      <div class="token tok-ident"><span class="tok-val">id</span><span class="tok-type">ident</span></div>
+      <div class="token tok-symbol"><span class="tok-val">,</span><span class="tok-type">comma</span></div>
+      <div class="token tok-ident"><span class="tok-val">name</span><span class="tok-type">ident</span></div>
+      <div class="token tok-keyword"><span class="tok-val">FROM</span><span class="tok-type">keyword</span></div>
+      <div class="token tok-ident"><span class="tok-val">users</span><span class="tok-type">ident</span></div>
+      <div class="token tok-keyword"><span class="tok-val">WHERE</span><span class="tok-type">keyword</span></div>
+      <div class="token tok-ident"><span class="tok-val">id</span><span class="tok-type">ident</span></div>
+      <div class="token tok-symbol"><span class="tok-val">=</span><span class="tok-type">eq</span></div>
+      <div class="token tok-literal"><span class="tok-val">1</span><span class="tok-type">integer</span></div>
+      <div class="token tok-symbol"><span class="tok-val">EOF</span><span class="tok-type">eof</span></div>
+    </div>
+    <p>Notice: <code>SELECT</code>, <code>FROM</code>, and <code>WHERE</code> are recognised as keywords (case-insensitive in most SQL dialects). <code>id</code>, <code>name</code>, and <code>users</code> are identifiers. <code>1</code> is an integer literal.</p>
+  </div>
+
+  <!-- Lexer implementation sketch -->
+  <div class="card">
+    <div class="card-title">Implementation Sketch</div>
+    <h2>A Simple Rust Lexer</h2>
+    <p>The core loop: consume characters, classify them, emit tokens. Keywords are detected after scanning an identifier by checking against a lookup table.</p>
+<pre><span class="kw">struct</span> <span class="ty">Lexer</span> {
+    input: <span class="ty">Vec</span>&lt;<span class="ty">char</span>&gt;,
+    pos: <span class="ty">usize</span>,
+}
+
+<span class="kw">impl</span> <span class="ty">Lexer</span> {
+    <span class="kw">fn</span> <span class="kw">next_token</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>) -&gt; <span class="ty">Token</span> {
+        <span class="kw">self</span>.skip_whitespace();
+        <span class="kw">match</span> <span class="kw">self</span>.peek() {
+            <span class="ty">None</span>       =&gt; <span class="ty">Token</span>::<span class="ty">Eof</span>,
+            <span class="ty">Some</span>(<span class="str">'*'</span>) =&gt; { <span class="kw">self</span>.advance(); <span class="ty">Token</span>::<span class="ty">Star</span> },
+            <span class="ty">Some</span>(<span class="str">','</span>) =&gt; { <span class="kw">self</span>.advance(); <span class="ty">Token</span>::<span class="ty">Comma</span> },
+            <span class="ty">Some</span>(<span class="str">'='</span>) =&gt; { <span class="kw">self</span>.advance(); <span class="ty">Token</span>::<span class="ty">Eq</span> },
+            <span class="ty">Some</span>(<span class="str">'('</span>) =&gt; { <span class="kw">self</span>.advance(); <span class="ty">Token</span>::<span class="ty">LParen</span> },
+            <span class="ty">Some</span>(<span class="str">')'</span>) =&gt; { <span class="kw">self</span>.advance(); <span class="ty">Token</span>::<span class="ty">RParen</span> },
+            <span class="ty">Some</span>(<span class="str">';'</span>) =&gt; { <span class="kw">self</span>.advance(); <span class="ty">Token</span>::<span class="ty">Semicolon</span> },
+            <span class="ty">Some</span>(<span class="str">'\''</span>) =&gt; <span class="kw">self</span>.scan_string(),
+            <span class="ty">Some</span>(c) <span class="kw">if</span> c.is_ascii_digit() =&gt; <span class="kw">self</span>.scan_integer(),
+            <span class="ty">Some</span>(c) <span class="kw">if</span> c.is_alphabetic() || *c == <span class="str">'_'</span> =&gt; <span class="kw">self</span>.scan_word(),
+            _ =&gt; <span class="kw">panic</span>!(<span class="str">"unexpected character"</span>),
+        }
+    }
+
+    <span class="kw">fn</span> <span class="kw">scan_word</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>) -&gt; <span class="ty">Token</span> {
+        <span class="kw">let</span> word = <span class="kw">self</span>.take_while(|c| c.is_alphanumeric() || c == <span class="str">'_'</span>);
+        <span class="kw">match</span> word.to_uppercase().as_str() {
+            <span class="str">"SELECT"</span>  =&gt; <span class="ty">Token</span>::<span class="ty">Select</span>,
+            <span class="str">"FROM"</span>    =&gt; <span class="ty">Token</span>::<span class="ty">From</span>,
+            <span class="str">"WHERE"</span>   =&gt; <span class="ty">Token</span>::<span class="ty">Where</span>,
+            <span class="str">"INSERT"</span>  =&gt; <span class="ty">Token</span>::<span class="ty">Insert</span>,
+            <span class="str">"INTO"</span>    =&gt; <span class="ty">Token</span>::<span class="ty">Into</span>,
+            <span class="str">"VALUES"</span>  =&gt; <span class="ty">Token</span>::<span class="ty">Values</span>,
+            <span class="str">"CREATE"</span>  =&gt; <span class="ty">Token</span>::<span class="ty">Create</span>,
+            <span class="str">"TABLE"</span>   =&gt; <span class="ty">Token</span>::<span class="ty">Table</span>,
+            _         =&gt; <span class="ty">Token</span>::<span class="ty">Ident</span>(word),
+        }
+    }
+}</pre>
+    <p>The keyword check happens <em>after</em> scanning the full word — so <code>selects</code> is correctly classified as an identifier, not the keyword <code>SELECT</code>.</p>
+  </div>
+
+  <!-- Key insight -->
+  <div class="card">
+    <div class="card-title">Key Insight</div>
+    <h2>Why Lex Before Parsing?</h2>
+    <p>Separating lexing from parsing is the canonical two-stage compiler design. It keeps each stage simple and focused. The lexer deals with characters and whitespace; the parser deals only with typed tokens and grammar rules.</p>
+    <p>In SQLite's source, this is described as the "front-end SQL compiler" that transforms raw text into an internal representation before the virtual machine ever sees it. Reducing complexity in each component also makes errors easier to locate and report.</p>
+    <p>Your next step: hand the token stream to a <strong>recursive descent parser</strong> that builds an Abstract Syntax Tree.</p>
+  </div>
+</div>
+</body>
+</html>

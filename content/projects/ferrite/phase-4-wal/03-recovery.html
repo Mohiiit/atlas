@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crash Recovery — Ferrite Phase 4</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0b0e14; --surface: #111520; --surface2: #161b2e;
+    --text: #e8ecf4; --dim: #6b7694;
+    --rose: #fb7185; --amber: #f59e0b; --cyan: #22d3ee; --emerald: #34d399;
+    --border: rgba(255,255,255,0.06); --radius: 13px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f4f6fb; --surface: #ffffff; --surface2: #eef1f8;
+      --text: #1a1e2e; --dim: #5a6282; --border: rgba(0,0,0,0.08); }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Space Grotesk', sans-serif;
+    line-height: 1.7; padding: 2rem 1rem; }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  .badge { display: inline-block; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.1em;
+    text-transform: uppercase; padding: 0.25rem 0.75rem; border-radius: 99px;
+    background: rgba(245,158,11,0.15); color: var(--amber); margin-bottom: 1rem; }
+  h1 { font-size: 2.2rem; font-weight: 700; margin-bottom: 0.5rem; }
+  h1 span { color: var(--amber); }
+  .subtitle { color: var(--dim); font-size: 1.05rem; margin-bottom: 3rem; }
+  h2 { font-size: 1.15rem; font-weight: 600; margin-bottom: 1rem; color: var(--amber); }
+  h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.4rem; }
+  p { color: var(--dim); margin-bottom: 0.85rem; }
+  p strong { color: var(--text); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 1.75rem; margin-bottom: 1.5rem; animation: fadeUp 0.5s ease both; }
+  .card:nth-child(2){animation-delay:.1s}.card:nth-child(3){animation-delay:.2s}
+  .card:nth-child(4){animation-delay:.3s}.card:nth-child(5){animation-delay:.4s}
+  .card:nth-child(6){animation-delay:.5s}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+
+  /* WAL frame scan visual */
+  .frame-scan { display: flex; flex-wrap: wrap; gap: 6px; margin: 1rem 0; align-items: center; }
+  .frame-box { display: flex; flex-direction: column; align-items: center; justify-content: center;
+    width: 76px; height: 70px; border-radius: 8px; font-family: 'JetBrains Mono',monospace;
+    font-size: 0.68rem; text-align: center; border: 1.5px solid; transition: all 0.2s; }
+  .fb-valid   { background: rgba(52,211,153,0.1); border-color: rgba(52,211,153,0.4); color: var(--emerald); }
+  .fb-commit  { background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.5); color: var(--amber); }
+  .fb-invalid { background: rgba(251,113,133,0.1); border-color: rgba(251,113,133,0.35); color: var(--rose); }
+  .fb-stop    { background: rgba(251,113,133,0.05); border-color: rgba(251,113,133,0.15); color: var(--rose);
+    opacity: 0.4; }
+  .fb-label   { font-size: 0.62rem; color: var(--dim); }
+  .scan-arrow { color: var(--dim); font-size: 1.2rem; }
+  .scan-stop  { background: rgba(251,113,133,0.15); border: 1px solid rgba(251,113,133,0.4);
+    border-radius: 6px; padding: 0.3rem 0.6rem; font-size: 0.75rem; color: var(--rose);
+    font-family: 'JetBrains Mono', monospace; }
+
+  /* ARIES phases */
+  .aries-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 1rem; }
+  @media(max-width:640px){ .aries-grid { grid-template-columns: 1fr; } }
+  .aries-phase { border-radius: 10px; padding: 1.2rem; }
+  .ph-analysis { background: rgba(34,211,238,0.07); border: 1px solid rgba(34,211,238,0.2); }
+  .ph-redo     { background: rgba(245,158,11,0.07); border: 1px solid rgba(245,158,11,0.2); }
+  .ph-undo     { background: rgba(251,113,133,0.07); border: 1px solid rgba(251,113,133,0.2); }
+  .ph-analysis h3 { color: var(--cyan); }
+  .ph-redo h3     { color: var(--amber); }
+  .ph-undo h3     { color: var(--rose); }
+  .ph-num { font-size: 2rem; font-weight: 700; opacity: 0.15; float: right; margin-top: -0.5rem; }
+  .ph-analysis .ph-num { color: var(--cyan); }
+  .ph-redo .ph-num     { color: var(--amber); }
+  .ph-undo .ph-num     { color: var(--rose); }
+  .aries-phase p { font-size: 0.82rem; margin-bottom: 0; }
+
+  /* Steps */
+  .steps { list-style: none; counter-reset: s; }
+  .steps li { counter-increment: s; display: flex; gap: 1rem; margin-bottom: 0.8rem; align-items: flex-start; }
+  .steps li::before { content: counter(s); min-width: 26px; height: 26px; border-radius: 50%;
+    background: rgba(245,158,11,0.15); color: var(--amber); display: flex;
+    align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700;
+    flex-shrink: 0; margin-top: 3px; }
+  .steps li p { margin: 0; font-size: 0.9rem; }
+  .steps li code { font-family: 'JetBrains Mono',monospace; font-size: 0.82rem; color: var(--cyan); }
+
+  /* Timeline for ARIES */
+  .aries-timeline { position: relative; padding-left: 1.5rem; margin-top: 1rem; }
+  .aries-timeline::before { content:''; position: absolute; left: 0.45rem; top: 0; bottom: 0;
+    width: 2px; background: var(--border); }
+  .at-item { position: relative; margin-bottom: 1.2rem; padding-left: 1rem; }
+  .at-item::before { content:''; position: absolute; left: -1.1rem; top: 0.45rem; width: 10px; height: 10px;
+    border-radius: 50%; border: 2px solid; }
+  .at-item.cyan::before { background: rgba(34,211,238,0.3); border-color: var(--cyan); }
+  .at-item.amber::before { background: rgba(245,158,11,0.3); border-color: var(--amber); }
+  .at-item.rose::before { background: rgba(251,113,133,0.3); border-color: var(--rose); }
+  .at-item h3 { font-size: 0.85rem; margin-bottom: 0.2rem; }
+  .at-item.cyan h3 { color: var(--cyan); }
+  .at-item.amber h3 { color: var(--amber); }
+  .at-item.rose h3 { color: var(--rose); }
+  .at-item p { font-size: 0.82rem; margin: 0; }
+
+  .callout { background: rgba(52,211,153,0.07); border: 1px solid rgba(52,211,153,0.2);
+    border-radius: 10px; padding: 1rem 1.2rem; margin-top: 1rem; }
+  .callout p { margin: 0; font-size: 0.88rem; }
+  .callout strong { color: var(--emerald); }
+  .callout-warn { background: rgba(245,158,11,0.07); border-color: rgba(245,158,11,0.2); }
+  .callout-warn strong { color: var(--amber); }
+
+  /* Checkpoint strategy */
+  .cpt-bar-wrap { margin: 1rem 0; }
+  .cpt-bar-label { display: flex; justify-content: space-between; font-size: 0.78rem;
+    color: var(--dim); margin-bottom: 0.3rem; font-family: 'JetBrains Mono',monospace; }
+  .cpt-bar { height: 28px; border-radius: 6px; display: flex; align-items: center;
+    padding: 0 0.6rem; font-size: 0.72rem; font-weight: 600; font-family:'JetBrains Mono',monospace; }
+
+  code { font-family: 'JetBrains Mono',monospace; font-size: 0.85rem; color: var(--cyan); }
+  .mermaid { margin: 1rem 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="badge">Phase 4 · Crash Recovery</div>
+  <h1>Crash Recovery <span>with WAL</span></h1>
+  <p class="subtitle">On startup, scan the WAL, find the last valid commit, replay committed frames, discard the rest.</p>
+
+  <!-- Startup Scan -->
+  <div class="card">
+    <h2>Recovery on Startup: Scan the WAL</h2>
+    <p>When your database opens, it checks if a WAL file exists. If it does, a crash may have occurred. The recovery algorithm scans the WAL frame by frame from the beginning, validating each frame's checksum. Frames with valid checksums up to the last commit frame are replayed into memory. Everything after the last valid commit is discarded.</p>
+
+    <div class="frame-scan">
+      <div class="frame-box fb-valid">Frame 1<br>page 7<div class="fb-label">✓ checksum ok</div></div>
+      <span class="scan-arrow">→</span>
+      <div class="frame-box fb-valid">Frame 2<br>page 3<div class="fb-label">✓ checksum ok</div></div>
+      <span class="scan-arrow">→</span>
+      <div class="frame-box fb-commit">Frame 3<br>COMMIT<div class="fb-label">✓ db_size=42</div></div>
+      <span class="scan-arrow">→</span>
+      <div class="frame-box fb-valid">Frame 4<br>page 5<div class="fb-label">✓ checksum ok</div></div>
+      <span class="scan-arrow">→</span>
+      <div class="frame-box fb-invalid">Frame 5<br>page 2<div class="fb-label">✗ bad checksum</div></div>
+      <span class="scan-arrow">→</span>
+      <span class="scan-stop">STOP HERE</span>
+      <div class="frame-box fb-stop">Frame 6<div class="fb-label">ignored</div></div>
+    </div>
+
+    <p style="font-size:0.85rem">In this example: frames 1–3 form a committed transaction (commit frame at 3). Frame 4 belongs to an in-flight transaction that was never committed. Frame 5 has a bad checksum — crash occurred mid-write. <strong>Only frames 1–3 are replayed.</strong> Frame 4 and everything after are silently discarded.</p>
+  </div>
+
+  <!-- Checksum validation -->
+  <div class="card">
+    <h2>How to Detect a Valid Frame</h2>
+    <p>Each WAL frame carries a <strong>cumulative checksum</strong>. The checksum of frame N covers all bytes in frames 1 through N. This means a frame can only have a valid checksum if all previous frames were also written correctly.</p>
+
+    <ol class="steps">
+      <li><p>Read the WAL header — extract <code>salt-1</code> and <code>salt-2</code>. These are random values written when the WAL was initialized. They change at each checkpoint, invalidating old WAL frames from a previous generation.</p></li>
+      <li><p>For each frame: verify the frame's salt values match the WAL header salts. Mismatch → this is a stale frame from a previous WAL generation. Stop.</p></li>
+      <li><p>Compute the running checksum over the frame header + page data. Compare to the checksum stored in the frame header.</p></li>
+      <li><p>Mismatch → frame is corrupt or incomplete. Stop scanning. All frames from here to end of file are discarded.</p></li>
+      <li><p>If the frame has <code>db_size != 0</code>, it is a commit frame. Record this as the latest valid commit point.</p></li>
+    </ol>
+    <div class="callout callout-warn">
+      <p><strong>Why cumulative checksums?</strong> If a frame in the middle is corrupted, all subsequent checksums will also fail. You can't accidentally "skip" a corrupt frame and replay later frames — the chain of checksums enforces linear validity.</p>
+    </div>
+  </div>
+
+  <!-- ARIES -->
+  <div class="card">
+    <h2>The ARIES Protocol (Simplified)</h2>
+    <p>ARIES (Algorithm for Recovery and Isolation Exploiting Semantics) is the industrial-strength recovery algorithm used by IBM DB2, SQL Server, and others. It operates in three phases:</p>
+
+    <div class="aries-grid">
+      <div class="aries-phase ph-analysis">
+        <div class="ph-num">1</div>
+        <h3>Analysis</h3>
+        <p>Scan the log forward from the last checkpoint. Identify which pages were <em>dirty</em> (modified but not yet flushed to disk) at crash time. Identify which transactions were still <em>active</em> (uncommitted) at crash time.</p>
+      </div>
+      <div class="aries-phase ph-redo">
+        <div class="ph-num">2</div>
+        <h3>Redo</h3>
+        <p>Replay ALL logged operations from the earliest dirty page — including operations from uncommitted transactions. This restores the exact state the database was in at the moment of crash, including in-flight work.</p>
+      </div>
+      <div class="aries-phase ph-undo">
+        <div class="ph-num">3</div>
+        <h3>Undo</h3>
+        <p>Roll back all transactions that were still active at crash time (they were never committed). Apply their inverse operations in reverse order. Write compensation log records (CLRs) so that undo itself survives crashes.</p>
+      </div>
+    </div>
+
+    <div class="aries-timeline">
+      <div class="at-item cyan">
+        <h3>Analysis Phase — forward scan</h3>
+        <p>Build the "dirty page table" and "active transaction table" from the checkpoint log record forward to the end of the log.</p>
+      </div>
+      <div class="at-item amber">
+        <h3>Redo Phase — forward scan from earliest dirty page</h3>
+        <p>For each log record: apply the operation to the page if the page's LSN is older than the log record's LSN. Redo is idempotent — safe to re-apply.</p>
+      </div>
+      <div class="at-item rose">
+        <h3>Undo Phase — backward scan through active transactions</h3>
+        <p>For each active transaction: process its log records in reverse order, apply the inverse operation. Write a Compensation Log Record (CLR) that "undoes the undo" if we crash again during recovery.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ARIES sequence diagram -->
+  <div class="card">
+    <h2>ARIES: Three-Phase Timeline</h2>
+    <div class="mermaid">
+sequenceDiagram
+  participant Log
+  participant Recovery
+  participant DB Pages
+  Note over Log,Recovery: === ANALYSIS PHASE ===
+  Recovery->>Log: Scan forward from checkpoint
+  Log-->>Recovery: Build dirty page table + active txn table
+  Note over Log,Recovery: === REDO PHASE ===
+  Recovery->>Log: Scan forward from earliest dirty page LSN
+  loop For each log record
+    Recovery->>DB Pages: Apply operation (if page LSN stale)
+  end
+  Note over Log,Recovery: === UNDO PHASE ===
+  Recovery->>Log: Scan backward through active transactions
+  loop For each active txn (reverse)
+    Recovery->>DB Pages: Apply inverse operation
+    Recovery->>Log: Write CLR (Compensation Log Record)
+  end
+  Note over DB Pages: Database is consistent. Open for connections.
+    </div>
+  </div>
+
+  <!-- Our simplified approach -->
+  <div class="card">
+    <h2>For Our Toy DB: Simplified Recovery</h2>
+    <p>Full ARIES is complex. For a toy database with WAL and no concurrent transactions, a much simpler approach works correctly:</p>
+
+    <ol class="steps">
+      <li><p>Open the WAL file. If it doesn't exist, no recovery needed — open DB normally.</p></li>
+      <li><p>Scan WAL frames in order. Validate each frame's salt and checksum. Stop at first invalid frame.</p></li>
+      <li><p>Find the last commit frame (highest index frame with <code>db_size != 0</code> and valid checksum).</p></li>
+      <li><p>Replay all frames from 1 to (inclusive) the last commit frame into the page cache. These are all committed data.</p></li>
+      <li><p>Discard all frames after the last commit frame — these were in-flight transactions that never committed.</p></li>
+      <li><p>Proceed with normal operation. The first checkpoint will flush the replayed pages to the DB file.</p></li>
+    </ol>
+    <div class="callout">
+      <p><strong>Why this is safe:</strong> We only replay committed frames. The database never sees partial transactions. The WAL's checksum chain guarantees we stop at exactly the right frame. No undo phase needed because we never apply uncommitted data.</p>
+    </div>
+  </div>
+
+  <!-- Checkpointing strategy -->
+  <div class="card">
+    <h2>Checkpointing Strategy</h2>
+    <p>Without checkpointing, the WAL grows forever and read performance degrades (every page lookup scans more WAL frames). The checkpoint policy controls this tradeoff.</p>
+
+    <div class="cpt-bar-wrap">
+      <div class="cpt-bar-label"><span>WAL frames</span><span>1000 frames → ~4 MB</span></div>
+      <div style="position:relative; height:28px; background:var(--surface2); border-radius:6px; overflow:hidden; border:1px solid var(--border)">
+        <div style="width:70%; height:100%; background: linear-gradient(90deg, rgba(52,211,153,0.3), rgba(245,158,11,0.4)); display:flex; align-items:center; padding: 0 0.6rem;">
+          <span style="font-size:0.72rem; font-weight:600; font-family:'JetBrains Mono',monospace; color:var(--emerald)">safe zone (0–700 frames)</span>
+        </div>
+        <div style="position:absolute; right:0; top:0; width:30%; height:100%; background: rgba(251,113,133,0.2); display:flex; align-items:center; justify-content:center;">
+          <span style="font-size:0.7rem; font-weight:600; font-family:'JetBrains Mono',monospace; color:var(--rose)">checkpoint zone</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-top:0.5rem">
+      <div style="background:var(--surface2); border-radius:10px; padding:1rem; font-size:0.83rem;">
+        <h3 style="color:var(--emerald); margin-bottom:0.4rem">SQLite Default</h3>
+        <p style="margin:0">Checkpoint when WAL exceeds <strong style="color:var(--text)">1000 frames</strong> (~4 MB). Automatic, triggered on any write commit that pushes WAL past the threshold.</p>
+      </div>
+      <div style="background:var(--surface2); border-radius:10px; padding:1rem; font-size:0.83rem;">
+        <h3 style="color:var(--amber); margin-bottom:0.4rem">Toy DB Recommendation</h3>
+        <p style="margin:0">Checkpoint every <strong style="color:var(--text)">100 frames</strong> to keep WAL small and reads fast. Tune upward once the write path is proven correct.</p>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  mermaid.initialize({ theme: 'dark', themeVariables: {
+    primaryColor: '#111520', primaryTextColor: '#e8ecf4',
+    primaryBorderColor: 'rgba(255,255,255,0.12)',
+    lineColor: '#f59e0b', sequenceNumberColor: '#22d3ee',
+    actorBkg: '#161b2e', actorBorder: 'rgba(255,255,255,0.12)',
+    noteBkgColor: '#1a2035', noteTextColor: '#e8ecf4'
+  }, startOnLoad: true });
+</script>
+</body>
+</html>

@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Criterion Setup — Ferrite Phase 5</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0e14; --surface: #111520; --surface2: #161b2e;
+    --text: #e8ecf4; --dim: #6b7694;
+    --rose: #fb7185; --amber: #f59e0b; --cyan: #22d3ee; --emerald: #34d399;
+    --border: rgba(255,255,255,0.06); --radius: 13px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f4f6fb; --surface: #ffffff; --surface2: #eef1f8;
+      --text: #1a1e2e; --dim: #5a6282; --border: rgba(0,0,0,0.08); }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Space Grotesk', sans-serif;
+    line-height: 1.7; padding: 2rem 1rem; }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  .badge { display: inline-block; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.1em;
+    text-transform: uppercase; padding: 0.25rem 0.75rem; border-radius: 99px;
+    background: rgba(34,211,238,0.12); color: var(--cyan); margin-bottom: 1rem; }
+  h1 { font-size: 2.2rem; font-weight: 700; margin-bottom: 0.5rem; }
+  h1 span { color: var(--cyan); }
+  .subtitle { color: var(--dim); font-size: 1.05rem; margin-bottom: 3rem; }
+  h2 { font-size: 1.15rem; font-weight: 600; margin-bottom: 1rem; color: var(--cyan); }
+  h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.4rem; }
+  p { color: var(--dim); margin-bottom: 0.85rem; }
+  p strong { color: var(--text); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 1.75rem; margin-bottom: 1.5rem; animation: fadeUp 0.5s ease both; }
+  .card:nth-child(2){animation-delay:.1s}.card:nth-child(3){animation-delay:.2s}
+  .card:nth-child(4){animation-delay:.3s}.card:nth-child(5){animation-delay:.4s}
+  .card:nth-child(6){animation-delay:.5s}.card:nth-child(7){animation-delay:.6s}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+
+  /* Code block */
+  pre { background: #0d1117; border: 1px solid var(--border); border-radius: 10px;
+    padding: 1.2rem; overflow-x: auto; font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem; line-height: 1.65; margin: 0.75rem 0; }
+  .kw  { color: #f59e0b; } /* keyword: amber */
+  .ty  { color: #fb7185; } /* type: rose */
+  .st  { color: #34d399; } /* string: emerald */
+  .cm  { color: #4a5568; font-style: italic; } /* comment */
+  .fn  { color: #22d3ee; } /* function: cyan */
+  .nu  { color: #a78bfa; } /* number: violet */
+  .pk  { color: #6b7694; } /* punctuation */
+
+  /* Inline code */
+  code { font-family: 'JetBrains Mono',monospace; font-size: 0.83rem;
+    background: rgba(255,255,255,0.05); border-radius: 4px; padding: 0.1rem 0.4rem;
+    color: var(--cyan); }
+
+  /* Criterion report mockup */
+  .report-mockup { background: #0d1117; border: 1px solid var(--border); border-radius: 10px;
+    overflow: hidden; margin: 1rem 0; }
+  .report-title-bar { background: #161b2e; padding: 0.6rem 1rem; display: flex; gap: 0.5rem;
+    align-items: center; border-bottom: 1px solid var(--border); }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot-r { background: #ff5f57; } .dot-y { background: #ffbd2e; } .dot-g { background: #28c941; }
+  .report-url { font-family:'JetBrains Mono',monospace; font-size: 0.72rem; color: var(--dim);
+    margin-left: 0.5rem; }
+  .report-body { padding: 1.2rem 1.5rem; }
+  .report-header { font-size: 0.9rem; font-weight: 700; color: var(--cyan); margin-bottom: 0.5rem; }
+  .report-sub { font-size: 0.78rem; color: var(--dim); margin-bottom: 1rem; }
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; margin-bottom: 1rem; }
+  @media(max-width:560px){ .stat-grid { grid-template-columns: repeat(2,1fr); } }
+  .stat-box { background: var(--surface2); border-radius: 8px; padding: 0.6rem 0.5rem; text-align: center; }
+  .stat-label { font-size: 0.65rem; color: var(--dim); font-family:'JetBrains Mono',monospace;
+    text-transform: uppercase; letter-spacing: 0.05em; }
+  .stat-val { font-size: 0.95rem; font-weight: 700; font-family: 'JetBrains Mono',monospace; }
+  .sv-mean { color: var(--cyan); } .sv-med { color: var(--emerald); }
+  .sv-sd { color: var(--amber); } .sv-ci { color: #a78bfa; }
+
+  /* Distribution bar */
+  .dist-bar-wrap { background: var(--surface2); border-radius: 6px; height: 18px;
+    overflow: hidden; position: relative; margin-top: 0.5rem; }
+  .dist-segment { height: 100%; display: inline-block; }
+
+  /* Why criterion comparison */
+  .why-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 0.5rem; }
+  @media(max-width:560px){ .why-grid { grid-template-columns: 1fr; } }
+  .why-box { background: var(--surface2); border-radius: 10px; padding: 1.1rem;
+    border-top: 3px solid; }
+  .why-box.bad { border-color: var(--rose); }
+  .why-box.good { border-color: var(--emerald); }
+  .why-box h3 { font-size: 0.85rem; }
+  .why-box.bad h3 { color: var(--rose); }
+  .why-box.good h3 { color: var(--emerald); }
+  .why-box p { font-size: 0.82rem; margin: 0; }
+
+  /* BenchmarkId param table */
+  table { width: 100%; border-collapse: collapse; font-size: 0.87rem; margin-top: 0.75rem; }
+  th { text-align: left; padding: 0.55rem 0.8rem; color: var(--dim); font-weight: 500;
+    border-bottom: 1px solid var(--border); font-size: 0.8rem; }
+  td { padding: 0.55rem 0.8rem; border-bottom: 1px solid var(--border); }
+  td:first-child { font-family:'JetBrains Mono',monospace; color: var(--cyan); }
+  td:last-child { color: var(--emerald); font-family:'JetBrains Mono',monospace; }
+  tr:last-child td { border-bottom: none; }
+
+  .callout { background: rgba(34,211,238,0.07); border: 1px solid rgba(34,211,238,0.2);
+    border-radius: 10px; padding: 1rem 1.2rem; margin-top: 1rem; }
+  .callout p { margin: 0; font-size: 0.88rem; }
+  .callout strong { color: var(--cyan); }
+  .callout-amber { background: rgba(245,158,11,0.07); border-color: rgba(245,158,11,0.2); }
+  .callout-amber strong { color: var(--amber); }
+
+  /* Terminal output block */
+  .terminal { background: #050709; border: 1px solid var(--border); border-radius: 10px;
+    padding: 1.2rem; font-family:'JetBrains Mono',monospace; font-size:0.78rem;
+    line-height:1.8; overflow-x:auto; }
+  .t-prompt { color: #4a5568; }
+  .t-cmd    { color: var(--emerald); }
+  .t-out    { color: var(--dim); }
+  .t-name   { color: var(--cyan); }
+  .t-time   { color: var(--amber); }
+  .t-ok     { color: var(--emerald); }
+  .t-change { color: #a78bfa; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="badge">Phase 5 · Benchmarking</div>
+  <h1>Benchmarking with <span>Criterion</span></h1>
+  <p class="subtitle">Statistical rigor over wall-clock guesswork. Criterion gives you confidence intervals, outlier detection, and HTML reports.</p>
+
+  <!-- Why Criterion -->
+  <div class="card">
+    <h2>Why Criterion Over std::time</h2>
+    <p>The naive approach — wrap code in <code>Instant::now()</code>, print the elapsed time, repeat a few times — is unreliable. Modern CPUs have branch predictors, instruction caches, frequency scaling, and OS scheduling noise. A single measurement tells you almost nothing.</p>
+    <div class="why-grid">
+      <div class="why-box bad">
+        <h3>std::time::Instant (naive)</h3>
+        <p>Single measurement. No warmup. Compiler may optimize away the whole computation. OS scheduling noise ±20%. No baseline comparison. Numbers change between runs.</p>
+      </div>
+      <div class="why-box good">
+        <h3>Criterion</h3>
+        <p>Thousands of iterations. Warmup phase for CPU caches. Statistical outlier detection. Confidence intervals. HTML charts. Regression detection — alerts when code gets slower.</p>
+      </div>
+    </div>
+    <div class="callout" style="margin-top:1rem">
+      <p><strong>Key stat:</strong> Criterion runs your benchmark enough times that the mean has a 95% confidence interval. It then reports: "this function takes 1.23 µs ± 12 ns". That ± 12 ns is a real bound, not noise.</p>
+    </div>
+  </div>
+
+  <!-- Setup -->
+  <div class="card">
+    <h2>Setup: Cargo.toml</h2>
+    <p>Add Criterion as a dev-dependency and declare the benchmark binary with <code>harness = false</code> (disables the default test harness so Criterion can run its own).</p>
+    <pre><span class="cm"># Cargo.toml</span>
+[<span class="ty">dev-dependencies</span>]
+<span class="fn">criterion</span> = <span class="pk">{ </span><span class="kw">version</span> = <span class="st">"0.5"</span>, <span class="kw">features</span> = [<span class="st">"html_reports"</span>]<span class="pk"> }</span>
+
+[[<span class="ty">bench</span>]]
+<span class="kw">name</span> = <span class="st">"db_benchmarks"</span>    <span class="cm"># → benches/db_benchmarks.rs</span>
+<span class="kw">harness</span> = <span class="kw">false</span>           <span class="cm"># required for criterion</span></pre>
+    <p>Create the file at <code>benches/db_benchmarks.rs</code>. Cargo auto-discovers files in <code>benches/</code>.</p>
+  </div>
+
+  <!-- Basic benchmark -->
+  <div class="card">
+    <h2>Writing Your First Benchmark</h2>
+    <pre><span class="kw">use</span> <span class="ty">criterion</span>::{<span class="ty">criterion_group</span>, <span class="ty">criterion_main</span>, <span class="ty">Criterion</span>, <span class="ty">BenchmarkId</span>, <span class="fn">black_box</span>};
+<span class="kw">use</span> <span class="ty">ferrite</span>::<span class="ty">Database</span>;
+
+<span class="kw">fn</span> <span class="fn">bench_insert</span>(c: &amp;<span class="kw">mut</span> <span class="ty">Criterion</span>) {
+    c.<span class="fn">bench_function</span>(<span class="st">"insert_1000_rows"</span>, |b| {
+        b.<span class="fn">iter</span>(|| {
+            <span class="kw">let mut</span> db = <span class="ty">Database</span>::<span class="fn">open_temp</span>(); <span class="cm">// fresh in-memory or tmpfile</span>
+            <span class="kw">for</span> i <span class="kw">in</span> <span class="nu">0</span>..<span class="nu">1000</span> {
+                db.<span class="fn">execute</span>(&amp;<span class="fn">format</span>(<span class="st">"INSERT INTO t VALUES ({}, 'user{}')"</span>, i, i))
+                  .<span class="fn">unwrap</span>();
+            }
+            <span class="fn">black_box</span>(db) <span class="cm">// prevent optimizer from discarding the result</span>
+        })
+    });
+}
+
+<span class="fn">criterion_group!</span>(benches, bench_insert);
+<span class="fn">criterion_main!</span>(benches);</pre>
+    <p>The closure passed to <code>b.iter()</code> is what gets measured. Criterion calls it thousands of times, discards outliers, and computes statistics across the rest.</p>
+  </div>
+
+  <!-- black_box -->
+  <div class="card">
+    <h2>The black_box() Function</h2>
+    <p>The Rust compiler is aggressive. If the result of a computation is never used, LLVM may optimize away the entire benchmark body — making it run in 0 nanoseconds and measuring nothing.</p>
+    <pre><span class="cm">// BAD: compiler sees db is unused, may delete all 1000 inserts</span>
+b.<span class="fn">iter</span>(|| {
+    <span class="kw">let mut</span> db = <span class="ty">Database</span>::<span class="fn">open_temp</span>();
+    <span class="kw">for</span> i <span class="kw">in</span> <span class="nu">0</span>..<span class="nu">1000</span> { db.<span class="fn">execute</span>(...).<span class="fn">unwrap</span>(); }
+    <span class="cm">// db dropped here, no side effect observed</span>
+});
+
+<span class="cm">// GOOD: black_box creates an opaque "use" the compiler cannot reason through</span>
+b.<span class="fn">iter</span>(|| {
+    <span class="kw">let mut</span> db = <span class="ty">Database</span>::<span class="fn">open_temp</span>();
+    <span class="kw">for</span> i <span class="kw">in</span> <span class="nu">0</span>..<span class="nu">1000</span> { db.<span class="fn">execute</span>(...).<span class="fn">unwrap</span>(); }
+    <span class="fn">black_box</span>(db)
+});</pre>
+    <div class="callout callout-amber">
+      <p><strong>Rule:</strong> Always wrap the final result (or any value you want to "observe") in <code>black_box()</code>. For benchmarks that return nothing, wrap any key intermediate value instead.</p>
+    </div>
+  </div>
+
+  <!-- Parameterized benchmarks -->
+  <div class="card">
+    <h2>Parameterized Benchmarks with BenchmarkId</h2>
+    <p>Use <code>BenchmarkId</code> to run the same benchmark with different input sizes. Criterion groups them together in the HTML report with a line chart showing how performance scales.</p>
+    <pre><span class="kw">fn</span> <span class="fn">bench_insert_scaling</span>(c: &amp;<span class="kw">mut</span> <span class="ty">Criterion</span>) {
+    <span class="kw">let</span> row_counts = [<span class="nu">100</span>, <span class="nu">1_000</span>, <span class="nu">10_000</span>, <span class="nu">100_000</span>];
+    <span class="kw">let mut</span> group = c.<span class="fn">benchmark_group</span>(<span class="st">"sequential_insert"</span>);
+
+    <span class="kw">for</span> &amp;n <span class="kw">in</span> &amp;row_counts {
+        group.<span class="fn">bench_with_input</span>(<span class="ty">BenchmarkId</span>::<span class="fn">from_parameter</span>(n), &amp;n, |b, &amp;n| {
+            b.<span class="fn">iter</span>(|| {
+                <span class="kw">let mut</span> db = <span class="ty">Database</span>::<span class="fn">open_temp</span>();
+                <span class="kw">for</span> i <span class="kw">in</span> <span class="nu">0</span>..n {
+                    db.<span class="fn">execute</span>(&amp;<span class="fn">format</span>(<span class="st">"INSERT INTO t VALUES ({}, 'v')"</span>, i))
+                      .<span class="fn">unwrap</span>();
+                }
+                <span class="fn">black_box</span>(db)
+            })
+        });
+    }
+    group.<span class="fn">finish</span>();
+}</pre>
+
+    <table>
+      <tr><th>Parameter</th><th>Benchmark ID</th><th>Expected time (WAL mode)</th></tr>
+      <tr><td>100</td><td>sequential_insert/100</td><td>~2 ms</td></tr>
+      <tr><td>1_000</td><td>sequential_insert/1000</td><td>~20 ms</td></tr>
+      <tr><td>10_000</td><td>sequential_insert/10000</td><td>~200 ms</td></tr>
+      <tr><td>100_000</td><td>sequential_insert/100000</td><td>~2 s</td></tr>
+    </table>
+    <p style="font-size:0.83rem; margin-top:0.5rem">If the time doesn't scale linearly with N (i.e., 10× rows → 10× time), something in the B-tree path is quadratic. The scaling chart catches this immediately.</p>
+  </div>
+
+  <!-- Running -->
+  <div class="card">
+    <h2>Running Benchmarks</h2>
+    <div class="terminal">
+<span class="t-prompt">$</span> <span class="t-cmd">cargo bench</span>
+<span class="t-out">   Compiling ferrite v0.1.0</span>
+<span class="t-out">    Finished bench [optimized] target(s)</span>
+<span class="t-out">     Running benches/db_benchmarks.rs</span>
+<br>
+<span class="t-name">sequential_insert/100</span>
+<span class="t-out">                        time:   [<span class="t-time">1.9423 ms</span> <span class="t-time">1.9612 ms</span> <span class="t-time">1.9843 ms</span>]
+</span><span class="t-out">                 change: [<span class="t-change">-1.2452%</span> <span class="t-change">-0.5831%</span> <span class="t-change">+0.0431%</span>] (p = 0.08 > 0.05)
+</span><span class="t-ok">                 No change in performance detected.</span>
+<br>
+<span class="t-name">sequential_insert/1000</span>
+<span class="t-out">                        time:   [<span class="t-time">19.821 ms</span> <span class="t-time">20.043 ms</span> <span class="t-time">20.312 ms</span>]
+</span><span class="t-out">                 change: [<span class="t-change">+12.455%</span> <span class="t-change">+13.102%</span> <span class="t-change">+13.784%</span>] (p = 0.00 &lt; 0.05)
+</span><span class="t-out" style="color:var(--rose)">                 Performance has regressed.</span></div>
+    <div class="callout" style="margin-top:1rem">
+      <p><strong>HTML reports:</strong> After <code>cargo bench</code>, open <code>target/criterion/report/index.html</code> in a browser. Each benchmark gets its own page with a violin plot, line chart, and iteration count histogram.</p>
+    </div>
+  </div>
+
+  <!-- Report mockup -->
+  <div class="card">
+    <h2>Criterion HTML Report — Mockup</h2>
+    <div class="report-mockup">
+      <div class="report-title-bar">
+        <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
+        <span class="report-url">target/criterion/sequential_insert/1000/report/index.html</span>
+      </div>
+      <div class="report-body">
+        <div class="report-header">sequential_insert/1000</div>
+        <div class="report-sub">Sample size: 100 &nbsp;·&nbsp; Warmup: 3.0 s &nbsp;·&nbsp; Measurement: 5.0 s</div>
+        <div class="stat-grid">
+          <div class="stat-box">
+            <div class="stat-label">Mean</div>
+            <div class="stat-val sv-mean">20.04 ms</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Median</div>
+            <div class="stat-val sv-med">19.98 ms</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Std Dev</div>
+            <div class="stat-val sv-sd">312 µs</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">95% CI</div>
+            <div class="stat-val sv-ci">±490 µs</div>
+          </div>
+        </div>
+        <div style="font-size:0.72rem; color:var(--dim); font-family:'JetBrains Mono',monospace; margin-bottom:0.3rem">Sample distribution (0 outliers removed)</div>
+        <div class="dist-bar-wrap">
+          <div class="dist-segment" style="width:5%; background:rgba(251,113,133,0.3)"></div>
+          <div class="dist-segment" style="width:12%; background:rgba(245,158,11,0.4)"></div>
+          <div class="dist-segment" style="width:28%; background:rgba(34,211,238,0.5)"></div>
+          <div class="dist-segment" style="width:35%; background:rgba(52,211,153,0.6)"></div>
+          <div class="dist-segment" style="width:14%; background:rgba(34,211,238,0.4)"></div>
+          <div class="dist-segment" style="width:6%; background:rgba(245,158,11,0.3)"></div>
+        </div>
+        <div style="font-size:0.68rem; color:var(--dim); margin-top:0.3rem">19.2 ms ←————————————————————————→ 20.9 ms</div>
+      </div>
+    </div>
+    <p style="font-size:0.83rem; margin-top:0.5rem">The distribution bar shows where samples cluster. A tight distribution (narrow, tall) means low variance — a trustworthy measurement. Wide distributions mean scheduling noise or a non-deterministic code path.</p>
+  </div>
+</div>
+</body>
+</html>

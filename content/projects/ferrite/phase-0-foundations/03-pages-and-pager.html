@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pages and the Pager — Phase 0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0b0e14; --surface: #111520; --surface2: #161b28;
+    --text: #e8ecf4; --dim: #6b7694; --border: rgba(255,255,255,0.06);
+    --accent: #4f8ef7; --accent2: #a78bfa; --green: #34d399;
+    --amber: #fbbf24; --red: #f87171; --cyan: #22d3ee; --orange: #fb923c;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f4f6fb; --surface: #ffffff; --surface2: #eef1f8;
+      --text: #111520; --dim: #5a6480; --border: rgba(0,0,0,0.08);
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    line-height: 1.65; font-size: 15px;
+    padding: 40px 20px 80px;
+  }
+  .wrapper { max-width: 900px; margin: 0 auto; }
+  .phase-tag {
+    display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--accent); background: rgba(79,142,247,0.1);
+    border: 1px solid rgba(79,142,247,0.2); border-radius: 6px; padding: 3px 10px; margin-bottom: 16px;
+  }
+  h1 { font-size: clamp(26px, 5vw, 38px); font-weight: 700; line-height: 1.2; margin-bottom: 10px; }
+  .subtitle { color: var(--dim); font-size: 16px; margin-bottom: 48px; max-width: 580px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 24px 28px;
+    opacity: 0; transform: translateY(18px);
+    animation: fadeUp 0.45s ease forwards;
+    animation-delay: calc(var(--i) * 0.07s);
+  }
+  @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
+  .section-label { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); margin-bottom: 18px; }
+  h2 { font-size: 20px; font-weight: 600; margin-bottom: 12px; }
+  h3 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  p { color: var(--dim); font-size: 14px; line-height: 1.7; }
+  p strong { color: var(--text); }
+  .gap { height: 28px; }
+  .gap-sm { height: 14px; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+
+  /* Why fixed size */
+  .reason-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 4px; }
+  @media (max-width: 620px) { .reason-grid { grid-template-columns: 1fr 1fr; } }
+  .reason-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+  .reason-icon { font-size: 22px; margin-bottom: 8px; }
+  .reason-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 5px; }
+  .reason-desc { font-size: 12px; color: var(--dim); line-height: 1.6; }
+
+  /* File layout visual */
+  .file-layout { display: flex; gap: 0; margin-top: 12px; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+  .file-page { flex: 1; padding: 14px 10px; text-align: center; border-right: 1px solid var(--border); background: var(--surface2); }
+  .file-page:last-child { border-right: none; }
+  .file-page.header-pg { background: rgba(79,142,247,0.08); }
+  .file-page.data-pg { background: rgba(52,211,153,0.05); }
+  .file-page.free-pg { background: rgba(107,118,148,0.05); }
+  .pg-num { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--dim); margin-bottom: 5px; }
+  .pg-label { font-size: 11px; font-weight: 600; color: var(--text); }
+  .pg-sub { font-size: 10px; color: var(--dim); margin-top: 3px; }
+  .pg-size { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--accent); margin-top: 6px; }
+  @media (max-width: 560px) { .file-layout { flex-direction: column; } .file-page { border-right: none; border-bottom: 1px solid var(--border); } .file-page:last-child { border-bottom: none; } }
+
+  /* Mermaid */
+  .diagram-wrap {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 28px 20px; overflow-x: auto; margin-top: 4px;
+  }
+
+  /* Pager steps */
+  .steps { display: flex; flex-direction: column; gap: 0; margin-top: 8px; }
+  .step { display: flex; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
+  .step:last-child { border-bottom: none; }
+  .step-arrow { flex-shrink: 0; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  .step-arrow.read { background: rgba(79,142,247,0.12); color: var(--accent); }
+  .step-arrow.cache { background: rgba(52,211,153,0.12); color: var(--green); }
+  .step-arrow.write { background: rgba(251,191,36,0.12); color: var(--amber); }
+  .step-body { flex: 1; }
+  .step-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .step-desc { font-size: 13px; color: var(--dim); line-height: 1.6; }
+  .code-inline { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var(--bg); border-radius: 4px; padding: 1px 5px; color: var(--cyan); border: 1px solid var(--border); }
+
+  /* Code block */
+  .code-block { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 20px 22px; margin-top: 12px; overflow-x: auto; }
+  .code-block pre { font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.8; }
+  .kw { color: #c792ea; } .ty { color: #82aaff; } .cm { color: var(--dim); font-style: italic; }
+  .nm { color: #f78c6c; } .st { color: var(--green); } .cn { color: var(--amber); } .pm { color: var(--cyan); }
+
+  /* Cache visual */
+  .cache-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 12px; }
+  @media (max-width: 500px) { .cache-grid { grid-template-columns: repeat(3, 1fr); } }
+  .cache-slot { border-radius: 8px; padding: 10px 8px; text-align: center; border: 1px solid var(--border); background: var(--surface2); }
+  .cache-slot.occupied { background: rgba(52,211,153,0.07); border-color: rgba(52,211,153,0.2); }
+  .cache-slot.dirty { background: rgba(251,191,36,0.07); border-color: rgba(251,191,36,0.2); }
+  .cache-slot.empty { opacity: 0.35; }
+  .slot-idx { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--dim); }
+  .slot-pg { font-size: 12px; font-weight: 600; color: var(--text); margin: 3px 0; }
+  .slot-status { font-size: 10px; }
+  .cache-slot.occupied .slot-status { color: var(--green); }
+  .cache-slot.dirty .slot-status { color: var(--amber); }
+  .cache-slot.empty .slot-status { color: var(--dim); }
+  .note { font-size: 12px; color: var(--dim); margin-top: 10px; line-height: 1.6; }
+  .note strong { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <div class="phase-tag">Phase 0 — Foundations · Lesson 3</div>
+  <h1>Pages and the Pager</h1>
+  <p class="subtitle">The fundamental unit of database storage, and the abstraction layer that makes disk I/O feel like array access.</p>
+
+  <!-- What is a page -->
+  <div class="card" style="--i:1">
+    <div class="section-label">The Building Block</div>
+    <h2>What is a page?</h2>
+    <p>A page is a <strong>fixed-size chunk of bytes</strong> — SQLite defaults to 4096 bytes (4 KB). The entire database file is nothing more than a contiguous sequence of these same-size blocks numbered from zero. There are no variable-length sections, no gaps, no headers between pages. Just a clean array.</p>
+    <div class="gap-sm"></div>
+    <div class="reason-grid">
+      <div class="reason-card">
+        <div class="reason-icon">⚡</div>
+        <div class="reason-title">O(1) seek</div>
+        <div class="reason-desc">Page N always starts at byte offset <code>N × 4096</code>. No scanning needed.</div>
+      </div>
+      <div class="reason-card">
+        <div class="reason-icon">🧱</div>
+        <div class="reason-title">Matches the OS</div>
+        <div class="reason-desc">4096 bytes is the kernel virtual memory page size. Reads align perfectly — no wasted I/O.</div>
+      </div>
+      <div class="reason-card">
+        <div class="reason-icon">♻️</div>
+        <div class="reason-title">Simple recycling</div>
+        <div class="reason-desc">Free pages go on a freelist. Any page can fill any slot — uniform size means no fragmentation math.</div>
+      </div>
+    </div>
+    <div class="gap-sm"></div>
+    <p><strong>A database file is just an array of 4 KB pages on disk.</strong> Page 0 is special — it contains the database header (file format version, page size, root page numbers). Everything else is B-tree nodes or overflow data.</p>
+    <div class="gap-sm"></div>
+    <div class="file-layout">
+      <div class="file-page header-pg">
+        <div class="pg-num">page 0</div>
+        <div class="pg-label">DB Header</div>
+        <div class="pg-sub">magic bytes, page size, schema root</div>
+        <div class="pg-size">4096 B</div>
+      </div>
+      <div class="file-page data-pg">
+        <div class="pg-num">page 1</div>
+        <div class="pg-label">B-Tree Root</div>
+        <div class="pg-sub">users table root node</div>
+        <div class="pg-size">4096 B</div>
+      </div>
+      <div class="file-page data-pg">
+        <div class="pg-num">page 2</div>
+        <div class="pg-label">B-Tree Leaf</div>
+        <div class="pg-sub">row data: ids 1–12</div>
+        <div class="pg-size">4096 B</div>
+      </div>
+      <div class="file-page data-pg">
+        <div class="pg-num">page 3</div>
+        <div class="pg-label">B-Tree Leaf</div>
+        <div class="pg-sub">row data: ids 13–24</div>
+        <div class="pg-size">4096 B</div>
+      </div>
+      <div class="file-page free-pg">
+        <div class="pg-num">page 4</div>
+        <div class="pg-label">Free Page</div>
+        <div class="pg-sub">on freelist, available</div>
+        <div class="pg-size">4096 B</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="gap"></div>
+
+  <!-- Pager abstraction -->
+  <div class="card" style="--i:2">
+    <div class="section-label">The Abstraction</div>
+    <h2>What the Pager does</h2>
+    <p>The B-tree layer thinks in <strong>pages</strong>, not files. It says "give me page 7" and gets a pointer to 4096 bytes. It never calls <code>read()</code> or <code>write()</code> directly. That's the Pager's job — it hides disk I/O behind a dead-simple interface.</p>
+    <div class="gap-sm"></div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-arrow read">↓</div>
+        <div class="step-body">
+          <div class="step-title">Read: <span class="code-inline">get_page(page_num)</span></div>
+          <div class="step-desc">Check the in-memory cache. Cache hit? Return the cached pointer instantly — no I/O. Cache miss? Compute the file offset as <span class="code-inline">page_num × PAGE_SIZE</span>, seek to that position, read exactly 4096 bytes into a cache slot, return it.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-arrow cache">◉</div>
+        <div class="step-body">
+          <div class="step-title">Cache: keep hot pages in memory</div>
+          <div class="step-desc">The cache is an array of up to 100 page slots. Once loaded, a page stays in memory until evicted or the file is closed. Subsequent reads of the same page are free — a pointer dereference, not a syscall.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-arrow write">↑</div>
+        <div class="step-body">
+          <div class="step-title">Write: flush dirty pages on close / commit</div>
+          <div class="step-desc">When the B-tree modifies a page, it's marked <em>dirty</em> in the cache — but not immediately written to disk. On <span class="code-inline">flush()</span> or <span class="code-inline">db_close()</span>, the Pager iterates dirty slots, seeks to the correct offset, and calls <span class="code-inline">write()</span>. This batching strategy is critical for performance.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="gap"></div>
+
+  <!-- Memory ↔ Pager ↔ Disk diagram -->
+  <div class="card" style="--i:3">
+    <div class="section-label">Architecture Diagram</div>
+    <h2>Memory, Pager, and Disk</h2>
+    <div class="diagram-wrap">
+      <div class="mermaid">
+%%{init: {"theme": "base", "themeVariables": {
+  "primaryColor": "#161b28",
+  "primaryTextColor": "#e8ecf4",
+  "primaryBorderColor": "rgba(255,255,255,0.1)",
+  "lineColor": "#4f8ef7",
+  "secondaryColor": "#0e1e18",
+  "tertiaryColor": "#0b0e14",
+  "background": "#0b0e14",
+  "mainBkg": "#161b28",
+  "fontFamily": "Space Grotesk"
+}}}%%
+flowchart LR
+    subgraph MEM["Memory (RAM)"]
+      direction TB
+      C0["slot 0\npage 1 ✓"]:::cached
+      C1["slot 1\npage 3 dirty"]:::dirty
+      C2["slot 2\npage 7 ✓"]:::cached
+      C3["slot 3\n(empty)"]:::empty
+    end
+
+    subgraph PGR["Pager"]
+      direction TB
+      P1["get_page(N)"]:::pager
+      P2["seek + read"]:::pager
+      P3["flush dirty"]:::pager
+    end
+
+    subgraph DISK["File on Disk"]
+      direction TB
+      D0["page 0\n4096 B"]:::disk
+      D1["page 1\n4096 B"]:::disk
+      D2["page 2\n4096 B"]:::disk
+      D3["page 3\n4096 B"]:::disk
+      D4["page …\n4096 B"]:::disk
+    end
+
+    MEM <-->|"cache hit → pointer\ncache miss → load"| PGR
+    PGR <-->|"pread(fd, buf, 4096, offset)\npwrite on flush"| DISK
+
+    classDef cached fill:#0e1e18,stroke:#34d399,stroke-width:1.5px,color:#e8ecf4
+    classDef dirty  fill:#1e1a10,stroke:#fbbf24,stroke-width:1.5px,color:#fbbf24
+    classDef empty  fill:#111520,stroke:rgba(255,255,255,0.06),color:#6b7694
+    classDef pager  fill:#161b28,stroke:#4f8ef7,stroke-width:1.5px,color:#e8ecf4
+    classDef disk   fill:#0b0e14,stroke:rgba(255,255,255,0.08),color:#6b7694
+      </div>
+    </div>
+    <p class="note"><strong>Dirty page lifecycle:</strong> slot 1 holds page 3 with unsaved modifications. The B-tree already wrote to it in memory. On the next <code>COMMIT</code> or file close, the Pager sees <code>dirty=true</code>, seeks to <code>3 × 4096 = 12288</code> bytes into the file, and writes the 4096-byte buffer back to disk.</p>
+  </div>
+
+  <div class="gap"></div>
+
+  <!-- Page cache visual -->
+  <div class="card" style="--i:4">
+    <div class="section-label">Page Cache</div>
+    <h2>Why we don't read from disk on every access</h2>
+    <p>Disk I/O is ~1,000× slower than RAM access. A typical B-tree lookup traverses 3–4 levels. Without caching, each page access would be a separate <code>pread()</code> syscall. With a cache, traversing a warm tree costs only pointer arithmetic.</p>
+    <div class="gap-sm"></div>
+    <div class="cache-grid">
+      <div class="cache-slot occupied">
+        <div class="slot-idx">idx 0</div>
+        <div class="slot-pg">page 1</div>
+        <div class="slot-status">clean</div>
+      </div>
+      <div class="cache-slot dirty">
+        <div class="slot-idx">idx 1</div>
+        <div class="slot-pg">page 3</div>
+        <div class="slot-status">dirty</div>
+      </div>
+      <div class="cache-slot occupied">
+        <div class="slot-idx">idx 2</div>
+        <div class="slot-pg">page 7</div>
+        <div class="slot-status">clean</div>
+      </div>
+      <div class="cache-slot occupied">
+        <div class="slot-idx">idx 3</div>
+        <div class="slot-pg">page 0</div>
+        <div class="slot-status">clean</div>
+      </div>
+      <div class="cache-slot dirty">
+        <div class="slot-idx">idx 4</div>
+        <div class="slot-pg">page 12</div>
+        <div class="slot-status">dirty</div>
+      </div>
+      <div class="cache-slot empty">
+        <div class="slot-idx">idx 5</div>
+        <div class="slot-pg">—</div>
+        <div class="slot-status">empty</div>
+      </div>
+      <div class="cache-slot empty">
+        <div class="slot-idx">idx 6</div>
+        <div class="slot-pg">—</div>
+        <div class="slot-status">empty</div>
+      </div>
+      <div class="cache-slot empty">
+        <div class="slot-idx">idx 7</div>
+        <div class="slot-pg">—</div>
+        <div class="slot-status">empty</div>
+      </div>
+      <div class="cache-slot empty">
+        <div class="slot-idx">idx 8</div>
+        <div class="slot-pg">—</div>
+        <div class="slot-status">empty</div>
+      </div>
+      <div class="cache-slot empty">
+        <div class="slot-idx">idx 9</div>
+        <div class="slot-pg">—</div>
+        <div class="slot-status">empty</div>
+      </div>
+    </div>
+    <p class="note">Our implementation uses a simple direct-mapped array of 100 slots — index = page number. Production databases use LRU eviction policies and much larger caches, but this is sufficient for learning the abstraction.</p>
+  </div>
+
+  <div class="gap"></div>
+
+  <!-- Rust struct -->
+  <div class="card" style="--i:5">
+    <div class="section-label">What You'll Build</div>
+    <h2>The Rust Pager struct</h2>
+    <p>This is the exact struct you'll implement in Phase 1. Every field here maps directly to a concept from the lessons above.</p>
+    <div class="code-block">
+      <pre><span class="kw">const</span> <span class="cn">PAGE_SIZE</span>: <span class="ty">usize</span> = <span class="cn">4096</span>;
+<span class="kw">const</span> <span class="cn">TABLE_MAX_PAGES</span>: <span class="ty">usize</span> = <span class="cn">100</span>;
+
+<span class="kw">pub struct</span> <span class="ty">Pager</span> {
+    <span class="cm">/// Open file handle to the .db file on disk</span>
+    <span class="nm">file</span>: <span class="ty">File</span>,
+
+    <span class="cm">/// How many bytes the file currently contains</span>
+    <span class="nm">file_length</span>: <span class="ty">u64</span>,
+
+    <span class="cm">/// In-memory page cache: None = not yet loaded from disk</span>
+    <span class="nm">pages</span>: [<span class="ty">Option</span>&lt;<span class="ty">Box</span>&lt;[<span class="ty">u8</span>; <span class="cn">PAGE_SIZE</span>]&gt;&gt;; <span class="cn">TABLE_MAX_PAGES</span>],
+}
+
+<span class="kw">impl</span> <span class="ty">Pager</span> {
+    <span class="cm">/// Open or create a database file and return a Pager</span>
+    <span class="kw">pub fn</span> <span class="nm">open</span>(<span class="pm">path</span>: &amp;<span class="ty">str</span>) -&gt; <span class="ty">Result</span>&lt;<span class="ty">Self</span>&gt; { <span class="cm">/* ... */</span> }
+
+    <span class="cm">/// Return a mutable reference to page `page_num`.
+    /// Loads from disk on first access (cache miss).</span>
+    <span class="kw">pub fn</span> <span class="nm">get_page</span>(&amp;<span class="kw">mut</span> <span class="pm">self</span>, <span class="pm">page_num</span>: <span class="ty">usize</span>)
+        -&gt; <span class="ty">Result</span>&lt;&amp;<span class="kw">mut</span> [<span class="ty">u8</span>; <span class="cn">PAGE_SIZE</span>]&gt;
+    {
+        <span class="cm">// 1. Check bounds</span>
+        <span class="cm">// 2. If pages[page_num].is_none() → seek + read from file</span>
+        <span class="cm">// 3. Return mutable ref to the cached page bytes</span>
+        <span class="cm">/* ... */</span>
+    }
+
+    <span class="cm">/// Write all loaded pages back to disk (called on COMMIT / close)</span>
+    <span class="kw">pub fn</span> <span class="nm">flush</span>(&amp;<span class="kw">mut</span> <span class="pm">self</span>, <span class="pm">page_num</span>: <span class="ty">usize</span>) -&gt; <span class="ty">Result</span>&lt;()&gt; {
+        <span class="cm">// seek to page_num * PAGE_SIZE, write 4096 bytes</span>
+        <span class="cm">/* ... */</span>
+    }
+}</pre>
+    </div>
+    <div class="gap-sm"></div>
+    <p>The key insight: <strong><code>pages</code> is indexed by page number, not by insertion order.</strong> <code>pages[7]</code> is always either <code>None</code> (not loaded) or <code>Some(box of 4096 bytes for page 7)</code>. This direct mapping makes <code>get_page</code> an O(1) cache lookup — no hash table needed.</p>
+  </div>
+
+</div>
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'base', themeVariables: { primaryColor: '#161b28', primaryTextColor: '#e8ecf4', primaryBorderColor: 'rgba(255,255,255,0.1)', lineColor: '#4f8ef7', background: '#0b0e14', mainBkg: '#161b28', fontFamily: 'Space Grotesk, sans-serif' } });
+</script>
+</body>
+</html>

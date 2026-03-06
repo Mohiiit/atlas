@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crash Scenarios — Ferrite Phase 4</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0b0e14; --surface: #111520; --surface2: #161b2e;
+    --text: #e8ecf4; --dim: #6b7694;
+    --rose: #fb7185; --amber: #f59e0b; --cyan: #22d3ee;
+    --border: rgba(255,255,255,0.06);
+    --radius: 13px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f4f6fb; --surface: #ffffff; --surface2: #eef1f8;
+      --text: #1a1e2e; --dim: #5a6282; --border: rgba(0,0,0,0.08); }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Space Grotesk', sans-serif;
+    line-height: 1.7; padding: 2rem 1rem; }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  .badge { display: inline-block; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.1em;
+    text-transform: uppercase; padding: 0.25rem 0.75rem; border-radius: 99px;
+    background: rgba(251,113,133,0.15); color: var(--rose); margin-bottom: 1rem; }
+  h1 { font-size: 2.2rem; font-weight: 700; margin-bottom: 0.5rem; }
+  h1 span { color: var(--rose); }
+  .subtitle { color: var(--dim); font-size: 1.05rem; margin-bottom: 3rem; }
+  h2 { font-size: 1.2rem; font-weight: 600; margin-bottom: 1rem; color: var(--amber); }
+  h3 { font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; }
+  p { color: var(--dim); margin-bottom: 0.9rem; }
+  p strong { color: var(--text); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 1.75rem; margin-bottom: 1.5rem;
+    animation: fadeUp 0.5s ease both; }
+  .card:nth-child(2) { animation-delay: 0.1s; }
+  .card:nth-child(3) { animation-delay: 0.2s; }
+  .card:nth-child(4) { animation-delay: 0.3s; }
+  .card:nth-child(5) { animation-delay: 0.4s; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+
+  /* Timeline */
+  .timeline { display: flex; flex-direction: column; gap: 0; }
+  .tl-item { display: flex; align-items: flex-start; gap: 1rem; padding: 0.6rem 0; }
+  .tl-dot { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.7rem; font-weight: 700; margin-top: 2px; }
+  .tl-ok   { background: rgba(52,211,153,0.18); color: #34d399; }
+  .tl-warn { background: rgba(245,158,11,0.18); color: var(--amber); }
+  .tl-dead { background: rgba(251,113,133,0.18); color: var(--rose); }
+  .tl-line { border-left: 2px dashed var(--border); margin-left: 13px; height: 20px; }
+  .tl-text { font-size: 0.92rem; }
+  .tl-text .step { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem;
+    color: var(--dim); display: block; }
+
+  /* Scenario grid */
+  .scenario-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+  @media(max-width:620px) { .scenario-grid { grid-template-columns: 1fr; } }
+  .scenario { background: var(--surface2); border-radius: 10px; padding: 1.2rem;
+    border-left: 3px solid var(--rose); }
+  .scenario.amber { border-left-color: var(--amber); }
+  .scenario h3 { color: var(--rose); font-size: 0.9rem; margin-bottom: 0.5rem; }
+  .scenario.amber h3 { color: var(--amber); }
+  .scenario p { font-size: 0.85rem; margin-bottom: 0; }
+
+  /* Page blocks */
+  .page-row { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin: 0.75rem 0; }
+  .page { width: 70px; height: 52px; border-radius: 8px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem; font-weight: 600; border: 1.5px solid; }
+  .page-ok   { background: rgba(52,211,153,0.1); border-color: #34d399; color: #34d399; }
+  .page-dirty{ background: rgba(245,158,11,0.1); border-color: var(--amber); color: var(--amber); }
+  .page-corrupt{ background: rgba(251,113,133,0.1); border-color: var(--rose); color: var(--rose); }
+  .page-label { font-size: 0.65rem; font-weight: 400; color: var(--dim); }
+  .arrow { color: var(--dim); font-size: 1.1rem; }
+  .crash-badge { background: rgba(251,113,133,0.2); color: var(--rose); border: 1px solid rgba(251,113,133,0.4);
+    border-radius: 6px; padding: 0.2rem 0.6rem; font-size: 0.75rem; font-weight: 600;
+    font-family: 'JetBrains Mono', monospace; }
+
+  /* Comparison table */
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  th { text-align: left; padding: 0.6rem 0.8rem; color: var(--dim); font-weight: 500;
+    border-bottom: 1px solid var(--border); }
+  td { padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border); color: var(--text); }
+  td:first-child { font-family: 'JetBrains Mono', monospace; color: var(--amber); }
+  tr:last-child td { border-bottom: none; }
+
+  .mermaid { margin-top: 1rem; }
+  .callout { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25);
+    border-radius: 10px; padding: 1rem 1.2rem; margin-top: 1rem; }
+  .callout p { margin-bottom: 0; font-size: 0.88rem; }
+  .callout strong { color: var(--amber); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="badge">Phase 4 · Crash Safety</div>
+  <h1>What Goes Wrong <span>Without Crash Safety</span></h1>
+  <p class="subtitle">A single power cut can leave your database permanently corrupted. Here's exactly how it happens.</p>
+
+  <!-- The Core Problem -->
+  <div class="card">
+    <h2>The Core Problem: Writes Are Not Atomic</h2>
+    <p>A single logical operation — like inserting one row — may require updating <strong>multiple pages</strong> on disk. If the process dies between any two of those writes, the database ends up in an inconsistent state that no code can automatically repair.</p>
+    <p>This isn't a rare edge case. Crashes happen: power failures, OOM kills, OS panics, runaway signals. Your database must survive all of them.</p>
+
+    <div class="timeline">
+      <div class="tl-item">
+        <div class="tl-dot tl-ok">1</div>
+        <div class="tl-text">Write modified leaf page (page 7) to disk
+          <span class="step">pwrite(fd, leaf_buf, 4096, offset=7*4096)</span>
+        </div>
+      </div>
+      <div class="tl-line"></div>
+      <div class="tl-item">
+        <div class="tl-dot tl-ok">2</div>
+        <div class="tl-text">Write updated parent page (page 3) to disk
+          <span class="step">pwrite(fd, parent_buf, 4096, offset=3*4096)</span>
+        </div>
+      </div>
+      <div class="tl-line"></div>
+      <div class="tl-item">
+        <div class="tl-dot tl-dead">☠</div>
+        <div class="tl-text"><strong style="color:var(--rose)">CRASH HERE</strong> — process killed before page 1 (root) is written
+          <span class="step">// Root still points to old structure. DB is inconsistent.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Three Crash Scenarios -->
+  <div class="card">
+    <h2>Three Concrete Crash Scenarios</h2>
+
+    <!-- Scenario 1 -->
+    <h3 style="color:var(--text); margin-bottom:0.75rem">Scenario 1 — Partial Multi-Page Update</h3>
+    <p>Inserting a row into a full leaf requires updates to: the leaf page, the parent page, and possibly the root. Three disk writes. One crash window between each.</p>
+    <div class="page-row">
+      <div class="page page-dirty">Page 7<div class="page-label">leaf ✓</div></div>
+      <span class="arrow">→</span>
+      <div class="page page-dirty">Page 3<div class="page-label">parent ✓</div></div>
+      <span class="arrow">→</span>
+      <span class="crash-badge">⚡ CRASH</span>
+      <span class="arrow">→</span>
+      <div class="page page-corrupt">Page 1<div class="page-label">root ✗</div></div>
+    </div>
+    <p style="font-size:0.85rem">Root page still references the old tree structure. B-tree invariants violated. Queries return wrong results or panic.</p>
+
+    <!-- Scenario 2 -->
+    <h3 style="color:var(--text); margin-bottom:0.75rem; margin-top:1.2rem">Scenario 2 — Leaf Split Orphan</h3>
+    <p>A B-tree leaf split allocates a new page and writes it, then must update the parent to add the new separator key. Crash between those two steps creates an <strong>orphaned page</strong>.</p>
+    <div class="page-row">
+      <div class="page page-ok">Page 7<div class="page-label">old leaf</div></div>
+      <span class="arrow">+</span>
+      <div class="page page-dirty">Page 12<div class="page-label">new leaf ✓</div></div>
+      <span class="arrow">→</span>
+      <span class="crash-badge">⚡ CRASH</span>
+      <span class="arrow">→</span>
+      <div class="page page-corrupt">Page 3<div class="page-label">parent ✗</div></div>
+    </div>
+    <p style="font-size:0.85rem">Page 12 exists on disk but no parent points to it. It's lost space. Worse: the split key range is unreachable — rows in that range silently disappear.</p>
+
+    <!-- Scenario 3 -->
+    <h3 style="color:var(--text); margin-bottom:0.75rem; margin-top:1.2rem">Scenario 3 — The Torn Write</h3>
+    <p>A 4 KB page write is <strong>not atomic at the OS level</strong>. The OS writes sectors (512 B or 4096 B each). If power fails mid-page, only the first N sectors land on disk. You get half the old page and half the new page — a "torn write".</p>
+    <div class="page-row">
+      <div class="page page-ok" style="width:80px; height:60px; font-size:0.65rem">Sectors<br>0–3<div class="page-label">new data ✓</div></div>
+      <div class="page page-corrupt" style="width:80px; height:60px; font-size:0.65rem">Sectors<br>4–7<div class="page-label">old data ✗</div></div>
+    </div>
+    <p style="font-size:0.85rem">Checksums in the page header will fail, but only if you compute them. Without checksums, this silent corruption goes undetected for months.</p>
+  </div>
+
+  <!-- fsync -->
+  <div class="card">
+    <h2>fsync: The Brutal Hammer</h2>
+    <p>Without <code style="font-family:'JetBrains Mono',monospace;color:var(--cyan)">fsync()</code>, writes sit in the OS page cache — fast but volatile. A crash before the OS flushes loses them. <code style="font-family:'JetBrains Mono',monospace;color:var(--cyan)">fsync()</code> blocks until the storage controller confirms the data is on physical media.</p>
+    <div class="scenario-grid">
+      <div class="scenario">
+        <h3>Without fsync</h3>
+        <p>Write goes to page cache. Returns in ~1 µs. Crash → data gone. Fast but unsafe.</p>
+      </div>
+      <div class="scenario amber">
+        <h3>With fsync</h3>
+        <p>OS flushes to disk. Blocks for 1–10 ms on SSD, 5–20 ms on HDD. Safe but expensive.</p>
+      </div>
+    </div>
+    <div class="callout">
+      <p><strong>Implication:</strong> You cannot call fsync after every single write operation — that limits you to ~100 writes/sec on spinning disk. The whole art of durability engineering is minimizing fsync calls while preserving correctness.</p>
+    </div>
+  </div>
+
+  <!-- Two Approaches -->
+  <div class="card">
+    <h2>Two Classic Approaches</h2>
+    <table>
+      <tr><th>Approach</th><th>Strategy</th><th>Durability</th><th>Write Pattern</th></tr>
+      <tr>
+        <td>Rollback Journal</td>
+        <td>Save original pages to journal BEFORE overwriting. On crash, restore from journal.</td>
+        <td>Strong (2× fsync per txn)</td>
+        <td>Random writes to DB file</td>
+      </tr>
+      <tr>
+        <td>Write-Ahead Log</td>
+        <td>Append modified pages to WAL BEFORE updating DB. DB file unchanged until checkpoint.</td>
+        <td>Strong (1× fsync per txn)</td>
+        <td>Sequential writes to WAL</td>
+      </tr>
+    </table>
+
+    <div style="margin-top:1.2rem">
+      <h3 style="color:var(--amber); margin-bottom:0.6rem">Rollback Journal — How It Works</h3>
+      <div class="timeline">
+        <div class="tl-item"><div class="tl-dot tl-ok">1</div>
+          <div class="tl-text">Copy original page(s) into <code style="font-family:'JetBrains Mono',monospace">db.journal</code> file</div></div>
+        <div class="tl-line"></div>
+        <div class="tl-item"><div class="tl-dot tl-ok">2</div>
+          <div class="tl-text">fsync the journal — it is now durable</div></div>
+        <div class="tl-line"></div>
+        <div class="tl-item"><div class="tl-dot tl-ok">3</div>
+          <div class="tl-text">Overwrite pages in the main DB file</div></div>
+        <div class="tl-line"></div>
+        <div class="tl-item"><div class="tl-dot tl-ok">4</div>
+          <div class="tl-text">fsync the DB file — transaction committed</div></div>
+        <div class="tl-line"></div>
+        <div class="tl-item"><div class="tl-dot tl-ok">5</div>
+          <div class="tl-text">Delete journal file (commit point)</div></div>
+        <div class="tl-line"></div>
+        <div class="tl-item"><div class="tl-dot tl-warn">↩</div>
+          <div class="tl-text">If journal exists at startup → crash recovery: restore pages from journal, delete journal</div></div>
+      </div>
+    </div>
+    <div class="callout">
+      <p><strong>The Tradeoff:</strong> Rollback journal requires 2× fsync per commit and random writes to the DB file. WAL requires only 1× fsync and uses sequential writes — much better for throughput. But WAL needs a checkpoint process and has more complex reader/writer coordination.</p>
+    </div>
+  </div>
+
+  <!-- Mermaid timeline -->
+  <div class="card">
+    <h2>Timeline: Crash With No Protection</h2>
+    <div class="mermaid">
+sequenceDiagram
+  participant App
+  participant OS Cache
+  participant Disk
+  App->>OS Cache: write(page 7) — leaf updated
+  App->>OS Cache: write(page 3) — parent updated
+  Note over App,Disk: ⚡ Power failure here
+  OS Cache--xDisk: page 1 (root) never flushed
+  Note over Disk: Disk has pages 7,3 new<br/>but page 1 is stale.<br/>B-tree is inconsistent.
+    </div>
+  </div>
+</div>
+<script>
+  mermaid.initialize({ theme: 'dark', themeVariables: {
+    primaryColor: '#111520', primaryTextColor: '#e8ecf4',
+    primaryBorderColor: 'rgba(255,255,255,0.12)',
+    lineColor: '#fb7185', sequenceNumberColor: '#22d3ee',
+    actorBkg: '#161b2e', actorBorder: 'rgba(255,255,255,0.12)',
+    noteBkgColor: '#1a2035', noteTextColor: '#e8ecf4'
+  }, startOnLoad: true });
+</script>
+</body>
+</html>

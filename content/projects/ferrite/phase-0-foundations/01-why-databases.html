@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Why Databases Exist — Phase 0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0e14;
+    --surface: #111520;
+    --surface2: #161b28;
+    --text: #e8ecf4;
+    --dim: #6b7694;
+    --border: rgba(255,255,255,0.06);
+    --accent: #4f8ef7;
+    --accent2: #a78bfa;
+    --green: #34d399;
+    --amber: #fbbf24;
+    --red: #f87171;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f4f6fb; --surface: #ffffff; --surface2: #eef1f8;
+      --text: #111520; --dim: #5a6480; --border: rgba(0,0,0,0.08);
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    line-height: 1.65; font-size: 15px;
+    padding: 40px 20px 80px;
+  }
+  .wrapper { max-width: 900px; margin: 0 auto; }
+
+  /* Header */
+  .phase-tag {
+    display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--accent); background: rgba(79,142,247,0.1);
+    border: 1px solid rgba(79,142,247,0.2); border-radius: 6px; padding: 3px 10px;
+    margin-bottom: 16px;
+  }
+  h1 { font-size: clamp(26px, 5vw, 38px); font-weight: 700; line-height: 1.2; margin-bottom: 10px; }
+  .subtitle { color: var(--dim); font-size: 16px; margin-bottom: 48px; max-width: 560px; }
+
+  /* Cards */
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 24px 28px;
+    opacity: 0; transform: translateY(18px);
+    animation: fadeUp 0.45s ease forwards;
+    animation-delay: calc(var(--i) * 0.07s);
+  }
+  @keyframes fadeUp {
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .section-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--dim); margin-bottom: 18px;
+  }
+  h2 { font-size: 20px; font-weight: 600; margin-bottom: 12px; }
+  h3 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  p { color: var(--dim); font-size: 14px; line-height: 1.7; }
+  p strong { color: var(--text); }
+
+  .gap-sm { height: 16px; }
+  .gap { height: 28px; }
+
+  /* Compare grid */
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 4px; }
+  @media (max-width: 600px) { .compare { grid-template-columns: 1fr; } }
+  .compare-box { border-radius: 10px; padding: 18px 20px; }
+  .compare-box.bad { background: rgba(248,113,113,0.06); border: 1px solid rgba(248,113,113,0.15); }
+  .compare-box.good { background: rgba(52,211,153,0.06); border: 1px solid rgba(52,211,153,0.15); }
+  .compare-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px; }
+  .compare-box.bad .compare-label { color: var(--red); }
+  .compare-box.good .compare-label { color: var(--green); }
+  .mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--dim); line-height: 1.8; }
+  .mono .strike { text-decoration: line-through; opacity: 0.5; }
+  .mono .ok { color: var(--green); }
+
+  /* ACID 2x2 */
+  .acid-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 560px) { .acid-grid { grid-template-columns: 1fr; } }
+  .acid-card {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px 22px;
+  }
+  .acid-letter {
+    font-size: 28px; font-weight: 700; font-family: 'JetBrains Mono', monospace;
+    line-height: 1; margin-bottom: 6px;
+  }
+  .acid-card:nth-child(1) .acid-letter { color: var(--accent); }
+  .acid-card:nth-child(2) .acid-letter { color: var(--green); }
+  .acid-card:nth-child(3) .acid-letter { color: var(--accent2); }
+  .acid-card:nth-child(4) .acid-letter { color: var(--amber); }
+  .acid-word { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+  .acid-def { font-size: 13px; color: var(--dim); line-height: 1.6; }
+  .acid-example {
+    margin-top: 10px; font-size: 12px; font-family: 'JetBrains Mono', monospace;
+    background: var(--bg); border-radius: 6px; padding: 8px 10px;
+    color: var(--dim); border: 1px solid var(--border); line-height: 1.7;
+  }
+  .acid-example .hl { color: var(--text); }
+
+  /* OLTP/OLAP */
+  .category-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 560px) { .category-grid { grid-template-columns: 1fr; } }
+  .cat-card {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px 22px;
+  }
+  .cat-pill {
+    display: inline-block; font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    border-radius: 5px; padding: 2px 8px; margin-bottom: 10px;
+  }
+  .cat-card:nth-child(1) .cat-pill { background: rgba(79,142,247,0.15); color: var(--accent); }
+  .cat-card:nth-child(2) .cat-pill { background: rgba(167,139,250,0.15); color: var(--accent2); }
+  .cat-card h3 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .tag {
+    font-size: 11px; font-family: 'JetBrains Mono', monospace;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 5px; padding: 2px 8px; color: var(--dim);
+  }
+
+  /* SQLite spotlight */
+  .spotlight {
+    background: linear-gradient(135deg, rgba(79,142,247,0.06) 0%, rgba(167,139,250,0.06) 100%);
+    border: 1px solid rgba(79,142,247,0.15); border-radius: 14px; padding: 28px 32px;
+  }
+  .spotlight-row { display: flex; gap: 32px; flex-wrap: wrap; margin-top: 18px; }
+  .spotlight-stat { }
+  .spotlight-stat .num {
+    font-size: 28px; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: var(--accent);
+  }
+  .spotlight-stat .lbl { font-size: 12px; color: var(--dim); margin-top: 2px; }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <div class="phase-tag">Phase 0 — Foundations · Lesson 1</div>
+  <h1>Why Databases Exist</h1>
+  <p class="subtitle">From chaotic flat files to guaranteed data integrity — and where SQLite fits in the landscape.</p>
+
+  <!-- Problem: CSV chaos -->
+  <div class="card" style="--i:1">
+    <div class="section-label">The Problem</div>
+    <h2>Why not just use a CSV file?</h2>
+    <p>Flat files seem simple enough — rows of text, one record per line. But the moment two processes touch the same file, or the program crashes mid-write, things unravel fast. There's no concept of a <strong>transaction</strong>, no protection against partial writes, and no way to query efficiently beyond reading every line.</p>
+    <div class="gap-sm"></div>
+    <div class="compare">
+      <div class="compare-box bad">
+        <div class="compare-label">CSV / Flat File</div>
+        <div class="mono">
+          id,name,balance<br>
+          1,alice,1000<br>
+          2,bob,500<br>
+          <span class="strike">2,bob,1500</span>  ← crash here<br>
+          <span style="color:var(--red);">1,alice,0</span>    ← already written<br>
+          <br>
+          <span style="color:var(--red);">⚠ bob lost $500, alice lost $1000</span>
+        </div>
+      </div>
+      <div class="compare-box good">
+        <div class="compare-label">Database</div>
+        <div class="mono">
+          BEGIN;<br>
+          &nbsp;&nbsp;UPDATE accounts<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;SET balance = 0<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;WHERE id = 1;<br>
+          &nbsp;&nbsp;UPDATE accounts<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;SET balance = 1500<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;WHERE id = 2;<br>
+          COMMIT; <span class="ok">← or ROLLBACK</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="gap"></div>
+
+  <!-- ACID -->
+  <div class="card" style="--i:2">
+    <div class="section-label">Core Guarantees</div>
+    <h2>ACID — what a database actually promises you</h2>
+    <p>ACID is the contract a database makes with your application. Violate any of these and you're back to CSV territory.</p>
+    <div class="gap-sm"></div>
+    <div class="acid-grid">
+      <div class="acid-card">
+        <div class="acid-letter">A</div>
+        <div class="acid-word">Atomicity</div>
+        <div class="acid-def">A transaction is all-or-nothing. Either every operation in the batch succeeds, or none of them do — no partial states.</div>
+        <div class="acid-example">
+          <span class="hl">Transfer $500: alice → bob</span><br>
+          debit(alice, 500) ✓<br>
+          credit(bob, 500) ✗ crash<br>
+          <span style="color:var(--red);">→ both rolled back</span>
+        </div>
+      </div>
+      <div class="acid-card">
+        <div class="acid-letter">C</div>
+        <div class="acid-word">Consistency</div>
+        <div class="acid-def">A transaction moves the database from one <em>valid</em> state to another. Rules like "balance ≥ 0" or unique constraints are never violated.</div>
+        <div class="acid-example">
+          <span class="hl">Constraint: balance &gt;= 0</span><br>
+          alice.balance = 100<br>
+          debit(alice, 200)<br>
+          <span style="color:var(--red);">→ rejected, rule broken</span>
+        </div>
+      </div>
+      <div class="acid-card">
+        <div class="acid-letter">I</div>
+        <div class="acid-word">Isolation</div>
+        <div class="acid-def">Concurrent transactions behave as if they ran one at a time. You never see another transaction's half-finished work.</div>
+        <div class="acid-example">
+          <span class="hl">Two transfers at once:</span><br>
+          T1: reads alice = 1000<br>
+          T2: reads alice = 1000<br>
+          T1 writes 500, T2 writes 500<br>
+          <span style="color:var(--red);">→ isolated: one waits</span>
+        </div>
+      </div>
+      <div class="acid-card">
+        <div class="acid-letter">D</div>
+        <div class="acid-word">Durability</div>
+        <div class="acid-def">Once a transaction commits, it stays committed — even if the power goes out a millisecond later. Data is on disk.</div>
+        <div class="acid-example">
+          <span class="hl">After COMMIT:</span><br>
+          write to WAL log ✓<br>
+          fsync() to disk ✓<br>
+          power loss ...<br>
+          <span class="ok">→ data survives reboot</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="gap"></div>
+
+  <!-- OLTP vs OLAP -->
+  <div class="card" style="--i:3">
+    <div class="section-label">Two Worlds</div>
+    <h2>OLTP vs OLAP — the great divide</h2>
+    <p>Not all databases are built for the same job. The workload shape determines everything: how data is laid out on disk, what indexes matter, and what "fast" even means.</p>
+    <div class="gap-sm"></div>
+    <div class="category-grid">
+      <div class="cat-card">
+        <div class="cat-pill">OLTP</div>
+        <h3>Online Transaction Processing</h3>
+        <p>Many short, targeted reads and writes. "Get me user 42's balance." "Insert this order." Row-oriented storage. SQLite lives here.</p>
+        <div class="tag-row">
+          <span class="tag">row-store</span>
+          <span class="tag">low latency</span>
+          <span class="tag">high concurrency</span>
+          <span class="tag">SQLite · PostgreSQL · MySQL</span>
+        </div>
+      </div>
+      <div class="cat-card">
+        <div class="cat-pill">OLAP</div>
+        <h3>Online Analytical Processing</h3>
+        <p>Few large queries scanning millions of rows. "Sum all sales in Q3 by region." Column-oriented storage for compression and vectorized scans. DuckDB lives here.</p>
+        <div class="tag-row">
+          <span class="tag">column-store</span>
+          <span class="tag">high throughput</span>
+          <span class="tag">batch reads</span>
+          <span class="tag">DuckDB · Snowflake · ClickHouse</span>
+        </div>
+      </div>
+    </div>
+    <div class="gap-sm"></div>
+    <p style="font-size:13px;"><strong>This curriculum is OLTP territory.</strong> We're building a row-store B-tree engine — exactly what SQLite is.</p>
+  </div>
+
+  <div class="gap"></div>
+
+  <!-- SQLite spotlight -->
+  <div class="card" style="--i:4">
+    <div class="section-label">Our Target</div>
+    <div class="spotlight">
+      <h2 style="margin-bottom:8px;">Where SQLite fits</h2>
+      <p>SQLite is the most widely deployed database engine in existence — more than MySQL, PostgreSQL, and Oracle combined. Its design choices are radically different from server databases, and they're exactly what make it a perfect teaching subject.</p>
+      <div class="spotlight-row">
+        <div class="spotlight-stat">
+          <div class="num">1</div>
+          <div class="lbl">file on disk — the entire DB</div>
+        </div>
+        <div class="spotlight-stat">
+          <div class="num">0</div>
+          <div class="lbl">config, servers, or daemons</div>
+        </div>
+        <div class="spotlight-stat">
+          <div class="num">4KB</div>
+          <div class="lbl">default page size</div>
+        </div>
+        <div class="spotlight-stat">
+          <div class="num">~140K</div>
+          <div class="lbl">lines of C — readable source</div>
+        </div>
+      </div>
+      <div class="gap-sm"></div>
+      <p style="font-size:13px;"><strong>Embedded:</strong> SQLite runs inside your process — no network, no IPC. It links as a library. This makes it perfect for mobile apps, browsers, and CLI tools. It also means we can build a full replica in Rust without needing a networking layer.</p>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

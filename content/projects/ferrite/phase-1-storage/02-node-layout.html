@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Node Layout on Disk | Ferrite Phase 1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0e14; --surface: #111520; --surface2: #161b2e;
+    --text: #e8ecf4; --dim: #6b7694; --border: rgba(255,255,255,0.06);
+    --amber: #f59e0b; --amber-dim: rgba(245,158,11,0.12);
+    --violet: #a78bfa; --violet-dim: rgba(167,139,250,0.12);
+    --green: #34d399; --red: #f87171; --blue: #60a5fa; --teal: #2dd4bf;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f4f6fb; --surface: #ffffff; --surface2: #eef1f8;
+      --text: #0f1323; --dim: #5a6380; --border: rgba(0,0,0,0.08); }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Space Grotesk', sans-serif;
+    font-size: 16px; line-height: 1.7; padding: 40px 20px 80px; }
+  .container { max-width: 900px; margin: 0 auto; }
+  .badge { display: inline-flex; align-items: center; gap: 8px; background: var(--violet-dim);
+    color: var(--violet); border: 1px solid rgba(167,139,250,0.25); border-radius: 20px;
+    padding: 4px 14px; font-size: 12px; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; margin-bottom: 20px; }
+  h1 { font-size: clamp(26px, 5vw, 40px); font-weight: 700; line-height: 1.15; margin-bottom: 12px; }
+  h1 span { color: var(--violet); }
+  .subtitle { color: var(--dim); font-size: 17px; max-width: 640px; margin-bottom: 48px; }
+  .section { margin-bottom: 44px; }
+  .section-title { font-size: 19px; font-weight: 600; margin-bottom: 18px; display: flex;
+    align-items: center; gap: 10px; }
+  .section-title::before { content: ''; display: block; width: 4px; height: 20px;
+    background: var(--violet); border-radius: 2px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 13px;
+    padding: 24px 28px; margin-bottom: 20px; opacity: 0; animation: fadeUp 0.5s ease forwards;
+    animation-delay: calc(var(--i, 0) * 0.07s); }
+  /* Byte map */
+  .byte-map { display: flex; flex-wrap: wrap; gap: 3px; margin: 16px 0; }
+  .byte { display: flex; flex-direction: column; align-items: center; justify-content: center;
+    border-radius: 5px; font-family: 'JetBrains Mono', monospace; }
+  .byte .offset { font-size: 9px; color: var(--dim); margin-bottom: 2px; }
+  .byte .label { font-size: 9.5px; font-weight: 600; text-align: center; padding: 6px 4px;
+    border-radius: 4px; width: 100%; }
+  .b-type    { background: rgba(245,158,11,0.18); color: var(--amber); }
+  .b-root    { background: rgba(52,211,153,0.14); color: var(--green); }
+  .b-parent  { background: rgba(167,139,250,0.16); color: var(--violet); }
+  .b-count   { background: rgba(96,165,250,0.16); color: var(--blue); }
+  .b-rchild  { background: rgba(45,212,191,0.16); color: var(--teal); }
+  .b-key     { background: rgba(245,158,11,0.22); color: var(--amber); }
+  .b-row     { background: rgba(52,211,153,0.1); color: var(--green); }
+  .b-child   { background: rgba(167,139,250,0.22); color: var(--violet); }
+  .b-empty   { background: rgba(107,118,148,0.1); color: var(--dim); }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--dim); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; }
+  /* Two-column layout */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 640px) { .two-col { grid-template-columns: 1fr; } }
+  .node-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+  .node-box h4 { font-size: 13px; font-weight: 600; margin-bottom: 12px; letter-spacing: 0.04em; }
+  .node-box h4.leaf { color: var(--green); }
+  .node-box h4.internal { color: var(--violet); }
+  /* Row table */
+  .field-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .field-table th { text-align: left; padding: 7px 10px; color: var(--dim);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.06em; border-bottom: 1px solid var(--border); }
+  .field-table td { padding: 7px 10px; border-bottom: 1px solid rgba(255,255,255,0.03); vertical-align: top; }
+  .field-table td:first-child { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+  .field-table td:nth-child(2) { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--amber); }
+  .field-table td:nth-child(3) { color: var(--dim); font-size: 12px; }
+  /* Code block */
+  pre { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 20px 22px; overflow-x: auto; font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; line-height: 1.8; }
+  .kw  { color: var(--amber); }
+  .ty  { color: var(--violet); }
+  .cm  { color: var(--dim); font-style: italic; }
+  .st  { color: var(--green); }
+  .num { color: var(--blue); }
+  .insight { background: var(--amber-dim); border: 1px solid rgba(245,158,11,0.2); border-radius: 10px;
+    padding: 14px 18px; font-size: 14px; margin-top: 16px; }
+  .insight strong { color: var(--amber); }
+  .cell-anatomy { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 18px 22px; margin: 16px 0; }
+  .cell-row { display: flex; align-items: stretch; border-radius: 7px; overflow: hidden; height: 44px; }
+  .cell-seg { display: flex; align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="badge">Phase 1 · Storage Engines</div>
+  <h1>Node <span>Layout</span> on Disk</h1>
+  <p class="subtitle">A B-Tree node is just bytes on a page. Understanding the exact byte layout is how you read and write nodes without an ORM — raw pointer arithmetic in Rust.</p>
+
+  <div class="section">
+    <div class="section-title">The Fundamental Unit: A Cell</div>
+    <div class="card" style="--i:0">
+      <p style="font-size:14px;color:var(--dim);margin-bottom:16px">A <strong style="color:var(--text)">cell</strong> is the smallest addressable unit of storage in a leaf node. It pairs a key with its row data. Fixed-size cells make arithmetic simple: <code style="color:var(--violet);font-family:'JetBrains Mono',monospace">cell_offset = HEADER_SIZE + (cell_num * CELL_SIZE)</code></p>
+      <div class="cell-anatomy">
+        <div style="font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px">Leaf cell = 4 + 293 = 297 bytes</div>
+        <div class="cell-row">
+          <div class="cell-seg b-key" style="width:80px">KEY<br><span style="font-size:10px;font-weight:400">4 bytes (u32)</span></div>
+          <div class="cell-seg b-row" style="flex:1">ROW DATA (serialized: id + username + email)<br><span style="font-size:10px;font-weight:400">293 bytes</span></div>
+        </div>
+      </div>
+      <div class="insight"><strong>Why fixed-size?</strong> Variable-length cells require a free-space map per page. Fixed cells turn the page body into a simple array — cell N starts at a predictable offset. This is the tradeoff SQLite's toy tutorial makes; real SQLite uses variable-length records.</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Side-by-Side: Leaf vs Internal Node</div>
+    <div class="two-col" style="margin-bottom:20px">
+      <div class="node-box">
+        <h4 class="leaf">Leaf Node (type = 0)</h4>
+        <table class="field-table">
+          <thead><tr><th>Field</th><th>Bytes</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td>node_type</td><td>0–0 (1B)</td><td>0 = leaf</td></tr>
+            <tr><td>is_root</td><td>1–1 (1B)</td><td>1 if root page</td></tr>
+            <tr><td>parent_ptr</td><td>2–5 (4B)</td><td>page # of parent</td></tr>
+            <tr><td>num_cells</td><td>6–9 (4B)</td><td>how many cells</td></tr>
+            <tr><td>cell[0].key</td><td>10–13 (4B)</td><td>u32 key</td></tr>
+            <tr><td>cell[0].data</td><td>14–306 (293B)</td><td>row bytes</td></tr>
+            <tr><td>cell[1]…</td><td>307+ (297B each)</td><td>next cells</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="node-box">
+        <h4 class="internal">Internal Node (type = 1)</h4>
+        <table class="field-table">
+          <thead><tr><th>Field</th><th>Bytes</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td>node_type</td><td>0–0 (1B)</td><td>1 = internal</td></tr>
+            <tr><td>is_root</td><td>1–1 (1B)</td><td>1 if root page</td></tr>
+            <tr><td>parent_ptr</td><td>2–5 (4B)</td><td>page # of parent</td></tr>
+            <tr><td>num_keys</td><td>6–9 (4B)</td><td>number of keys</td></tr>
+            <tr><td>right_child</td><td>10–13 (4B)</td><td>rightmost child ptr</td></tr>
+            <tr><td>cell[0].child</td><td>14–17 (4B)</td><td>left child page #</td></tr>
+            <tr><td>cell[0].key</td><td>18–21 (4B)</td><td>separator key</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Leaf Node: Byte Map (4096 byte page)</div>
+    <div class="card" style="--i:2">
+      <div class="byte-map">
+        <div class="byte" style="width:56px"><span class="offset">B0</span><span class="label b-type">node_type</span></div>
+        <div class="byte" style="width:56px"><span class="offset">B1</span><span class="label b-root">is_root</span></div>
+        <div class="byte" style="width:100px"><span class="offset">B2–5</span><span class="label b-parent">parent_ptr (u32)</span></div>
+        <div class="byte" style="width:100px"><span class="offset">B6–9</span><span class="label b-count">num_cells (u32)</span></div>
+        <div class="byte" style="width:64px"><span class="offset">B10–13</span><span class="label b-key">key[0]</span></div>
+        <div class="byte" style="width:200px"><span class="offset">B14–306</span><span class="label b-row">row_data[0] (293 bytes)</span></div>
+        <div class="byte" style="width:64px"><span class="offset">B307–310</span><span class="label b-key">key[1]</span></div>
+        <div class="byte" style="width:200px"><span class="offset">B311–603</span><span class="label b-row">row_data[1] (293 bytes)</span></div>
+        <div class="byte" style="width:120px"><span class="offset">B604–4095</span><span class="label b-empty">… up to 13 cells …</span></div>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--amber)"></div>Key / node_type</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>Row data / is_root</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--violet)"></div>Pointer</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div>Count</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#6b7694"></div>Unused</div>
+      </div>
+      <div class="insight" style="margin-top:14px"><strong>Capacity:</strong> (4096 − 10 header bytes) ÷ 297 bytes per cell = <strong style="color:var(--amber)">13 cells max</strong> per leaf. When cell 14 arrives, the leaf splits.</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Rust Struct Definitions</div>
+    <div class="card" style="--i:3">
+<pre><span class="cm">// Common node header — sits at byte 0 of every page</span>
+<span class="cm">// Offsets are computed as const usize values</span>
+
+<span class="kw">const</span> <span class="ty">NODE_TYPE_OFFSET</span>:   <span class="ty">usize</span> = <span class="num">0</span>;
+<span class="kw">const</span> <span class="ty">IS_ROOT_OFFSET</span>:     <span class="ty">usize</span> = <span class="num">1</span>;
+<span class="kw">const</span> <span class="ty">PARENT_PTR_OFFSET</span>:  <span class="ty">usize</span> = <span class="num">2</span>;
+<span class="kw">const</span> <span class="ty">COMMON_HEADER_SIZE</span>: <span class="ty">usize</span> = <span class="num">6</span>;
+
+<span class="cm">// Leaf node header (follows common header)</span>
+<span class="kw">const</span> <span class="ty">LEAF_NODE_NUM_CELLS_OFFSET</span>: <span class="ty">usize</span> = <span class="ty">COMMON_HEADER_SIZE</span>;
+<span class="kw">const</span> <span class="ty">LEAF_NODE_HEADER_SIZE</span>:     <span class="ty">usize</span> = <span class="ty">COMMON_HEADER_SIZE</span> + <span class="num">4</span>;
+
+<span class="cm">// Leaf cell layout</span>
+<span class="kw">const</span> <span class="ty">LEAF_NODE_KEY_SIZE</span>:   <span class="ty">usize</span> = <span class="num">4</span>;
+<span class="kw">const</span> <span class="ty">LEAF_NODE_VALUE_SIZE</span>: <span class="ty">usize</span> = <span class="num">293</span>; <span class="cm">// serialized Row</span>
+<span class="kw">const</span> <span class="ty">LEAF_NODE_CELL_SIZE</span>:  <span class="ty">usize</span> = <span class="ty">LEAF_NODE_KEY_SIZE</span> + <span class="ty">LEAF_NODE_VALUE_SIZE</span>;
+<span class="kw">const</span> <span class="ty">LEAF_NODE_MAX_CELLS</span>:  <span class="ty">usize</span> = (<span class="ty">PAGE_SIZE</span> - <span class="ty">LEAF_NODE_HEADER_SIZE</span>) / <span class="ty">LEAF_NODE_CELL_SIZE</span>;
+
+<span class="cm">// Internal node header</span>
+<span class="kw">const</span> <span class="ty">INTERNAL_NODE_NUM_KEYS_OFFSET</span>:    <span class="ty">usize</span> = <span class="ty">COMMON_HEADER_SIZE</span>;
+<span class="kw">const</span> <span class="ty">INTERNAL_NODE_RIGHT_CHILD_OFFSET</span>: <span class="ty">usize</span> = <span class="ty">COMMON_HEADER_SIZE</span> + <span class="num">4</span>;
+<span class="kw">const</span> <span class="ty">INTERNAL_NODE_HEADER_SIZE</span>:        <span class="ty">usize</span> = <span class="ty">COMMON_HEADER_SIZE</span> + <span class="num">8</span>;
+
+<span class="cm">// Internal cell = child_ptr (4) + key (4)</span>
+<span class="kw">const</span> <span class="ty">INTERNAL_NODE_KEY_SIZE</span>:   <span class="ty">usize</span> = <span class="num">4</span>;
+<span class="kw">const</span> <span class="ty">INTERNAL_NODE_CHILD_SIZE</span>: <span class="ty">usize</span> = <span class="num">4</span>;
+<span class="kw">const</span> <span class="ty">INTERNAL_NODE_CELL_SIZE</span>:  <span class="ty">usize</span> = <span class="ty">INTERNAL_NODE_CHILD_SIZE</span> + <span class="ty">INTERNAL_NODE_KEY_SIZE</span>;
+
+<span class="cm">// Helper: pointer to key field of leaf cell N</span>
+<span class="kw">fn</span> <span class="ty">leaf_node_key</span>(page: &<span class="kw">mut</span> [<span class="ty">u8</span>], cell_num: <span class="ty">usize</span>) -> &<span class="kw">mut</span> [<span class="ty">u8</span>] {
+    <span class="kw">let</span> offset = <span class="ty">LEAF_NODE_HEADER_SIZE</span> + cell_num * <span class="ty">LEAF_NODE_CELL_SIZE</span>;
+    &<span class="kw">mut</span> page[offset..offset + <span class="ty">LEAF_NODE_KEY_SIZE</span>]
+}</pre>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Why Fixed-Size Cells Win for a Toy DB</div>
+    <div class="two-col">
+      <div class="card good" style="--i:4;border-top:2px solid var(--green)">
+        <h3 style="font-size:15px;margin-bottom:8px">Zero fragmentation tracking</h3>
+        <p style="font-size:14px;color:var(--dim)">Cell N is always at <code style="color:var(--violet);font-family:'JetBrains Mono',monospace">HEADER + N*CELL_SIZE</code>. No free list, no compaction, no slot directory needed.</p>
+      </div>
+      <div class="card good" style="--i:5;border-top:2px solid var(--green)">
+        <h3 style="font-size:15px;margin-bottom:8px">Predictable split math</h3>
+        <p style="font-size:14px;color:var(--dim)">When full, split exactly at <code style="color:var(--violet);font-family:'JetBrains Mono',monospace">MAX_CELLS/2</code>. No need to account for variable lengths when choosing the split point.</p>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

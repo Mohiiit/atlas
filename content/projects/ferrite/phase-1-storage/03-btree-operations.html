@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>B-Tree Operations | Ferrite Phase 1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0b0e14; --surface: #111520; --surface2: #161b2e;
+    --text: #e8ecf4; --dim: #6b7694; --border: rgba(255,255,255,0.06);
+    --amber: #f59e0b; --amber-dim: rgba(245,158,11,0.12);
+    --violet: #a78bfa; --violet-dim: rgba(167,139,250,0.12);
+    --green: #34d399; --red: #f87171; --blue: #60a5fa; --teal: #2dd4bf;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f4f6fb; --surface: #ffffff; --surface2: #eef1f8;
+      --text: #0f1323; --dim: #5a6380; --border: rgba(0,0,0,0.08); }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Space Grotesk', sans-serif;
+    font-size: 16px; line-height: 1.7; padding: 40px 20px 80px; }
+  .container { max-width: 900px; margin: 0 auto; }
+  .badge { display: inline-flex; align-items: center; gap: 8px; background: var(--amber-dim);
+    color: var(--amber); border: 1px solid rgba(245,158,11,0.25); border-radius: 20px;
+    padding: 4px 14px; font-size: 12px; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; margin-bottom: 20px; }
+  h1 { font-size: clamp(26px, 5vw, 40px); font-weight: 700; line-height: 1.15; margin-bottom: 12px; }
+  h1 span { color: var(--amber); }
+  .subtitle { color: var(--dim); font-size: 17px; max-width: 640px; margin-bottom: 48px; }
+  .section { margin-bottom: 48px; }
+  .section-title { font-size: 19px; font-weight: 600; margin-bottom: 18px;
+    display: flex; align-items: center; gap: 10px; }
+  .section-title::before { content: ''; display: block; width: 4px; height: 20px;
+    background: var(--amber); border-radius: 2px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 13px;
+    padding: 24px 28px; margin-bottom: 20px; opacity: 0; animation: fadeUp 0.5s ease forwards;
+    animation-delay: calc(var(--i, 0) * 0.07s); }
+  .mermaid-card { background: var(--surface); border: 1px solid var(--border); border-radius: 13px;
+    padding: 24px; margin-bottom: 24px; opacity: 0; animation: fadeUp 0.5s ease forwards;
+    animation-delay: 0.14s; overflow-x: auto; }
+  pre { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 18px 22px; overflow-x: auto; font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; line-height: 1.8; }
+  .kw  { color: var(--amber); }
+  .ty  { color: var(--violet); }
+  .cm  { color: var(--dim); font-style: italic; }
+  .st  { color: var(--green); }
+  .num { color: var(--blue); }
+  .insight { background: var(--amber-dim); border: 1px solid rgba(245,158,11,0.2);
+    border-radius: 10px; padding: 14px 18px; font-size: 14px; margin-top: 16px; }
+  .insight strong { color: var(--amber); }
+  /* Split diagram */
+  .split-diagram { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px;
+    align-items: center; margin: 20px 0; }
+  .tree-node { background: var(--surface2); border: 1px solid var(--border); border-radius: 9px;
+    padding: 14px 16px; }
+  .tree-node .title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--dim); margin-bottom: 8px; }
+  .cells-row { display: flex; flex-wrap: wrap; gap: 4px; }
+  .cell-box { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600;
+    padding: 4px 8px; border-radius: 4px; }
+  .cell-full { background: rgba(248,113,113,0.15); color: var(--red); }
+  .cell-left { background: rgba(96,165,250,0.15); color: var(--blue); }
+  .cell-right { background: rgba(52,211,153,0.15); color: var(--green); }
+  .cell-new   { background: rgba(245,158,11,0.2); color: var(--amber); border: 1px dashed var(--amber); }
+  .arrow-label { font-family: 'JetBrains Mono', monospace; font-size: 22px;
+    color: var(--amber); text-align: center; }
+  .parent-node { background: var(--violet-dim); border: 1px solid rgba(167,139,250,0.25);
+    border-radius: 9px; padding: 10px 14px; margin-bottom: 10px; text-align: center; }
+  .parent-node .pk { font-family: 'JetBrains Mono', monospace; font-size: 13px;
+    color: var(--violet); font-weight: 600; }
+  .step-list { counter-reset: step; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .step-list li { counter-increment: step; display: flex; align-items: flex-start; gap: 14px;
+    font-size: 14px; }
+  .step-list li::before { content: counter(step); min-width: 26px; height: 26px; border-radius: 50%;
+    background: var(--amber-dim); color: var(--amber); font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 600px) { .two-col { grid-template-columns: 1fr; }
+    .split-diagram { grid-template-columns: 1fr; } }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="badge">Phase 1 · Storage Engines</div>
+  <h1>B-Tree <span>Operations</span></h1>
+  <p class="subtitle">Three operations define a B-Tree: search, insert, and split. The first two are straightforward. The split is where the real engineering lives.</p>
+
+  <!-- SEARCH -->
+  <div class="section">
+    <div class="section-title">Search: Walk the Tree to a Leaf</div>
+    <div class="mermaid-card">
+      <div class="mermaid">
+flowchart TD
+  S([Start: root page]):::start --> Q{Internal or Leaf?}
+  Q -->|Internal| BIN[Binary search keys in node<br/>find child pointer]:::op
+  BIN --> LOAD[Load child page from pager]:::op
+  LOAD --> Q
+  Q -->|Leaf| BSEARCH[Binary search cells in leaf]:::op
+  BSEARCH --> FOUND{Key found?}
+  FOUND -->|Yes| RET([Return cursor at cell]):::done
+  FOUND -->|No| INS([Return insertion point cursor]):::done
+classDef start fill:#1e2540,stroke:#60a5fa,color:#e8ecf4
+classDef op fill:#1a1f30,stroke:#6b7694,color:#e8ecf4
+classDef done fill:#1a2a1a,stroke:#34d399,color:#e8ecf4
+      </div>
+    </div>
+    <div class="card" style="--i:1">
+<pre><span class="cm">// Search returns a Cursor pointing to the key or its insertion slot</span>
+<span class="kw">fn</span> <span class="ty">table_find</span>(table: &<span class="kw">mut</span> <span class="ty">Table</span>, key: <span class="ty">u32</span>) -> <span class="ty">Cursor</span> {
+    <span class="kw">let</span> root_page_num = table.root_page_num;
+    <span class="kw">let</span> root_node = table.pager.get_page(root_page_num);
+    <span class="kw">if</span> get_node_type(root_node) == <span class="ty">NodeType::Leaf</span> {
+        leaf_node_find(table, root_page_num, key)
+    } <span class="kw">else</span> {
+        internal_node_find(table, root_page_num, key)
+    }
+}
+
+<span class="kw">fn</span> <span class="ty">leaf_node_find</span>(table: &<span class="kw">mut</span> <span class="ty">Table</span>, page_num: <span class="ty">u32</span>, key: <span class="ty">u32</span>) -> <span class="ty">Cursor</span> {
+    <span class="kw">let</span> node = table.pager.get_page(page_num);
+    <span class="kw">let</span> num_cells = *leaf_node_num_cells(node);
+    <span class="cm">// Binary search over cells</span>
+    <span class="kw">let</span> (low, high) = (<span class="num">0</span>, num_cells);
+    <span class="cm">// ... binary search yields cell_num</span>
+    <span class="ty">Cursor</span> { table, page_num, cell_num, end_of_table: <span class="kw">false</span> }
+}</pre>
+    </div>
+  </div>
+
+  <!-- INSERT -->
+  <div class="section">
+    <div class="section-title">Insert: Find Leaf, Shift, Write</div>
+    <div class="two-col">
+      <div class="card" style="--i:0">
+        <h3 style="font-size:15px;font-weight:600;margin-bottom:12px;color:var(--blue)">Happy path (leaf not full)</h3>
+        <ol class="step-list">
+          <li>Run search to find insertion cursor</li>
+          <li>Shift cells at and after cursor right by one slot</li>
+          <li>Write key + serialized row at cursor position</li>
+          <li>Increment <code style="font-family:'JetBrains Mono',monospace;color:var(--violet)">num_cells</code></li>
+        </ol>
+        <div class="insight" style="margin-top:14px"><strong>Cost:</strong> O(log n) to find the leaf, O(k) to shift at most k = MAX_CELLS cells. Since k is bounded by page capacity, it's effectively O(1) amortized.</div>
+      </div>
+      <div class="card" style="--i:1">
+        <h3 style="font-size:15px;font-weight:600;margin-bottom:12px;color:var(--red)">Sad path (leaf is full)</h3>
+        <ol class="step-list">
+          <li>Run search to find insertion cursor</li>
+          <li>Leaf is full — call <code style="font-family:'JetBrains Mono',monospace;color:var(--amber)">leaf_node_split_and_insert</code></li>
+          <li>Distribute N+1 cells across two nodes</li>
+          <li>Update parent with new separator key + child pointer</li>
+        </ol>
+        <div class="insight" style="margin-top:14px"><strong>Cost:</strong> O(log n) for the split propagation up the tree. Root splits are rarest — they increase tree height by exactly 1.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SPLIT -->
+  <div class="section">
+    <div class="section-title">Leaf Split: Step by Step</div>
+    <div class="card" style="--i:0">
+      <div style="font-size:14px;color:var(--dim);margin-bottom:18px">When a leaf has MAX_CELLS = 13 and a 14th insert arrives, we split. The N+1 = 14 cells are distributed: 7 go to the left node, 7 go to the new right node.</div>
+
+      <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.07em;color:var(--dim);margin-bottom:8px">Before: full leaf (13 cells) + incoming key 11</div>
+      <div class="tree-node" style="margin-bottom:16px">
+        <div class="title">Leaf (full) — parent knows max key = 13</div>
+        <div class="cells-row">
+          <div class="cell-box cell-full">1</div><div class="cell-box cell-full">2</div>
+          <div class="cell-box cell-full">3</div><div class="cell-box cell-full">4</div>
+          <div class="cell-box cell-full">5</div><div class="cell-box cell-full">6</div>
+          <div class="cell-box cell-full">7</div><div class="cell-box cell-full">8</div>
+          <div class="cell-box cell-full">9</div><div class="cell-box cell-full">10</div>
+          <div class="cell-box cell-full">12</div><div class="cell-box cell-full">13</div>
+          <div class="cell-box cell-full">14</div>
+          <div class="cell-box cell-new">11 ← new</div>
+        </div>
+      </div>
+
+      <div class="arrow-label" style="text-align:center;margin:12px 0">↓ split &amp; insert</div>
+
+      <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.07em;color:var(--dim);margin-bottom:8px">After: two half-full leaves, parent updated</div>
+      <div class="parent-node"><span class="pk">separator key: 7 | left_child → page A | right_child → page B</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="tree-node">
+          <div class="title">Left leaf (page A) — 7 cells</div>
+          <div class="cells-row">
+            <div class="cell-box cell-left">1</div><div class="cell-box cell-left">2</div>
+            <div class="cell-box cell-left">3</div><div class="cell-box cell-left">4</div>
+            <div class="cell-box cell-left">5</div><div class="cell-box cell-left">6</div>
+            <div class="cell-box cell-left">7</div>
+          </div>
+        </div>
+        <div class="tree-node">
+          <div class="title">Right leaf (page B) — 7 cells</div>
+          <div class="cells-row">
+            <div class="cell-box cell-right">8</div><div class="cell-box cell-right">9</div>
+            <div class="cell-box cell-right">10</div><div class="cell-box cell-right cell-new">11</div>
+            <div class="cell-box cell-right">12</div><div class="cell-box cell-right">13</div>
+            <div class="cell-box cell-right">14</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROOT SPLIT -->
+  <div class="section">
+    <div class="section-title">Root Split: Growing the Tree Upward</div>
+    <div class="mermaid-card" style="animation-delay:0.21s">
+      <div class="mermaid">
+flowchart LR
+  subgraph Before["Before root split"]
+    direction TB
+    OR["Root Leaf (full)"]:::full
+  end
+  subgraph After["After root split"]
+    direction TB
+    NR["New Root (Internal)\nkey: max(left)"]:::internal
+    NL["Left Leaf\n(old root data, first half)"]:::leaf
+    NRL["Right Leaf\n(new page, second half)"]:::leaf
+    NR --> NL
+    NR --> NRL
+  end
+  Before --> |"split_root()"| After
+classDef full fill:#2a1515,stroke:#f87171,color:#e8ecf4
+classDef internal fill:#1e2540,stroke:#a78bfa,color:#e8ecf4
+classDef leaf fill:#1a2a1a,stroke:#34d399,color:#e8ecf4
+      </div>
+    </div>
+    <div class="card" style="--i:2">
+<pre><span class="kw">fn</span> <span class="ty">create_new_root</span>(table: &<span class="kw">mut</span> <span class="ty">Table</span>, right_child_page_num: <span class="ty">u32</span>) {
+    <span class="cm">// The old root becomes the left child</span>
+    <span class="kw">let</span> left_child_page_num = table.pager.get_unused_page_num();
+    <span class="cm">// Copy old root bytes to left_child_page</span>
+    copy_page(table, table.root_page_num, left_child_page_num);
+
+    <span class="cm">// Re-initialize root page as an internal node</span>
+    <span class="kw">let</span> root = table.pager.get_page(table.root_page_num);
+    initialize_internal_node(root);
+    set_node_root(root, <span class="kw">true</span>);
+    *internal_node_num_keys(root) = <span class="num">1</span>;
+    *internal_node_right_child(root) = right_child_page_num;
+
+    <span class="cm">// Left child separator key = max key of left child</span>
+    <span class="kw">let</span> left_max = get_node_max_key(table.pager.get_page(left_child_page_num));
+    *internal_node_key(root, <span class="num">0</span>) = left_max;
+    *internal_node_child(root, <span class="num">0</span>) = left_child_page_num;
+
+    <span class="cm">// Update parent pointers on both children</span>
+    set_parent(table.pager.get_page(left_child_page_num),  table.root_page_num);
+    set_parent(table.pager.get_page(right_child_page_num), table.root_page_num);
+}</pre>
+      <div class="insight"><strong>Root split is special:</strong> we can never move the root to a new page (page 0 is always root by convention). Instead, copy the old root contents to a fresh page (which becomes the left child), then reinitialize page 0 as the new internal root. Tree height increases by exactly 1.</div>
+    </div>
+  </div>
+
+  <!-- SPLIT CONSTANTS -->
+  <div class="section">
+    <div class="section-title">Split Distribution Constants</div>
+    <div class="card" style="--i:3">
+<pre><span class="kw">const</span> <span class="ty">LEAF_NODE_MAX_CELLS</span>: <span class="ty">usize</span> = <span class="num">13</span>;
+
+<span class="cm">// Distribute N+1 cells: right gets floor, left gets ceiling</span>
+<span class="kw">const</span> <span class="ty">LEAF_NODE_RIGHT_SPLIT_COUNT</span>: <span class="ty">usize</span> = (<span class="ty">LEAF_NODE_MAX_CELLS</span> + <span class="num">1</span>) / <span class="num">2</span>;    <span class="cm">// 7</span>
+<span class="kw">const</span> <span class="ty">LEAF_NODE_LEFT_SPLIT_COUNT</span>:  <span class="ty">usize</span> = (<span class="ty">LEAF_NODE_MAX_CELLS</span> + <span class="num">1</span>) - <span class="ty">LEAF_NODE_RIGHT_SPLIT_COUNT</span>; <span class="cm">// 7</span>
+
+<span class="cm">// Internal node branching factor:</span>
+<span class="cm">// (PAGE_SIZE - INTERNAL_HEADER) / CELL_SIZE = (4096 - 14) / 8 ≈ 510 keys</span>
+<span class="cm">// Each internal node can point to ~511 children</span>
+<span class="cm">// Depth-3 tree: 511^3 ≈ 133 billion leaf entries</span></pre>
+    </div>
+  </div>
+</div>
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'dark',
+    themeVariables: { background: '#111520', primaryColor: '#1e2540', primaryTextColor: '#e8ecf4',
+      lineColor: '#6b7694', edgeLabelBackground: '#111520', clusterBkg: '#161b2e' } });
+</script>
+</body>
+</html>

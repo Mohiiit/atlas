@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Why B-Trees? | Ferrite Phase 1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0b0e14; --surface: #111520; --surface2: #161b2e;
+    --text: #e8ecf4; --dim: #6b7694; --border: rgba(255,255,255,0.06);
+    --amber: #f59e0b; --amber-dim: rgba(245,158,11,0.12);
+    --violet: #a78bfa; --violet-dim: rgba(167,139,250,0.12);
+    --green: #34d399; --red: #f87171; --blue: #60a5fa;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f4f6fb; --surface: #ffffff; --surface2: #eef1f8;
+      --text: #0f1323; --dim: #5a6380; --border: rgba(0,0,0,0.08); }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Space Grotesk', sans-serif;
+    font-size: 16px; line-height: 1.7; padding: 40px 20px 80px; }
+  .container { max-width: 900px; margin: 0 auto; }
+  .badge { display: inline-flex; align-items: center; gap: 8px; background: var(--amber-dim);
+    color: var(--amber); border: 1px solid rgba(245,158,11,0.25); border-radius: 20px;
+    padding: 4px 14px; font-size: 12px; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; margin-bottom: 20px; }
+  h1 { font-size: clamp(28px, 5vw, 42px); font-weight: 700; line-height: 1.15; margin-bottom: 12px; }
+  h1 span { color: var(--amber); }
+  .subtitle { color: var(--dim); font-size: 17px; max-width: 600px; margin-bottom: 48px; }
+  .section-title { font-size: 20px; font-weight: 600; margin-bottom: 16px; display: flex;
+    align-items: center; gap: 10px; }
+  .section-title::before { content: ''; display: block; width: 4px; height: 20px;
+    background: var(--amber); border-radius: 2px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 40px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 13px;
+    padding: 24px; opacity: 0; animation: fadeUp 0.5s ease forwards;
+    animation-delay: calc(var(--i, 0) * 0.07s); }
+  .card.bad { border-top: 2px solid var(--red); }
+  .card.good { border-top: 2px solid var(--green); }
+  .card-icon { font-size: 22px; margin-bottom: 12px; }
+  .card h3 { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+  .card p { font-size: 14px; color: var(--dim); line-height: 1.6; }
+  .card .complexity { font-family: 'JetBrains Mono', monospace; font-size: 13px;
+    margin-top: 10px; padding: 6px 10px; border-radius: 6px; display: inline-block; }
+  .bad .complexity { background: rgba(248,113,113,0.12); color: var(--red); }
+  .good .complexity { background: rgba(52,211,153,0.12); color: var(--green); }
+  .diagram-card { background: var(--surface); border: 1px solid var(--border); border-radius: 13px;
+    padding: 28px; margin-bottom: 40px; opacity: 0; animation: fadeUp 0.5s ease forwards; animation-delay: 0.28s; }
+  .mermaid { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  thead tr { border-bottom: 1px solid var(--border); }
+  th { text-align: left; padding: 10px 14px; color: var(--dim); font-weight: 500;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  td:first-child { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--violet); }
+  .op-good { color: var(--green); font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+  .op-bad  { color: var(--red);   font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+  .op-mid  { color: var(--amber); font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+  .props-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 40px; }
+  .prop { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px; opacity: 0; animation: fadeUp 0.5s ease forwards; animation-delay: calc(var(--i, 0) * 0.07s + 0.3s); }
+  .prop-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); margin-bottom: 6px; }
+  .prop-value { font-size: 14px; font-weight: 600; color: var(--amber); }
+  .insight { background: var(--amber-dim); border: 1px solid rgba(245,158,11,0.2); border-radius: 10px;
+    padding: 16px 20px; margin-top: 20px; font-size: 14px; color: var(--text); }
+  .insight strong { color: var(--amber); }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+  .section { margin-bottom: 44px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="badge">Phase 1 · Storage Engines</div>
+  <h1>Why <span>B-Trees</span>?</h1>
+  <p class="subtitle">Every database picks a core data structure. Understanding what goes wrong with simpler choices explains exactly why B-Trees dominate disk-based storage.</p>
+
+  <div class="section">
+    <div class="section-title">The Alternatives and Their Problems</div>
+    <div class="grid-3">
+      <div class="card bad" style="--i:0">
+        <div class="card-icon">📋</div>
+        <h3>Sorted Array</h3>
+        <p>Binary search gives fast lookups, but every insert must shift all elements after the insertion point. Deletes are equally brutal.</p>
+        <div class="complexity">Insert: O(n) shifts</div>
+      </div>
+      <div class="card bad" style="--i:1">
+        <div class="card-icon">#</div>
+        <h3>Hash Map</h3>
+        <p>O(1) lookups are great, but hash maps are fundamentally unordered. Range queries like <code>WHERE id BETWEEN 100 AND 200</code> require a full scan.</p>
+        <div class="complexity">Range query: O(n)</div>
+      </div>
+      <div class="card bad" style="--i:2">
+        <div class="card-icon">🌲</div>
+        <h3>Binary Search Tree</h3>
+        <p>Ordered and fast in theory. But sequential inserts produce a degenerate chain — every node has one child and height becomes O(n).</p>
+        <div class="complexity">Worst case: O(n) depth</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Operation Complexity Comparison</div>
+    <div class="diagram-card" style="--i:3">
+      <table>
+        <thead><tr><th>Operation</th><th>Sorted Array</th><th>Hash Map</th><th>BST (avg)</th><th>B-Tree</th></tr></thead>
+        <tbody>
+          <tr><td>Search</td><td class="op-mid">O(log n)</td><td class="op-good">O(1)</td><td class="op-mid">O(log n)</td><td class="op-good">O(log n)</td></tr>
+          <tr><td>Insert</td><td class="op-bad">O(n)</td><td class="op-good">O(1)</td><td class="op-mid">O(log n)</td><td class="op-good">O(log n)</td></tr>
+          <tr><td>Delete</td><td class="op-bad">O(n)</td><td class="op-good">O(1)</td><td class="op-mid">O(log n)</td><td class="op-good">O(log n)</td></tr>
+          <tr><td>Range Query</td><td class="op-mid">O(log n + k)</td><td class="op-bad">O(n)</td><td class="op-mid">O(log n + k)</td><td class="op-good">O(log n + k)</td></tr>
+          <tr><td>Guaranteed height</td><td class="op-bad">N/A</td><td class="op-bad">N/A</td><td class="op-bad">O(n) worst</td><td class="op-good">O(log n) always</td></tr>
+          <tr><td>Disk page locality</td><td class="op-bad">Poor</td><td class="op-bad">Poor</td><td class="op-bad">Poor</td><td class="op-good">Excellent</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">B-Tree Structure and the Branching Factor</div>
+    <div class="diagram-card">
+      <div class="mermaid">
+graph TD
+  R["Root (Internal Node)<br/>keys: [20, 40]"]:::internal
+  A["Internal<br/>keys: [10, 15]"]:::internal
+  B["Internal<br/>keys: [25, 35]"]:::internal
+  C["Internal<br/>keys: [45, 55]"]:::internal
+  L1["Leaf<br/>1,5,8"]:::leaf
+  L2["Leaf<br/>11,13"]:::leaf
+  L3["Leaf<br/>16,18"]:::leaf
+  L4["Leaf<br/>21,24"]:::leaf
+  L5["Leaf<br/>26,30"]:::leaf
+  L6["Leaf<br/>41,43"]:::leaf
+  R --> A; R --> B; R --> C
+  A --> L1; A --> L2; A --> L3
+  B --> L4; B --> L5; B --> L6
+classDef internal fill:#1e2540,stroke:#a78bfa,stroke-width:1.5px,color:#e8ecf4
+classDef leaf fill:#1a2a1a,stroke:#34d399,stroke-width:1.5px,color:#e8ecf4
+      </div>
+      <div class="insight"><strong>Key property:</strong> All leaf nodes are at the same depth. The tree is always balanced — not by luck, but by the split algorithm enforcing it on every insert.</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">The Disk Locality Advantage</div>
+    <div class="props-grid">
+      <div class="prop" style="--i:0"><div class="prop-label">Page size</div><div class="prop-value">4,096 bytes</div></div>
+      <div class="prop" style="--i:1"><div class="prop-label">Branching factor (order)</div><div class="prop-value">~511 keys</div></div>
+      <div class="prop" style="--i:2"><div class="prop-label">Max keys at depth 3</div><div class="prop-value">~134 billion</div></div>
+      <div class="prop" style="--i:3"><div class="prop-label">Disk reads for 500 GB DB</div><div class="prop-value">4 pages</div></div>
+    </div>
+    <div class="diagram-card" style="animation-delay:0.35s">
+      <div class="section-title" style="margin-bottom:14px">B-Tree vs B+ Tree (SQLite uses B+ Tree)</div>
+      <table>
+        <thead><tr><th>Property</th><th>B-Tree</th><th>B+ Tree (SQLite)</th></tr></thead>
+        <tbody>
+          <tr><td>Data stored in</td><td class="op-mid">All nodes</td><td class="op-good">Leaves only</td></tr>
+          <tr><td>Internal nodes hold</td><td class="op-mid">Keys + data</td><td class="op-good">Keys only (smaller, more branching)</td></tr>
+          <tr><td>Leaf linking</td><td class="op-bad">Not linked</td><td class="op-good">Leaves form a linked list</td></tr>
+          <tr><td>Range scans</td><td class="op-bad">Requires tree traversal</td><td class="op-good">Walk the leaf chain — no backtracking</td></tr>
+          <tr><td>Branching factor</td><td class="op-mid">Lower (data in all nodes)</td><td class="op-good">Higher (internal nodes are pure keys)</td></tr>
+        </tbody>
+      </table>
+      <div class="insight" style="margin-top:16px"><strong>Why it matters for SQLite:</strong> Because internal nodes store only keys (no row data), they pack more keys per page. A higher branching factor means shallower trees and fewer disk reads per query.</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">The Core Insight</div>
+    <div class="grid-3">
+      <div class="card good" style="--i:0">
+        <div class="card-icon">📀</div>
+        <h3>One Node = One Page</h3>
+        <p>Each B-Tree node maps exactly to a 4096-byte disk page. A single disk read fetches an entire node. No partial reads, no wasted I/O.</p>
+      </div>
+      <div class="card good" style="--i:1">
+        <div class="card-icon">⚖️</div>
+        <h3>Self-Balancing</h3>
+        <p>The split algorithm guarantees every leaf stays at the same depth. Height is always O(log<sub>b</sub> n) where b is the branching factor — typically 100–500.</p>
+      </div>
+      <div class="card good" style="--i:2">
+        <div class="card-icon">🔗</div>
+        <h3>Leaf Chaining</h3>
+        <p>In a B+ Tree, leaves are linked in sorted order. Range scans become sequential reads — the most efficient access pattern possible on spinning disk and SSD alike.</p>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'dark',
+    themeVariables: { background: '#111520', primaryColor: '#1e2540', primaryTextColor: '#e8ecf4',
+      lineColor: '#6b7694', edgeLabelBackground: '#111520' } });
+</script>
+</body>
+</html>

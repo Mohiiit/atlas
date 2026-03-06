@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQLite Architecture — Phase 0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0b0e14; --surface: #111520; --surface2: #161b28;
+    --text: #e8ecf4; --dim: #6b7694; --border: rgba(255,255,255,0.06);
+    --accent: #4f8ef7; --accent2: #a78bfa; --green: #34d399;
+    --amber: #fbbf24; --red: #f87171; --cyan: #22d3ee;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f4f6fb; --surface: #ffffff; --surface2: #eef1f8;
+      --text: #111520; --dim: #5a6480; --border: rgba(0,0,0,0.08);
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    line-height: 1.65; font-size: 15px;
+    padding: 40px 20px 80px;
+  }
+  .wrapper { max-width: 900px; margin: 0 auto; }
+  .phase-tag {
+    display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--accent); background: rgba(79,142,247,0.1);
+    border: 1px solid rgba(79,142,247,0.2); border-radius: 6px; padding: 3px 10px; margin-bottom: 16px;
+  }
+  h1 { font-size: clamp(26px, 5vw, 38px); font-weight: 700; line-height: 1.2; margin-bottom: 10px; }
+  .subtitle { color: var(--dim); font-size: 16px; margin-bottom: 48px; max-width: 580px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 24px 28px;
+    opacity: 0; transform: translateY(18px);
+    animation: fadeUp 0.45s ease forwards;
+    animation-delay: calc(var(--i) * 0.07s);
+  }
+  @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
+  .section-label { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); margin-bottom: 18px; }
+  h2 { font-size: 20px; font-weight: 600; margin-bottom: 12px; }
+  p { color: var(--dim); font-size: 14px; line-height: 1.7; }
+  p strong { color: var(--text); }
+  .gap { height: 28px; }
+  .gap-sm { height: 14px; }
+
+  /* Layer table */
+  .layer-list { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+  .layer-row {
+    display: grid; grid-template-columns: 36px 140px 1fr;
+    align-items: start; gap: 14px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 16px;
+    transition: border-color 0.2s;
+  }
+  .layer-row:hover { border-color: rgba(79,142,247,0.25); }
+  .layer-num {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500;
+    color: var(--dim); padding-top: 2px;
+  }
+  .layer-name { font-size: 13px; font-weight: 600; color: var(--text); }
+  .layer-file { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--dim); margin-top: 2px; }
+  .layer-desc { font-size: 13px; color: var(--dim); line-height: 1.6; }
+  .layer-row.skipped { opacity: 0.55; border-style: dashed; }
+  .layer-row.we-build { border-color: rgba(52,211,153,0.25); background: rgba(52,211,153,0.04); }
+  .badge {
+    display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; border-radius: 4px; padding: 1px 6px; margin-left: 8px; vertical-align: middle;
+  }
+  .badge.skip { background: rgba(251,191,36,0.15); color: var(--amber); }
+  .badge.build { background: rgba(52,211,153,0.15); color: var(--green); }
+  @media (max-width: 580px) {
+    .layer-row { grid-template-columns: 28px 1fr; }
+    .layer-desc { grid-column: 2 / -1; }
+  }
+
+  /* Mermaid container */
+  .diagram-wrap {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 28px 20px; overflow-x: auto; margin-top: 4px;
+  }
+  .mermaid { font-family: 'Space Grotesk', sans-serif !important; }
+
+  /* Query trace */
+  .trace { margin-top: 4px; }
+  .trace-step {
+    display: flex; gap: 16px; align-items: flex-start;
+    padding: 14px 0; border-bottom: 1px solid var(--border);
+  }
+  .trace-step:last-child { border-bottom: none; }
+  .trace-num {
+    flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+    background: rgba(79,142,247,0.15); border: 1px solid rgba(79,142,247,0.3);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: var(--accent);
+  }
+  .trace-layer { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .trace-action { font-size: 13px; color: var(--dim); line-height: 1.6; }
+  .code-inline {
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    background: var(--bg); border-radius: 4px; padding: 1px 5px;
+    color: var(--cyan); border: 1px solid var(--border);
+  }
+
+  /* VDBE callout */
+  .callout {
+    background: rgba(251,191,36,0.05); border: 1px solid rgba(251,191,36,0.2);
+    border-left: 3px solid var(--amber); border-radius: 10px; padding: 16px 20px;
+    margin-top: 20px;
+  }
+  .callout-title { font-size: 12px; font-weight: 700; color: var(--amber); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+  .callout p { font-size: 13px; color: var(--dim); }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <div class="phase-tag">Phase 0 — Foundations · Lesson 2</div>
+  <h1>SQLite's Architecture</h1>
+  <p class="subtitle">Eight layers that take a SQL string and turn it into bytes on disk — and which ones we're actually building.</p>
+
+  <!-- Layer reference -->
+  <div class="card" style="--i:1">
+    <div class="section-label">The Stack</div>
+    <h2>8 layers, top to bottom</h2>
+    <p>Every SQL statement travels through every layer in sequence. The front-end converts text to instructions; the back-end executes them against real storage.</p>
+    <div class="gap-sm"></div>
+    <div class="layer-list">
+      <div class="layer-row">
+        <div class="layer-num">01</div>
+        <div><div class="layer-name">Tokenizer</div><div class="layer-file">tokenize.c</div></div>
+        <div class="layer-desc">Splits the raw SQL string into a flat stream of tokens — keywords, identifiers, literals, punctuation.</div>
+      </div>
+      <div class="layer-row">
+        <div class="layer-num">02</div>
+        <div><div class="layer-name">Parser</div><div class="layer-file">parse.y → lemon</div></div>
+        <div class="layer-desc">Consumes tokens and builds an Abstract Syntax Tree (AST) using a generated Lemon parser. Catches syntax errors here.</div>
+      </div>
+      <div class="layer-row">
+        <div class="layer-num">03</div>
+        <div><div class="layer-name">Code Generator</div><div class="layer-file">select.c, insert.c…</div></div>
+        <div class="layer-desc">Walks the AST and emits VDBE bytecode instructions. Also runs the query planner to pick optimal algorithms.</div>
+      </div>
+      <div class="layer-row skipped">
+        <div class="layer-num">04</div>
+        <div><div class="layer-name">VDBE <span class="badge skip">skip</span></div><div class="layer-file">vdbe.c</div></div>
+        <div class="layer-desc">Virtual Database Engine — a register-based bytecode interpreter. We skip this; our engine interprets the AST directly.</div>
+      </div>
+      <div class="layer-row we-build">
+        <div class="layer-num">05</div>
+        <div><div class="layer-name">B-Tree <span class="badge build">we build</span></div><div class="layer-file">btree.c</div></div>
+        <div class="layer-desc">Organises rows into sorted tree nodes stored across pages. One B-tree per table, one per index.</div>
+      </div>
+      <div class="layer-row we-build">
+        <div class="layer-num">06</div>
+        <div><div class="layer-name">Pager <span class="badge build">we build</span></div><div class="layer-file">pager.c</div></div>
+        <div class="layer-desc">Manages fixed-size 4 KB pages: cache in memory, write dirty pages to disk, handle rollback and WAL.</div>
+      </div>
+      <div class="layer-row we-build">
+        <div class="layer-num">07</div>
+        <div><div class="layer-name">VFS <span class="badge build">simplified</span></div><div class="layer-file">os_unix.c</div></div>
+        <div class="layer-desc">Virtual File System abstraction — provides open, read, write, fsync across platforms. We use Rust's std::fs directly.</div>
+      </div>
+      <div class="layer-row">
+        <div class="layer-num">08</div>
+        <div><div class="layer-name">OS / Kernel</div><div class="layer-file">kernel syscalls</div></div>
+        <div class="layer-desc">The actual file I/O via kernel syscalls. Below our abstraction boundary.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="gap"></div>
+
+  <!-- Mermaid diagram -->
+  <div class="card" style="--i:2">
+    <div class="section-label">Data Flow</div>
+    <h2>Layer diagram</h2>
+    <p>SQL enters at the top and raw bytes exit at the bottom. The dashed boundary separates the <strong>compiler front-end</strong> from the <strong>storage back-end</strong>.</p>
+    <div class="gap-sm"></div>
+    <div class="diagram-wrap">
+      <div class="mermaid">
+%%{init: {"theme": "base", "themeVariables": {
+  "primaryColor": "#161b28",
+  "primaryTextColor": "#e8ecf4",
+  "primaryBorderColor": "rgba(255,255,255,0.1)",
+  "lineColor": "#4f8ef7",
+  "secondaryColor": "#111520",
+  "tertiaryColor": "#0b0e14",
+  "background": "#0b0e14",
+  "mainBkg": "#161b28",
+  "nodeBorder": "rgba(255,255,255,0.1)",
+  "clusterBkg": "#111520",
+  "titleColor": "#e8ecf4",
+  "edgeLabelBackground": "#111520",
+  "fontFamily": "Space Grotesk"
+}}}%%
+flowchart TD
+    SQL["SQL String\nINSERT INTO users VALUES (1, 'alice')"]:::input
+    TOK["① Tokenizer\nINSERT · INTO · users · VALUES · ( · 1 · , · 'alice' · )"]:::front
+    PAR["② Parser\nAbstract Syntax Tree"]:::front
+    GEN["③ Code Generator + Query Planner\nVDBE bytecode instructions"]:::front
+    VDB["④ VDBE — Virtual Machine\nexecutes bytecode ops"]:::skip
+    BT["⑤ B-Tree\ntraverse / modify tree nodes"]:::back
+    PG["⑥ Pager\nfetch / cache / write pages"]:::back
+    VFS["⑦ VFS\nfile open / read / write / sync"]:::back
+    OS["OS Kernel\nsyscalls: pread · pwrite · fsync"]:::os
+
+    SQL --> TOK --> PAR --> GEN --> VDB --> BT --> PG --> VFS --> OS
+
+    classDef input fill:#1a2035,stroke:#4f8ef7,stroke-width:2px,color:#e8ecf4
+    classDef front fill:#161b28,stroke:rgba(255,255,255,0.1),color:#e8ecf4
+    classDef skip  fill:#1e1a10,stroke:#fbbf24,stroke-dasharray:5 4,color:#fbbf24
+    classDef back  fill:#0e1e18,stroke:#34d399,stroke-width:1.5px,color:#e8ecf4
+    classDef os    fill:#0b0e14,stroke:rgba(255,255,255,0.06),color:#6b7694
+      </div>
+    </div>
+    <div class="callout">
+      <div class="callout-title">Why we skip the VDBE</div>
+      <p>SQLite's VDBE is a full register-based virtual machine with ~150 opcodes. Implementing it would be a curriculum unto itself. Instead, our Rust engine will walk the AST produced by the parser and dispatch directly to B-tree operations. This is a valid architecture — many embedded databases (and the original SQLite before version 2) work exactly this way. You lose the query caching benefit of pre-compiled bytecode, but you gain simplicity and a much shorter path to a working database.</p>
+    </div>
+  </div>
+
+  <div class="gap"></div>
+
+  <!-- Query trace -->
+  <div class="card" style="--i:3">
+    <div class="section-label">Worked Example</div>
+    <h2>Tracing <span class="code-inline">INSERT INTO users VALUES (1, 'alice')</span></h2>
+    <p>Follow one statement through every layer. Each arrow is a real function boundary in SQLite's source.</p>
+    <div class="gap-sm"></div>
+    <div class="trace">
+      <div class="trace-step">
+        <div class="trace-num">1</div>
+        <div>
+          <div class="trace-layer">Tokenizer</div>
+          <div class="trace-action">Scans the string character by character. Emits tokens: <span class="code-inline">TK_INSERT</span> <span class="code-inline">TK_INTO</span> <span class="code-inline">TK_ID("users")</span> <span class="code-inline">TK_VALUES</span> <span class="code-inline">TK_INTEGER(1)</span> <span class="code-inline">TK_STRING("alice")</span>. Pushes each token to the parser immediately — no buffering.</div>
+        </div>
+      </div>
+      <div class="trace-step">
+        <div class="trace-num">2</div>
+        <div>
+          <div class="trace-layer">Parser</div>
+          <div class="trace-action">The Lemon-generated parser matches the token stream against the SQL grammar. Constructs an AST node: <span class="code-inline">Insert { table: "users", values: [1, "alice"] }</span>. Rejects here if syntax is wrong.</div>
+        </div>
+      </div>
+      <div class="trace-step">
+        <div class="trace-num">3</div>
+        <div>
+          <div class="trace-layer">Code Generator</div>
+          <div class="trace-action">Looks up "users" in the schema, confirms column types match, emits VDBE instructions like <span class="code-inline">OpenWrite</span> <span class="code-inline">NewRowid</span> <span class="code-inline">MakeRecord</span> <span class="code-inline">Insert</span> <span class="code-inline">Halt</span>.</div>
+        </div>
+      </div>
+      <div class="trace-step">
+        <div class="trace-num">4</div>
+        <div>
+          <div class="trace-layer">VDBE <span class="badge skip">we skip</span></div>
+          <div class="trace-action">Executes each opcode in sequence, maintaining registers and a program counter. Calls into the B-tree layer when it needs to actually store data.</div>
+        </div>
+      </div>
+      <div class="trace-step">
+        <div class="trace-num">5</div>
+        <div>
+          <div class="trace-layer">B-Tree</div>
+          <div class="trace-action">Finds the correct leaf node for rowid=1, serialises the row into bytes, inserts into the page. If the page is full, splits the node (this is the complex part we'll implement carefully).</div>
+        </div>
+      </div>
+      <div class="trace-step">
+        <div class="trace-num">6</div>
+        <div>
+          <div class="trace-layer">Pager</div>
+          <div class="trace-action">The B-tree requested page N. Pager checks its cache — cache miss, so reads from disk. Marks the page as <em>dirty</em> after the write. On COMMIT, flushes dirty pages to disk in the correct order.</div>
+        </div>
+      </div>
+      <div class="trace-step">
+        <div class="trace-num">7</div>
+        <div>
+          <div class="trace-layer">VFS → OS</div>
+          <div class="trace-action">Pager calls <span class="code-inline">sqlite3OsWrite()</span> which maps to <span class="code-inline">pwrite(fd, buf, 4096, offset)</span>. Then <span class="code-inline">fsync()</span> to flush kernel buffers to physical storage — this is what makes Durability real.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      primaryColor: '#161b28',
+      primaryTextColor: '#e8ecf4',
+      primaryBorderColor: 'rgba(255,255,255,0.1)',
+      lineColor: '#4f8ef7',
+      background: '#0b0e14',
+      mainBkg: '#161b28',
+      fontFamily: 'Space Grotesk, sans-serif'
+    }
+  });
+</script>
+</body>
+</html>

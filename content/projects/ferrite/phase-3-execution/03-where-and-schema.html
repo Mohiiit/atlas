@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WHERE Clause & Table Schema · Ferrite Phase 3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0b0e14; --surface: #111520; --border: rgba(255,255,255,0.06);
+    --text: #e8ecf4; --dim: #6b7694;
+    --em: #34d399; --vi: #a78bfa;
+    --em-dim: rgba(52,211,153,0.12); --vi-dim: rgba(167,139,250,0.12);
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f4f6fb; --surface: #ffffff; --border: rgba(0,0,0,0.08);
+      --text: #111520; --dim: #5a6480; --em-dim: rgba(4,120,87,0.1); --vi-dim: rgba(109,40,217,0.1); }
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Space Grotesk', sans-serif;
+    font-size: 15px; line-height: 1.7; max-width: 900px; margin: 0 auto; padding: 48px 24px 80px; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--vi); background: var(--vi-dim);
+    border: 1px solid rgba(167,139,250,0.25); border-radius: 6px; padding: 3px 10px; margin-bottom: 16px; }
+  h1 { font-size: 2rem; font-weight: 700; line-height: 1.2; margin-bottom: 8px; }
+  h1 span { color: var(--vi); }
+  .subtitle { color: var(--dim); font-size: 1rem; margin-bottom: 48px; }
+  h2 { font-size: 1.15rem; font-weight: 600; margin: 36px 0 14px;
+    display: flex; align-items: center; gap: 8px; }
+  h2::before { content: ''; display: block; width: 3px; height: 18px;
+    background: var(--vi); border-radius: 2px; }
+  h2.em::before { background: var(--em); }
+  .card { background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 24px 28px; margin-bottom: 20px; }
+  .mermaid-wrap { background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 28px 20px; margin-bottom: 20px; overflow-x: auto; }
+  pre { background: #0d1117; border: 1px solid var(--border); border-radius: 10px;
+    padding: 20px 22px; overflow-x: auto; margin: 0; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.65; }
+  p code, li code { background: rgba(255,255,255,0.07); border-radius: 4px;
+    padding: 1px 6px; font-size: 12.5px; }
+  p { margin-bottom: 12px; color: var(--dim); }
+  ul { color: var(--dim); padding-left: 18px; }
+  li { margin-bottom: 6px; }
+  li strong { color: var(--text); }
+  .kw { color: #ff7b72; } .ty { color: var(--vi); } .fn { color: #79c0ff; }
+  .cm { color: #6b7694; font-style: italic; } .st { color: var(--em); }
+  .num { color: #f0c27f; }
+  .schema-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+  .schema-table th { text-align: left; color: var(--dim); font-weight: 600;
+    font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
+    padding: 6px 12px; border-bottom: 1px solid var(--border); }
+  .schema-table td { padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text); }
+  .schema-table td:first-child { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--em); }
+  .schema-table td:nth-child(2) { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--vi); }
+  .schema-table td:nth-child(3) { color: var(--dim); font-size: 12.5px; }
+  .schema-table td:nth-child(4) { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #f0c27f; }
+  .schema-table tr:last-child td { border-bottom: none; }
+  .pred-tree { display: flex; flex-direction: column; align-items: center; gap: 0; }
+  .pred-node { background: var(--vi-dim); border: 1px solid rgba(167,139,250,0.3);
+    border-radius: 8px; padding: 8px 16px; font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; color: var(--vi); text-align: center; }
+  .pred-node.leaf { background: var(--em-dim); border-color: rgba(52,211,153,0.3); color: var(--em); }
+  .pred-connector { width: 1px; height: 20px; background: var(--border); margin: 0 auto; }
+  .pred-row { display: flex; gap: 40px; justify-content: center; position: relative; }
+  .pred-row::before { content: ''; position: absolute; top: 0; left: 50%;
+    transform: translateX(-50%); height: 1px; background: var(--border); width: 160px; }
+  .pred-branch { display: flex; flex-direction: column; align-items: center; }
+  .pred-branch-line { width: 1px; height: 20px; background: var(--border); }
+  .lookup-flow { display: grid; grid-template-columns: auto 28px auto 28px auto;
+    align-items: center; gap: 8px; }
+  .lookup-box { background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 14px; }
+  .lookup-title { font-size: 11px; font-weight: 700; color: var(--dim);
+    text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+  .lookup-val { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; }
+  .lookup-arrow { color: var(--dim); font-size: 18px; text-align: center; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:none; } }
+  .card, .mermaid-wrap, h2, pre { animation: fadeUp .5s ease both; }
+  .warn-card { border-color: rgba(240,194,127,0.25); background: rgba(240,194,127,0.06); }
+</style>
+</head>
+<body>
+
+<div class="badge">Phase 3 · Lesson 03</div>
+<h1>WHERE Clause & <span>Table Schema</span></h1>
+<p class="subtitle">How predicate trees are evaluated against rows, and where schema definitions live in the database file.</p>
+
+<h2>Table Schema in Rust</h2>
+<div class="card" style="padding:0;overflow:hidden;">
+<pre><code><span class="cm">/// One column definition inside a table</span>
+<span class="kw">struct</span> <span class="ty">ColumnDef</span> {
+    name:     <span class="ty">String</span>,
+    col_type: <span class="ty">ColType</span>,
+}
+
+<span class="cm">/// The three primitive types we support in Phase 3</span>
+<span class="kw">enum</span> <span class="ty">ColType</span> { <span class="ty">Integer</span>, <span class="ty">Text</span>, <span class="ty">Boolean</span> }
+
+<span class="cm">/// Full schema: table name + ordered list of columns</span>
+<span class="kw">struct</span> <span class="ty">TableSchema</span> {
+    name:    <span class="ty">String</span>,
+    columns: <span class="ty">Vec</span>&lt;<span class="ty">ColumnDef</span>&gt;,
+}
+<span class="cm">/// Column index = position in Vec → byte offset in row</span></code></pre>
+</div>
+<div class="card">
+  <p style="margin-bottom: 14px;">Example schema for a <code>users</code> table:</p>
+  <table class="schema-table">
+    <thead><tr><th>Column</th><th>Type</th><th>Description</th><th>Vec index</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>Integer</td><td>Primary key, monotonically increasing</td><td>0</td></tr>
+      <tr><td>name</td><td>Text</td><td>Fixed-length padded string (32 bytes)</td><td>1</td></tr>
+      <tr><td>age</td><td>Integer</td><td>4-byte signed integer</td><td>2</td></tr>
+      <tr><td>email</td><td>Text</td><td>Fixed-length padded string (64 bytes)</td><td>3</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h2>Schema Storage: The Catalog Page</h2>
+<div class="card">
+  <p style="margin-bottom:12px;">The schema is not hardcoded — it lives in the database file itself. <strong>Page 0</strong> is reserved as the catalog page (similar to SQLite's <code>sqlite_schema</code> table). It stores serialized <code>TableSchema</code> entries for every table in the database.</p>
+  <ul style="margin-bottom:0;">
+    <li>On <code>CREATE TABLE</code>, serialize the schema and write it to the catalog page</li>
+    <li>On database open, read page 0 first to load all schema definitions into memory</li>
+    <li>The planner uses in-memory schema to resolve column names → column indexes before execution</li>
+    <li><strong>Phase 3 simplification:</strong> we may keep schema in a static <code>HashMap</code> for now</li>
+  </ul>
+</div>
+
+<h2 class="em">The Predicate Type</h2>
+<div class="card" style="padding:0;overflow:hidden;">
+<pre><code><span class="cm">/// A predicate tree — mirrors the WHERE clause AST</span>
+<span class="kw">enum</span> <span class="ty">Predicate</span> {
+    <span class="ty">Eq</span>(<span class="ty">String</span>, <span class="ty">Value</span>),                          <span class="cm">// col = value</span>
+    <span class="ty">Gt</span>(<span class="ty">String</span>, <span class="ty">Value</span>),                          <span class="cm">// col &gt; value</span>
+    <span class="ty">Lt</span>(<span class="ty">String</span>, <span class="ty">Value</span>),                          <span class="cm">// col &lt; value</span>
+    <span class="ty">And</span>(<span class="ty">Box</span>&lt;<span class="ty">Predicate</span>&gt;, <span class="ty">Box</span>&lt;<span class="ty">Predicate</span>&gt;),      <span class="cm">// left AND right</span>
+    <span class="ty">Or</span>(<span class="ty">Box</span>&lt;<span class="ty">Predicate</span>&gt;, <span class="ty">Box</span>&lt;<span class="ty">Predicate</span>&gt;),       <span class="cm">// left OR right</span>
+}
+
+<span class="kw">enum</span> <span class="ty">Value</span> { <span class="ty">Int</span>(<span class="ty">i64</span>), <span class="ty">Text</span>(<span class="ty">String</span>), <span class="ty">Bool</span>(<span class="ty">bool</span>) }</code></pre>
+</div>
+
+<h2>Predicate Tree: WHERE age > 18 AND name = 'alice'</h2>
+<div class="mermaid-wrap">
+<div class="mermaid">
+%%{init: {'theme':'dark','themeVariables':{'primaryColor':'#111520','primaryBorderColor':'#a78bfa','primaryTextColor':'#e8ecf4','lineColor':'#6b7694','background':'#0b0e14'}}}%%
+graph TD
+  ROOT["AND"] --> LEFT["Gt('age', Int(18))"]
+  ROOT --> RIGHT["Eq('name', Text('alice'))"]
+  LEFT --> LA["col: 'age'\nschema index → 2\nrow bytes [8..12] → i64\ncompare > 18"]
+  RIGHT --> RA["col: 'name'\nschema index → 1\nrow bytes [4..8] → str\ncompare = 'alice'"]
+  style ROOT fill:#1d1535,stroke:#a78bfa,color:#a78bfa
+  style LEFT fill:#111520,stroke:#a78bfa,color:#e8ecf4
+  style RIGHT fill:#111520,stroke:#a78bfa,color:#e8ecf4
+  style LA fill:#1a2a20,stroke:#34d399,color:#34d399
+  style RA fill:#1a2a20,stroke:#34d399,color:#34d399
+</div>
+</div>
+
+<h2 class="em">Evaluating a Predicate</h2>
+<div class="card" style="padding:0;overflow:hidden;">
+<pre><code><span class="kw">fn</span> <span class="fn">eval</span>(pred: &amp;<span class="ty">Predicate</span>, row: &amp;<span class="ty">Row</span>, schema: &amp;<span class="ty">TableSchema</span>) -&gt; <span class="ty">bool</span> {
+    <span class="kw">match</span> pred {
+        <span class="ty">Predicate</span>::<span class="ty">Eq</span>(col, val) =&gt; {
+            <span class="kw">let</span> idx = schema.<span class="fn">col_index</span>(col);   <span class="cm">// "age" → 2</span>
+            row.<span class="fn">get</span>(idx) == val               <span class="cm">// compare stored value</span>
+        }
+        <span class="ty">Predicate</span>::<span class="ty">Gt</span>(col, val) =&gt; {
+            <span class="kw">let</span> idx = schema.<span class="fn">col_index</span>(col);
+            row.<span class="fn">get</span>(idx) &gt; val
+        }
+        <span class="ty">Predicate</span>::<span class="ty">And</span>(left, right) =&gt;
+            <span class="cm">// short-circuit: skip right if left is false</span>
+            <span class="fn">eval</span>(left, row, schema) &amp;&amp; <span class="fn">eval</span>(right, row, schema),
+        <span class="ty">Predicate</span>::<span class="ty">Or</span>(left, right) =&gt;
+            <span class="fn">eval</span>(left, row, schema) || <span class="fn">eval</span>(right, row, schema),
+        _ =&gt; <span class="kw">unimplemented</span>!()
+    }
+}</code></pre>
+</div>
+
+<h2>Schema Lookup: Name → Byte Offset</h2>
+<div class="card">
+  <p style="margin-bottom: 16px;">To evaluate <code>age &gt; 18</code>, the executor must know where <code>age</code> lives in the raw row bytes. The schema provides the answer in two steps:</p>
+  <div class="lookup-flow">
+    <div class="lookup-box">
+      <div class="lookup-title">Column name</div>
+      <div class="lookup-val" style="color:var(--vi);">"age"</div>
+    </div>
+    <div class="lookup-arrow">→</div>
+    <div class="lookup-box">
+      <div class="lookup-title">Vec index</div>
+      <div class="lookup-val" style="color:var(--em);">2</div>
+    </div>
+    <div class="lookup-arrow">→</div>
+    <div class="lookup-box">
+      <div class="lookup-title">Byte offset in row</div>
+      <div class="lookup-val" style="color:#f0c27f;">sum of preceding\ncolumn sizes</div>
+    </div>
+  </div>
+  <p style="margin-top:16px; margin-bottom:0;">For a row layout of <code>[id:4][name:32][age:4][email:64]</code>, the byte offset of <code>age</code> = 4 + 32 = 36. The schema makes this calculation automatic — no hardcoded offsets in executor code.</p>
+</div>
+
+<h2>The Filter Operator in Context</h2>
+<div class="card" style="padding:0;overflow:hidden;">
+<pre><code><span class="kw">struct</span> <span class="ty">Filter</span> {
+    predicate: <span class="ty">Predicate</span>,
+    schema:    <span class="ty">TableSchema</span>,
+    source:    <span class="ty">Box</span>&lt;<span class="kw">dyn</span> <span class="ty">Executor</span>&gt;,
+}
+
+<span class="kw">impl</span> <span class="ty">Executor</span> <span class="kw">for</span> <span class="ty">Filter</span> {
+    <span class="kw">fn</span> <span class="fn">next</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>) -&gt; <span class="ty">Option</span>&lt;<span class="ty">Row</span>&gt; {
+        <span class="kw">loop</span> {
+            <span class="kw">let</span> row = <span class="kw">self</span>.source.<span class="fn">next</span>()?;  <span class="cm">// None propagates EOF</span>
+            <span class="kw">if</span> <span class="fn">eval</span>(&amp;<span class="kw">self</span>.predicate, &amp;row, &amp;<span class="kw">self</span>.schema) {
+                <span class="kw">return</span> <span class="ty">Some</span>(row);           <span class="cm">// passes filter → yield it</span>
+            }
+            <span class="cm">// else: loop, pull next row from source</span>
+        }
+    }
+}</code></pre>
+</div>
+
+<div class="card warn-card">
+  <p style="color: var(--text); margin-bottom: 8px; font-weight: 600;">What we are NOT building yet</p>
+  <ul style="margin-bottom:0;">
+    <li><strong>Query optimization:</strong> predicates are always evaluated post-scan; no filter pushdown into the B-tree</li>
+    <li><strong>Index selection:</strong> the planner never picks an index scan based on WHERE column — always full scan</li>
+    <li><strong>Statistics:</strong> no row count estimates, no cost-based decisions</li>
+    <li>These are left for later phases — correctness before performance</li>
+  </ul>
+</div>
+
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'dark',
+    themeVariables: { background: '#0b0e14', primaryColor: '#111520',
+      primaryBorderColor: '#a78bfa', primaryTextColor: '#e8ecf4', lineColor: '#6b7694' }
+  });
+</script>
+</body>
+</html>

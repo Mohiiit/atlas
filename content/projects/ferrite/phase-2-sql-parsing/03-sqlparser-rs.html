@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>sqlparser-rs — Phase 2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0b0e14; --surface: #111520; --surface2: #161c2d;
+    --text: #e8ecf4; --dim: #6b7694; --border: rgba(255,255,255,0.06);
+    --cyan: #22d3ee; --rose: #fb7185; --green: #34d399; --purple: #a78bfa;
+    --orange: #fb923c; --radius: 13px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f4f6fb; --surface: #ffffff; --surface2: #eef0f7;
+      --text: #111520; --dim: #5a6280; --border: rgba(0,0,0,0.08); }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Space Grotesk', sans-serif;
+    line-height: 1.7; }
+  .container { max-width: 900px; margin: 0 auto; padding: 48px 24px 80px; }
+  .phase-badge { display: inline-flex; align-items: center; background: rgba(34,211,238,0.1);
+    border: 1px solid rgba(34,211,238,0.25); color: var(--cyan); font-size: 12px;
+    font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 5px 12px; border-radius: 20px; margin-bottom: 20px; }
+  h1 { font-size: clamp(26px, 5vw, 42px); font-weight: 700; line-height: 1.15; margin-bottom: 12px; }
+  h1 span { color: var(--cyan); }
+  .subtitle { color: var(--dim); font-size: 17px; margin-bottom: 48px; max-width: 640px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 28px 32px; margin-bottom: 20px;
+    animation: fadeUp 0.5s ease both; }
+  .card:nth-child(2) { animation-delay: 0.07s; }
+  .card:nth-child(3) { animation-delay: 0.14s; }
+  .card:nth-child(4) { animation-delay: 0.21s; }
+  .card:nth-child(5) { animation-delay: 0.28s; }
+  .card:nth-child(6) { animation-delay: 0.35s; }
+  .card:nth-child(7) { animation-delay: 0.42s; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+  .card-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.09em;
+    color: var(--cyan); margin-bottom: 14px; }
+  h2 { font-size: 21px; font-weight: 600; margin-bottom: 10px; }
+  p { color: var(--dim); margin-bottom: 12px; }
+  p:last-child { margin-bottom: 0; }
+  pre { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 20px 22px; overflow-x: auto; font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; line-height: 1.8; margin: 14px 0; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 13px;
+    background: var(--surface2); padding: 2px 6px; border-radius: 4px; }
+  .kw { color: var(--cyan); font-weight: 600; }
+  .ty { color: var(--rose); }
+  .str { color: var(--green); }
+  .cmt { color: var(--dim); font-style: italic; }
+  .num { color: #f9a8d4; }
+  .field { color: #fbbf24; }
+  .mac { color: var(--orange); }
+
+  /* Pipeline */
+  .pipeline { display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+    background: var(--surface2); border-radius: var(--radius); padding: 22px 26px; margin: 14px 0; }
+  .pipe-box { background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 18px; text-align: center; font-size: 14px; font-weight: 500; min-width: 130px; }
+  .pipe-box .label { font-size: 11px; color: var(--dim); margin-top: 3px; font-family: 'JetBrains Mono', monospace; }
+  .pb-sql   { border-color: rgba(167,139,250,0.4); color: var(--purple); }
+  .pb-parse { border-color: rgba(34,211,238,0.4); color: var(--cyan); }
+  .pb-ast   { border-color: rgba(251,113,133,0.4); color: var(--rose); }
+  .pb-exec  { border-color: rgba(52,211,153,0.4); color: var(--green); }
+  .pipe-arrow { color: var(--dim); font-size: 22px; }
+
+  /* Comparison table */
+  .compare { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 14px; }
+  .compare th { background: var(--surface2); padding: 10px 16px; text-align: left;
+    color: var(--dim); font-size: 12px; text-transform: uppercase; letter-spacing: 0.07em;
+    border-bottom: 1px solid var(--border); }
+  .compare td { padding: 10px 16px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: top; }
+  .compare tr:last-child td { border-bottom: none; }
+  .compare .yes { color: var(--green); font-weight: 600; }
+  .compare .no  { color: var(--rose); font-weight: 600; }
+  .compare .mid { color: var(--orange); font-weight: 600; }
+
+  /* Dialect pills */
+  .dialect-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .dialect { padding: 5px 13px; border-radius: 20px; font-size: 12.5px; font-weight: 600;
+    font-family: 'JetBrains Mono', monospace; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text); }
+  .dialect.featured { background: rgba(34,211,238,0.1); border-color: rgba(34,211,238,0.35);
+    color: var(--cyan); }
+
+  /* Mermaid */
+  .mermaid-wrap { background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 24px; margin: 14px 0; overflow-x: auto; }
+  .mermaid { text-align: center; }
+
+  /* Toml block */
+  .toml { background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--orange);
+    border-radius: 0 10px 10px 0; padding: 16px 20px; margin: 14px 0;
+    font-family: 'JetBrains Mono', monospace; font-size: 13.5px; line-height: 1.9; }
+  .toml-section { color: var(--purple); }
+  .toml-key { color: var(--cyan); }
+  .toml-val { color: var(--green); }
+
+  /* Limitation chips */
+  .chips { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+  .chip { display: flex; gap: 10px; align-items: flex-start; padding: 10px 14px;
+    background: var(--surface2); border-radius: 9px; border: 1px solid var(--border); }
+  .chip-icon { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+  .chip-text { font-size: 14px; color: var(--dim); }
+  .chip-text strong { color: var(--text); }
+</style>
+</head>
+<body>
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'dark',
+    themeVariables: { background: '#161c2d', primaryColor: '#1e2a3a',
+      primaryTextColor: '#e8ecf4', primaryBorderColor: '#22d3ee',
+      lineColor: '#6b7694', secondaryColor: '#111520', tertiaryColor: '#0b0e14' }});
+</script>
+<div class="container">
+  <div class="phase-badge">Phase 2 &middot; SQL Parsing</div>
+  <h1>Using <span>sqlparser-rs</span></h1>
+  <p class="subtitle">Skip hand-rolling a parser and focus on storage. The sqlparser-rs crate handles SQL grammar so you don't have to.</p>
+
+  <!-- Pipeline overview -->
+  <div class="card">
+    <div class="card-title">The Fast Path</div>
+    <h2>Your SQL Pipeline with sqlparser-rs</h2>
+    <p>Instead of a hand-written lexer and parser, a single crate call transforms a SQL string into a typed AST. Your executor operates directly on that AST — no tokenization code required.</p>
+    <div class="pipeline">
+      <div class="pipe-box pb-sql"><div>"SELECT id FROM users"</div><div class="label">SQL string</div></div>
+      <div class="pipe-arrow">&#8594;</div>
+      <div class="pipe-box pb-parse"><div>sqlparser::Parser</div><div class="label">parse_sql()</div></div>
+      <div class="pipe-arrow">&#8594;</div>
+      <div class="pipe-box pb-ast"><div>AST enum tree</div><div class="label">Vec&lt;Statement&gt;</div></div>
+      <div class="pipe-arrow">&#8594;</div>
+      <div class="pipe-box pb-exec"><div>Your executor</div><div class="label">match &amp; run</div></div>
+    </div>
+  </div>
+
+  <!-- When to use -->
+  <div class="card">
+    <div class="card-title">Decision Guide</div>
+    <h2>Hand-Roll vs. sqlparser-rs</h2>
+    <table class="compare">
+      <thead><tr><th>Criterion</th><th>Hand-rolled</th><th>sqlparser-rs</th></tr></thead>
+      <tbody>
+        <tr><td>SQL coverage</td><td class="mid">Subset only</td><td class="yes">Full SQL dialects</td></tr>
+        <tr><td>Learning value</td><td class="yes">High — teaches internals</td><td class="no">Low for parsing</td></tr>
+        <tr><td>Setup time</td><td class="no">Hours to days</td><td class="yes">One dependency</td></tr>
+        <tr><td>Maintenance</td><td class="no">You own all edge cases</td><td class="yes">Community maintained</td></tr>
+        <tr><td>Best for</td><td>Phase 2 learning goals</td><td>Jumping ahead to storage/execution</td></tr>
+      </tbody>
+    </table>
+    <p>Use sqlparser-rs when you want to focus learning time on B-tree storage, page management, or query execution rather than on grammar rules.</p>
+  </div>
+
+  <!-- Cargo.toml -->
+  <div class="card">
+    <div class="card-title">Setup</div>
+    <h2>Adding the Dependency</h2>
+    <p>Add one line to <code>Cargo.toml</code>. The crate has no mandatory external dependencies and compiles quickly:</p>
+    <div class="toml"><span class="toml-section">[dependencies]</span><br><span class="toml-key">sqlparser</span> = <span class="toml-val">"0.53"</span></div>
+    <p>Then import the dialect and parser in your source file:</p>
+<pre><span class="kw">use</span> <span class="ty">sqlparser</span>::<span class="ty">dialect</span>::<span class="ty">SQLiteDialect</span>;
+<span class="kw">use</span> <span class="ty">sqlparser</span>::<span class="ty">parser</span>::<span class="ty">Parser</span>;</pre>
+    <p>The dialect controls which SQL extensions are accepted. <code>SQLiteDialect</code> permits SQLite-specific syntax like <code>AUTOINCREMENT</code> and double-quoted string literals.</p>
+  </div>
+
+  <!-- Basic usage -->
+  <div class="card">
+    <div class="card-title">Basic Usage</div>
+    <h2>Parsing a SQL String</h2>
+    <p><code>Parser::parse_sql</code> returns a <code>Result&lt;Vec&lt;Statement&gt;&gt;</code> — a list because a single string can contain multiple semicolon-separated statements.</p>
+<pre><span class="kw">fn</span> <span class="kw">parse</span>(sql: &amp;<span class="ty">str</span>) -&gt; <span class="ty">Result</span>&lt;<span class="ty">Vec</span>&lt;<span class="ty">Statement</span>&gt;, <span class="ty">ParserError</span>&gt; {
+    <span class="ty">Parser</span>::<span class="kw">parse_sql</span>(&amp;<span class="ty">SQLiteDialect</span> {}, sql)
+}
+
+<span class="kw">fn</span> <span class="kw">main</span>() {
+    <span class="kw">let</span> sql = <span class="str">"SELECT id, name FROM users WHERE id = 1"</span>;
+    <span class="kw">let</span> ast = <span class="ty">Parser</span>::<span class="kw">parse_sql</span>(&amp;<span class="ty">SQLiteDialect</span> {}, sql)
+        .<span class="kw">expect</span>(<span class="str">"parse error"</span>);
+
+    <span class="mac">println!</span>(<span class="str">"{:#?}"</span>, ast[<span class="num">0</span>]); <span class="cmt">// pretty-print the AST</span>
+}</pre>
+    <p>The parsed AST for a SELECT statement comes back as a <code>Statement::Query</code> wrapping a <code>Query</code> struct, which contains the projection (columns), FROM clause, and an optional WHERE expression.</p>
+  </div>
+
+  <!-- Matching on AST -->
+  <div class="card">
+    <div class="card-title">Pattern Matching</div>
+    <h2>Extracting Data from the AST</h2>
+    <p>Your executor pattern-matches on the top-level <code>Statement</code> enum to dispatch to the right handler. Unsupported variants return an error rather than silently ignoring input:</p>
+<pre><span class="kw">use</span> <span class="ty">sqlparser</span>::<span class="ty">ast</span>::{<span class="ty">Statement</span>, <span class="ty">SelectItem</span>, <span class="ty">TableFactor</span>};
+
+<span class="kw">fn</span> <span class="kw">execute</span>(stmt: &amp;<span class="ty">Statement</span>) -&gt; <span class="ty">Result</span>&lt;(), <span class="ty">String</span>&gt; {
+    <span class="kw">match</span> stmt {
+        <span class="ty">Statement</span>::<span class="ty">Query</span>(q) =&gt; {
+            <span class="cmt">// Extract columns from the SELECT projection</span>
+            <span class="kw">let</span> body = &amp;q.<span class="field">body</span>;
+            <span class="kw">if let</span> <span class="ty">SetExpr</span>::<span class="ty">Select</span>(sel) = body.<span class="kw">as_ref</span>() {
+                <span class="kw">for</span> item <span class="kw">in</span> &amp;sel.<span class="field">projection</span> {
+                    <span class="kw">match</span> item {
+                        <span class="ty">SelectItem</span>::<span class="ty">Wildcard</span>(_) =&gt;
+                            <span class="mac">println!</span>(<span class="str">"column: *"</span>),
+                        <span class="ty">SelectItem</span>::<span class="ty">UnnamedExpr</span>(e) =&gt;
+                            <span class="mac">println!</span>(<span class="str">"column: {e}"</span>),
+                        _ =&gt; {}
+                    }
+                }
+                <span class="cmt">// table name</span>
+                <span class="kw">if let</span> <span class="ty">Some</span>(from) = sel.<span class="field">from</span>.<span class="kw">first</span>() {
+                    <span class="kw">if let</span> <span class="ty">TableFactor</span>::<span class="ty">Table</span> { <span class="field">name</span>, .. } = &amp;from.<span class="field">relation</span> {
+                        <span class="mac">println!</span>(<span class="str">"table: {name}"</span>);
+                    }
+                }
+            }
+            <span class="ty">Ok</span>(())
+        }
+        <span class="ty">Statement</span>::<span class="ty">Insert</span> { <span class="field">table_name</span>, <span class="field">source</span>, .. } =&gt; {
+            <span class="mac">println!</span>(<span class="str">"INSERT into {table_name}"</span>);
+            <span class="cmt">// walk source rows ...</span>
+            <span class="ty">Ok</span>(())
+        }
+        <span class="ty">Statement</span>::<span class="ty">CreateTable</span> { <span class="field">name</span>, <span class="field">columns</span>, .. } =&gt; {
+            <span class="mac">println!</span>(<span class="str">"CREATE TABLE {name} ({} cols)"</span>, columns.<span class="kw">len</span>());
+            <span class="ty">Ok</span>(())
+        }
+        _ =&gt; <span class="ty">Err</span>(<span class="str">"unsupported statement"</span>.<span class="kw">into</span>()),
+    }
+}</pre>
+  </div>
+
+  <!-- AST shape diagram -->
+  <div class="card">
+    <div class="card-title">AST Structure — sqlparser-rs</div>
+    <h2>What the Crate Produces for SELECT</h2>
+    <div class="mermaid-wrap">
+      <div class="mermaid">
+graph TD
+  A["Statement::Query"] --> B["Box&lt;Query&gt;"]
+  B --> C["body: SetExpr::Select"]
+  C --> D["projection: Vec&lt;SelectItem&gt;"]
+  C --> E["from: Vec&lt;TableWithJoins&gt;"]
+  C --> F["selection: Option&lt;Expr&gt;"]
+  D --> G["UnnamedExpr(Ident: id)"]
+  D --> H["UnnamedExpr(Ident: name)"]
+  E --> I["TableFactor::Table(users)"]
+  F --> J["BinaryOp { op: Eq, left: id, right: 1 }"]
+  style A fill:#1e2a3a,stroke:#22d3ee,color:#e8ecf4
+  style B fill:#111520,stroke:#6b7694,color:#e8ecf4
+  style C fill:#111520,stroke:#6b7694,color:#e8ecf4
+  style D fill:#0f1f18,stroke:#34d399,color:#e8ecf4
+  style E fill:#0f1f18,stroke:#34d399,color:#e8ecf4
+  style F fill:#1a1530,stroke:#a78bfa,color:#e8ecf4
+  style G fill:#0b0e14,stroke:#6b7694,color:#e8ecf4
+  style H fill:#0b0e14,stroke:#6b7694,color:#e8ecf4
+  style I fill:#0b0e14,stroke:#6b7694,color:#e8ecf4
+  style J fill:#0b0e14,stroke:#6b7694,color:#e8ecf4
+      </div>
+    </div>
+    <p>The crate's AST is more verbose than a hand-written one — it covers every SQL construct. <code>SetExpr::Select</code> wraps the actual SELECT body because a query body can also be a UNION, INTERSECT, or VALUES clause.</p>
+  </div>
+
+  <!-- Limitations & dialects -->
+  <div class="card">
+    <div class="card-title">Limitations &amp; Dialects</div>
+    <h2>What sqlparser-rs Does Not Do</h2>
+    <div class="chips">
+      <div class="chip">
+        <div class="chip-icon">&#9888;</div>
+        <div class="chip-text"><strong>Syntax only.</strong> The crate parses grammar but performs no semantic analysis. It will not tell you whether a referenced table exists or whether column types are compatible.</div>
+      </div>
+      <div class="chip">
+        <div class="chip-icon">&#9888;</div>
+        <div class="chip-text"><strong>No execution.</strong> The AST is a data structure. Turning it into actual database operations is entirely your responsibility.</div>
+      </div>
+      <div class="chip">
+        <div class="chip-icon">&#9888;</div>
+        <div class="chip-text"><strong>Dialect quirks.</strong> Some SQLite-specific constructs (like certain PRAGMA statements or <code>ROWID</code>) may require the GenericDialect as a fallback.</div>
+      </div>
+    </div>
+    <p style="margin-top:16px">Supported dialects — choose the one closest to your target:</p>
+    <div class="dialect-grid">
+      <div class="dialect featured">SQLiteDialect</div>
+      <div class="dialect">PostgreSqlDialect</div>
+      <div class="dialect">MySqlDialect</div>
+      <div class="dialect">MsSqlDialect</div>
+      <div class="dialect">AnsiDialect</div>
+      <div class="dialect">HiveDialect</div>
+      <div class="dialect">BigQueryDialect</div>
+      <div class="dialect">GenericDialect</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

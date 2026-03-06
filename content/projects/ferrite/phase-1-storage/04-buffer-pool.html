@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buffer Pool Manager | Ferrite Phase 1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0b0e14; --surface: #111520; --surface2: #161b2e;
+    --text: #e8ecf4; --dim: #6b7694; --border: rgba(255,255,255,0.06);
+    --amber: #f59e0b; --amber-dim: rgba(245,158,11,0.12);
+    --violet: #a78bfa; --violet-dim: rgba(167,139,250,0.12);
+    --green: #34d399; --red: #f87171; --blue: #60a5fa; --teal: #2dd4bf;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f4f6fb; --surface: #ffffff; --surface2: #eef1f8;
+      --text: #0f1323; --dim: #5a6380; --border: rgba(0,0,0,0.08); }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Space Grotesk', sans-serif;
+    font-size: 16px; line-height: 1.7; padding: 40px 20px 80px; }
+  .container { max-width: 900px; margin: 0 auto; }
+  .badge { display: inline-flex; align-items: center; gap: 8px; background: var(--violet-dim);
+    color: var(--violet); border: 1px solid rgba(167,139,250,0.25); border-radius: 20px;
+    padding: 4px 14px; font-size: 12px; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; margin-bottom: 20px; }
+  h1 { font-size: clamp(26px, 5vw, 40px); font-weight: 700; line-height: 1.15; margin-bottom: 12px; }
+  h1 span { color: var(--violet); }
+  .subtitle { color: var(--dim); font-size: 17px; max-width: 640px; margin-bottom: 48px; }
+  .section { margin-bottom: 48px; }
+  .section-title { font-size: 19px; font-weight: 600; margin-bottom: 18px;
+    display: flex; align-items: center; gap: 10px; }
+  .section-title::before { content: ''; display: block; width: 4px; height: 20px;
+    background: var(--violet); border-radius: 2px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 13px;
+    padding: 24px 28px; margin-bottom: 20px; opacity: 0; animation: fadeUp 0.5s ease forwards;
+    animation-delay: calc(var(--i, 0) * 0.07s); }
+  pre { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 18px 22px; overflow-x: auto; font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; line-height: 1.8; }
+  .kw  { color: var(--amber); }
+  .ty  { color: var(--violet); }
+  .cm  { color: var(--dim); font-style: italic; }
+  .num { color: var(--blue); }
+  .insight { background: var(--amber-dim); border: 1px solid rgba(245,158,11,0.2);
+    border-radius: 10px; padding: 14px 18px; font-size: 14px; margin-top: 16px; }
+  .insight.violet { background: var(--violet-dim); border-color: rgba(167,139,250,0.2); }
+  .insight strong { color: var(--amber); }
+  .insight.violet strong { color: var(--violet); }
+  /* Latency bar chart */
+  .latency-table { width: 100%; }
+  .lat-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; font-size: 14px; }
+  .lat-label { min-width: 140px; color: var(--dim); font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+  .lat-bar-wrap { flex: 1; background: rgba(255,255,255,0.04); border-radius: 4px; height: 20px; overflow: hidden; }
+  .lat-bar { height: 100%; border-radius: 4px; display: flex; align-items: center; padding-left: 8px;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; }
+  /* Pool diagram */
+  .pool-diagram { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; align-items: start; }
+  @media (max-width: 580px) { .pool-diagram { grid-template-columns: 1fr; } }
+  .page-table { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+  .page-table h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); margin-bottom: 10px; }
+  .pt-row { display: flex; justify-content: space-between; align-items: center;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 5px 8px;
+    border-radius: 5px; margin-bottom: 4px; }
+  .pt-row.hit { background: rgba(52,211,153,0.1); }
+  .pt-row.miss { background: rgba(107,118,148,0.08); color: var(--dim); }
+  .pt-key { color: var(--violet); }
+  .pt-val { color: var(--green); }
+  .pt-miss { color: var(--dim); }
+  .frame-array { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+  .frame-array h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); margin-bottom: 10px; }
+  .frame-row { display: grid; grid-template-columns: 56px 1fr 60px 64px 70px;
+    gap: 6px; align-items: center; font-size: 12px; padding: 5px 8px; border-radius: 5px; margin-bottom: 4px; }
+  .frame-row.header { color: var(--dim); font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.06em; }
+  .frame-row.loaded { background: rgba(96,165,250,0.08); }
+  .frame-row.dirty  { background: rgba(245,158,11,0.09); }
+  .frame-row.pinned { background: rgba(167,139,250,0.09); }
+  .frame-row.empty  { background: rgba(107,118,148,0.05); color: var(--dim); }
+  .fr-id { font-family: 'JetBrains Mono', monospace; color: var(--dim); font-size: 11px; }
+  .fr-page { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; }
+  .tag { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+  .tag-dirty  { background: rgba(245,158,11,0.2); color: var(--amber); }
+  .tag-clean  { background: rgba(52,211,153,0.1); color: var(--green); }
+  .tag-pinned { background: rgba(167,139,250,0.2); color: var(--violet); }
+  .tag-free   { background: rgba(107,118,148,0.15); color: var(--dim); }
+  /* LRU list */
+  .lru-list { display: flex; align-items: center; gap: 0; overflow-x: auto; padding-bottom: 8px; }
+  .lru-node { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 14px; font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    text-align: center; min-width: 64px; }
+  .lru-node .pg { font-size: 11px; color: var(--dim); margin-bottom: 2px; }
+  .lru-node .id { font-weight: 700; font-size: 14px; }
+  .lru-node.mru { border-color: var(--green); background: rgba(52,211,153,0.08); }
+  .lru-node.lru-end { border-color: var(--red); background: rgba(248,113,113,0.08); }
+  .lru-node.evict { border-color: var(--amber); background: rgba(245,158,11,0.12);
+    text-decoration: line-through; opacity: 0.7; }
+  .lru-arrow { color: var(--dim); font-size: 18px; padding: 0 6px; }
+  .lru-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--dim); margin-bottom: 8px; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 600px) { .two-col { grid-template-columns: 1fr; } }
+  .mermaid-card { background: var(--surface); border: 1px solid var(--border); border-radius: 13px;
+    padding: 24px; margin-bottom: 24px; opacity: 0; animation: fadeUp 0.5s ease forwards;
+    animation-delay: 0.14s; overflow-x: auto; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="badge">Phase 1 · Storage Engines</div>
+  <h1>Buffer Pool <span>Manager</span></h1>
+  <p class="subtitle">Disk I/O is the bottleneck in every database. The buffer pool is the layer that makes disk-based data structures feel fast by keeping hot pages in memory.</p>
+
+  <!-- WHY -->
+  <div class="section">
+    <div class="section-title">The Latency Cliff Between Memory and Disk</div>
+    <div class="card" style="--i:0">
+      <div class="latency-table">
+        <div class="lat-row">
+          <div class="lat-label">L1 cache</div>
+          <div class="lat-bar-wrap"><div class="lat-bar" style="width:0.4%;background:var(--green)">~1ns</div></div>
+        </div>
+        <div class="lat-row">
+          <div class="lat-label">L3 cache</div>
+          <div class="lat-bar-wrap"><div class="lat-bar" style="width:1%;background:var(--teal)">~10ns</div></div>
+        </div>
+        <div class="lat-row">
+          <div class="lat-label">DRAM (memory)</div>
+          <div class="lat-bar-wrap"><div class="lat-bar" style="width:5%;background:var(--blue)">~100ns</div></div>
+        </div>
+        <div class="lat-row">
+          <div class="lat-label">NVMe SSD</div>
+          <div class="lat-bar-wrap"><div class="lat-bar" style="width:40%;background:var(--amber)">~100µs</div></div>
+        </div>
+        <div class="lat-row">
+          <div class="lat-label">HDD (spinning)</div>
+          <div class="lat-bar-wrap"><div class="lat-bar" style="width:95%;background:var(--red)">~10ms</div></div>
+        </div>
+      </div>
+      <div class="insight"><strong>The rule:</strong> A single disk read costs as much as ~100,000 memory reads. Every extra page fault is catastrophic. The buffer pool's job is to make most reads a cache hit.</div>
+    </div>
+  </div>
+
+  <!-- ARCHITECTURE -->
+  <div class="section">
+    <div class="section-title">Buffer Pool Architecture</div>
+    <div class="card" style="--i:1">
+      <div class="pool-diagram">
+        <div class="page-table">
+          <h4>Page Table</h4>
+          <div class="pt-row hit"><span class="pt-key">page 0</span><span class="pt-val">→ frame 2</span></div>
+          <div class="pt-row hit"><span class="pt-key">page 3</span><span class="pt-val">→ frame 0</span></div>
+          <div class="pt-row hit"><span class="pt-key">page 7</span><span class="pt-val">→ frame 1</span></div>
+          <div class="pt-row miss"><span class="pt-key">page 9</span><span class="pt-miss">not in pool</span></div>
+          <div class="pt-row miss"><span class="pt-key">page 12</span><span class="pt-miss">not in pool</span></div>
+        </div>
+        <div class="frame-array">
+          <h4>Frame Array (4 frames × 4096 bytes)</h4>
+          <div class="frame-row header">
+            <span>Frame</span><span>Page data</span><span>Dirty</span><span>Pin</span><span>Status</span>
+          </div>
+          <div class="frame-row loaded">
+            <span class="fr-id">F0</span>
+            <span class="fr-page" style="color:var(--blue)">page 3</span>
+            <span><div class="tag tag-clean">clean</div></span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--dim)">0</span>
+            <span><div class="tag tag-free">evictable</div></span>
+          </div>
+          <div class="frame-row pinned">
+            <span class="fr-id">F1</span>
+            <span class="fr-page" style="color:var(--violet)">page 7</span>
+            <span><div class="tag tag-clean">clean</div></span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--violet)">2</span>
+            <span><div class="tag tag-pinned">pinned</div></span>
+          </div>
+          <div class="frame-row dirty">
+            <span class="fr-id">F2</span>
+            <span class="fr-page" style="color:var(--amber)">page 0</span>
+            <span><div class="tag tag-dirty">dirty</div></span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--dim)">0</span>
+            <span><div class="tag tag-dirty">must flush</div></span>
+          </div>
+          <div class="frame-row empty">
+            <span class="fr-id">F3</span>
+            <span class="fr-page" style="color:var(--dim)">—</span>
+            <span><div class="tag tag-free">—</div></span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--dim)">0</span>
+            <span><div class="tag tag-free">free</div></span>
+          </div>
+        </div>
+      </div>
+      <div class="insight violet" style="margin-top:16px"><strong>Key invariants:</strong> (1) A page with pin_count &gt; 0 can never be evicted — a thread is actively reading/writing it. (2) A dirty page must be flushed to disk before its frame is reused — otherwise we lose committed writes.</div>
+    </div>
+  </div>
+
+  <!-- LRU -->
+  <div class="section">
+    <div class="section-title">Page Replacement: LRU and the Clock Algorithm</div>
+    <div class="two-col">
+      <div class="card" style="--i:0">
+        <h3 style="font-size:15px;font-weight:600;margin-bottom:14px;color:var(--blue)">LRU (Least Recently Used)</h3>
+        <div class="lru-label">Access order: MRU → LRU</div>
+        <div class="lru-list">
+          <div class="lru-node mru"><div class="pg">pg 7</div><div class="id" style="color:var(--green)">F1</div></div>
+          <div class="lru-arrow">↔</div>
+          <div class="lru-node"><div class="pg">pg 0</div><div class="id">F2</div></div>
+          <div class="lru-arrow">↔</div>
+          <div class="lru-node"><div class="pg">pg 3</div><div class="id">F0</div></div>
+          <div class="lru-arrow">↔</div>
+          <div class="lru-node lru-end evict"><div class="pg">pg 12</div><div class="id" style="color:var(--red)">F3</div></div>
+        </div>
+        <p style="font-size:13px;color:var(--dim);margin-top:12px">When pool is full, evict the tail (least recently accessed). On every access, move that frame to the head. Uses a doubly-linked list + hash map. O(1) access and eviction.</p>
+      </div>
+      <div class="card" style="--i:1">
+        <h3 style="font-size:15px;font-weight:600;margin-bottom:14px;color:var(--amber)">Clock Algorithm</h3>
+        <p style="font-size:13px;color:var(--dim);margin-bottom:12px">A cheaper LRU approximation using a circular buffer and a single "reference bit" per frame. A clock hand sweeps around:</p>
+        <ol style="list-style:none;display:flex;flex-direction:column;gap:8px;font-size:13px">
+          <li style="display:flex;gap:10px;align-items:flex-start"><span style="color:var(--amber);font-weight:700;font-family:'JetBrains Mono',monospace">1.</span><span>If ref_bit = 1: clear it, advance hand (give a second chance)</span></li>
+          <li style="display:flex;gap:10px;align-items:flex-start"><span style="color:var(--amber);font-weight:700;font-family:'JetBrains Mono',monospace">2.</span><span>If ref_bit = 0: evict this frame (not recently used)</span></li>
+          <li style="display:flex;gap:10px;align-items:flex-start"><span style="color:var(--amber);font-weight:700;font-family:'JetBrains Mono',monospace">3.</span><span>On page access: set ref_bit = 1</span></li>
+        </ol>
+        <div class="insight" style="margin-top:12px"><strong>Tradeoff:</strong> No linked list, no hash map updates on every access — just a single bit flip. Used by PostgreSQL's buffer manager.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLOW DIAGRAM -->
+  <div class="section">
+    <div class="section-title">get_page() Decision Flow</div>
+    <div class="mermaid-card">
+      <div class="mermaid">
+flowchart TD
+  REQ([request page N]):::start --> PT{Page table:<br/>page N in pool?}
+  PT -->|Yes — cache hit| PIN[increment pin_count]:::op
+  PIN --> RET([return frame pointer]):::done
+  PT -->|No — cache miss| FREE{Free frame<br/>available?}
+  FREE -->|Yes| ALLOC[allocate free frame]:::op
+  FREE -->|No| EVICT[run eviction policy<br/>find unpinned frame]:::evict
+  EVICT --> DIRTY{frame dirty?}
+  DIRTY -->|Yes| FLUSH[flush page to disk<br/>write at page_id * PAGE_SIZE]:::warn
+  DIRTY -->|No| LOAD
+  FLUSH --> LOAD
+  ALLOC --> LOAD[read page N from disk<br/>into frame]:::op
+  LOAD --> PTUP[update page table:<br/>page N → frame_id]:::op
+  PTUP --> PIN
+classDef start fill:#1e2540,stroke:#60a5fa,color:#e8ecf4
+classDef op fill:#1a1f30,stroke:#6b7694,color:#e8ecf4
+classDef done fill:#1a2a1a,stroke:#34d399,color:#e8ecf4
+classDef evict fill:#2a1a2a,stroke:#a78bfa,color:#e8ecf4
+classDef warn fill:#2a1f10,stroke:#f59e0b,color:#e8ecf4
+      </div>
+    </div>
+  </div>
+
+  <!-- RUST IMPL -->
+  <div class="section">
+    <div class="section-title">Our Toy Pager in Rust</div>
+    <div class="card" style="--i:0">
+      <p style="font-size:14px;color:var(--dim);margin-bottom:16px">For Phase 1 we keep it simple: a fixed array of <code style="font-family:'JetBrains Mono',monospace;color:var(--violet)">Option&lt;Box&lt;[u8; PAGE_SIZE]&gt;&gt;</code>. No LRU yet — eviction is deferred until we need it. Pages are flushed on <code style="font-family:'JetBrains Mono',monospace;color:var(--amber)">.exit</code>.</p>
+<pre><span class="kw">const</span> <span class="ty">PAGE_SIZE</span>:    <span class="ty">usize</span> = <span class="num">4096</span>;
+<span class="kw">const</span> <span class="ty">TABLE_MAX_PAGES</span>: <span class="ty">usize</span> = <span class="num">100</span>;
+
+<span class="kw">struct</span> <span class="ty">Pager</span> {
+    file:       <span class="ty">File</span>,
+    file_len:   <span class="ty">u64</span>,
+    num_pages:  <span class="ty">u32</span>,
+    pages:      [<span class="ty">Option</span>&lt;<span class="ty">Box</span>&lt;[<span class="ty">u8</span>; <span class="ty">PAGE_SIZE</span>]&gt;&gt;; <span class="ty">TABLE_MAX_PAGES</span>],
+}
+
+<span class="kw">impl</span> <span class="ty">Pager</span> {
+    <span class="kw">fn</span> <span class="ty">get_page</span>(&<span class="kw">mut</span> <span class="kw">self</span>, page_num: <span class="ty">usize</span>) -> &<span class="kw">mut</span> [<span class="ty">u8</span>; <span class="ty">PAGE_SIZE</span>] {
+        <span class="kw">if</span> <span class="kw">self</span>.pages[page_num].is_none() {
+            <span class="cm">// Cache miss: allocate and load from disk</span>
+            <span class="kw">let mut</span> page = <span class="ty">Box::new</span>([<span class="num">0u8</span>; <span class="ty">PAGE_SIZE</span>]);
+            <span class="kw">let</span> offset = (page_num * <span class="ty">PAGE_SIZE</span>) <span class="kw">as</span> <span class="ty">u64</span>;
+            <span class="kw">if</span> offset < <span class="kw">self</span>.file_len {
+                <span class="kw">self</span>.file.seek(<span class="ty">SeekFrom::Start</span>(offset)).unwrap();
+                <span class="kw">self</span>.file.read_exact(page.as_mut()).unwrap();
+            }
+            <span class="kw">self</span>.pages[page_num] = <span class="ty">Some</span>(page);
+        }
+        <span class="kw">self</span>.pages[page_num].as_mut().unwrap()
+    }
+
+    <span class="kw">fn</span> <span class="ty">flush</span>(&<span class="kw">mut</span> <span class="kw">self</span>, page_num: <span class="ty">usize</span>) {
+        <span class="kw">if let</span> <span class="ty">Some</span>(page) = &<span class="kw">self</span>.pages[page_num] {
+            <span class="kw">let</span> offset = (page_num * <span class="ty">PAGE_SIZE</span>) <span class="kw">as</span> <span class="ty">u64</span>;
+            <span class="kw">self</span>.file.seek(<span class="ty">SeekFrom::Start</span>(offset)).unwrap();
+            <span class="kw">self</span>.file.write_all(page.as_ref()).unwrap();
+        }
+    }
+}</pre>
+      <div class="insight"><strong>What we skip for now:</strong> dirty tracking, LRU eviction, pin counts, and concurrent access. Each of these becomes necessary as the database grows. Real buffer pool managers (PostgreSQL, InnoDB) have thousands of lines dedicated to these concerns.</div>
+    </div>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="section">
+    <div class="section-title">Frame Metadata Summary</div>
+    <div class="two-col">
+      <div class="card" style="--i:0;border-left:3px solid var(--amber)">
+        <h3 style="font-size:14px;font-weight:600;margin-bottom:8px;color:var(--amber)">Dirty Bit</h3>
+        <p style="font-size:13px;color:var(--dim)">Set when a write modifies the in-memory frame. Cleared after a successful flush. An eviction of a dirty page without flushing = data loss.</p>
+      </div>
+      <div class="card" style="--i:1;border-left:3px solid var(--violet)">
+        <h3 style="font-size:14px;font-weight:600;margin-bottom:8px;color:var(--violet)">Pin Count</h3>
+        <p style="font-size:13px;color:var(--dim)">Incremented when a thread acquires the frame, decremented on release. Only frames with pin_count = 0 are eviction candidates.</p>
+      </div>
+      <div class="card" style="--i:2;border-left:3px solid var(--blue)">
+        <h3 style="font-size:14px;font-weight:600;margin-bottom:8px;color:var(--blue)">Page Table</h3>
+        <p style="font-size:13px;color:var(--dim)">Maps logical page_id → physical frame_id. On a cache hit, this is the only lookup needed. On miss, the table is updated after loading.</p>
+      </div>
+      <div class="card" style="--i:3;border-left:3px solid var(--green)">
+        <h3 style="font-size:14px;font-weight:600;margin-bottom:8px;color:var(--green)">Free List</h3>
+        <p style="font-size:13px;color:var(--dim)">Tracks which frames are currently unpopulated. On cache miss, check the free list first before invoking the eviction policy.</p>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'dark',
+    themeVariables: { background: '#111520', primaryColor: '#1e2540', primaryTextColor: '#e8ecf4',
+      lineColor: '#6b7694', edgeLabelBackground: '#111520' } });
+</script>
+</body>
+</html>

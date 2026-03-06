@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recursive Descent Parsing — Phase 2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0b0e14; --surface: #111520; --surface2: #161c2d;
+    --text: #e8ecf4; --dim: #6b7694; --border: rgba(255,255,255,0.06);
+    --cyan: #22d3ee; --rose: #fb7185; --green: #34d399; --purple: #a78bfa;
+    --radius: 13px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f4f6fb; --surface: #ffffff; --surface2: #eef0f7;
+      --text: #111520; --dim: #5a6280; --border: rgba(0,0,0,0.08); }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Space Grotesk', sans-serif;
+    line-height: 1.7; }
+  .container { max-width: 900px; margin: 0 auto; padding: 48px 24px 80px; }
+  .phase-badge { display: inline-flex; align-items: center; background: rgba(34,211,238,0.1);
+    border: 1px solid rgba(34,211,238,0.25); color: var(--cyan); font-size: 12px;
+    font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 5px 12px; border-radius: 20px; margin-bottom: 20px; }
+  h1 { font-size: clamp(26px, 5vw, 42px); font-weight: 700; line-height: 1.15; margin-bottom: 12px; }
+  h1 span { color: var(--cyan); }
+  .subtitle { color: var(--dim); font-size: 17px; margin-bottom: 48px; max-width: 640px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 28px 32px; margin-bottom: 20px;
+    animation: fadeUp 0.5s ease both; }
+  .card:nth-child(2) { animation-delay: 0.07s; }
+  .card:nth-child(3) { animation-delay: 0.14s; }
+  .card:nth-child(4) { animation-delay: 0.21s; }
+  .card:nth-child(5) { animation-delay: 0.28s; }
+  .card:nth-child(6) { animation-delay: 0.35s; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+  .card-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.09em;
+    color: var(--cyan); margin-bottom: 14px; }
+  h2 { font-size: 21px; font-weight: 600; margin-bottom: 10px; }
+  p { color: var(--dim); margin-bottom: 12px; }
+  p:last-child { margin-bottom: 0; }
+  pre { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 20px 22px; overflow-x: auto; font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; line-height: 1.8; margin: 14px 0; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 13px;
+    background: var(--surface2); padding: 2px 6px; border-radius: 4px; }
+  .kw { color: var(--cyan); font-weight: 600; }
+  .ty { color: var(--rose); }
+  .str { color: var(--green); }
+  .cmt { color: var(--dim); font-style: italic; }
+  .num { color: #f9a8d4; }
+  .field { color: #fbbf24; }
+
+  /* Grammar block */
+  .grammar { background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--purple);
+    border-radius: 0 10px 10px 0; padding: 18px 22px; margin: 14px 0;
+    font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 2; }
+  .g-rule { color: var(--green); }
+  .g-kw { color: var(--cyan); }
+  .g-op { color: var(--rose); }
+  .g-opt { color: var(--dim); }
+
+  /* Call stack */
+  .callstack { display: flex; flex-direction: column; gap: 2px; margin: 14px 0; }
+  .cs-frame { display: flex; align-items: center; gap: 12px; padding: 10px 16px;
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+  .cs-frame.active { border-color: rgba(34,211,238,0.4); background: rgba(34,211,238,0.05); }
+  .cs-depth { color: var(--dim); min-width: 20px; text-align: right; font-size: 11px; }
+  .cs-fn { color: var(--cyan); font-weight: 600; }
+  .cs-arrow { color: var(--dim); }
+  .cs-result { color: var(--green); font-size: 12px; }
+
+  /* Mermaid wrapper */
+  .mermaid-wrap { background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 24px; margin: 14px 0; overflow-x: auto; }
+  .mermaid { text-align: center; }
+
+  /* Trace steps */
+  .trace { margin: 14px 0; }
+  .trace-step { display: flex; gap: 14px; margin-bottom: 10px; align-items: flex-start; }
+  .trace-n { min-width: 26px; height: 26px; border-radius: 50%; background: rgba(34,211,238,0.15);
+    border: 1px solid rgba(34,211,238,0.35); color: var(--cyan); font-size: 12px;
+    font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .trace-text { color: var(--dim); font-size: 14.5px; padding-top: 2px; }
+  .trace-text strong { color: var(--text); }
+</style>
+</head>
+<body>
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'dark',
+    themeVariables: { background: '#161c2d', primaryColor: '#1e2a3a',
+      primaryTextColor: '#e8ecf4', primaryBorderColor: '#22d3ee',
+      lineColor: '#6b7694', secondaryColor: '#111520', tertiaryColor: '#0b0e14' }});
+</script>
+<div class="container">
+  <div class="phase-badge">Phase 2 &middot; SQL Parsing</div>
+  <h1>Recursive Descent <span>Parsing</span> + AST</h1>
+  <p class="subtitle">How a token stream becomes an Abstract Syntax Tree — one grammar rule, one function.</p>
+
+  <!-- What a parser does -->
+  <div class="card">
+    <div class="card-title">Parser Role</div>
+    <h2>Tokens In, Tree Out</h2>
+    <p>The lexer breaks text into tokens. The parser gives those tokens <em>structure</em>. It enforces grammar rules and organises tokens into a tree that reflects the logical meaning of the query — an Abstract Syntax Tree (AST).</p>
+    <p>A <strong>recursive descent parser</strong> implements the grammar directly: each grammar rule becomes one function. When a rule refers to another rule, that function calls the other function. The call stack mirrors the parse tree as it is built.</p>
+  </div>
+
+  <!-- Grammar -->
+  <div class="card">
+    <div class="card-title">Grammar Rules</div>
+    <h2>Simplified BNF for Our SQL Subset</h2>
+    <p>These rules describe exactly which token sequences are valid. The parser enforces them by expecting specific tokens at each step.</p>
+    <div class="grammar">
+<span class="g-rule">statement</span>   <span class="g-op">=</span> <span class="g-kw">select_stmt</span> <span class="g-op">|</span> <span class="g-kw">insert_stmt</span> <span class="g-op">|</span> <span class="g-kw">create_stmt</span><br>
+<span class="g-rule">select_stmt</span> <span class="g-op">=</span> <span class="g-kw">SELECT</span> <span class="g-kw">columns</span> <span class="g-kw">FROM</span> <span class="g-rule">ident</span> <span class="g-opt">[ WHERE condition ]</span><br>
+<span class="g-rule">insert_stmt</span> <span class="g-op">=</span> <span class="g-kw">INSERT INTO</span> <span class="g-rule">ident</span> <span class="g-kw">VALUES</span> <span class="g-op">(</span> <span class="g-rule">value_list</span> <span class="g-op">)</span><br>
+<span class="g-rule">create_stmt</span> <span class="g-op">=</span> <span class="g-kw">CREATE TABLE</span> <span class="g-rule">ident</span> <span class="g-op">(</span> <span class="g-rule">col_defs</span> <span class="g-op">)</span><br>
+<span class="g-rule">columns</span>     <span class="g-op">=</span> <span class="g-op">*</span>  <span class="g-op">|</span>  <span class="g-rule">ident</span> <span class="g-opt">( , ident )*</span><br>
+<span class="g-rule">condition</span>   <span class="g-op">=</span> <span class="g-rule">ident</span> <span class="g-op">=</span> <span class="g-rule">value</span><br>
+<span class="g-rule">value</span>       <span class="g-op">=</span> <span class="g-rule">integer</span> <span class="g-op">|</span> <span class="g-rule">string_lit</span> <span class="g-op">|</span> <span class="g-rule">ident</span>
+    </div>
+    <p>Square brackets <code>[ ]</code> denote optional elements. Parentheses group alternatives. The asterisk <code>*</code> after a group means zero or more repetitions.</p>
+  </div>
+
+  <!-- AST types -->
+  <div class="card">
+    <div class="card-title">Abstract Syntax Tree</div>
+    <h2>The AST Rust Types</h2>
+    <p>Each grammar rule maps to a Rust type. The top-level <code>Statement</code> enum covers all supported statement kinds:</p>
+<pre><span class="kw">enum</span> <span class="ty">Column</span> {
+    <span class="ty">Wildcard</span>,               <span class="cmt">// SELECT *</span>
+    <span class="ty">Named</span>(<span class="ty">String</span>),           <span class="cmt">// SELECT id, name</span>
+}
+
+<span class="kw">struct</span> <span class="ty">Condition</span> {
+    <span class="field">column</span>: <span class="ty">String</span>,
+    <span class="field">value</span>:  <span class="ty">Value</span>,
+}
+
+<span class="kw">enum</span> <span class="ty">Value</span> {
+    <span class="ty">Int</span>(<span class="ty">i64</span>), <span class="ty">Str</span>(<span class="ty">String</span>), <span class="ty">Ident</span>(<span class="ty">String</span>),
+}
+
+<span class="kw">enum</span> <span class="ty">Statement</span> {
+    <span class="ty">Select</span> {
+        <span class="field">columns</span>: <span class="ty">Vec</span>&lt;<span class="ty">Column</span>&gt;,
+        <span class="field">from</span>:    <span class="ty">String</span>,
+        <span class="field">where_</span>:  <span class="ty">Option</span>&lt;<span class="ty">Condition</span>&gt;,
+    },
+    <span class="ty">Insert</span> {
+        <span class="field">into</span>:   <span class="ty">String</span>,
+        <span class="field">values</span>: <span class="ty">Vec</span>&lt;<span class="ty">Value</span>&gt;,
+    },
+    <span class="ty">CreateTable</span> {
+        <span class="field">name</span>:    <span class="ty">String</span>,
+        <span class="field">columns</span>: <span class="ty">Vec</span>&lt;<span class="ty">ColumnDef</span>&gt;,
+    },
+}</pre>
+  </div>
+
+  <!-- AST diagram -->
+  <div class="card">
+    <div class="card-title">Visual — AST Shape</div>
+    <h2>AST for <code>SELECT id, name FROM users WHERE id = 1</code></h2>
+    <div class="mermaid-wrap">
+      <div class="mermaid">
+graph TD
+  A["Statement::Select"] --> B["columns: Vec&lt;Column&gt;"]
+  A --> C["from: &quot;users&quot;"]
+  A --> D["where_: Some(Condition)"]
+  B --> E["Column::Named(&quot;id&quot;)"]
+  B --> F["Column::Named(&quot;name&quot;)"]
+  D --> G["column: &quot;id&quot;"]
+  D --> H["value: Value::Int(1)"]
+  style A fill:#1e2a3a,stroke:#22d3ee,color:#e8ecf4
+  style B fill:#111520,stroke:#6b7694,color:#e8ecf4
+  style C fill:#111520,stroke:#6b7694,color:#e8ecf4
+  style D fill:#111520,stroke:#6b7694,color:#e8ecf4
+  style E fill:#0f1f18,stroke:#34d399,color:#e8ecf4
+  style F fill:#0f1f18,stroke:#34d399,color:#e8ecf4
+  style G fill:#1a1530,stroke:#a78bfa,color:#e8ecf4
+  style H fill:#1a1530,stroke:#a78bfa,color:#e8ecf4
+      </div>
+    </div>
+    <p>The root is the <code>Statement::Select</code> variant. Its fields — columns, the table name, and an optional WHERE condition — form the branches. Leaf nodes are concrete values: strings and integers.</p>
+  </div>
+
+  <!-- Parse trace -->
+  <div class="card">
+    <div class="card-title">Parse Trace</div>
+    <h2>Following the Call Stack</h2>
+    <p>Parsing <code>SELECT id FROM users WHERE id = 1</code> triggers this function call sequence:</p>
+    <div class="callstack">
+      <div class="cs-frame active">
+        <span class="cs-depth">1</span>
+        <span class="cs-fn">parse_statement()</span>
+        <span class="cs-arrow">&#8594;</span>
+        <span class="cs-result">sees Token::Select, calls parse_select()</span>
+      </div>
+      <div class="cs-frame active">
+        <span class="cs-depth">2</span>
+        <span class="cs-fn">parse_select()</span>
+        <span class="cs-arrow">&#8594;</span>
+        <span class="cs-result">expects SELECT, calls parse_columns()</span>
+      </div>
+      <div class="cs-frame">
+        <span class="cs-depth">3</span>
+        <span class="cs-fn">parse_columns()</span>
+        <span class="cs-arrow">&#8594;</span>
+        <span class="cs-result">returns [Column::Named("id")]</span>
+      </div>
+      <div class="cs-frame active">
+        <span class="cs-depth">2</span>
+        <span class="cs-fn">parse_select()</span>
+        <span class="cs-arrow">&#8594;</span>
+        <span class="cs-result">expects FROM, reads "users"</span>
+      </div>
+      <div class="cs-frame">
+        <span class="cs-depth">3</span>
+        <span class="cs-fn">parse_where()</span>
+        <span class="cs-arrow">&#8594;</span>
+        <span class="cs-result">sees WHERE, calls parse_condition()</span>
+      </div>
+      <div class="cs-frame">
+        <span class="cs-depth">4</span>
+        <span class="cs-fn">parse_condition()</span>
+        <span class="cs-arrow">&#8594;</span>
+        <span class="cs-result">returns Condition { "id", Value::Int(1) }</span>
+      </div>
+      <div class="cs-frame active">
+        <span class="cs-depth">1</span>
+        <span class="cs-fn">parse_statement()</span>
+        <span class="cs-arrow">&#8594;</span>
+        <span class="cs-result">returns Statement::Select { columns, from, where_ }</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Parser implementation -->
+  <div class="card">
+    <div class="card-title">Implementation</div>
+    <h2>The <code>parse_select</code> Function</h2>
+    <p>Each parser function consumes tokens it owns and delegates to sub-functions for nested rules. The <code>expect</code> helper asserts the next token matches and advances, or returns an error.</p>
+<pre><span class="kw">fn</span> <span class="kw">parse_select</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>) -&gt; <span class="ty">Result</span>&lt;<span class="ty">Statement</span>&gt; {
+    <span class="kw">self</span>.expect(<span class="ty">Token</span>::<span class="ty">Select</span>)?;        <span class="cmt">// consume SELECT</span>
+    <span class="kw">let</span> columns = <span class="kw">self</span>.parse_columns()?; <span class="cmt">// * or ident list</span>
+    <span class="kw">self</span>.expect(<span class="ty">Token</span>::<span class="ty">From</span>)?;          <span class="cmt">// consume FROM</span>
+    <span class="kw">let</span> from = <span class="kw">self</span>.expect_ident()?;    <span class="cmt">// table name</span>
+
+    <span class="kw">let</span> where_ = <span class="kw">if</span> <span class="kw">self</span>.peek() == <span class="ty">Token</span>::<span class="ty">Where</span> {
+        <span class="kw">self</span>.advance();                  <span class="cmt">// consume WHERE</span>
+        <span class="ty">Some</span>(<span class="kw">self</span>.parse_condition()?)
+    } <span class="kw">else</span> {
+        <span class="ty">None</span>
+    };
+
+    <span class="ty">Ok</span>(<span class="ty">Statement</span>::<span class="ty">Select</span> { columns, from, where_ })
+}
+
+<span class="kw">fn</span> <span class="kw">parse_columns</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>) -&gt; <span class="ty">Result</span>&lt;<span class="ty">Vec</span>&lt;<span class="ty">Column</span>&gt;&gt; {
+    <span class="kw">if</span> <span class="kw">self</span>.peek() == <span class="ty">Token</span>::<span class="ty">Star</span> {
+        <span class="kw">self</span>.advance();
+        <span class="kw">return</span> <span class="ty">Ok</span>(<span class="kw">vec</span>![<span class="ty">Column</span>::<span class="ty">Wildcard</span>]);
+    }
+    <span class="kw">let</span> <span class="kw">mut</span> cols = <span class="kw">vec</span>![<span class="ty">Column</span>::<span class="ty">Named</span>(<span class="kw">self</span>.expect_ident()?)];
+    <span class="kw">while</span> <span class="kw">self</span>.peek() == <span class="ty">Token</span>::<span class="ty">Comma</span> {
+        <span class="kw">self</span>.advance();  <span class="cmt">// consume comma</span>
+        cols.push(<span class="ty">Column</span>::<span class="ty">Named</span>(<span class="kw">self</span>.expect_ident()?));
+    }
+    <span class="ty">Ok</span>(cols)
+}</pre>
+    <p>Notice how <code>parse_select</code> calls <code>parse_columns</code> and <code>parse_condition</code> — functions that themselves consume tokens. This mutual recursion is the defining trait of recursive descent.</p>
+  </div>
+</div>
+</body>
+</html>
