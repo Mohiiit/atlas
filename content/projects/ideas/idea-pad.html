@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mohit's Idea Pad</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ============ THEME ============ */
+  :root {
+    --font-body: 'Space Grotesk', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+
+    /* Dark-first: personal knowledge OS */
+    --bg: #0b0e14;
+    --surface: #111520;
+    --surface2: #181d2e;
+    --surface-elevated: #1e2438;
+    --border: rgba(255, 255, 255, 0.06);
+    --border-bright: rgba(255, 255, 255, 0.12);
+    --text: #e8ecf4;
+    --text-dim: #6b7694;
+
+    /* Build accent: amber/gold */
+    --build: #f59e0b;
+    --build-bright: #fbbf24;
+    --build-dim: rgba(245, 158, 11, 0.1);
+    --build-glow: rgba(245, 158, 11, 0.04);
+
+    /* Learn accent: cyan/teal */
+    --learn: #06b6d4;
+    --learn-bright: #22d3ee;
+    --learn-dim: rgba(6, 182, 212, 0.1);
+    --learn-glow: rgba(6, 182, 212, 0.04);
+
+    /* Idea tag colors */
+    --violet: #a78bfa;
+    --violet-dim: rgba(167, 139, 250, 0.1);
+    --rose: #fb7185;
+    --rose-dim: rgba(251, 113, 133, 0.1);
+    --emerald: #34d399;
+    --emerald-dim: rgba(52, 211, 153, 0.1);
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f5f6fa;
+      --surface: #ffffff;
+      --surface2: #f0f2f8;
+      --surface-elevated: #ffffff;
+      --border: rgba(0, 0, 0, 0.07);
+      --border-bright: rgba(0, 0, 0, 0.14);
+      --text: #0f1320;
+      --text-dim: #6b7280;
+      --build: #d97706;
+      --build-bright: #f59e0b;
+      --build-dim: rgba(217, 119, 6, 0.09);
+      --build-glow: rgba(217, 119, 6, 0.03);
+      --learn: #0891b2;
+      --learn-bright: #06b6d4;
+      --learn-dim: rgba(8, 145, 178, 0.09);
+      --learn-glow: rgba(8, 145, 178, 0.03);
+      --violet: #7c3aed;
+      --violet-dim: rgba(124, 58, 237, 0.09);
+      --rose: #e11d48;
+      --rose-dim: rgba(225, 29, 72, 0.09);
+      --emerald: #059669;
+      --emerald-dim: rgba(5, 150, 105, 0.09);
+    }
+  }
+
+  /* ============ RESET ============ */
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    background-image:
+      radial-gradient(ellipse at 15% 10%, var(--build-glow) 0%, transparent 55%),
+      radial-gradient(ellipse at 85% 80%, var(--learn-glow) 0%, transparent 55%),
+      radial-gradient(ellipse at 50% 50%, rgba(167, 139, 250, 0.02) 0%, transparent 60%);
+    color: var(--text);
+    font-family: var(--font-body);
+    padding: 48px 40px;
+    min-height: 100vh;
+    overflow-wrap: break-word;
+  }
+
+  /* ============ ANIMATIONS ============ */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeScale {
+    from { opacity: 0; transform: scale(0.94); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .idea-card {
+    animation: fadeUp 0.45s ease-out both;
+    animation-delay: calc(var(--i, 0) * 0.07s);
+  }
+  .section-header {
+    animation: fadeScale 0.4s ease-out both;
+    animation-delay: calc(var(--i, 0) * 0.07s);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-delay: 0ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  /* ============ HEADER ============ */
+  .page-header {
+    max-width: 1180px;
+    margin: 0 auto 48px;
+    animation: fadeUp 0.4s ease-out both;
+  }
+
+  .page-title {
+    font-size: 42px;
+    font-weight: 700;
+    letter-spacing: -1.5px;
+    line-height: 1.05;
+    margin-bottom: 10px;
+  }
+
+  .page-title .accent-build { color: var(--build-bright); }
+  .page-title .accent-learn { color: var(--learn-bright); }
+
+  .page-meta {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-dim);
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 12px;
+  }
+
+  .page-meta span { display: flex; align-items: center; gap: 6px; }
+
+  .meta-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  /* ============ LAYOUT ============ */
+  .columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+    max-width: 1180px;
+    margin: 0 auto;
+    align-items: start;
+  }
+
+  /* ============ SECTION HEADER ============ */
+  .section-header {
+    border-radius: 14px;
+    padding: 18px 22px;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .section-header--build {
+    background: color-mix(in srgb, var(--surface) 85%, var(--build) 15%);
+    border: 1px solid color-mix(in srgb, var(--border) 40%, var(--build) 60%);
+  }
+
+  .section-header--learn {
+    background: color-mix(in srgb, var(--surface) 85%, var(--learn) 15%);
+    border: 1px solid color-mix(in srgb, var(--border) 40%, var(--learn) 60%);
+  }
+
+  .section-icon {
+    font-size: 28px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  .section-title {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.4px;
+    margin-bottom: 2px;
+  }
+
+  .section-header--build .section-title { color: var(--build-bright); }
+  .section-header--learn .section-title { color: var(--learn-bright); }
+
+  .section-subtitle {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.3px;
+  }
+
+  /* ============ IDEA CARDS ============ */
+  .ideas-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .idea-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    cursor: default;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .idea-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 3px;
+    height: 100%;
+    border-radius: 3px 0 0 3px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .idea-card--build::before { background: var(--build); }
+  .idea-card--learn::before { background: var(--learn); }
+
+  .idea-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+  }
+
+  .idea-card--build:hover {
+    border-color: color-mix(in srgb, var(--border) 30%, var(--build) 70%);
+  }
+
+  .idea-card--learn:hover {
+    border-color: color-mix(in srgb, var(--border) 30%, var(--learn) 70%);
+  }
+
+  .idea-card:hover::before { opacity: 1; }
+
+  .idea-top {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 7px;
+  }
+
+  .idea-emoji {
+    font-size: 20px;
+    line-height: 1.2;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .idea-name {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.2px;
+    line-height: 1.3;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .idea-tag {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .tag--blockchain { background: var(--violet-dim); color: var(--violet); }
+  .tag--ai { background: var(--rose-dim); color: var(--rose); }
+  .tag--hardware { background: var(--emerald-dim); color: var(--emerald); }
+  .tag--mev { background: var(--build-dim); color: var(--build); }
+  .tag--defi { background: var(--learn-dim); color: var(--learn); }
+  .tag--voice { background: var(--rose-dim); color: var(--rose); }
+
+  .idea-desc {
+    font-size: 12.5px;
+    line-height: 1.65;
+    color: var(--text-dim);
+    padding-left: 30px;
+  }
+
+  /* ============ DIVIDER ============ */
+  .col-divider {
+    display: none;
+  }
+
+  /* ============ FOOTER ============ */
+  .page-footer {
+    max-width: 1180px;
+    margin: 40px auto 0;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    opacity: 0.6;
+    animation: fadeUp 0.4s ease-out 0.8s both;
+  }
+
+  /* ============ RESPONSIVE ============ */
+  @media (max-width: 768px) {
+    body { padding: 24px 20px; }
+    .page-title { font-size: 30px; }
+    .columns { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div class="page-title">
+    Mohit's Idea Pad
+  </div>
+  <div class="page-meta">
+    <span><span class="meta-dot" style="background: var(--build-bright)"></span> Build — 6 ideas</span>
+    <span><span class="meta-dot" style="background: var(--learn-bright)"></span> Learn — 3 areas</span>
+    <span style="color: var(--text-dim)">Updated March 2026</span>
+  </div>
+</div>
+
+<div class="columns">
+
+  <!-- BUILD COLUMN -->
+  <div>
+    <div class="section-header section-header--build" style="--i:1">
+      <div class="section-icon">🔨</div>
+      <div>
+        <div class="section-title">Build</div>
+        <div class="section-subtitle">I know what I want to ship</div>
+      </div>
+    </div>
+
+    <div class="ideas-stack">
+
+      <div class="idea-card idea-card--build" style="--i:2">
+        <div class="idea-top">
+          <div class="idea-emoji">💳</div>
+          <div class="idea-name">Kardomom</div>
+          <span class="idea-tag tag--defi">Fintech</span>
+        </div>
+        <div class="idea-desc">
+          Browser-based credit card optimizer for India. At the point of purchase, recommends which card from your portfolio gives the best reward. No real competitor exists. Built on a Python scraper (Gecko), FastAPI backend, and SolidJS frontend. Core challenge: normalizing reward points across banks and mapping merchant categories.
+        </div>
+      </div>
+
+      <div class="idea-card idea-card--build" style="--i:3">
+        <div class="idea-top">
+          <div class="idea-emoji">🔒</div>
+          <div class="idea-name">Cloak</div>
+          <span class="idea-tag tag--blockchain">Starknet</span>
+        </div>
+        <div class="idea-desc">
+          Privacy-first smart wallet on Starknet. Tongo ZK shielded payments, agent wallets, x402 micropayments, and guardian-controlled key delegation — all in one SDK (<code style="font-family:var(--font-mono);font-size:11px;background:var(--build-dim);color:var(--build);padding:1px 5px;border-radius:3px">@cloak-wallet/sdk</code>). Mobile, web, and extension apps are the reference implementation. First privacy-preserving x402 on Starknet.
+        </div>
+      </div>
+
+      <div class="idea-card idea-card--build" style="--i:4">
+        <div class="idea-top">
+          <div class="idea-emoji">⚡</div>
+          <div class="idea-name">MEV on Polygon / Polymarket</div>
+          <span class="idea-tag tag--mev">MEV</span>
+        </div>
+        <div class="idea-desc">
+          Front-running or back-running trades on Polymarket — a prediction market running on Polygon. Explore how market orders, liquidity, and order flow can be exploited using MEV strategies. Extends to general Polygon MEV: DEX arbitrage, sandwich attacks, liquidations. Early-stage idea, no clear architecture yet.
+        </div>
+      </div>
+
+      <div class="idea-card idea-card--build" style="--i:5">
+        <div class="idea-top">
+          <div class="idea-emoji">🎙️</div>
+          <div class="idea-name">Indian Voice Developer Agent</div>
+          <span class="idea-tag tag--voice">Voice AI</span>
+        </div>
+        <div class="idea-desc">
+          A senior developer persona scoped to a specific codebase you can talk to in real time. Not just a code search tool — an opinionated senior-level AI for architecture, bugs, and tradeoffs. Speaks in a familiar Indian developer tone. Built on deep codebase indexing + voice I/O.
+        </div>
+      </div>
+
+      <div class="idea-card idea-card--build" style="--i:6">
+        <div class="idea-top">
+          <div class="idea-emoji">🏠</div>
+          <div class="idea-name">OpenCloaz as Google Home Device</div>
+          <span class="idea-tag tag--ai">Local AI</span>
+        </div>
+        <div class="idea-desc">
+          Repurpose OpenCloaz as a local, always-on Google Home-style device. Voice-activated, runs fully locally, privacy-preserving. Could hook into home automation, personal agents, or the Indian Voice Dev Agent above.
+        </div>
+      </div>
+
+      <div class="idea-card idea-card--build" style="--i:7">
+        <div class="idea-top">
+          <div class="idea-emoji">🎧</div>
+          <div class="idea-name">Discord Voice Calls with Subagents</div>
+          <span class="idea-tag tag--ai">Multi-Agent</span>
+        </div>
+        <div class="idea-desc">
+          A team of AI agents on a live voice call — each with a distinct role: frontend, backend, PM, reviewer. Initially Discord, but extendable. Each agent speaks in an Indian accent, collaborates in real time. Feels like a real standup or pairing session.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- LEARN COLUMN -->
+  <div>
+    <div class="section-header section-header--learn" style="--i:1">
+      <div class="section-icon">📚</div>
+      <div>
+        <div class="section-title">Learn</div>
+        <div class="section-subtitle">Building expertise, not a product</div>
+      </div>
+    </div>
+
+    <div class="ideas-stack">
+
+      <div class="idea-card idea-card--learn" style="--i:2">
+        <div class="idea-top">
+          <div class="idea-emoji">☀️</div>
+          <div class="idea-name">Solana Development</div>
+          <span class="idea-tag tag--blockchain">Blockchain</span>
+        </div>
+        <div class="idea-desc">
+          Learn Solana's programming model from first principles: accounts, programs, PDAs, SPL tokens, and the runtime. Goal is to be comfortable building on-chain programs in Rust using the Anchor framework and interacting with the network from a client. Pure skill building — not tied to any specific app yet.
+        </div>
+      </div>
+
+      <div class="idea-card idea-card--learn" style="--i:3">
+        <div class="idea-top">
+          <div class="idea-emoji">🏦</div>
+          <div class="idea-name">DeFi</div>
+          <span class="idea-tag tag--defi">Protocol</span>
+        </div>
+        <div class="idea-desc">
+          Go beyond surface-level DeFi. Understand how AMMs actually work (Uniswap v2/v3 math), lending protocols (Aave, Compound), liquidation mechanics, yield strategies, and composability. Read the actual contracts — not just the docs. Feeds directly into the MEV interest.
+        </div>
+      </div>
+
+      <div class="idea-card idea-card--learn" style="--i:4">
+        <div class="idea-top">
+          <div class="idea-emoji">🚁</div>
+          <div class="idea-name">Drone / Hardware Projects</div>
+          <span class="idea-tag tag--hardware">Hardware</span>
+        </div>
+        <div class="idea-desc">
+          Get hands-on with drone hardware: flight controllers (Betaflight, ArduPilot), ESCs, FPV systems, and custom frame builds. Explore autonomous flight using companion computers (Raspberry Pi, Jetson Nano). Interest is at the intersection of hardware hacking and software control systems.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<div class="page-footer">
+  <span>karnot-vault/ideas/idea-pad</span>
+  <span>·</span>
+  <span>9 ideas total</span>
+</div>
+
+</body>
+</html>
