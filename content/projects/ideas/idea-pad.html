@@ -8,101 +8,71 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  /* ============ THEME ============ */
   :root {
     --font-body: 'Space Grotesk', system-ui, sans-serif;
     --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
-
-    /* Dark-first: personal knowledge OS */
     --bg: #0b0e14;
     --surface: #111520;
     --surface2: #181d2e;
-    --surface-elevated: #1e2438;
     --border: rgba(255, 255, 255, 0.06);
-    --border-bright: rgba(255, 255, 255, 0.12);
+    --border-bright: rgba(255, 255, 255, 0.13);
     --text: #e8ecf4;
     --text-dim: #6b7694;
-
-    /* Build accent: amber/gold */
-    --build: #f59e0b;
-    --build-bright: #fbbf24;
-    --build-dim: rgba(245, 158, 11, 0.1);
-    --build-glow: rgba(245, 158, 11, 0.04);
-
-    /* Learn accent: cyan/teal */
-    --learn: #06b6d4;
-    --learn-bright: #22d3ee;
-    --learn-dim: rgba(6, 182, 212, 0.1);
-    --learn-glow: rgba(6, 182, 212, 0.04);
-
-    /* Idea tag colors */
+    --amber: #f59e0b;
+    --amber-bright: #fbbf24;
+    --amber-dim: rgba(245, 158, 11, 0.1);
     --violet: #a78bfa;
     --violet-dim: rgba(167, 139, 250, 0.1);
     --rose: #fb7185;
     --rose-dim: rgba(251, 113, 133, 0.1);
+    --cyan: #22d3ee;
+    --cyan-dim: rgba(34, 211, 238, 0.1);
     --emerald: #34d399;
     --emerald-dim: rgba(52, 211, 153, 0.1);
+    --active-glow: rgba(245, 158, 11, 0.03);
   }
 
   @media (prefers-color-scheme: light) {
     :root {
-      --bg: #f5f6fa;
+      --bg: #f4f5fa;
       --surface: #ffffff;
-      --surface2: #f0f2f8;
-      --surface-elevated: #ffffff;
+      --surface2: #eef0f8;
       --border: rgba(0, 0, 0, 0.07);
       --border-bright: rgba(0, 0, 0, 0.14);
       --text: #0f1320;
       --text-dim: #6b7280;
-      --build: #d97706;
-      --build-bright: #f59e0b;
-      --build-dim: rgba(217, 119, 6, 0.09);
-      --build-glow: rgba(217, 119, 6, 0.03);
-      --learn: #0891b2;
-      --learn-bright: #06b6d4;
-      --learn-dim: rgba(8, 145, 178, 0.09);
-      --learn-glow: rgba(8, 145, 178, 0.03);
+      --amber: #d97706;
+      --amber-bright: #f59e0b;
+      --amber-dim: rgba(217, 119, 6, 0.09);
       --violet: #7c3aed;
       --violet-dim: rgba(124, 58, 237, 0.09);
       --rose: #e11d48;
       --rose-dim: rgba(225, 29, 72, 0.09);
+      --cyan: #0891b2;
+      --cyan-dim: rgba(8, 145, 178, 0.09);
       --emerald: #059669;
       --emerald-dim: rgba(5, 150, 105, 0.09);
+      --active-glow: rgba(217, 119, 6, 0.03);
     }
   }
 
-  /* ============ RESET ============ */
   *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
   body {
     background: var(--bg);
     background-image:
-      radial-gradient(ellipse at 15% 10%, var(--build-glow) 0%, transparent 55%),
-      radial-gradient(ellipse at 85% 80%, var(--learn-glow) 0%, transparent 55%),
-      radial-gradient(ellipse at 50% 50%, rgba(167, 139, 250, 0.02) 0%, transparent 60%);
+      radial-gradient(ellipse at 10% 5%, rgba(245,158,11,0.04) 0%, transparent 50%),
+      radial-gradient(ellipse at 90% 90%, rgba(167,139,250,0.03) 0%, transparent 50%);
     color: var(--text);
     font-family: var(--font-body);
-    padding: 48px 40px;
+    padding: 52px 44px;
     min-height: 100vh;
     overflow-wrap: break-word;
   }
 
-  /* ============ ANIMATIONS ============ */
   @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(16px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes fadeScale {
-    from { opacity: 0; transform: scale(0.94); }
-    to { opacity: 1; transform: scale(1); }
-  }
-
-  .idea-card {
-    animation: fadeUp 0.45s ease-out both;
-    animation-delay: calc(var(--i, 0) * 0.07s);
-  }
-  .section-header {
-    animation: fadeScale 0.4s ease-out both;
-    animation-delay: calc(var(--i, 0) * 0.07s);
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -113,371 +83,460 @@
     }
   }
 
-  /* ============ HEADER ============ */
+  /* ── PAGE HEADER ── */
   .page-header {
-    max-width: 1180px;
-    margin: 0 auto 48px;
+    max-width: 1100px;
+    margin: 0 auto 44px;
     animation: fadeUp 0.4s ease-out both;
   }
 
-  .page-title {
-    font-size: 42px;
+  h1 {
+    font-size: 44px;
     font-weight: 700;
-    letter-spacing: -1.5px;
-    line-height: 1.05;
-    margin-bottom: 10px;
+    letter-spacing: -1.8px;
+    line-height: 1;
+    margin-bottom: 14px;
   }
-
-  .page-title .accent-build { color: var(--build-bright); }
-  .page-title .accent-learn { color: var(--learn-bright); }
 
   .page-meta {
     font-family: var(--font-mono);
     font-size: 12px;
     color: var(--text-dim);
     display: flex;
-    gap: 20px;
+    gap: 24px;
     flex-wrap: wrap;
     align-items: center;
-    margin-top: 12px;
   }
 
-  .page-meta span { display: flex; align-items: center; gap: 6px; }
+  .meta-pill {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
 
-  .meta-dot {
+  .dot {
     width: 7px;
     height: 7px;
     border-radius: 50%;
-    display: inline-block;
-  }
-
-  /* ============ LAYOUT ============ */
-  .columns {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 28px;
-    max-width: 1180px;
-    margin: 0 auto;
-    align-items: start;
-  }
-
-  /* ============ SECTION HEADER ============ */
-  .section-header {
-    border-radius: 14px;
-    padding: 18px 22px;
-    margin-bottom: 14px;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-  }
-
-  .section-header--build {
-    background: color-mix(in srgb, var(--surface) 85%, var(--build) 15%);
-    border: 1px solid color-mix(in srgb, var(--border) 40%, var(--build) 60%);
-  }
-
-  .section-header--learn {
-    background: color-mix(in srgb, var(--surface) 85%, var(--learn) 15%);
-    border: 1px solid color-mix(in srgb, var(--border) 40%, var(--learn) 60%);
-  }
-
-  .section-icon {
-    font-size: 28px;
-    line-height: 1;
     flex-shrink: 0;
   }
 
-  .section-title {
-    font-size: 18px;
-    font-weight: 700;
-    letter-spacing: -0.4px;
-    margin-bottom: 2px;
+  /* ── CARD GRID ── */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    max-width: 1100px;
+    margin: 0 auto;
   }
 
-  .section-header--build .section-title { color: var(--build-bright); }
-  .section-header--learn .section-title { color: var(--learn-bright); }
-
-  .section-subtitle {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--text-dim);
-    letter-spacing: 0.3px;
-  }
-
-  /* ============ IDEA CARDS ============ */
-  .ideas-stack {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .idea-card {
+  /* ── IDEA CARD ── */
+  .card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 16px 18px;
-    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-    cursor: default;
+    border-radius: 14px;
+    padding: 20px 22px 22px;
     position: relative;
     overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    animation: fadeUp 0.45s ease-out both;
+    animation-delay: calc(var(--i, 0) * 0.07s);
+    cursor: default;
   }
 
-  .idea-card::before {
+  .card::after {
     content: '';
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 3px;
-    height: 100%;
-    border-radius: 3px 0 0 3px;
+    top: 0; left: 0;
+    width: 100%; height: 3px;
+    border-radius: 14px 14px 0 0;
     opacity: 0;
     transition: opacity 0.2s ease;
   }
 
-  .idea-card--build::before { background: var(--build); }
-  .idea-card--learn::before { background: var(--learn); }
+  .card:hover { transform: translateY(-3px); box-shadow: 0 8px 28px rgba(0,0,0,0.22); }
+  .card:hover::after { opacity: 1; }
 
-  .idea-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
-  }
+  /* status: active vs concept */
+  .card--active { border-left: 3px solid rgba(245,158,11,0.35); }
+  .card--active::after { background: linear-gradient(90deg, var(--amber), var(--amber-bright)); }
+  .card--active:hover { border-color: rgba(245,158,11,0.5); }
 
-  .idea-card--build:hover {
-    border-color: color-mix(in srgb, var(--border) 30%, var(--build) 70%);
-  }
+  .card--concept::after { background: linear-gradient(90deg, var(--violet), #c4b5fd); }
+  .card--concept:hover { border-color: var(--border-bright); }
 
-  .idea-card--learn:hover {
-    border-color: color-mix(in srgb, var(--border) 30%, var(--learn) 70%);
-  }
-
-  .idea-card:hover::before { opacity: 1; }
-
-  .idea-top {
+  /* ── CARD HEADER ── */
+  .card-head {
     display: flex;
     align-items: flex-start;
-    gap: 10px;
-    margin-bottom: 7px;
+    gap: 11px;
+    margin-bottom: 10px;
   }
 
-  .idea-emoji {
-    font-size: 20px;
-    line-height: 1.2;
-    flex-shrink: 0;
-    margin-top: 1px;
-  }
+  .card-emoji { font-size: 22px; line-height: 1.2; flex-shrink: 0; }
 
-  .idea-name {
-    font-size: 15px;
-    font-weight: 600;
-    letter-spacing: -0.2px;
-    line-height: 1.3;
+  .card-title-row {
     flex: 1;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
   }
 
-  .idea-tag {
+  .card-name {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    line-height: 1.2;
+  }
+
+  .card-badges {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+
+  .badge {
     font-family: var(--font-mono);
     font-size: 9px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 1.2px;
+    letter-spacing: 1px;
     padding: 2px 7px;
     border-radius: 4px;
-    flex-shrink: 0;
-    margin-top: 2px;
+    white-space: nowrap;
   }
 
-  .tag--blockchain { background: var(--violet-dim); color: var(--violet); }
-  .tag--ai { background: var(--rose-dim); color: var(--rose); }
-  .tag--hardware { background: var(--emerald-dim); color: var(--emerald); }
-  .tag--mev { background: var(--build-dim); color: var(--build); }
-  .tag--defi { background: var(--learn-dim); color: var(--learn); }
-  .tag--voice { background: var(--rose-dim); color: var(--rose); }
+  .badge--active   { background: var(--amber-dim);  color: var(--amber); }
+  .badge--concept  { background: var(--violet-dim); color: var(--violet); }
+  .badge--starknet { background: var(--violet-dim); color: var(--violet); }
+  .badge--mev      { background: var(--amber-dim);  color: var(--amber); }
+  .badge--voice    { background: var(--rose-dim);   color: var(--rose); }
+  .badge--ai       { background: var(--cyan-dim);   color: var(--cyan); }
+  .badge--fintech  { background: var(--emerald-dim);color: var(--emerald); }
+  .badge--india    { background: var(--rose-dim);   color: var(--rose); }
 
-  .idea-desc {
-    font-size: 12.5px;
-    line-height: 1.65;
+  /* ── CARD BODY ── */
+  .card-desc {
+    font-size: 13px;
+    line-height: 1.7;
     color: var(--text-dim);
-    padding-left: 30px;
+    margin-bottom: 14px;
   }
 
-  /* ============ DIVIDER ============ */
-  .col-divider {
-    display: none;
+  /* ── DETAIL ROWS ── */
+  .card-details {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border-top: 1px solid var(--border);
+    padding-top: 13px;
   }
 
-  /* ============ FOOTER ============ */
+  .detail-row {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: 8px;
+    font-size: 12px;
+    align-items: baseline;
+  }
+
+  .detail-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    opacity: 0.7;
+    white-space: nowrap;
+  }
+
+  .detail-value {
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  .chip {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border-bright);
+    color: var(--text-dim);
+    padding: 1px 6px;
+    border-radius: 4px;
+    display: inline-block;
+    margin: 1px 2px 1px 0;
+  }
+
+  /* ── FOOTER ── */
   .page-footer {
-    max-width: 1180px;
-    margin: 40px auto 0;
+    max-width: 1100px;
+    margin: 36px auto 0;
     font-family: var(--font-mono);
     font-size: 11px;
     color: var(--text-dim);
+    opacity: 0.5;
     display: flex;
-    gap: 16px;
-    align-items: center;
-    opacity: 0.6;
-    animation: fadeUp 0.4s ease-out 0.8s both;
+    gap: 14px;
   }
 
-  /* ============ RESPONSIVE ============ */
-  @media (max-width: 768px) {
-    body { padding: 24px 20px; }
-    .page-title { font-size: 30px; }
-    .columns { grid-template-columns: 1fr; }
+  /* ── RESPONSIVE ── */
+  @media (max-width: 820px) {
+    body { padding: 28px 20px; }
+    h1 { font-size: 32px; }
+    .grid { grid-template-columns: 1fr; }
+    .detail-row { grid-template-columns: 70px 1fr; }
   }
 </style>
 </head>
 <body>
 
 <div class="page-header">
-  <div class="page-title">
-    Mohit's Idea Pad
-  </div>
+  <h1>Idea Pad</h1>
   <div class="page-meta">
-    <span><span class="meta-dot" style="background: var(--build-bright)"></span> Build — 6 ideas</span>
-    <span><span class="meta-dot" style="background: var(--learn-bright)"></span> Learn — 3 areas</span>
-    <span style="color: var(--text-dim)">Updated March 2026</span>
+    <div class="meta-pill"><div class="dot" style="background:var(--amber)"></div>Active — 2 in progress</div>
+    <div class="meta-pill"><div class="dot" style="background:var(--violet)"></div>Concept — 4 not started</div>
+    <div class="meta-pill" style="color:var(--text-dim)">March 2026</div>
   </div>
 </div>
 
-<div class="columns">
+<div class="grid">
 
-  <!-- BUILD COLUMN -->
-  <div>
-    <div class="section-header section-header--build" style="--i:1">
-      <div class="section-icon">🔨</div>
-      <div>
-        <div class="section-title">Build</div>
-        <div class="section-subtitle">I know what I want to ship</div>
+  <!-- KARDOMOM -->
+  <div class="card card--active" style="--i:1">
+    <div class="card-head">
+      <div class="card-emoji">💳</div>
+      <div class="card-title-row">
+        <div class="card-name">Kardomom</div>
+        <div class="card-badges">
+          <span class="badge badge--active">Active</span>
+          <span class="badge badge--fintech">Fintech</span>
+          <span class="badge badge--india">India</span>
+        </div>
       </div>
     </div>
-
-    <div class="ideas-stack">
-
-      <div class="idea-card idea-card--build" style="--i:2">
-        <div class="idea-top">
-          <div class="idea-emoji">💳</div>
-          <div class="idea-name">Kardomom</div>
-          <span class="idea-tag tag--defi">Fintech</span>
-        </div>
-        <div class="idea-desc">
-          Browser-based credit card optimizer for India. At the point of purchase, recommends which card from your portfolio gives the best reward. No real competitor exists. Built on a Python scraper (Gecko), FastAPI backend, and SolidJS frontend. Core challenge: normalizing reward points across banks and mapping merchant categories.
+    <div class="card-desc">
+      Browser-based credit card optimizer for the Indian market. At the point of purchase, it recommends the single best card from your portfolio — factoring in reward categories, cashback rates, and bonus multipliers. No real competitor currently exists in India. The insight is that most people leave significant rewards on the table by always using the same card.
+    </div>
+    <div class="card-details">
+      <div class="detail-row">
+        <div class="detail-label">Stack</div>
+        <div class="detail-value">
+          <span class="chip">Python</span><span class="chip">Playwright</span><span class="chip">FastAPI</span><span class="chip">Beanie</span><span class="chip">MongoDB</span><span class="chip">SolidJS</span><span class="chip">TailwindCSS v4</span>
         </div>
       </div>
-
-      <div class="idea-card idea-card--build" style="--i:3">
-        <div class="idea-top">
-          <div class="idea-emoji">🔒</div>
-          <div class="idea-name">Cloak</div>
-          <span class="idea-tag tag--blockchain">Starknet</span>
-        </div>
-        <div class="idea-desc">
-          Privacy-first smart wallet on Starknet. Tongo ZK shielded payments, agent wallets, x402 micropayments, and guardian-controlled key delegation — all in one SDK (<code style="font-family:var(--font-mono);font-size:11px;background:var(--build-dim);color:var(--build);padding:1px 5px;border-radius:3px">@cloak-wallet/sdk</code>). Mobile, web, and extension apps are the reference implementation. First privacy-preserving x402 on Starknet.
-        </div>
+      <div class="detail-row">
+        <div class="detail-label">Modules</div>
+        <div class="detail-value">Gecko (scraper) · Cardamom (API) · Chai (frontend)</div>
       </div>
-
-      <div class="idea-card idea-card--build" style="--i:4">
-        <div class="idea-top">
-          <div class="idea-emoji">⚡</div>
-          <div class="idea-name">MEV on Polygon / Polymarket</div>
-          <span class="idea-tag tag--mev">MEV</span>
-        </div>
-        <div class="idea-desc">
-          Front-running or back-running trades on Polymarket — a prediction market running on Polygon. Explore how market orders, liquidity, and order flow can be exploited using MEV strategies. Extends to general Polygon MEV: DEX arbitrage, sandwich attacks, liquidations. Early-stage idea, no clear architecture yet.
-        </div>
+      <div class="detail-row">
+        <div class="detail-label">Data source</div>
+        <div class="detail-value">PaisaBazaar — JS-rendered WordPress SPA, scraped via Playwright. 100+ cards across major Indian banks.</div>
       </div>
-
-      <div class="idea-card idea-card--build" style="--i:5">
-        <div class="idea-top">
-          <div class="idea-emoji">🎙️</div>
-          <div class="idea-name">Indian Voice Developer Agent</div>
-          <span class="idea-tag tag--voice">Voice AI</span>
-        </div>
-        <div class="idea-desc">
-          A senior developer persona scoped to a specific codebase you can talk to in real time. Not just a code search tool — an opinionated senior-level AI for architecture, bugs, and tradeoffs. Speaks in a familiar Indian developer tone. Built on deep codebase indexing + voice I/O.
-        </div>
+      <div class="detail-row">
+        <div class="detail-label">Auth</div>
+        <div class="detail-value">JWT + Google OAuth</div>
       </div>
-
-      <div class="idea-card idea-card--build" style="--i:6">
-        <div class="idea-top">
-          <div class="idea-emoji">🏠</div>
-          <div class="idea-name">OpenCloaz as Google Home Device</div>
-          <span class="idea-tag tag--ai">Local AI</span>
-        </div>
-        <div class="idea-desc">
-          Repurpose OpenCloaz as a local, always-on Google Home-style device. Voice-activated, runs fully locally, privacy-preserving. Could hook into home automation, personal agents, or the Indian Voice Dev Agent above.
-        </div>
+      <div class="detail-row">
+        <div class="detail-label">Open problem</div>
+        <div class="detail-value">Normalizing reward points across banks (each bank has different point-to-INR ratios). Merchant category mapping for MVP is hardcoded — ML-based later.</div>
       </div>
-
-      <div class="idea-card idea-card--build" style="--i:7">
-        <div class="idea-top">
-          <div class="idea-emoji">🎧</div>
-          <div class="idea-name">Discord Voice Calls with Subagents</div>
-          <span class="idea-tag tag--ai">Multi-Agent</span>
-        </div>
-        <div class="idea-desc">
-          A team of AI agents on a live voice call — each with a distinct role: frontend, backend, PM, reviewer. Initially Discord, but extendable. Each agent speaks in an Indian accent, collaborates in real time. Feels like a real standup or pairing session.
-        </div>
-      </div>
-
     </div>
   </div>
 
-  <!-- LEARN COLUMN -->
-  <div>
-    <div class="section-header section-header--learn" style="--i:1">
-      <div class="section-icon">📚</div>
-      <div>
-        <div class="section-title">Learn</div>
-        <div class="section-subtitle">Building expertise, not a product</div>
+  <!-- CLOAK -->
+  <div class="card card--active" style="--i:2">
+    <div class="card-head">
+      <div class="card-emoji">🔒</div>
+      <div class="card-title-row">
+        <div class="card-name">Cloak</div>
+        <div class="card-badges">
+          <span class="badge badge--active">Active</span>
+          <span class="badge badge--starknet">Starknet</span>
+          <span class="badge badge--ai">Agentic</span>
+        </div>
       </div>
     </div>
+    <div class="card-desc">
+      Privacy-first smart wallet on Starknet. The goal is to become the unified privacy + agent payment layer for the ecosystem. Ships as a single SDK that developers <span style="font-family:var(--font-mono);font-size:11px;background:var(--surface2);padding:1px 5px;border-radius:3px">npm install</span> to get shielded payments, agent wallets, and micropayments in one package.
+    </div>
+    <div class="card-details">
+      <div class="detail-row">
+        <div class="detail-label">SDK</div>
+        <div class="detail-value"><span class="chip">@cloak-wallet/sdk</span> — TypeScript, published to npm. Mobile, web, and Chrome extension are reference implementations.</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Privacy layer</div>
+        <div class="detail-value">Tongo ZK shielded pool — ElGamal commitments, nullifiers, ZK proofs. Payments are invisible on-chain (sender, amount, recipient hidden).</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Payments</div>
+        <div class="detail-value">x402 micropayments (Coinbase standard, 500K+ txs week 1). Building <em>z402-starknet</em> — first shielded x402 implementation anywhere.</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Key mgmt</div>
+        <div class="detail-value">Guardian-controlled delegation — 2-of-N multisig for recovery, ward model for scoped spending.</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Current work</div>
+        <div class="detail-value">Shielded swaps via AVNU, agentic SDK integration, StarknetID / .stark names.</div>
+      </div>
+    </div>
+  </div>
 
-    <div class="ideas-stack">
-
-      <div class="idea-card idea-card--learn" style="--i:2">
-        <div class="idea-top">
-          <div class="idea-emoji">☀️</div>
-          <div class="idea-name">Solana Development</div>
-          <span class="idea-tag tag--blockchain">Blockchain</span>
-        </div>
-        <div class="idea-desc">
-          Learn Solana's programming model from first principles: accounts, programs, PDAs, SPL tokens, and the runtime. Goal is to be comfortable building on-chain programs in Rust using the Anchor framework and interacting with the network from a client. Pure skill building — not tied to any specific app yet.
+  <!-- MEV -->
+  <div class="card card--concept" style="--i:3">
+    <div class="card-head">
+      <div class="card-emoji">⚡</div>
+      <div class="card-title-row">
+        <div class="card-name">MEV on Polygon / Polymarket</div>
+        <div class="card-badges">
+          <span class="badge badge--concept">Concept</span>
+          <span class="badge badge--mev">MEV</span>
         </div>
       </div>
+    </div>
+    <div class="card-desc">
+      Polymarket is the leading prediction market, running on Polygon as a CLOB (Central Limit Order Book). The idea is to run a searcher bot that monitors the mempool and order book for extractable value — front-running large directional bets, arbitraging price discrepancies between Polymarket and Kalshi or Manifold, or exploiting resolution latency when real-world events settle.
+    </div>
+    <div class="card-details">
+      <div class="detail-row">
+        <div class="detail-label">Angles</div>
+        <div class="detail-value">Order-flow front-running · Cross-market arb (Polymarket vs Kalshi) · Resolution lag plays · Liquidity provision MEV</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">General MEV</div>
+        <div class="detail-value">Polygon PoS has validators (not miners), different MEV landscape. Flashbots has limited presence. Opportunity in DEX arb, sandwich, and liquidations on Polygon DeFi (QuickSwap, Aave).</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Stack ideas</div>
+        <div class="detail-value"><span class="chip">Rust</span><span class="chip">ethers-rs</span><span class="chip">Polygon RPC</span><span class="chip">websocket mempool</span></div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Status</div>
+        <div class="detail-value">Early-stage. No architecture yet — need to study Polymarket's smart contracts and CLOB mechanics first.</div>
+      </div>
+    </div>
+  </div>
 
-      <div class="idea-card idea-card--learn" style="--i:3">
-        <div class="idea-top">
-          <div class="idea-emoji">🏦</div>
-          <div class="idea-name">DeFi</div>
-          <span class="idea-tag tag--defi">Protocol</span>
-        </div>
-        <div class="idea-desc">
-          Go beyond surface-level DeFi. Understand how AMMs actually work (Uniswap v2/v3 math), lending protocols (Aave, Compound), liquidation mechanics, yield strategies, and composability. Read the actual contracts — not just the docs. Feeds directly into the MEV interest.
+  <!-- INDIAN VOICE DEV AGENT -->
+  <div class="card card--concept" style="--i:4">
+    <div class="card-head">
+      <div class="card-emoji">🎙️</div>
+      <div class="card-title-row">
+        <div class="card-name">Indian Voice Developer Agent</div>
+        <div class="card-badges">
+          <span class="badge badge--concept">Concept</span>
+          <span class="badge badge--voice">Voice AI</span>
+          <span class="badge badge--india">India</span>
         </div>
       </div>
+    </div>
+    <div class="card-desc">
+      A senior developer persona scoped to a codebase that you can have a real conversation with. Not a code search tool — an opinionated, senior-level AI that can discuss architecture decisions, debug problems, and push back on bad ideas. The key differentiator is the persona: speaks in a familiar Indian developer tone, knows the codebase deeply, and feels like talking to a teammate.
+    </div>
+    <div class="card-details">
+      <div class="detail-row">
+        <div class="detail-label">Input</div>
+        <div class="detail-value">Whisper (local STT) or cloud-based voice recognition with low latency</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Indexing</div>
+        <div class="detail-value">tree-sitter for AST parsing, embeddings + vector DB (Qdrant/pgvector) for semantic search across the codebase</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">LLM</div>
+        <div class="detail-value">Claude as backbone — system prompt defines the senior dev persona, codebase context is injected via RAG</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Output</div>
+        <div class="detail-value">TTS with Indian accent — ElevenLabs clone or fine-tuned Kokoro/XTTS model</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Delivery</div>
+        <div class="detail-value">Could ship as a Claude Code hook, a daemon, or a VS Code extension</div>
+      </div>
+    </div>
+  </div>
 
-      <div class="idea-card idea-card--learn" style="--i:4">
-        <div class="idea-top">
-          <div class="idea-emoji">🚁</div>
-          <div class="idea-name">Drone / Hardware Projects</div>
-          <span class="idea-tag tag--hardware">Hardware</span>
-        </div>
-        <div class="idea-desc">
-          Get hands-on with drone hardware: flight controllers (Betaflight, ArduPilot), ESCs, FPV systems, and custom frame builds. Explore autonomous flight using companion computers (Raspberry Pi, Jetson Nano). Interest is at the intersection of hardware hacking and software control systems.
+  <!-- OPENCLOAZ AS GOOGLE HOME -->
+  <div class="card card--concept" style="--i:5">
+    <div class="card-head">
+      <div class="card-emoji">🏠</div>
+      <div class="card-title-row">
+        <div class="card-name">OpenCloaz as Google Home Device</div>
+        <div class="card-badges">
+          <span class="badge badge--concept">Concept</span>
+          <span class="badge badge--ai">Local AI</span>
         </div>
       </div>
+    </div>
+    <div class="card-desc">
+      Repurpose OpenCloaz (or a similar open-source voice assistant framework like OpenVoiceOS) as a local, always-on smart home device — a privacy-preserving alternative to Google Home. Everything runs on-device: wake word detection, STT, LLM inference, TTS. No cloud calls, no data leaving the box.
+    </div>
+    <div class="card-details">
+      <div class="detail-row">
+        <div class="detail-label">Hardware</div>
+        <div class="detail-value">Raspberry Pi 5 or a Mini PC (Beelink, N100). Needs a mic array and speaker.</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Stack ideas</div>
+        <div class="detail-value"><span class="chip">Whisper.cpp</span><span class="chip">Ollama</span><span class="chip">Piper TTS</span><span class="chip">openWakeWord</span></div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Extensions</div>
+        <div class="detail-value">Home automation via Home Assistant. Could plug in the Indian Voice Dev Agent above for a coding-assistant mode.</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Status</div>
+        <div class="detail-value">Pure concept. First step: get a local LLM talking via voice on a Pi.</div>
+      </div>
+    </div>
+  </div>
 
+  <!-- DISCORD VOICE CALLS WITH SUBAGENTS -->
+  <div class="card card--concept" style="--i:6">
+    <div class="card-head">
+      <div class="card-emoji">🎧</div>
+      <div class="card-title-row">
+        <div class="card-name">Discord Voice Calls with Subagents</div>
+        <div class="card-badges">
+          <span class="badge badge--concept">Concept</span>
+          <span class="badge badge--ai">Multi-Agent</span>
+          <span class="badge badge--india">India</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-desc">
+      A team of AI agents that join a Discord voice channel — each with a distinct role (frontend dev, backend dev, PM, reviewer, QA). You can ask them questions, direct tasks, and have a real standup. Each agent has a different Indian accent and personality. Discord is just the interface; the underlying protocol could be extended to other platforms or a custom voice room.
+    </div>
+    <div class="card-details">
+      <div class="detail-row">
+        <div class="detail-label">Discord layer</div>
+        <div class="detail-value">discord.py + discord.js bots joining voice channels via Discord's voice gateway. Each agent = a separate bot with its own account and voice stream.</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Voice</div>
+        <div class="detail-value">ElevenLabs voices cloned to Indian accents, or Coqui TTS with per-agent voice profiles. Each agent sounds distinct.</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Brain</div>
+        <div class="detail-value">Claude multi-agent setup — each agent has a system prompt defining its role, domain knowledge, and personality. They coordinate via a shared context or message bus.</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Use cases</div>
+        <div class="detail-value">Standups · Code review sessions · Architecture brainstorming · Rubber duck debugging with a whole team</div>
+      </div>
     </div>
   </div>
 
 </div>
 
 <div class="page-footer">
-  <span>karnot-vault/ideas/idea-pad</span>
+  <span>6 ideas · 2 active · 4 concept</span>
   <span>·</span>
-  <span>9 ideas total</span>
+  <span>March 2026</span>
 </div>
 
 </body>
