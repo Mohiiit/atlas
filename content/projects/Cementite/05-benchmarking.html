@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Benchmarking Strategy · Cementite KV-DB</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0d0d1a; font-family: 'JetBrains Mono','Fira Code',monospace; color: #e2e8f0; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0d0d1a; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState } = React;
+
+    const st = {
+      root: { display:'flex', flexDirection:'column', minHeight:'100vh', background:'#0d0d1a', color:'#e2e8f0', fontFamily:"'JetBrains Mono','Fira Code',monospace" },
+      header: { display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 24px', borderBottom:'1px solid #1e293b', position:'sticky', top:0, background:'rgba(13,13,26,0.97)', zIndex:10 },
+      tabBar: { display:'flex', gap:4, padding:'14px 24px', borderBottom:'1px solid #1e293b', background:'#080b14', overflowX:'auto' },
+      tab: { padding:'8px 18px', border:'1px solid #1e293b', borderRadius:6, fontSize:12, cursor:'pointer', background:'transparent', color:'#64748b', transition:'all 0.15s', whiteSpace:'nowrap' },
+      content: { flex:1, padding:'32px 40px', maxWidth:920 },
+      h2: { fontSize:20, fontWeight:700, color:'#f1f5f9', marginBottom:8 },
+      label: { fontSize:10, letterSpacing:'0.14em', fontWeight:700, color:'#475569', marginBottom:10, marginTop:20 },
+      text: { fontSize:12.5, color:'#94a3b8', lineHeight:1.8, marginBottom:12 },
+      code: { background:'#070910', border:'1px solid #1e293b', borderRadius:8, padding:'14px 16px', fontSize:11.5, color:'#7dd3fc', lineHeight:1.8, overflowX:'auto', marginBottom:16, whiteSpace:'pre' },
+      card: { background:'#111827', border:'1px solid #1e293b', borderRadius:8, padding:'16px', marginBottom:12 },
+    };
+
+    function DataTable({ headers, rows }) {
+      return (
+        <div style={{ overflowX:'auto', marginBottom:16 }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11.5 }}>
+            <thead>
+              <tr>{headers.map(h => <th key={h} style={{ padding:'9px 14px', background:'#111827', borderBottom:'1px solid #1e293b', color:'#64748b', textAlign:'left', letterSpacing:'0.06em', fontSize:10, whiteSpace:'nowrap' }}>{h}</th>)}</tr>
+            </thead>
+            <tbody>
+              {rows.map((row, ri) => (
+                <tr key={ri} style={{ borderBottom:'1px solid #0f172a' }}>
+                  {row.map((cell, ci) => (
+                    <td key={ci} style={{ padding:'9px 14px', color: ci === 0 ? '#e2e8f0' : '#64748b', background: ri % 2 === 0 ? 'rgba(255,255,255,0.012)' : 'transparent', verticalAlign:'top', lineHeight:1.5 }}>{cell}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    function WhatToMeasureTab() {
+      return (
+        <div style={st.content}>
+          <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
+            <div style={{ width:3, height:32, background:'#4ade80', borderRadius:2 }}></div>
+            <div>
+              <h2 style={st.h2}>What to Measure</h2>
+              <p style={{ fontSize:12, color:'#64748b' }}>The 5 metrics that actually matter</p>
+            </div>
+          </div>
+
+          <div style={{ display:'flex', flexDirection:'column', gap:14, marginBottom:20 }}>
+            {[
+              {
+                num:1, title:'Throughput (ops/sec)', color:'#4ade80',
+                desc:'Measure sustained throughput over 60 seconds, not a 5-second burst. Compaction can cause throughput cliffs after 10-20 seconds.',
+                detail:'Measure at: sequential write, random write, sequential read, random read. At 1, 4, 16, 64 thread concurrency. Plot throughput vs time — you\'ll see compaction stalls clearly.',
+                metric:'ops/sec sustained 60s'
+              },
+              {
+                num:2, title:'Latency Percentiles', color:'#22d3ee',
+                desc:'NEVER report just average latency. p99 matters most for user experience. p99.9 catches pathological cases (compaction stalls).',
+                detail:'Collect Vec<u64> of latencies in microseconds. Sort. Index by percentile. Report p50, p95, p99, p999. Example: avg=0.5ms but p99=200ms means compaction stalls are killing you.',
+                metric:'p50/p95/p99/p999 μs'
+              },
+              {
+                num:3, title:'Write Amplification Factor (WAF)', color:'#fb923c',
+                desc:'disk_write_bytes / user_write_bytes. A WAF of 25× means for every 1GB you write, 25GB hits the disk. This is your compaction cost.',
+                detail:'Read /proc/self/io before and after. Key: read write_bytes field. MUST fsync before reading post-stats or OS buffer will lie to you.',
+                metric:'disk_writes / user_writes'
+              },
+              {
+                num:4, title:'Read Amplification Factor (RAF)', color:'#60a5fa',
+                desc:'disk_read_bytes / user_read_bytes. For LSM: 1 if Bloom filters are working, up to 10+ if not.',
+                detail:'Same /proc/self/io trick. Compare RAF between "all reads hit" vs "all reads miss" (key-not-found scan). Bloom filter impact is dramatic here.',
+                metric:'disk_reads / user_reads'
+              },
+              {
+                num:5, title:'Space Amplification Factor (SAF)', color:'#a78bfa',
+                desc:'actual_disk_usage / logical_data_size. Walk your data directory and sum all file sizes. Compare to user-written bytes.',
+                detail:'SAF breakdown by file type: .sst files (SSTables), .wal files, .manifest. During compaction, SAF temporarily spikes as input + output coexist.',
+                metric:'disk_bytes / logical_bytes'
+              },
+            ].map(m => (
+              <div key={m.num} style={{ display:'flex', gap:16, background:'#111827', border:'1px solid #1e293b', borderRadius:10, padding:'18px', borderLeft:`3px solid ${m.color}` }}>
+                <div style={{ flexShrink:0, width:36, height:36, borderRadius:'50%', background: m.color + '18', border:`2px solid ${m.color}`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, color: m.color }}>{m.num}</div>
+                <div style={{ flex:1 }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', flexWrap:'wrap', gap:8, marginBottom:8 }}>
+                    <span style={{ fontSize:14, fontWeight:700, color:'#f1f5f9' }}>{m.title}</span>
+                    <span style={{ fontSize:10, color: m.color, background: m.color + '12', padding:'3px 10px', borderRadius:6, letterSpacing:'0.06em' }}>{m.metric}</span>
+                  </div>
+                  <p style={{ fontSize:12.5, color:'#94a3b8', lineHeight:1.7, marginBottom:8 }}>{m.desc}</p>
+                  <p style={{ fontSize:12, color:'#64748b', lineHeight:1.6 }}>{m.detail}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div style={st.label}>PERCENTILE CALCULATION CODE</div>
+          <pre style={st.code}>{`let mut latencies_us: Vec<u64> = Vec::with_capacity(1_000_000);
+
+for _ in 0..ops {
+    let start = std::time::Instant::now();
+    db.get(&key)?;
+    latencies_us.push(start.elapsed().as_micros() as u64);
+}
+
+latencies_us.sort_unstable();
+let n = latencies_us.len();
+let p50  = latencies_us[(0.500 * n as f64) as usize];
+let p95  = latencies_us[(0.950 * n as f64) as usize];
+let p99  = latencies_us[(0.990 * n as f64) as usize];
+let p999 = latencies_us[(0.999 * n as f64) as usize];
+
+println!("p50={p50}μs p95={p95}μs p99={p99}μs p999={p999}μs");`}</pre>
+        </div>
+      );
+    }
+
+    function YCSBTab() {
+      return (
+        <div style={st.content}>
+          <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
+            <div style={{ width:3, height:32, background:'#a3e635', borderRadius:2 }}></div>
+            <div>
+              <h2 style={st.h2}>YCSB Workload Profiles</h2>
+              <p style={{ fontSize:12, color:'#64748b' }}>Industry-standard benchmarks for key-value stores</p>
+            </div>
+          </div>
+
+          <div style={st.label}>KEY DISTRIBUTIONS</div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:12, marginBottom:20 }}>
+            {[
+              { name:'Uniform', desc:'All keys equally likely. Every read is a cache miss. Unrealistic for real workloads but useful for baseline.', badge:'UNREALISTIC', badgeColor:'#ef4444', color:'#ef4444' },
+              { name:'Zipfian', desc:'80/20 rule: top 20% of keys get 80% of requests. Top 100 keys get ~30% of ALL requests. This is how real systems behave.', badge:'RECOMMENDED', badgeColor:'#22c55e', color:'#22c55e' },
+              { name:'Latest', desc:'Most recently written keys are accessed most often. Models social media feeds, leaderboards, recent activity.', badge:'TIME-SERIES', badgeColor:'#22d3ee', color:'#22d3ee' },
+              { name:'Hotspot', desc:'X% of operations target a fixed fraction of the keyspace. Models hot user IDs, viral content, trending products.', badge:'ADVERSARIAL', badgeColor:'#f97316', color:'#f97316' },
+            ].map(d => (
+              <div key={d.name} style={{ background:'#111827', border:'1px solid #1e293b', borderRadius:8, padding:'14px', borderTop:`2px solid ${d.color}` }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+                  <span style={{ fontSize:13, fontWeight:700, color:'#f1f5f9' }}>{d.name}</span>
+                  <span style={{ fontSize:9, color: d.badgeColor, background: d.badgeColor + '15', padding:'2px 8px', borderRadius:4, letterSpacing:'0.08em' }}>{d.badge}</span>
+                </div>
+                <p style={{ fontSize:12, color:'#64748b', lineHeight:1.6 }}>{d.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          <div style={st.label}>YCSB WORKLOAD PROFILES</div>
+          <DataTable
+            headers={['Workload', 'Read %', 'Write %', 'Distribution', 'Real-world use case', 'Tests']}
+            rows={[
+              ['A', '50%', '50% Update', 'Zipfian', 'Session store', 'Mixed read/write balance'],
+              ['B', '95%', '5% Update', 'Zipfian', 'Photo tagging', 'Read-heavy, occasional updates'],
+              ['C', '100%', '0%', 'Zipfian', 'User profile cache', 'Read throughput + cache warmup'],
+              ['D', '95%', '5% Insert', 'Latest', 'User status / feed', 'Recent-data access patterns'],
+              ['E', '95% Scans', '5% Insert', 'Zipfian', 'Threaded messages', 'Range scan performance'],
+              ['F', '50%', '50% RMW', 'Zipfian', 'User counters', 'Read-modify-write atomicity'],
+            ]}
+          />
+
+          <div style={st.label}>BENCHMARK SEQUENCE (RUN IN THIS ORDER)</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
+            {[
+              { phase:'Phase 1', name:'Sequential Write Baseline', detail:'Insert 1M keys sequentially. Measures peak write throughput without contention. Warm up the DB.', color:'#22c55e' },
+              { phase:'Phase 2', name:'Random Write', detail:'Random key 1M writes from Zipfian distribution. Shows compaction impact and write cliff.', color:'#f59e0b' },
+              { phase:'Phase 3', name:'Read Throughput', detail:'Run sequential read + Zipfian random read. Measure Bloom filter effectiveness (RAF near 1).', color:'#22d3ee' },
+              { phase:'Phase 4', name:'Workload A (Mixed)', detail:'50/50 read/write Zipfian. Run at 1, 2, 4, 8, 16, 32 threads. Find where you saturate.', color:'#60a5fa' },
+              { phase:'Phase 5', name:'Compaction Impact', detail:'Plot throughput vs TIME (10-minute run). You\'ll see compaction stalls clearly. Critical for p99.', color:'#a78bfa' },
+              { phase:'Phase 6', name:'Worst Case', detail:'100% random reads, all misses (keys not in DB). Measures Bloom filter for absent keys.', color:'#ef4444' },
+            ].map((p, i) => (
+              <div key={p.phase} style={{ display:'flex', alignItems:'stretch', gap:0, marginBottom:6 }}>
+                <div style={{ display:'flex', flexDirection:'column', alignItems:'center', marginRight:14, flexShrink:0 }}>
+                  <div style={{ width:28, height:28, borderRadius:'50%', background: p.color + '20', border:`2px solid ${p.color}`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:800, color: p.color }}>{i+1}</div>
+                  {i < 5 && <div style={{ width:2, flex:1, background:'#1e293b', minHeight:16 }}></div>}
+                </div>
+                <div style={{ background:'#111827', border:'1px solid #1e293b', borderRadius:8, padding:'12px 16px', flex:1 }}>
+                  <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:6 }}>
+                    <span style={{ fontSize:9, color: p.color, fontWeight:700, letterSpacing:'0.1em' }}>{p.phase}</span>
+                    <span style={{ fontSize:13, fontWeight:600, color:'#f1f5f9' }}>{p.name}</span>
+                  </div>
+                  <span style={{ fontSize:12, color:'#64748b', lineHeight:1.5 }}>{p.detail}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function AmpFactorsTab() {
+      return (
+        <div style={st.content}>
+          <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
+            <div style={{ width:3, height:32, background:'#2dd4bf', borderRadius:2 }}></div>
+            <div>
+              <h2 style={st.h2}>Amplification Factors</h2>
+              <p style={{ fontSize:12, color:'#64748b' }}>Read /proc/self/io to get WAF, RAF, SAF accurately</p>
+            </div>
+          </div>
+
+          <div style={st.label}>IO STATS (LINUX /PROC/SELF/IO)</div>
+          <pre style={st.code}>{`#[derive(Default, Clone)]
+struct IoStats {
+    read_bytes: u64,    // Bytes read from storage (after page cache)
+    write_bytes: u64,   // Bytes written to storage (before page cache)
+    // Note: these are PHYSICAL I/O, not logical. Includes all files.
+}
+
+impl IoStats {
+    #[cfg(target_os = "linux")]
+    fn read() -> std::io::Result<Self> {
+        let content = std::fs::read_to_string("/proc/self/io")?;
+        let mut stats = IoStats::default();
+        for line in content.lines() {
+            if let Some(val) = line.strip_prefix("read_bytes: ") {
+                stats.read_bytes = val.trim().parse().unwrap_or(0);
+            } else if let Some(val) = line.strip_prefix("write_bytes: ") {
+                stats.write_bytes = val.trim().parse().unwrap_or(0);
+            }
+        }
+        Ok(stats)
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    fn read() -> std::io::Result<Self> {
+        // macOS: use getrusage or kstat (less accurate)
+        Ok(IoStats::default())
+    }
+}`}</pre>
+
+          <div style={st.label}>AMPLIFICATION MEASUREMENT STRUCT</div>
+          <pre style={st.code}>{`struct AmplificationMeasurement {
+    start_io: IoStats,
+    user_writes: u64,    // Bytes the USER wrote (key + value sizes)
+    user_reads: u64,     // Bytes the USER read (value sizes returned)
+}
+
+impl AmplificationMeasurement {
+    fn start() -> Self {
+        Self {
+            start_io: IoStats::read().unwrap_or_default(),
+            user_writes: 0,
+            user_reads: 0,
+        }
+    }
+
+    fn record_write(&mut self, key: &[u8], value: &[u8]) {
+        self.user_writes += (key.len() + value.len()) as u64;
+    }
+
+    fn record_read(&mut self, value: &[u8]) {
+        self.user_reads += value.len() as u64;
+    }
+
+    fn finish(self) -> AmplificationReport {
+        // IMPORTANT: fsync before reading end stats!
+        // Otherwise OS buffer may not have flushed to device yet
+        let end_io = IoStats::read().unwrap_or_default();
+        let disk_writes = end_io.write_bytes.saturating_sub(self.start_io.write_bytes);
+        let disk_reads = end_io.read_bytes.saturating_sub(self.start_io.read_bytes);
+
+        AmplificationReport {
+            write_amp: if self.user_writes > 0 {
+                disk_writes as f64 / self.user_writes as f64
+            } else { 0.0 },
+            read_amp: if self.user_reads > 0 {
+                disk_reads as f64 / self.user_reads as f64
+            } else { 0.0 },
+            user_write_mb: self.user_writes as f64 / 1_048_576.0,
+            disk_write_mb: disk_writes as f64 / 1_048_576.0,
+        }
+    }
+}
+
+struct AmplificationReport {
+    write_amp: f64,
+    read_amp: f64,
+    user_write_mb: f64,
+    disk_write_mb: f64,
+}
+
+impl std::fmt::Display for AmplificationReport {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f,
+            "WAF={:.1}× (user={:.1}MB → disk={:.1}MB) | RAF={:.1}×",
+            self.write_amp, self.user_write_mb,
+            self.disk_write_mb, self.read_amp
+        )
+    }
+}`}</pre>
+
+          <div style={st.label}>SPACE AMPLIFICATION</div>
+          <pre style={st.code}>{`fn measure_space_amplification(data_dir: &str, logical_bytes: u64) -> f64 {
+    let mut total_bytes = 0u64;
+    let mut breakdown: std::collections::HashMap<&str, u64> = Default::default();
+
+    for entry in std::fs::read_dir(data_dir).unwrap().flatten() {
+        let path = entry.path();
+        let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
+        total_bytes += size;
+
+        let ext = path.extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("other");
+        *breakdown.entry(ext).or_insert(0) += size;
+    }
+
+    println!("Disk breakdown:");
+    for (ext, bytes) in &breakdown {
+        println!("  .{ext}: {:.1}MB ({:.1}%)",
+            *bytes as f64 / 1_048_576.0,
+            *bytes as f64 / total_bytes as f64 * 100.0
+        );
+    }
+
+    total_bytes as f64 / logical_bytes as f64
+}`}</pre>
+        </div>
+      );
+    }
+
+    function RustHarnessTab() {
+      return (
+        <div style={st.content}>
+          <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
+            <div style={{ width:3, height:32, background:'#fbbf24', borderRadius:2 }}></div>
+            <div>
+              <h2 style={st.h2}>Rust Benchmark Harness</h2>
+              <p style={{ fontSize:12, color:'#64748b' }}>Complete harness with Zipfian keys, BenchResult, and workload implementations</p>
+            </div>
+          </div>
+
+          <div style={st.label}>KV STORE TRAIT + BENCH RESULT</div>
+          <pre style={st.code}>{`use std::time::{Duration, Instant};
+
+// Generic trait so you can swap implementations
+pub trait KVStore: Send + Sync {
+    fn get(&self, key: &[u8]) -> Option<Vec<u8>>;
+    fn set(&self, key: &[u8], value: &[u8]);
+    fn delete(&self, key: &[u8]);
+}
+
+pub struct BenchResult {
+    pub name: String,
+    pub ops: u64,
+    pub duration: Duration,
+    pub ops_per_sec: f64,
+    pub p50_us: u64,
+    pub p95_us: u64,
+    pub p99_us: u64,
+    pub p999_us: u64,
+    pub bytes_total: u64,
+    pub mb_per_sec: f64,
+}
+
+impl std::fmt::Display for BenchResult {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f,
+            "{:30} {:>10.0} ops/s  p50={:>5}μs  p99={:>6}μs  p999={:>6}μs  {:>6.1}MB/s",
+            self.name, self.ops_per_sec,
+            self.p50_us, self.p99_us, self.p999_us, self.mb_per_sec
+        )
+    }
+}`}</pre>
+
+          <div style={st.label}>ZIPFIAN KEY GENERATOR</div>
+          <pre style={st.code}>{`// Simplified Zipfian without rand_distr (pure std)
+struct ZipfianGenerator {
+    n: usize,
+    theta: f64,
+    zeta_n: f64,
+    zeta_2: f64,
+    alpha: f64,
+    eta: f64,
+}
+
+impl ZipfianGenerator {
+    fn new(n: usize) -> Self {
+        let theta = 0.99; // Skew parameter
+        let zeta_n = (1..=n).map(|i| 1.0 / (i as f64).powf(theta)).sum::<f64>();
+        let zeta_2 = 1.0 + 0.5f64.powf(theta);
+        let alpha = 1.0 / (1.0 - theta);
+        let eta = (1.0 - (2.0 / n as f64).powf(1.0 - theta)) / (1.0 - zeta_2 / zeta_n);
+        ZipfianGenerator { n, theta, zeta_n, zeta_2, alpha, eta }
+    }
+
+    fn next(&self, u: f64) -> usize {
+        // u is uniform random [0, 1)
+        let uz = u * self.zeta_n;
+        if uz < 1.0 { return 0; }
+        if uz < 1.0 + 0.5f64.powf(self.theta) { return 1; }
+        (self.n as f64 * (self.eta * u - self.eta + 1.0).powf(self.alpha)) as usize
+    }
+}
+
+// Fixed-width sortable key format (sortable = 0-padded decimal)
+fn format_key(i: usize) -> [u8; 16] {
+    let mut buf = [0u8; 16];
+    let s = format!("{i:016}");
+    buf.copy_from_slice(s.as_bytes());
+    buf
+}`}</pre>
+
+          <div style={st.label}>CORE BENCHMARK FUNCTIONS</div>
+          <pre style={st.code}>{`fn run_benchmark<F: Fn() -> u64>(
+    name: &str,
+    ops: u64,
+    value_size: usize,
+    f: F,
+) -> BenchResult {
+    let mut latencies = Vec::with_capacity(ops as usize);
+    let start = Instant::now();
+    let mut bytes = 0u64;
+
+    for _ in 0..ops {
+        let t0 = Instant::now();
+        bytes += f();
+        latencies.push(t0.elapsed().as_micros() as u64);
+    }
+
+    let duration = start.elapsed();
+    latencies.sort_unstable();
+    let n = latencies.len();
+
+    BenchResult {
+        name: name.to_string(),
+        ops,
+        duration,
+        ops_per_sec: ops as f64 / duration.as_secs_f64(),
+        p50_us: latencies[n / 2],
+        p95_us: latencies[(n as f64 * 0.95) as usize],
+        p99_us: latencies[(n as f64 * 0.99) as usize],
+        p999_us: latencies[(n as f64 * 0.999) as usize],
+        bytes_total: bytes,
+        mb_per_sec: bytes as f64 / duration.as_secs_f64() / 1_048_576.0,
+    }
+}
+
+fn bench_sequential_write(db: &impl KVStore, n: u64, val_size: usize) -> BenchResult {
+    let value = vec![0xABu8; val_size];
+    run_benchmark("sequential_write", n, val_size, || {
+        static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let i = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let key = format_key(i as usize);
+        db.set(&key, &value);
+        (key.len() + val_size) as u64
+    })
+}
+
+fn workload_a(db: &impl KVStore, n: u64, key_count: usize) -> BenchResult {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+
+    let zipf = ZipfianGenerator::new(key_count);
+    let value = vec![0u8; 100];
+
+    run_benchmark("workload_a_50r50w", n, 100, || {
+        let i = COUNTER.fetch_add(1, Ordering::Relaxed);
+        // Simple LCG for "random" U[0,1)
+        let u = ((i.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407)
+            >> 33) as f64) / (u64::MAX >> 31) as f64;
+        let key_idx = zipf.next(u.fract());
+        let key = format_key(key_idx);
+        if i % 2 == 0 {
+            db.get(&key);
+            key.len() as u64
+        } else {
+            db.set(&key, &value);
+            (key.len() + 100) as u64
+        }
+    })
+}
+
+fn workload_c(db: &impl KVStore, n: u64, key_count: usize) -> BenchResult {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static CTR: AtomicU64 = AtomicU64::new(0);
+    let zipf = ZipfianGenerator::new(key_count);
+
+    run_benchmark("workload_c_100r", n, 0, || {
+        let i = CTR.fetch_add(1, Ordering::Relaxed);
+        let u = ((i.wrapping_mul(2862933555777941757).wrapping_add(3037000499)) >> 33) as f64
+            / (u64::MAX >> 31) as f64;
+        let key = format_key(zipf.next(u.fract()));
+        db.get(&key).map(|v| v.len()).unwrap_or(0) as u64
+    })
+}`}</pre>
+        </div>
+      );
+    }
+
+    function CompareTab() {
+      return (
+        <div style={st.content}>
+          <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
+            <div style={{ width:3, height:32, background:'#c084fc', borderRadius:2 }}></div>
+            <div>
+              <h2 style={st.h2}>Compare Real DBs</h2>
+              <p style={{ fontSize:12, color:'#64748b' }}>Expected results per phase and comparison vs RocksDB</p>
+            </div>
+          </div>
+
+          <div style={st.label}>EXPECTED RESULTS BY PHASE</div>
+          <div style={{ overflowX:'auto', marginBottom:24 }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+              <thead>
+                <tr>
+                  {['Phase', 'Write ops/s', 'Read ops/s', 'p99 Write', 'p99 Read', 'WAF', 'Crash Safe?'].map(h => (
+                    <th key={h} style={{ padding:'9px 12px', background:'#111827', borderBottom:'1px solid #1e293b', color:'#64748b', textAlign:'left', fontSize:10, letterSpacing:'0.06em', whiteSpace:'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  { phase:'1. HashMap', write:'2-5M', read:'1-3M', p99w:'< 5μs', p99r:'< 5μs', waf:'1×', crash:'✗ NO', color:'#ef4444' },
+                  { phase:'2. Bitcask', write:'400-800K', read:'100-300K', p99w:'10-50μs', p99r:'100-500μs', waf:'1-2×', crash:'✓ YES', color:'#f59e0b' },
+                  { phase:'3. + Hint files', write:'400-800K', read:'100-300K', p99w:'10-50μs', p99r:'100-500μs', waf:'1-2×', crash:'✓ YES', color:'#f59e0b' },
+                  { phase:'4. LSM basic', write:'600K-1M', read:'50-150K', p99w:'50-200μs', p99r:'500μs-5ms', waf:'10-15×', crash:'✓ YES', color:'#22d3ee' },
+                  { phase:'5. + Bloom', write:'600K-1M', read:'200-500K', p99w:'50-200μs', p99r:'100-500μs', waf:'10-15×', crash:'✓ YES', color:'#22c55e' },
+                  { phase:'6. + Group WAL', write:'500-900K', read:'200-500K', p99w:'5-50μs', p99r:'100-500μs', waf:'11-16×', crash:'✓ YES', color:'#a78bfa' },
+                  { phase:'7. + MVCC', write:'400-800K', read:'200-500K', p99w:'5-50μs', p99r:'100-500μs', waf:'11-16×', crash:'✓ YES', color:'#ec4899' },
+                ].map((row, ri) => (
+                  <tr key={ri} style={{ borderBottom:'1px solid #0f172a' }}>
+                    <td style={{ padding:'9px 12px', color: row.color, fontWeight:600, background: ri % 2 === 0 ? 'rgba(255,255,255,0.012)' : 'transparent', whiteSpace:'nowrap', fontSize:11.5 }}>{row.phase}</td>
+                    <td style={{ padding:'9px 12px', color:'#22c55e', background: ri % 2 === 0 ? 'rgba(255,255,255,0.012)' : 'transparent' }}>{row.write}</td>
+                    <td style={{ padding:'9px 12px', color:'#60a5fa', background: ri % 2 === 0 ? 'rgba(255,255,255,0.012)' : 'transparent' }}>{row.read}</td>
+                    <td style={{ padding:'9px 12px', color:'#94a3b8', background: ri % 2 === 0 ? 'rgba(255,255,255,0.012)' : 'transparent' }}>{row.p99w}</td>
+                    <td style={{ padding:'9px 12px', color:'#94a3b8', background: ri % 2 === 0 ? 'rgba(255,255,255,0.012)' : 'transparent' }}>{row.p99r}</td>
+                    <td style={{ padding:'9px 12px', color:'#fb923c', background: ri % 2 === 0 ? 'rgba(255,255,255,0.012)' : 'transparent' }}>{row.waf}</td>
+                    <td style={{ padding:'9px 12px', color: row.crash.startsWith('✓') ? '#22c55e' : '#ef4444', background: ri % 2 === 0 ? 'rgba(255,255,255,0.012)' : 'transparent' }}>{row.crash}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div style={st.label}>WORKLOAD A COMPARISON (SAME HARDWARE, ~10M KEY DB)</div>
+          <div style={{ display:'flex', gap:12, marginBottom:20, flexWrap:'wrap' }}>
+            {[
+              { name:'Your Phase 5', ops:'~300K ops/s', bar:30, color:'#a78bfa' },
+              { name:'sled (Rust)', ops:'~200-400K ops/s', bar:40, color:'#22d3ee' },
+              { name:'RocksDB (C++)', ops:'~500K-1M ops/s', bar:100, color:'#22c55e' },
+            ].map(db => (
+              <div key={db.name} style={{ flex:1, minWidth:220, background:'#111827', border:'1px solid #1e293b', borderRadius:8, padding:'16px' }}>
+                <div style={{ fontSize:12, fontWeight:700, color:'#f1f5f9', marginBottom:4 }}>{db.name}</div>
+                <div style={{ fontSize:13, fontWeight:800, color: db.color, marginBottom:10 }}>{db.ops}</div>
+                <div style={{ height:6, background:'#1e293b', borderRadius:3, overflow:'hidden' }}>
+                  <div style={{ height:'100%', width:`${db.bar}%`, background: db.color, borderRadius:3, transition:'width 0.5s' }}></div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ background:'rgba(168,139,250,0.08)', border:'1px solid rgba(168,139,250,0.25)', borderRadius:8, padding:'18px 20px', borderLeft:'3px solid #a78bfa', marginBottom:20 }}>
+            <div style={{ fontSize:10, color:'#a78bfa', letterSpacing:'0.14em', fontWeight:700, marginBottom:10 }}>WHAT "GOOD" LOOKS LIKE</div>
+            <p style={{ fontSize:12.5, color:'#94a3b8', lineHeight:1.8 }}>Being within <strong style={{ color:'#a78bfa' }}>3-5× of RocksDB</strong> is EXCELLENT for a learning project written from scratch. RocksDB has 10+ years of optimization by world-class engineers. If you're at 300K ops/s vs RocksDB's 800K — that's 2.7×. That's a win.</p>
+          </div>
+
+          <div style={st.label}>STARTUP TIME COMPARISON</div>
+          <DataTable
+            headers={['Phase', 'Dataset', 'Cold start time', 'Why']}
+            rows={[
+              ['1. HashMap', '100MB', '< 100ms', 'JSON/bincode deserialization'],
+              ['2. Bitcask (no hints)', '1GB data, 1M keys', '5-15 seconds', 'Must scan entire log to rebuild KeyDir'],
+              ['3. Bitcask + hints', '1GB data, 1M keys', '50-200ms', 'Hint files only contain key + metadata'],
+              ['4. LSM', '1GB data', '100-500ms', 'Read MANIFEST + load Bloom filters'],
+              ['5. LSM + Bloom', '10GB data', '200ms-1s', 'Bloom filters are small (10 bits/key)'],
+            ]}
+          />
+        </div>
+      );
+    }
+
+    const tabs = [
+      { id:'what', label:'What to Measure', color:'#4ade80', component: WhatToMeasureTab },
+      { id:'ycsb', label:'YCSB Workloads', color:'#a3e635', component: YCSBTab },
+      { id:'amp', label:'Amplification Factors', color:'#2dd4bf', component: AmpFactorsTab },
+      { id:'harness', label:'Rust Harness', color:'#fbbf24', component: RustHarnessTab },
+      { id:'compare', label:'Compare Real DBs', color:'#c084fc', component: CompareTab },
+    ];
+
+    function Benchmarking() {
+      const [active, setActive] = useState(0);
+      const Tab = tabs[active].component;
+
+      return (
+        <div style={st.root}>
+          <header style={st.header}>
+            <span style={{ fontSize:13, fontWeight:700, color:'#f1f5f9' }}>Benchmarking Strategy · Cementite</span>
+            <a href="index.html" style={{ fontSize:11, color:'#475569', textDecoration:'none', padding:'4px 10px', border:'1px solid #1e293b', borderRadius:6 }}>← Back</a>
+          </header>
+          <div style={st.tabBar}>
+            {tabs.map((t, i) => (
+              <button key={t.id} onClick={() => setActive(i)}
+                style={{ ...st.tab, borderColor: active === i ? t.color + '60' : '#1e293b', color: active === i ? t.color : '#64748b', background: active === i ? t.color + '12' : 'transparent', fontWeight: active === i ? 700 : 400 }}
+              >{t.label}</button>
+            ))}
+          </div>
+          <Tab />
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<Benchmarking />);
+  </script>
+</body>
+</html>

@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bloom Filters & MVCC · Cementite KV-DB</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0d0d1a; font-family: 'JetBrains Mono','Fira Code',monospace; color: #e2e8f0; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0d0d1a; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState } = React;
+
+    const S = {
+      root: { display:'flex', flexDirection:'column', minHeight:'100vh', background:'#0d0d1a', color:'#e2e8f0', fontFamily:"'JetBrains Mono','Fira Code',monospace" },
+      header: { display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 24px', borderBottom:'1px solid #1e293b', position:'sticky', top:0, background:'rgba(13,13,26,0.97)', zIndex:10 },
+      tabBar: { display:'flex', gap:4, padding:'14px 24px', borderBottom:'1px solid #1e293b', background:'#080b14', overflowX:'auto' },
+      tab: { padding:'8px 18px', border:'1px solid #1e293b', borderRadius:6, fontSize:12, cursor:'pointer', background:'transparent', color:'#64748b', transition:'all 0.15s', whiteSpace:'nowrap' },
+      content: { flex:1, padding:'32px 40px', maxWidth:920 },
+      h2: { fontSize:20, fontWeight:700, color:'#f1f5f9', marginBottom:8 },
+      label: { fontSize:10, letterSpacing:'0.14em', fontWeight:700, color:'#475569', marginBottom:10, marginTop:20 },
+      text: { fontSize:12.5, color:'#94a3b8', lineHeight:1.8, marginBottom:12 },
+      code: { background:'#070910', border:'1px solid #1e293b', borderRadius:8, padding:'14px 16px', fontSize:11.5, color:'#7dd3fc', lineHeight:1.8, overflowX:'auto', marginBottom:16, whiteSpace:'pre' },
+      card: { background:'#111827', border:'1px solid #1e293b', borderRadius:8, padding:'16px', marginBottom:12 },
+    };
+
+    function WhyBloomTab() {
+      return (
+        <div style={S.content}>
+          <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
+            <div style={{ width:3, height:32, background:'#f472b6', borderRadius:2 }}></div>
+            <div>
+              <h2 style={S.h2}>Why Bloom Filters?</h2>
+              <p style={{ fontSize:12, color:'#64748b' }}>The single biggest read optimization in any LSM-Tree system</p>
+            </div>
+          </div>
+
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:24 }}>
+            <div style={{ background:'rgba(239,68,68,0.05)', border:'1px solid rgba(239,68,68,0.2)', borderRadius:10, padding:'20px' }}>
+              <div style={{ fontSize:11, fontWeight:700, color:'#fca5a5', letterSpacing:'0.1em', marginBottom:16 }}>✗ WITHOUT BLOOM FILTERS</div>
+              <div style={{ fontSize:12, color:'#94a3b8', marginBottom:12 }}>Query: <code style={{ color:'#f87171' }}>get("nonexistent_key_xyz")</code></div>
+              {[
+                { level:'MemTable', action:'Check — not here', reads:0, color:'#94a3b8' },
+                { level:'L0 file 1', action:'Open, read index, scan block — not here', reads:2, color:'#f97316' },
+                { level:'L0 file 2', action:'Open, read index, scan block — not here', reads:2, color:'#f97316' },
+                { level:'L0 file 3', action:'Open, read index, scan block — not here', reads:2, color:'#ef4444' },
+                { level:'L0 file 4', action:'Open, read index, scan block — not here', reads:2, color:'#ef4444' },
+                { level:'L1 file', action:'Open, read index, scan block — not here', reads:2, color:'#ef4444' },
+                { level:'L2 file', action:'Open, read index, scan block — not here', reads:2, color:'#ef4444' },
+                { level:'L3 file', action:'Open, read index, scan block — not here', reads:2, color:'#ef4444' },
+              ].map((row, i) => (
+                <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'6px 0', borderBottom:'1px solid #1e293b', fontSize:11.5 }}>
+                  <span style={{ color: row.color, minWidth:80 }}>{row.level}</span>
+                  <span style={{ color:'#64748b', flex:1, paddingLeft:8 }}>{row.action}</span>
+                  {row.reads > 0 && <span style={{ color:'#ef4444', fontWeight:700, flexShrink:0 }}>+{row.reads} reads</span>}
+                </div>
+              ))}
+              <div style={{ marginTop:12, background:'rgba(239,68,68,0.1)', border:'1px solid rgba(239,68,68,0.25)', borderRadius:6, padding:'10px', textAlign:'center' }}>
+                <span style={{ fontSize:14, fontWeight:800, color:'#ef4444' }}>~18-30 disk reads</span>
+                <div style={{ fontSize:11, color:'#94a3b8', marginTop:4 }}>for a key that doesn't even exist</div>
+              </div>
+            </div>
+
+            <div style={{ background:'rgba(244,114,182,0.05)', border:'1px solid rgba(244,114,182,0.2)', borderRadius:10, padding:'20px' }}>
+              <div style={{ fontSize:11, fontWeight:700, color:'#f9a8d4', letterSpacing:'0.1em', marginBottom:16 }}>✓ WITH BLOOM FILTERS</div>
+              <div style={{ fontSize:12, color:'#94a3b8', marginBottom:12 }}>Query: <code style={{ color:'#f472b6' }}>get("nonexistent_key_xyz")</code></div>
+              {[
+                { level:'MemTable', action:'Check — not here', reads:0, color:'#94a3b8', skip:false },
+                { level:'L0 file 1', action:'Bloom: DEFINITELY NOT HERE', reads:0, color:'#4ade80', skip:true },
+                { level:'L0 file 2', action:'Bloom: DEFINITELY NOT HERE', reads:0, color:'#4ade80', skip:true },
+                { level:'L0 file 3', action:'Bloom: DEFINITELY NOT HERE', reads:0, color:'#4ade80', skip:true },
+                { level:'L0 file 4', action:'Bloom: DEFINITELY NOT HERE', reads:0, color:'#4ade80', skip:true },
+                { level:'L1 file', action:'Bloom: DEFINITELY NOT HERE', reads:0, color:'#4ade80', skip:true },
+                { level:'L2 file', action:'Bloom: maybe — open & check', reads:2, color:'#f59e0b', skip:false },
+                { level:'L3 file', action:'Bloom: DEFINITELY NOT HERE', reads:0, color:'#4ade80', skip:true },
+              ].map((row, i) => (
+                <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'6px 0', borderBottom:'1px solid #1e293b', fontSize:11.5 }}>
+                  <span style={{ color: row.color, minWidth:80 }}>{row.level}</span>
+                  <span style={{ color: row.skip ? '#334155' : '#64748b', flex:1, paddingLeft:8, textDecoration: row.skip ? 'line-through' : 'none' }}>{row.action}</span>
+                  {row.reads > 0 ? <span style={{ color:'#f59e0b', fontWeight:700, flexShrink:0 }}>+{row.reads}</span> : row.skip ? <span style={{ color:'#22c55e', flexShrink:0 }}>0</span> : null}
+                </div>
+              ))}
+              <div style={{ marginTop:12, background:'rgba(74,222,128,0.08)', border:'1px solid rgba(74,222,128,0.25)', borderRadius:6, padding:'10px', textAlign:'center' }}>
+                <span style={{ fontSize:14, fontWeight:800, color:'#4ade80' }}>~2 disk reads</span>
+                <div style={{ fontSize:11, color:'#94a3b8', marginTop:4 }}>99% of SSTs skipped entirely</div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
+            {[
+              { title:'Never false negatives', desc:'If a key was inserted, the Bloom filter ALWAYS says "maybe". It will NEVER say "not here" for a key that exists. Safe to use for skipping.', color:'#22c55e' },
+              { title:'~1% false positives', desc:'At 10 bits/key: 1 in 100 absent-key queries will pass the Bloom check. Still requires a disk read. Tunable by increasing bits/key.', color:'#f59e0b' },
+              { title:'O(1) check, ~10 bits/key', desc:'For 1 million keys: only 1.25MB of RAM. For 1 billion keys: 1.25GB. Tiny cost for 15× read improvement.', color:'#f472b6' },
+            ].map(item => (
+              <div key={item.title} style={{ background:'#111827', border:`1px solid ${item.color}25`, borderRadius:8, padding:'14px', borderTop:`2px solid ${item.color}` }}>
+                <div style={{ fontSize:11, fontWeight:700, color: item.color, marginBottom:8 }}>{item.title}</div>
+                <div style={{ fontSize:11.5, color:'#64748b', lineHeight:1.6 }}>{item.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function BloomMathTab() {
+      const [bitsPerKey, setBitsPerKey] = useState(10);
+
+      const computeBloom = (b) => {
+        const k = Math.max(1, Math.floor(b * Math.LN2));
+        const fp = Math.pow(1 - Math.exp(-k / b), k);
+        const ramPerM = (b * 1_000_000) / 8 / 1024; // KB
+        const ramPer10M = ramPerM * 10;
+        const wastedReads = fp * 1_000_000;
+        const wastedIO = wastedReads * 2 * 4096 / 1024 / 1024; // MB
+        return { k, fp: (fp * 100).toFixed(3), ramPerM: ramPerM.toFixed(0), ramPer10M: (ramPer10M / 1024).toFixed(2), wastedReads: wastedReads.toFixed(0), wastedIO: wastedIO.toFixed(2) };
+      };
+
+      const stats = computeBloom(bitsPerKey);
+
+      return (
+        <div style={S.content}>
+          <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
+            <div style={{ width:3, height:32, background:'#a78bfa', borderRadius:2 }}></div>
+            <div>
+              <h2 style={S.h2}>Bloom Math & Tuning</h2>
+              <p style={{ fontSize:12, color:'#64748b' }}>Formulas, lookup table, and interactive tuner</p>
+            </div>
+          </div>
+
+          <div style={S.label}>CORE FORMULAS</div>
+          <div style={{ background:'#0a0c10', border:'1px solid #1e293b', borderRadius:8, padding:'16px', marginBottom:16 }}>
+            <pre style={{ color:'#7dd3fc', fontSize:12, whiteSpace:'pre', lineHeight:2 }}>{`b = bits_per_key = m / n         (m = total bits, n = number of keys)
+k = optimal hash functions = floor(b × ln(2)) ≈ 0.693 × b
+p = false positive rate = (1 - e^(-k/b))^k
+
+Two-hash trick (Kirsch-Mitzenmacher 2006):
+  h1 = hash_with_seed(key, 0)
+  h2 = hash_with_seed(key, 1)
+  g_i(key) = (h1 + i × h2) mod m    for i in 0..k
+  → Only 2 hash computations regardless of k!`}</pre>
+          </div>
+
+          <div style={S.label}>LOOKUP TABLE</div>
+          <div style={{ overflowX:'auto', marginBottom:24 }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11.5 }}>
+              <thead>
+                <tr>
+                  {['Bits/Key', 'k (hashes)', 'False Positive %', 'RAM / 1M keys', 'Notes'].map(h => (
+                    <th key={h} style={{ padding:'9px 14px', background:'#111827', borderBottom:'1px solid #1e293b', color:'#64748b', textAlign:'left', fontSize:10, letterSpacing:'0.06em' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  [4, 3, '14.7%', '500 KB', 'Too high FP rate'],
+                  [8, 6, '2.1%', '1,000 KB', 'Good for memory-constrained'],
+                  [10, 7, '0.82%', '1,250 KB', 'RocksDB DEFAULT — best balance'],
+                  [12, 8, '0.30%', '1,500 KB', 'Lower FP, more RAM'],
+                  [16, 11, '0.042%', '2,000 KB', 'Very low FP'],
+                  [20, 14, '0.006%', '2,500 KB', 'Diminishing returns past 16'],
+                ].map((row, ri) => (
+                  <tr key={ri} style={{ borderBottom:'1px solid #0f172a' }}>
+                    <td style={{ padding:'9px 14px', color: row[2] === '0.82%' ? '#22c55e' : '#f1f5f9', fontWeight: row[2] === '0.82%' ? 700 : 400, background: ri % 2 === 0 ? 'rgba(255,255,255,0.012)' : 'transparent' }}>{row[0]}</td>
+                    <td style={{ padding:'9px 14px', color:'#a78bfa', background: ri % 2 === 0 ? 'rgba(255,255,255,0.012)' : 'transparent' }}>{row[1]}</td>
+                    <td style={{ padding:'9px 14px', color: parseFloat(row[2]) > 5 ? '#ef4444' : parseFloat(row[2]) < 1 ? '#22c55e' : '#f59e0b', background: ri % 2 === 0 ? 'rgba(255,255,255,0.012)' : 'transparent', fontWeight:600 }}>{row[2]}</td>
+                    <td style={{ padding:'9px 14px', color:'#64748b', background: ri % 2 === 0 ? 'rgba(255,255,255,0.012)' : 'transparent' }}>{row[3]}</td>
+                    <td style={{ padding:'9px 14px', color: row[2] === '0.82%' ? '#22c55e' : '#334155', background: ri % 2 === 0 ? 'rgba(255,255,255,0.012)' : 'transparent' }}>{row[4]}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div style={S.label}>INTERACTIVE TUNER</div>
+          <div style={{ background:'#111827', border:'1px solid rgba(167,139,250,0.3)', borderRadius:10, padding:'24px', marginBottom:16 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:16, marginBottom:20, flexWrap:'wrap' }}>
+              <span style={{ fontSize:12, color:'#94a3b8' }}>bits_per_key =</span>
+              <span style={{ fontSize:24, fontWeight:800, color:'#a78bfa', minWidth:40 }}>{bitsPerKey}</span>
+              <input
+                type="range" min={4} max={20} step={1}
+                value={bitsPerKey}
+                onChange={e => setBitsPerKey(parseInt(e.target.value))}
+                style={{ flex:1, minWidth:200, accentColor:'#a78bfa', cursor:'pointer' }}
+              />
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
+              {[
+                { label:'Hash functions (k)', value: stats.k, color:'#22d3ee', sub:'optimal' },
+                { label:'False positive rate', value: stats.fp + '%', color: parseFloat(stats.fp) < 1 ? '#22c55e' : parseFloat(stats.fp) < 5 ? '#f59e0b' : '#ef4444', sub:'per absent key lookup' },
+                { label:'RAM per 1M keys', value: stats.ramPerM + ' KB', color:'#f472b6', sub: '= ' + (stats.ramPerM / 1024).toFixed(2) + ' MB' },
+                { label:'RAM per 10M keys', value: stats.ramPer10M + ' MB', color:'#fb923c', sub:'practical DB size' },
+                { label:'Wasted reads / 1M queries', value: parseInt(stats.wastedReads).toLocaleString(), color:'#f59e0b', sub:'false positives' },
+                { label:'Wasted I/O (4KB blocks)', value: stats.wastedIO + ' MB', color:'#ef4444', sub:'per 1M miss queries' },
+              ].map(item => (
+                <div key={item.label} style={{ background:'#0d0d1a', border:'1px solid #1e293b', borderRadius:8, padding:'14px', textAlign:'center' }}>
+                  <div style={{ fontSize:9, color:'#475569', letterSpacing:'0.08em', marginBottom:8 }}>{item.label}</div>
+                  <div style={{ fontSize:18, fontWeight:800, color: item.color, marginBottom:4 }}>{item.value}</div>
+                  <div style={{ fontSize:10, color:'#334155' }}>{item.sub}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function BloomRustTab() {
+      return (
+        <div style={S.content}>
+          <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
+            <div style={{ width:3, height:32, background:'#8b5cf6', borderRadius:2 }}></div>
+            <div>
+              <h2 style={S.h2}>Bloom Filter in Rust</h2>
+              <p style={{ fontSize:12, color:'#64748b' }}>Complete implementation with two-hash trick and tests</p>
+            </div>
+          </div>
+
+          <pre style={S.code}>{`use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+
+pub struct BloomFilter {
+    bits: Vec<u8>,
+    num_bits: u64,
+    num_hashes: u32,
+}
+
+impl BloomFilter {
+    pub fn new(expected_keys: usize, bits_per_key: u32) -> Self {
+        let total_bits = (expected_keys as u64 * bits_per_key as u64).max(64);
+        // Round up to next power of two for efficient modulo with bit masking
+        let num_bits = total_bits.next_power_of_two();
+        let num_bytes = (num_bits / 8) as usize;
+        let num_hashes = ((bits_per_key as f64 * 0.693) as u32).max(1);
+
+        BloomFilter {
+            bits: vec![0u8; num_bytes],
+            num_bits,
+            num_hashes,
+        }
+    }
+
+    fn double_hash(key: &[u8]) -> (u64, u64) {
+        // Two independent hashes using DefaultHasher with different seeds
+        let mut h1 = DefaultHasher::new();
+        0u64.hash(&mut h1);  // seed 0
+        key.hash(&mut h1);
+        let hash1 = h1.finish();
+
+        let mut h2 = DefaultHasher::new();
+        1u64.hash(&mut h2);  // seed 1
+        key.hash(&mut h2);
+        let hash2 = h2.finish();
+
+        (hash1, hash2)
+    }
+
+    pub fn insert(&mut self, key: &[u8]) {
+        let (h1, h2) = Self::double_hash(key);
+        for i in 0..self.num_hashes {
+            // Kirsch-Mitzenmacher: g_i = (h1 + i * h2) mod m
+            let bit_idx = h1.wrapping_add((i as u64).wrapping_mul(h2)) & (self.num_bits - 1);
+            let byte_idx = (bit_idx / 8) as usize;
+            let bit_offset = (bit_idx % 8) as u8;
+            self.bits[byte_idx] |= 1 << bit_offset;
+        }
+    }
+
+    pub fn may_contain(&self, key: &[u8]) -> bool {
+        let (h1, h2) = Self::double_hash(key);
+        for i in 0..self.num_hashes {
+            let bit_idx = h1.wrapping_add((i as u64).wrapping_mul(h2)) & (self.num_bits - 1);
+            let byte_idx = (bit_idx / 8) as usize;
+            let bit_offset = (bit_idx % 8) as u8;
+            if self.bits[byte_idx] & (1 << bit_offset) == 0 {
+                return false; // DEFINITELY NOT HERE — no false negatives possible
+            }
+        }
+        true // Probably here (may be false positive)
+    }
+
+    // Serialize to bytes for SSTable footer storage
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut out = Vec::with_capacity(8 + 4 + self.bits.len());
+        out.extend_from_slice(&self.num_bits.to_le_bytes());
+        out.extend_from_slice(&self.num_hashes.to_le_bytes());
+        out.extend_from_slice(&self.bits);
+        out
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
+        if bytes.len() < 12 { return None; }
+        let num_bits = u64::from_le_bytes(bytes[0..8].try_into().ok()?);
+        let num_hashes = u32::from_le_bytes(bytes[8..12].try_into().ok()?);
+        Some(BloomFilter {
+            bits: bytes[12..].to_vec(),
+            num_bits,
+            num_hashes,
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn no_false_negatives() {
+        let mut bloom = BloomFilter::new(1000, 10);
+        let keys: Vec<Vec<u8>> = (0..1000).map(|i| format!("key:{i}").into_bytes()).collect();
+        for key in &keys { bloom.insert(key); }
+        for key in &keys {
+            assert!(bloom.may_contain(key), "False negative for key {:?}", key);
+        }
+    }
+
+    #[test]
+    fn false_positive_rate_within_bounds() {
+        let n = 10_000;
+        let mut bloom = BloomFilter::new(n, 10); // Expect ~1% FP
+        for i in 0..n { bloom.insert(format!("key:{i}").as_bytes()); }
+
+        let mut false_positives = 0;
+        let queries = 10_000;
+        for i in 0..queries {
+            // These keys were NOT inserted
+            if bloom.may_contain(format!("absent:{i}").as_bytes()) {
+                false_positives += 1;
+            }
+        }
+        let fp_rate = false_positives as f64 / queries as f64;
+        assert!(fp_rate < 0.05, "FP rate {fp_rate:.3} exceeds 5%");
+        println!("Actual FP rate: {:.2}%", fp_rate * 100.0);
+    }
+}`}</pre>
+        </div>
+      );
+    }
+
+    function WhyMVCCTab() {
+      return (
+        <div style={S.content}>
+          <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
+            <div style={{ width:3, height:32, background:'#22d3ee', borderRadius:2 }}></div>
+            <div>
+              <h2 style={S.h2}>Why MVCC?</h2>
+              <p style={{ fontSize:12, color:'#64748b' }}>Three broken approaches — and one that works</p>
+            </div>
+          </div>
+
+          <div style={S.label}>THREE BROKEN APPROACHES</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:12, marginBottom:24 }}>
+            {[
+              { num:1, title:'One global RwLock', color:'#ef4444', problem:'One long-running read (e.g., backup or analytics query) holds the RwLock. ALL writers block. Throughput → 0.', code:`let db = Arc::new(RwLock::new(HashMap::new()));
+// Long read:   db.read()  ← reader holds lock
+// Writer:      db.write() ← BLOCKS until read done` },
+              { num:2, title:'Per-key locks', color:'#f97316', problem:'Deadlock risk: Writer A holds lock on "foo", waits for "bar". Writer B holds "bar", waits for "foo". Deadlock. Hard to detect & resolve.', code:`// Writer A: lock("foo") → lock("bar") → DEADLOCK
+// Writer B: lock("bar") → lock("foo") → DEADLOCK
+// Need total ordering on locks — complex to get right` },
+              { num:3, title:'Compare-and-Swap (CAS)', color:'#f59e0b', problem:'Under high contention, threads spin retrying CAS. Livelock. Performance collapses with > 16 threads on same keys.', code:`loop {
+    let old = db.load(Relaxed);
+    // Compute new value...
+    if db.compare_exchange(old, new).is_ok() { break; }
+    // Many threads all retrying = wasted CPU
+}` },
+            ].map(approach => (
+              <div key={approach.num} style={{ background:'#111827', border:`1px solid ${approach.color}25`, borderRadius:8, overflow:'hidden', borderLeft:`3px solid ${approach.color}` }}>
+                <div style={{ padding:'14px 18px', display:'flex', gap:12, alignItems:'flex-start', borderBottom:'1px solid #1e293b' }}>
+                  <span style={{ fontSize:11, fontWeight:800, color: approach.color, flexShrink:0, background: approach.color + '15', padding:'3px 10px', borderRadius:6 }}>#{approach.num}</span>
+                  <div>
+                    <div style={{ fontSize:13, fontWeight:600, color:'#f1f5f9', marginBottom:4 }}>{approach.title}</div>
+                    <div style={{ fontSize:12, color:'#94a3b8', lineHeight:1.6 }}>{approach.problem}</div>
+                  </div>
+                </div>
+                <pre style={{ padding:'12px 18px', fontSize:11, color:'#475569', lineHeight:1.7, overflowX:'auto', whiteSpace:'pre' }}>{approach.code}</pre>
+              </div>
+            ))}
+          </div>
+
+          <div style={S.label}>THE MVCC SOLUTION</div>
+          <div style={{ background:'rgba(34,211,238,0.06)', border:'1px solid rgba(34,211,238,0.25)', borderRadius:10, padding:'20px', borderLeft:'3px solid #22d3ee', marginBottom:20 }}>
+            <div style={{ fontSize:13, fontWeight:600, color:'#67e8f9', marginBottom:12 }}>Core Insight: Never overwrite. Always append.</div>
+            <p style={{ fontSize:12.5, color:'#94a3b8', lineHeight:1.8, marginBottom:12 }}>Instead of updating a key's value in place, append a NEW version with a higher sequence number. Readers take a snapshot (capturing the current max sequence number). They see only versions with seq_no ≤ their snapshot.</p>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+              <div>
+                <div style={{ fontSize:10, color:'#ef4444', letterSpacing:'0.1em', fontWeight:700, marginBottom:8 }}>WITHOUT MVCC: Overwrite</div>
+                <pre style={{ background:'#0a0c10', borderRadius:6, padding:'12px', fontSize:11, color:'#94a3b8', lineHeight:1.7, whiteSpace:'pre' }}>{`key="alice" → "balance:1000"
+// Writer overwrites:
+key="alice" → "balance:900"
+// Concurrent reader saw inconsistent!`}</pre>
+              </div>
+              <div>
+                <div style={{ fontSize:10, color:'#22d3ee', letterSpacing:'0.1em', fontWeight:700, marginBottom:8 }}>WITH MVCC: Append versions</div>
+                <pre style={{ background:'#0a0c10', borderRadius:6, padding:'12px', fontSize:11, color:'#7dd3fc', lineHeight:1.7, whiteSpace:'pre' }}>{`("alice", seq=500) → "balance:1000"
+("alice", seq=601) → "balance:900"  ← new
+// Reader snap=550 sees "balance:1000"
+// Reader snap=700 sees "balance:900"`}</pre>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
+            {[
+              { title:'Readers never block writers', desc:'Readers have a snapshot. Writers append new versions. They never contend on the same memory location.', color:'#22c55e' },
+              { title:'Writers never block readers', desc:'Writers don\'t need to invalidate old values. Old versions stay until GC removes them.', color:'#22d3ee' },
+              { title:'Consistent point-in-time view', desc:'A snapshot at seq=1000 sees EXACTLY the DB state that existed at that moment. No phantoms.', color:'#a78bfa' },
+            ].map(item => (
+              <div key={item.title} style={{ background:'#111827', border:`1px solid ${item.color}25`, borderRadius:8, padding:'14px', borderTop:`2px solid ${item.color}` }}>
+                <div style={{ fontSize:11, fontWeight:700, color: item.color, marginBottom:8 }}>{item.title}</div>
+                <div style={{ fontSize:11.5, color:'#64748b', lineHeight:1.6 }}>{item.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function MVCCInternalsTab() {
+      return (
+        <div style={S.content}>
+          <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
+            <div style={{ width:3, height:32, background:'#60a5fa', borderRadius:2 }}></div>
+            <div>
+              <h2 style={S.h2}>MVCC Internals</h2>
+              <p style={{ fontSize:12, color:'#64748b' }}>InternalKey format, snapshot lifecycle, and GC logic</p>
+            </div>
+          </div>
+
+          <div style={S.label}>INTERNAL KEY FORMAT</div>
+          <div style={{ background:'#0a0c10', border:'1px solid #1e293b', borderRadius:8, padding:'16px', marginBottom:16 }}>
+            <pre style={{ color:'#7dd3fc', fontSize:11.5, whiteSpace:'pre', lineHeight:1.9 }}>{`// InternalKey = (user_key, seq_no, record_type)
+// On-disk encoding:
+//   [user_key bytes] [8 bytes: (seq_no << 8) | type as u64, big-endian]
+//
+// Sort order: user_key ASC, seq_no DESC (newest first!)
+// This means for key "alice", you'll see on disk:
+//   ("alice", seq=700, SET) ← newest — found first
+//   ("alice", seq=601, SET)
+//   ("alice", seq=300, SET)
+//   ("alice", seq=100, SET) ← oldest
+//
+// To read "alice" at snapshot seq=500:
+//   1. seek to ("alice", MAX_SEQ=u64::MAX)
+//   2. scan forward: first entry with seq ≤ 500 = ("alice", seq=300, "balance:950")
+//   3. Done!`}</pre>
+          </div>
+
+          <div style={S.label}>SNAPSHOT LIFECYCLE</div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:20 }}>
+            {[
+              { step:'Acquire', color:'#22c55e', desc:'Reader calls db.snapshot(). Gets current_seq atomically. Registers with SnapManager.', code:`let snap = db.snapshot();
+// snap.seq = 1042 (current global seq)
+// snap registered in SnapManager` },
+              { step:'Use', color:'#22d3ee', desc:'All reads via this snapshot only see entries with seq ≤ snap.seq.', code:`let val = db.get_at(&snap, b"alice");
+// Ignores entries with seq > 1042
+// Consistent point-in-time view` },
+              { step:'Release', color:'#a78bfa', desc:'Snapshot dropped (Rust Drop trait). SnapManager removes it. GC can now collect older versions.', code:`drop(snap);
+// OR: snap goes out of scope
+// seq=1042 removed from SnapManager
+// GC may now collect seq ≤ 1042` },
+            ].map(step => (
+              <div key={step.step} style={{ background:'#111827', border:`1px solid ${step.color}25`, borderRadius:8, overflow:'hidden', borderTop:`2px solid ${step.color}` }}>
+                <div style={{ padding:'12px 14px', borderBottom:'1px solid #1e293b' }}>
+                  <div style={{ fontSize:11, fontWeight:700, color: step.color, letterSpacing:'0.1em', marginBottom:6 }}>{step.step.toUpperCase()}</div>
+                  <div style={{ fontSize:11.5, color:'#64748b', lineHeight:1.5 }}>{step.desc}</div>
+                </div>
+                <pre style={{ padding:'12px 14px', fontSize:10.5, color:'#475569', lineHeight:1.7, whiteSpace:'pre' }}>{step.code}</pre>
+              </div>
+            ))}
+          </div>
+
+          <div style={S.label}>GARBAGE COLLECTION LOGIC</div>
+          <div style={{ background:'#111827', border:'1px solid #1e293b', borderRadius:8, padding:'18px', marginBottom:16 }}>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+              <div>
+                <div style={{ fontSize:10, color:'#4ade80', letterSpacing:'0.1em', fontWeight:700, marginBottom:12 }}>RULE 1: OLD VERSIONS</div>
+                <div style={{ fontSize:12, color:'#94a3b8', lineHeight:1.7, marginBottom:8 }}>During compaction: for a given user_key with multiple versions:</div>
+                <div style={{ background:'#0a0c10', borderRadius:6, padding:'12px', fontSize:11, lineHeight:1.7 }}>
+                  <div style={{ color:'#64748b' }}>oldest_snap = min live snapshot</div>
+                  <div style={{ color:'#64748b', marginTop:6 }}>if old_version.seq {'<'} oldest_snap</div>
+                  <div style={{ color:'#64748b' }}>   AND newer version exists:</div>
+                  <div style={{ color:'#4ade80', paddingLeft:16 }}>→ DELETE old version</div>
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize:10, color:'#f472b6', letterSpacing:'0.1em', fontWeight:700, marginBottom:12 }}>RULE 2: TOMBSTONES</div>
+                <div style={{ fontSize:12, color:'#94a3b8', lineHeight:1.7, marginBottom:8 }}>A deletion tombstone can itself be deleted when:</div>
+                <div style={{ background:'#0a0c10', borderRadius:6, padding:'12px', fontSize:11, lineHeight:1.7 }}>
+                  <div style={{ color:'#64748b' }}>if tombstone.seq {'<'} oldest_snap</div>
+                  <div style={{ color:'#64748b' }}>   AND at lowest level:</div>
+                  <div style={{ color:'#f472b6', paddingLeft:16 }}>→ DELETE tombstone</div>
+                  <div style={{ color:'#f472b6', paddingLeft:16 }}>→ DELETE all old values</div>
+                  <div style={{ color:'#4ade80', paddingLeft:16 }}>→ Key fully erased</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ background:'rgba(239,68,68,0.06)', border:'1px solid rgba(239,68,68,0.2)', borderRadius:8, padding:'16px', borderLeft:'3px solid #ef4444' }}>
+            <div style={{ fontSize:10, color:'#ef4444', letterSpacing:'0.14em', fontWeight:700, marginBottom:8 }}>SNAPSHOT ISOLATION BLOAT</div>
+            <p style={{ fontSize:12.5, color:'#94a3b8', lineHeight:1.7 }}>A snapshot held for a long time (e.g., a backup job running for 30 minutes) will prevent GC from collecting ANY version older than that snapshot's seq. This is called "snapshot bloat." Production systems emit warnings when a snapshot is held {'>'} 30 seconds.</p>
+          </div>
+        </div>
+      );
+    }
+
+    function MVCCRustTab() {
+      return (
+        <div style={S.content}>
+          <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
+            <div style={{ width:3, height:32, background:'#4ade80', borderRadius:2 }}></div>
+            <div>
+              <h2 style={S.h2}>MVCC in Rust</h2>
+              <p style={{ fontSize:12, color:'#64748b' }}>Sequence numbers, SnapManager, InternalKey, MVCCMemTable</p>
+            </div>
+          </div>
+
+          <div style={S.label}>GLOBAL SEQUENCE NUMBER + SNAPSHOT MANAGER</div>
+          <pre style={S.code}>{`use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
+use std::collections::BTreeSet;
+
+// Global monotonic counter — every write increments this
+static GLOBAL_SEQ: AtomicU64 = AtomicU64::new(0);
+
+fn next_seq() -> u64 { GLOBAL_SEQ.fetch_add(1, Ordering::SeqCst) + 1 }
+fn current_seq() -> u64 { GLOBAL_SEQ.load(Ordering::SeqCst) }
+
+pub struct SnapManager {
+    active: Mutex<BTreeSet<u64>>,
+}
+
+impl SnapManager {
+    pub fn new() -> Arc<Self> {
+        Arc::new(Self { active: Mutex::new(BTreeSet::new()) })
+    }
+
+    pub fn acquire(self: &Arc<Self>) -> Snapshot {
+        let seq = current_seq();
+        self.active.lock().unwrap().insert(seq);
+        Snapshot { seq, mgr: self.clone() }
+    }
+
+    fn release(&self, seq: u64) {
+        self.active.lock().unwrap().remove(&seq);
+    }
+
+    pub fn oldest(&self) -> Option<u64> {
+        self.active.lock().unwrap().iter().next().copied()
+    }
+}
+
+pub struct Snapshot {
+    pub seq: u64,
+    mgr: Arc<SnapManager>,
+}
+
+impl Drop for Snapshot {
+    fn drop(&mut self) {
+        self.mgr.release(self.seq);
+    }
+}`}</pre>
+
+          <div style={S.label}>INTERNAL KEY WITH SORT ORDER</div>
+          <pre style={S.code}>{`#[derive(Clone, Eq, PartialEq)]
+pub struct InternalKey {
+    pub user_key: Vec<u8>,
+    pub seq_no: u64,
+    pub record_type: RecordType,
+}
+
+#[derive(Clone, Eq, PartialEq)]
+pub enum RecordType { Value, Tombstone }
+
+impl Ord for InternalKey {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        // user_key ASC, seq_no DESC (newest first within same user_key)
+        self.user_key.cmp(&other.user_key)
+            .then_with(|| other.seq_no.cmp(&self.seq_no))
+    }
+}
+impl PartialOrd for InternalKey {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl InternalKey {
+    // On-disk: [user_key bytes][8 bytes big-endian: (seq << 8) | type]
+    pub fn encode(&self) -> Vec<u8> {
+        let type_byte = match self.record_type { RecordType::Value => 1u64, RecordType::Tombstone => 0 };
+        let trailer = ((self.seq_no << 8) | type_byte).to_be_bytes();
+        [self.user_key.as_slice(), &trailer].concat()
+    }
+}`}</pre>
+
+          <div style={S.label}>MVCC MEMTABLE: WRITE, DELETE, GET</div>
+          <pre style={S.code}>{`use std::collections::BTreeMap;
+use parking_lot::RwLock;
+
+pub struct MVCCMemTable {
+    data: RwLock<BTreeMap<InternalKey, Vec<u8>>>,
+}
+
+impl MVCCMemTable {
+    pub fn new() -> Self {
+        Self { data: RwLock::new(BTreeMap::new()) }
+    }
+
+    pub fn write(&self, user_key: Vec<u8>, value: Vec<u8>) -> u64 {
+        let seq = next_seq();
+        let key = InternalKey { user_key, seq_no: seq, record_type: RecordType::Value };
+        self.data.write().insert(key, value);
+        seq
+    }
+
+    pub fn delete(&self, user_key: Vec<u8>) -> u64 {
+        let seq = next_seq();
+        let key = InternalKey { user_key, seq_no: seq, record_type: RecordType::Tombstone };
+        self.data.write().insert(key, vec![]); // empty value for tombstone
+        seq
+    }
+
+    pub fn get(&self, user_key: &[u8], snapshot: &Snapshot) -> Option<Vec<u8>> {
+        let data = self.data.read();
+
+        // Seek to (user_key, MAX_SEQ) — will land at or before the newest version
+        let seek_key = InternalKey {
+            user_key: user_key.to_vec(),
+            seq_no: u64::MAX,
+            record_type: RecordType::Value,
+        };
+
+        // Scan forward from seek position
+        for (key, value) in data.range(seek_key..) {
+            if key.user_key != user_key {
+                break; // Moved past all versions of this key
+            }
+            if key.seq_no > snapshot.seq {
+                continue; // This version is newer than our snapshot — skip
+            }
+            return match key.record_type {
+                RecordType::Value => Some(value.clone()),
+                RecordType::Tombstone => None, // Key was deleted
+            };
+        }
+        None // Key not found in this MemTable
+    }
+}
+
+// PITFALL: Long-running snapshots prevent GC
+// Production code should warn if a snapshot is held > 30 seconds:
+// if current_seq() - snap.seq > WARN_THRESHOLD && snap_age > Duration::from_secs(30) {
+//     warn!("Snapshot held for {:?} — blocking GC, {} versions accumulating", age, count);
+// }`}</pre>
+
+          <div style={{ background:'rgba(239,68,68,0.06)', border:'1px solid rgba(239,68,68,0.2)', borderRadius:8, padding:'16px', borderLeft:'3px solid #ef4444', marginTop:4 }}>
+            <div style={{ fontSize:10, color:'#ef4444', letterSpacing:'0.14em', fontWeight:700, marginBottom:8 }}>PITFALL: MVCC BLOAT FROM LONG-RUNNING SNAPSHOTS</div>
+            <p style={{ fontSize:12.5, color:'#94a3b8', lineHeight:1.7 }}>If a snapshot is held for 30+ seconds on a write-heavy workload, version accumulation can cause memory usage to spike 10-50×. Add monitoring: warn when any snapshot is older than 30 seconds. This is a real production issue in systems like TiKV and RocksDB.</p>
+          </div>
+        </div>
+      );
+    }
+
+    const tabs = [
+      { id:'why-bloom', label:'Why Bloom?', color:'#f472b6', component: WhyBloomTab },
+      { id:'bloom-math', label:'Bloom Math & Tuning', color:'#a78bfa', component: BloomMathTab },
+      { id:'bloom-rust', label:'Bloom in Rust', color:'#8b5cf6', component: BloomRustTab },
+      { id:'why-mvcc', label:'Why MVCC?', color:'#22d3ee', component: WhyMVCCTab },
+      { id:'mvcc-internals', label:'MVCC Internals', color:'#60a5fa', component: MVCCInternalsTab },
+      { id:'mvcc-rust', label:'MVCC in Rust', color:'#4ade80', component: MVCCRustTab },
+    ];
+
+    function BloomMVCC() {
+      const [active, setActive] = useState(0);
+      const Tab = tabs[active].component;
+
+      return (
+        <div style={S.root}>
+          <header style={S.header}>
+            <span style={{ fontSize:13, fontWeight:700, color:'#f1f5f9' }}>Bloom Filters & MVCC · Cementite</span>
+            <a href="index.html" style={{ fontSize:11, color:'#475569', textDecoration:'none', padding:'4px 10px', border:'1px solid #1e293b', borderRadius:6 }}>← Back</a>
+          </header>
+          <div style={S.tabBar}>
+            {tabs.map((t, i) => (
+              <button key={t.id} onClick={() => setActive(i)}
+                style={{ ...S.tab, borderColor: active === i ? t.color + '60' : '#1e293b', color: active === i ? t.color : '#64748b', background: active === i ? t.color + '12' : 'transparent', fontWeight: active === i ? 700 : 400 }}
+              >{t.label}</button>
+            ))}
+          </div>
+          <Tab />
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<BloomMVCC />);
+  </script>
+</body>
+</html>

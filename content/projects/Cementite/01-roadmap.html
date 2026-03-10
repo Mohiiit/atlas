@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>8-Phase Roadmap · Cementite KV-DB</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0d0d1a; font-family: 'JetBrains Mono','Fira Code',monospace; color: #e2e8f0; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0d0d1a; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState } = React;
+
+    const phases = [
+      {
+        id: 1, title: "In-Memory HashMap with Persistence", subtitle: "The Simplest Possible DB",
+        color: "#22c55e", duration: "1-2 days", model: "None (pure in-memory)",
+        realDBs: ["Redis (in-memory mode)", "Memcached"],
+        goal: "Understand the absolute baseline: what does a KV store even need to do?",
+        whatYouBuild: [
+          "A HashMap<String, Vec<u8>> as your storage",
+          "get(key) → Option<Vec<u8>>",
+          "set(key, value)",
+          "delete(key)",
+          "Serialize on shutdown, deserialize on startup (JSON or bincode)",
+        ],
+        keyInsight: "All future complexity exists to solve problems this phase has: no durability mid-run, everything in RAM, can't handle data > RAM size.",
+        rustNotes: ["Use std::collections::HashMap", "Use serde + bincode for serialization", "Keep it in a single src/engine/mod.rs file"],
+        pros: ["Blazing fast reads/writes (ns latency)", "Zero complexity", "Great baseline for benchmarks"],
+        cons: ["All data lost on crash", "Bounded by RAM", "No durability guarantee"],
+        amplification: { read: "O(1)", write: "O(1)", space: "1× (but RAM only)" },
+      },
+      {
+        id: 2, title: "Append-Only Log (Bitcask Phase 1)", subtitle: "Your first durable storage",
+        color: "#3b82f6", duration: "2-3 days", model: "Log-structured Hash Table (Bitcask)",
+        realDBs: ["Bitcask (Riak)", "Early Redis AOF", "Apache Kafka (conceptually)"],
+        goal: "Make data survive crashes. Understand sequential writes and why they're fast.",
+        whatYouBuild: [
+          "An append-only file: writes go to the END of a file, never overwrite",
+          "Each entry: [CRC(4B) | timestamp(8B) | key_size(4B) | val_size(4B) | key | value]",
+          "In-memory KeyDir: HashMap<String, (file_id, offset, val_size)>",
+          "On startup: scan log file to rebuild KeyDir",
+          "Tombstone records for deletions",
+        ],
+        keyInsight: "Sequential writes are 10-100× faster than random writes on both HDDs and SSDs. By ONLY appending, you get maximum write throughput. But you pay in space (old values stay on disk).",
+        rustNotes: ["Use std::fs::OpenOptions with .append(true)", "BufWriter<File> for write batching", "Seek to offset with file.seek(SeekFrom::Start(offset))", "crc32fast crate for checksums"],
+        pros: ["Survives crashes", "Sequential writes = fast", "Simple recovery (just re-scan)"],
+        cons: ["Space grows unbounded", "Startup slow if log is huge", "All keys must fit in RAM"],
+        amplification: { read: "1 disk seek (O(1))", write: "1 disk write", space: "Grows forever until compaction" },
+      },
+      {
+        id: 3, title: "Compaction + Hint Files (Bitcask Phase 2)", subtitle: "Space reclamation & fast startup",
+        color: "#8b5cf6", duration: "3-4 days", model: "Log-structured Hash Table (Bitcask complete)",
+        realDBs: ["Bitcask (complete)", "Riak KV"],
+        goal: "Reclaim disk space by merging old log segments. Speed up startup with hint files.",
+        whatYouBuild: [
+          "Segment rotation: when active file > 64MB, close it (immutable), open new one",
+          "Merge process: scan all immutable segments, keep only latest value per key",
+          "Write merged result as new clean segment files",
+          "Hint files: compact index-only files (no values) for fast KeyDir rebuild on startup",
+          "Background compaction thread",
+        ],
+        keyInsight: "This is the first time you see the fundamental tension in all DBs: you trade CPU/IO work (compaction) for space efficiency. The merge process is essentially a MapReduce over your log.",
+        rustNotes: ["Use std::sync::Arc<RwLock<KeyDir>> for concurrent reads during compaction", "Spawn compaction as tokio::task or std::thread", "Hint file format: [key_size(4B) | file_id(4B) | offset(8B) | key]"],
+        pros: ["Bounded disk usage", "Fast startup via hint files", "Background compaction doesn't block reads"],
+        cons: ["Compaction uses temporary 2× space", "Still all keys in RAM", "Not great for range scans"],
+        amplification: { read: "1 disk seek", write: "~1-2× (compaction rewrites)", space: "~1-2× during merge" },
+      },
+      {
+        id: 4, title: "LSM-Tree: MemTable + SSTable", subtitle: "How RocksDB & Cassandra work",
+        color: "#f59e0b", duration: "1-2 weeks", model: "Log-Structured Merge Tree (LSM)",
+        realDBs: ["RocksDB (Facebook)", "LevelDB (Google)", "Cassandra (Apache)", "TiKV (PingCAP)", "ScyllaDB"],
+        goal: "Understand the most dominant storage model in modern databases. Keys no longer need to fit in RAM.",
+        whatYouBuild: [
+          "MemTable: in-memory BTreeMap (sorted!), absorbs all writes",
+          "WAL: Write-Ahead Log, every write goes here first for durability",
+          "SSTable flush: when MemTable hits ~4MB, sort & flush to disk as immutable SSTable file",
+          "SSTable format: [data blocks | index block | bloom filter | footer]",
+          "Read path: MemTable → L0 SSTables (newest→oldest) → L1 → ...",
+          "Simple single-level compaction (merge sort two SSTables)",
+        ],
+        keyInsight: "The key breakthrough: writes are ALWAYS sequential (MemTable → WAL → SSTable). Reads are slower because you might need to check multiple SSTables. You've traded read performance for write performance. This is the RUM conjecture in action.",
+        rustNotes: ["MemTable: std::collections::BTreeMap<Vec<u8>, Entry>", "Entry enum: Value(Vec<u8>) | Tombstone", "SSTable: write sorted key-value pairs with a block index at the end", "Use memmap2 crate for mmap-based SSTable reads"],
+        pros: ["Keys don't need to fit in RAM", "Excellent write throughput", "Range scans work well"],
+        cons: ["Reads may touch multiple files (read amplification)", "Background compaction I/O", "Complexity jump"],
+        amplification: { read: "Up to O(L) files checked", write: "~10-30× with leveled compaction", space: "~1.1× with leveled" },
+      },
+      {
+        id: 5, title: "Bloom Filters + Multi-Level Compaction", subtitle: "Making reads fast again",
+        color: "#ef4444", duration: "1 week", model: "LSM-Tree (production-grade)",
+        realDBs: ["LevelDB (leveled)", "RocksDB (leveled + tiered)", "Cassandra (tiered)"],
+        goal: "Add Bloom filters to avoid unnecessary disk reads. Implement proper leveled compaction.",
+        whatYouBuild: [
+          "Bloom filter per SSTable: O(1) probabilistic check — 'is this key definitely NOT here?'",
+          "Leveled compaction: L0 (overlap OK), L1-L6 (no key overlap within level)",
+          "L0→L1: when L0 has 4+ files, merge into L1",
+          "Each level 10× larger than previous: L1=10MB, L2=100MB, L3=1GB...",
+          "Compaction picks SSTable from Ln, merges with overlapping SSTables in Ln+1",
+          "Manifest file: tracks which SSTables exist at which level",
+        ],
+        keyInsight: "Bloom filters are the single biggest read optimization in LSM systems. A 10-bit Bloom filter has only ~1% false positive rate, meaning 99% of 'key not found' lookups avoid ANY disk I/O. Leveled compaction ensures at most 1 SSTable per key range per level (except L0).",
+        rustNotes: ["Use bloomfilter crate or implement your own (2 hash functions + bit array)", "Store serialized Bloom filter in SSTable footer", "Manifest: append-only log of SSTable add/remove events"],
+        pros: ["Near-zero read amplification for point lookups", "Predictable space usage", "Good write throughput"],
+        cons: ["Leveled compaction = higher write amplification than tiered", "Complex compaction scheduling"],
+        amplification: { read: "~1-2 disk reads with Bloom", write: "10-30× (leveled)", space: "~1.1×" },
+      },
+      {
+        id: 6, title: "WAL + Crash Recovery", subtitle: "Production-grade durability",
+        color: "#06b6d4", duration: "3-5 days", model: "WAL + LSM",
+        realDBs: ["PostgreSQL WAL", "RocksDB WAL", "etcd (Raft log is essentially a WAL)"],
+        goal: "Handle crashes safely. Understand the difference between fsync, fdatasync, and buffered writes.",
+        whatYouBuild: [
+          "WAL file: append-only log of all operations before they touch MemTable",
+          "WAL record: [length(4B) | type(1B) | key | value | CRC(4B)]",
+          "On crash: replay WAL to reconstruct in-flight MemTable",
+          "fsync vs fdatasync: understand when data actually hits disk",
+          "WAL rotation: archive WAL when MemTable is fully flushed to SSTable",
+          "Checkpoints: record 'all data up to sequence N is durable in SSTables'",
+        ],
+        keyInsight: "There are only 3 durability guarantees you can offer: (1) data persisted on write (fsync every write — slow), (2) data persisted per batch (group commit — good balance), (3) data possibly lost on crash (async — fast but dangerous). Every real DB makes one of these choices.",
+        rustNotes: ["file.sync_data() = fdatasync (faster, skips metadata)", "file.sync_all() = fsync (syncs metadata too)", "Group commit: collect N writes, fsync once, acknowledge all"],
+        pros: ["Crash safety", "Tunable durability (sync every write vs batch)", "Point-in-time recovery possible"],
+        cons: ["fsync is slow (~1-10ms on SSD)", "WAL takes extra disk space", "Recovery time proportional to WAL size"],
+        amplification: { read: "No impact", write: "+1 sequential write per op (WAL)", space: "Temporary WAL files" },
+      },
+      {
+        id: 7, title: "Concurrency + MVCC", subtitle: "Multiple readers, safe writers",
+        color: "#ec4899", duration: "1-2 weeks", model: "MVCC + LSM",
+        realDBs: ["RocksDB (sequence numbers)", "TiKV (MVCC)", "FoundationDB"],
+        goal: "Allow concurrent reads without blocking writes. Understand MVCC from first principles.",
+        whatYouBuild: [
+          "Sequence numbers: every write gets a monotonically increasing seq_no",
+          "Keys internally become (user_key, seq_no) tuples",
+          "Snapshots: a reader takes a snapshot = captures current seq_no",
+          "Reader only sees keys with seq_no ≤ snapshot's seq_no",
+          "Writer appends new (key, new_seq_no, value) without blocking readers",
+          "Garbage collection: remove old versions when no snapshot needs them",
+        ],
+        keyInsight: "MVCC is the reason modern DBs can have 'readers don't block writers and writers don't block readers.' Each reader has a consistent point-in-time view of the data. The cost: you store multiple versions of each key, needing periodic GC.",
+        rustNotes: ["Use AtomicU64 for sequence number generation", "Arc<SnapManager> to track live snapshots", "parking_lot::RwLock for MemTable (many readers, one writer)", "crossbeam::epoch for lock-free reads if pushing for performance"],
+        pros: ["Non-blocking reads", "Consistent snapshots", "Foundation for transactions"],
+        cons: ["Version accumulation needs GC", "More complex read path", "Higher memory usage"],
+        amplification: { read: "Same + version filtering", write: "Same + seq_no overhead", space: "~2-3× until GC" },
+      },
+      {
+        id: 8, title: "Benchmarking Infrastructure", subtitle: "Measure everything",
+        color: "#84cc16", duration: "Ongoing", model: "All of the above",
+        realDBs: ["YCSB benchmarks", "RocksDB db_bench", "LevelDB benchmarks"],
+        goal: "Build a rigorous benchmark harness. Know exactly how fast your DB is and WHY.",
+        whatYouBuild: [
+          "Workload generator: YCSB-style (100% read, 100% write, 50/50, Zipfian distribution)",
+          "Metrics: throughput (ops/sec), p50/p95/p99/p999 latency",
+          "Write amplification counter: bytes written to disk / bytes written by user",
+          "Read amplification counter: disk reads per user read",
+          "Space amplification: actual disk usage / logical data size",
+          "Comparison suite: your DB vs sled vs RocksDB (via rust-rocksdb crate)",
+        ],
+        keyInsight: "A benchmark without a controlled workload is meaningless. Real systems use Zipfian key distributions (80% of requests hit 20% of keys) not uniform random. p99 latency matters more than average — your worst 1% of requests determine user experience.",
+        rustNotes: ["criterion.rs for micro-benchmarks (individual operations)", "divan for newer alternative with better output", "Custom harness with std::time::Instant for macro-benchmarks", "perf or flamegraph crate for CPU profiling"],
+        pros: ["Know where time is spent", "Compare against real DBs", "Catch regressions"],
+        cons: ["Easy to benchmark the wrong thing", "Microbenchmarks can mislead"],
+        amplification: { read: "Measure it!", write: "Measure it!", space: "Measure it!" },
+      },
+    ];
+
+    const s = {
+      root: { display:'flex', flexDirection:'column', minHeight:'100vh', background:'#0d0d1a', color:'#e2e8f0', fontFamily:"'JetBrains Mono','Fira Code',monospace" },
+      header: { display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 24px', borderBottom:'1px solid #1e293b', background:'rgba(13,13,26,0.95)', position:'sticky', top:0, zIndex:10, backdropFilter:'blur(8px)' },
+      headerTitle: { fontSize:13, fontWeight:700, color:'#f1f5f9', letterSpacing:'0.05em' },
+      backLink: { fontSize:11, color:'#475569', textDecoration:'none', display:'flex', alignItems:'center', gap:6, padding:'4px 10px', border:'1px solid #1e293b', borderRadius:6, transition:'color 0.15s,border-color 0.15s' },
+      layout: { display:'flex', flex:1, overflow:'hidden' },
+      sidebar: { width:260, background:'#080b14', borderRight:'1px solid #1e293b', overflowY:'auto', padding:'16px 0', flexShrink:0, position:'sticky', top:53, height:'calc(100vh - 53px)', overflowY:'auto' },
+      sideItem: { padding:'12px 16px', cursor:'pointer', transition:'background 0.15s', display:'flex', alignItems:'flex-start', gap:10, borderLeft:'2px solid transparent', userSelect:'none' },
+      sideNum: { fontSize:10, fontWeight:700, letterSpacing:'0.1em', marginTop:2, flexShrink:0, width:20 },
+      sideTitle: { fontSize:12, lineHeight:1.4, color:'#94a3b8' },
+      sideSub: { fontSize:10, color:'#475569', marginTop:3 },
+      main: { flex:1, overflowY:'auto', padding:'32px 40px', maxWidth:860 },
+      phaseHeader: { marginBottom:28 },
+      phaseBadge: { fontSize:10, letterSpacing:'0.12em', padding:'3px 10px', borderRadius:4, fontWeight:700, marginBottom:12, display:'inline-block' },
+      phaseTitle: { fontSize:24, fontWeight:800, color:'#f1f5f9', letterSpacing:'-0.5px', marginBottom:6, lineHeight:1.2 },
+      phaseSubtitle: { fontSize:13, color:'#64748b', marginBottom:16 },
+      metaRow: { display:'flex', gap:16, marginBottom:24, flexWrap:'wrap' },
+      metaBox: { background:'#111827', border:'1px solid #1e293b', borderRadius:8, padding:'10px 16px', fontSize:11 },
+      metaLabel: { color:'#475569', marginBottom:4, letterSpacing:'0.06em' },
+      metaValue: { color:'#e2e8f0', fontWeight:600 },
+      section: { marginBottom:24 },
+      sectionLabel: { fontSize:10, letterSpacing:'0.14em', color:'#475569', marginBottom:10, fontWeight:700 },
+      goalBox: { background:'rgba(255,255,255,0.03)', border:'1px solid #1e293b', borderRadius:8, padding:'14px 18px', fontSize:13, color:'#cbd5e1', lineHeight:1.7 },
+      insightBox: { background:'rgba(0,0,0,0.4)', borderRadius:8, padding:'14px 18px', fontSize:12.5, color:'#cbd5e1', lineHeight:1.7, borderLeft:'3px solid' },
+      buildList: { listStyle:'none', display:'flex', flexDirection:'column', gap:8 },
+      buildItem: { display:'flex', alignItems:'flex-start', gap:10, fontSize:12.5, color:'#94a3b8', lineHeight:1.5 },
+      buildDot: { flexShrink:0, marginTop:5, width:6, height:6, borderRadius:'50%' },
+      pillRow: { display:'flex', flexWrap:'wrap', gap:8 },
+      pill: { fontSize:11, padding:'4px 12px', borderRadius:99, border:'1px solid', fontWeight:600 },
+      twoCol: { display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 },
+      prosBox: { background:'rgba(34,197,94,0.05)', border:'1px solid rgba(34,197,94,0.15)', borderRadius:8, padding:'14px' },
+      consBox: { background:'rgba(239,68,68,0.05)', border:'1px solid rgba(239,68,68,0.15)', borderRadius:8, padding:'14px' },
+      pcLabel: { fontSize:10, letterSpacing:'0.1em', fontWeight:700, marginBottom:10 },
+      pcItem: { fontSize:12, color:'#94a3b8', lineHeight:1.6, marginBottom:6, paddingLeft:12, position:'relative' },
+      ampGrid: { display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 },
+      ampBox: { background:'#111827', border:'1px solid #1e293b', borderRadius:8, padding:'14px', textAlign:'center' },
+      ampLabel: { fontSize:10, color:'#475569', letterSpacing:'0.08em', marginBottom:8 },
+      ampValue: { fontSize:13, fontWeight:700, color:'#e2e8f0' },
+      codeList: { background:'#0a0c10', borderRadius:8, padding:'16px', fontFamily:"'JetBrains Mono','Fira Code',monospace" },
+      codeItem: { fontSize:12, color:'#7dd3fc', lineHeight:1.7, marginBottom:4 },
+      bottomNav: { display:'flex', justifyContent:'space-between', alignItems:'center', padding:'20px 0', borderTop:'1px solid #1e293b', marginTop:16 },
+      navBtn: { fontSize:12, padding:'10px 20px', border:'1px solid #1e293b', borderRadius:8, background:'transparent', color:'#94a3b8', cursor:'pointer', transition:'all 0.15s', display:'flex', alignItems:'center', gap:8 },
+      navBtnActive: { background:'#111827', color:'#f1f5f9', borderColor:'#334155' },
+      progress: { display:'flex', gap:4, alignItems:'center' },
+      progressDot: { width:6, height:6, borderRadius:'50%', background:'#1e293b', transition:'background 0.2s' },
+    };
+
+    function Roadmap() {
+      const [active, setActive] = useState(0);
+      const phase = phases[active];
+
+      return (
+        <div style={s.root}>
+          <header style={s.header}>
+            <span style={s.headerTitle}>The 8-Phase Build Roadmap · Cementite</span>
+            <a href="index.html" style={s.backLink}>← Back</a>
+          </header>
+          <div style={s.layout}>
+            {/* Sidebar */}
+            <div style={s.sidebar}>
+              {phases.map((p, i) => (
+                <div
+                  key={p.id}
+                  style={{
+                    ...s.sideItem,
+                    background: active === i ? 'rgba(255,255,255,0.04)' : 'transparent',
+                    borderLeftColor: active === i ? p.color : 'transparent',
+                  }}
+                  onClick={() => setActive(i)}
+                >
+                  <span style={{ ...s.sideNum, color: active === i ? p.color : '#334155' }}>
+                    {String(p.id).padStart(2,'0')}
+                  </span>
+                  <div>
+                    <div style={{ ...s.sideTitle, color: active === i ? '#f1f5f9' : '#94a3b8', fontSize:11.5 }}>{p.title}</div>
+                    <div style={s.sideSub}>{p.subtitle}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Main */}
+            <div style={s.main}>
+              <div style={s.phaseHeader}>
+                <div style={{ ...s.phaseBadge, background: phase.color + '18', color: phase.color }}>
+                  PHASE {phase.id} · {phase.duration}
+                </div>
+                <h1 style={s.phaseTitle}>{phase.title}</h1>
+                <p style={s.phaseSubtitle}>{phase.subtitle}</p>
+                <div style={s.metaRow}>
+                  <div style={s.metaBox}>
+                    <div style={s.metaLabel}>STORAGE MODEL</div>
+                    <div style={s.metaValue}>{phase.model}</div>
+                  </div>
+                  <div style={s.metaBox}>
+                    <div style={s.metaLabel}>DURATION</div>
+                    <div style={{ ...s.metaValue, color: phase.color }}>{phase.duration}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Goal */}
+              <div style={s.section}>
+                <div style={s.sectionLabel}>GOAL</div>
+                <div style={s.goalBox}>{phase.goal}</div>
+              </div>
+
+              {/* Real DBs */}
+              <div style={s.section}>
+                <div style={s.sectionLabel}>REAL DATABASES USING THIS APPROACH</div>
+                <div style={s.pillRow}>
+                  {phase.realDBs.map(db => (
+                    <span key={db} style={{ ...s.pill, borderColor: phase.color + '40', color: phase.color, background: phase.color + '10' }}>{db}</span>
+                  ))}
+                </div>
+              </div>
+
+              {/* What you build */}
+              <div style={s.section}>
+                <div style={s.sectionLabel}>WHAT YOU BUILD</div>
+                <ul style={s.buildList}>
+                  {phase.whatYouBuild.map((item, i) => (
+                    <li key={i} style={s.buildItem}>
+                      <span style={{ ...s.buildDot, background: phase.color }}></span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Key Insight */}
+              <div style={s.section}>
+                <div style={s.sectionLabel}>KEY INSIGHT</div>
+                <div style={{ ...s.insightBox, borderLeftColor: phase.color }}>
+                  {phase.keyInsight}
+                </div>
+              </div>
+
+              {/* Rust Notes */}
+              <div style={s.section}>
+                <div style={s.sectionLabel}>RUST NOTES</div>
+                <div style={s.codeList}>
+                  {phase.rustNotes.map((note, i) => (
+                    <div key={i} style={s.codeItem}>
+                      <span style={{ color:'#475569' }}>// </span>{note}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Pros/Cons */}
+              <div style={s.section}>
+                <div style={s.sectionLabel}>TRADE-OFFS</div>
+                <div style={s.twoCol}>
+                  <div style={s.prosBox}>
+                    <div style={{ ...s.pcLabel, color:'#22c55e' }}>✓ PROS</div>
+                    {phase.pros.map((p, i) => (
+                      <div key={i} style={{ ...s.pcItem }}>
+                        <span style={{ color:'#22c55e', marginRight:6 }}>+</span>{p}
+                      </div>
+                    ))}
+                  </div>
+                  <div style={s.consBox}>
+                    <div style={{ ...s.pcLabel, color:'#ef4444' }}>✗ CONS</div>
+                    {phase.cons.map((c, i) => (
+                      <div key={i} style={{ ...s.pcItem }}>
+                        <span style={{ color:'#ef4444', marginRight:6 }}>−</span>{c}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Amplification */}
+              <div style={s.section}>
+                <div style={s.sectionLabel}>AMPLIFICATION FACTORS</div>
+                <div style={s.ampGrid}>
+                  {[['READ AMP', phase.amplification.read, '#60a5fa'], ['WRITE AMP', phase.amplification.write, '#fb923c'], ['SPACE AMP', phase.amplification.space, '#a78bfa']].map(([label, val, color]) => (
+                    <div key={label} style={s.ampBox}>
+                      <div style={s.ampLabel}>{label}</div>
+                      <div style={{ ...s.ampValue, color }}>{val}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Nav */}
+              <div style={s.bottomNav}>
+                <button
+                  style={{ ...s.navBtn, ...(active > 0 ? s.navBtnActive : {}), opacity: active > 0 ? 1 : 0.3, cursor: active > 0 ? 'pointer' : 'default' }}
+                  onClick={() => active > 0 && setActive(active - 1)}
+                >
+                  ← {active > 0 ? phases[active-1].title.slice(0,30) + '...' : 'First phase'}
+                </button>
+                <div style={s.progress}>
+                  {phases.map((p, i) => (
+                    <div key={i} style={{ ...s.progressDot, background: i === active ? p.color : i < active ? '#334155' : '#1e293b', width: i === active ? 20 : 6, borderRadius: i === active ? 3 : '50%' }} />
+                  ))}
+                </div>
+                <button
+                  style={{ ...s.navBtn, ...(active < phases.length - 1 ? s.navBtnActive : {}), opacity: active < phases.length - 1 ? 1 : 0.3, cursor: active < phases.length - 1 ? 'pointer' : 'default' }}
+                  onClick={() => active < phases.length - 1 && setActive(active + 1)}
+                >
+                  {active < phases.length - 1 ? phases[active+1].title.slice(0,30) + '...' : 'Last phase'} →
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<Roadmap />);
+  </script>
+</body>
+</html>

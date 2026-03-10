@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WAL & Crash Recovery · Cementite KV-DB</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0d0d1a; font-family: 'JetBrains Mono','Fira Code',monospace; color: #e2e8f0; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0d0d1a; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState } = React;
+
+    const cs = {
+      root: { display:'flex', flexDirection:'column', minHeight:'100vh', background:'#0d0d1a', color:'#e2e8f0', fontFamily:"'JetBrains Mono','Fira Code',monospace" },
+      header: { display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 24px', borderBottom:'1px solid #1e293b', position:'sticky', top:0, background:'rgba(13,13,26,0.97)', zIndex:10 },
+      tabBar: { display:'flex', gap:4, padding:'14px 24px', borderBottom:'1px solid #1e293b', background:'#080b14', overflowX:'auto' },
+      tab: { padding:'8px 18px', border:'1px solid #1e293b', borderRadius:6, fontSize:12, cursor:'pointer', background:'transparent', color:'#64748b', transition:'all 0.15s', whiteSpace:'nowrap' },
+      content: { flex:1, padding:'32px 40px', maxWidth:900 },
+      h2: { fontSize:20, fontWeight:700, color:'#f1f5f9', marginBottom:8 },
+      label: { fontSize:10, letterSpacing:'0.14em', fontWeight:700, color:'#475569', marginBottom:10, marginTop:20 },
+      text: { fontSize:12.5, color:'#94a3b8', lineHeight:1.8, marginBottom:12 },
+      code: { background:'#070910', border:'1px solid #1e293b', borderRadius:8, padding:'14px 16px', fontSize:11.5, color:'#7dd3fc', lineHeight:1.8, overflowX:'auto', marginBottom:16, whiteSpace:'pre' },
+      card: { background:'#111827', border:'1px solid #1e293b', borderRadius:8, padding:'16px', marginBottom:12 },
+    };
+
+    function ByteFormat({ fields }) {
+      return (
+        <div style={{ marginBottom:16 }}>
+          <div style={{ display:'flex', borderRadius:8, overflow:'hidden', border:'1px solid #1e293b' }}>
+            {fields.map((f, i) => (
+              <div key={i} style={{ flex: f.flex || 1, minWidth: f.min || 50, borderRight: i < fields.length - 1 ? '1px solid #1e293b' : 'none', background: f.color + '14', padding:'10px 8px', textAlign:'center' }}>
+                <div style={{ fontSize:9, color:f.color, fontWeight:700, letterSpacing:'0.06em', marginBottom:5 }}>{f.bytes}</div>
+                <div style={{ fontSize:10, color:'#94a3b8', lineHeight:1.4 }}>{f.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function WhyWALTab() {
+      return (
+        <div style={cs.content}>
+          <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
+            <div style={{ width:3, height:32, background:'#22d3ee', borderRadius:2 }}></div>
+            <div>
+              <h2 style={cs.h2}>Why WAL?</h2>
+              <p style={{ fontSize:12, color:'#64748b' }}>The crash scenario that WAL exists to solve</p>
+            </div>
+          </div>
+
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:24 }}>
+            <div style={{ background:'rgba(239,68,68,0.05)', border:'1px solid rgba(239,68,68,0.2)', borderRadius:8, padding:'18px' }}>
+              <div style={{ fontSize:11, fontWeight:700, color:'#fca5a5', letterSpacing:'0.1em', marginBottom:14 }}>✗ WITHOUT WAL</div>
+              {[
+                { t:'T=0', c:'User writes key="user:1" value="alice"', color:'#94a3b8' },
+                { t:'T=1μs', c:'MemTable updated in memory', color:'#94a3b8' },
+                { t:'T=2μs', c:'ACK sent to user', color:'#94a3b8' },
+                { t:'CRASH', c:'Power failure! MemTable gone.', color:'#ef4444' },
+                { t:'RESTART', c:'key="user:1" DOES NOT EXIST. Data lost.', color:'#fca5a5' },
+              ].map((row, i) => (
+                <div key={i} style={{ display:'flex', gap:12, marginBottom:8, alignItems:'flex-start' }}>
+                  <span style={{ fontSize:10, color:'#475569', minWidth:56, paddingTop:2, fontWeight:700 }}>{row.t}</span>
+                  <span style={{ fontSize:12, color: row.color, lineHeight:1.5 }}>{row.c}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ background:'rgba(34,211,238,0.05)', border:'1px solid rgba(34,211,238,0.2)', borderRadius:8, padding:'18px' }}>
+              <div style={{ fontSize:11, fontWeight:700, color:'#67e8f9', letterSpacing:'0.1em', marginBottom:14 }}>✓ WITH WAL</div>
+              {[
+                { t:'T=0', c:'User writes key="user:1" value="alice"', color:'#94a3b8' },
+                { t:'T=1μs', c:'Append record to WAL file', color:'#67e8f9' },
+                { t:'T=2μs', c:'fsync() — data hits disk', color:'#22c55e' },
+                { t:'T=3μs', c:'ACK to user (durability guaranteed!)', color:'#22c55e' },
+                { t:'T=4μs', c:'Update MemTable in memory', color:'#94a3b8' },
+                { t:'CRASH', c:'Power failure! MemTable gone.', color:'#ef4444' },
+                { t:'RESTART', c:'Replay WAL → MemTable reconstructed. Data safe!', color:'#4ade80' },
+              ].map((row, i) => (
+                <div key={i} style={{ display:'flex', gap:12, marginBottom:8, alignItems:'flex-start' }}>
+                  <span style={{ fontSize:10, color:'#475569', minWidth:56, paddingTop:2, fontWeight:700 }}>{row.t}</span>
+                  <span style={{ fontSize:12, color: row.color, lineHeight:1.5 }}>{row.c}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={cs.label}>WAL LIFECYCLE — WHEN IS A WAL SEGMENT DELETED?</div>
+          <div style={{ display:'flex', gap:0, marginBottom:16, overflowX:'auto' }}>
+            {[
+              { label:'WAL segment created', sub:'MemTable starts filling', color:'#22d3ee' },
+              { label:'WAL segment active', sub:'All writes appended here', color:'#22d3ee' },
+              { label:'MemTable flushed to SSTable', sub:'SSTable is durable on disk', color:'#22c55e' },
+              { label:'WAL segment deleted', sub:'SSTable makes it redundant', color:'#4ade80' },
+            ].map((step, i) => (
+              <div key={i} style={{ flex:1, minWidth:160, background:'#111827', border:'1px solid #1e293b', borderRight: i < 3 ? 'none' : '1px solid #1e293b', padding:'14px 12px', position:'relative', borderRadius: i === 0 ? '8px 0 0 8px' : i === 3 ? '0 8px 8px 0' : 0 }}>
+                <div style={{ fontSize:9, color: step.color, fontWeight:700, letterSpacing:'0.08em', marginBottom:8 }}>{i+1}. {step.label}</div>
+                <div style={{ fontSize:11, color:'#64748b', lineHeight:1.5 }}>{step.sub}</div>
+                {i < 3 && <div style={{ position:'absolute', right:-12, top:'50%', transform:'translateY(-50%)', color:'#334155', fontSize:18, zIndex:1 }}>→</div>}
+              </div>
+            ))}
+          </div>
+
+          <div style={cs.label}>KEY PROPERTIES</div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
+            {[
+              { title:'Sequential Only', desc:'WAL is append-only. Sequential writes are 10-100× faster than random.', color:'#22d3ee' },
+              { title:'Idempotent Replay', desc:'Re-applying a WAL record twice is safe. On recovery: replay from last checkpoint.', color:'#22c55e' },
+              { title:'Checkpoints', desc:'Periodic "all data up to seq N is in SSTables" markers. Limit recovery time.', color:'#a78bfa' },
+            ].map(item => (
+              <div key={item.title} style={{ background:'#111827', border:`1px solid ${item.color}25`, borderRadius:8, padding:'14px', borderTop:`2px solid ${item.color}` }}>
+                <div style={{ fontSize:11, fontWeight:700, color: item.color, marginBottom:8 }}>{item.title}</div>
+                <div style={{ fontSize:11.5, color:'#64748b', lineHeight:1.6 }}>{item.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function WALFormatTab() {
+      return (
+        <div style={cs.content}>
+          <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
+            <div style={{ width:3, height:32, background:'#fbbf24', borderRadius:2 }}></div>
+            <div>
+              <h2 style={cs.h2}>WAL Binary Format</h2>
+              <p style={{ fontSize:12, color:'#64748b' }}>Exact byte layout of every WAL record</p>
+            </div>
+          </div>
+
+          <div style={cs.label}>RECORD WIRE FORMAT</div>
+          <ByteFormat fields={[
+            { label:'Record Length', bytes:'4B', color:'#f59e0b', flex:1 },
+            { label:'CRC32C', bytes:'4B', color:'#06b6d4', flex:1 },
+            { label:'Type', bytes:'1B', color:'#22c55e', flex:0.6 },
+            { label:'Sequence No.', bytes:'8B', color:'#ec4899', flex:1.2 },
+            { label:'key_len', bytes:'4B', color:'#8b5cf6', flex:0.8 },
+            { label:'val_len', bytes:'4B', color:'#8b5cf6', flex:0.8 },
+            { label:'key', bytes:'variable', color:'#4ade80', flex:1.5, min:70 },
+            { label:'value', bytes:'variable', color:'#94a3b8', flex:2, min:80 },
+          ]} />
+
+          <div style={cs.label}>RECORD TYPES</div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10, marginBottom:20 }}>
+            {[
+              { byte:'0x01', name:'FULL', desc:'Complete record fits in one 32KB block', color:'#22c55e' },
+              { byte:'0x02', name:'FIRST', desc:'First fragment of a multi-block record', color:'#f59e0b' },
+              { byte:'0x03', name:'MIDDLE', desc:'Middle fragment of a multi-block record', color:'#f97316' },
+              { byte:'0x04', name:'LAST', desc:'Final fragment of a multi-block record', color:'#ef4444' },
+              { byte:'0x05', name:'SET', desc:'Key-value write operation', color:'#60a5fa' },
+              { byte:'0x06', name:'DELETE', desc:'Tombstone write (key deletion)', color:'#f472b6' },
+              { byte:'0x07', name:'BATCH', desc:'WriteBatch: atomic multi-key payload', color:'#a78bfa' },
+              { byte:'0x08', name:'CHECKPOINT', desc:'All data up to seq N is in SSTables', color:'#84cc16' },
+            ].map(t => (
+              <div key={t.byte} style={{ background:'#111827', border:'1px solid #1e293b', borderRadius:8, padding:'12px' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+                  <code style={{ fontSize:11, color: t.color, fontWeight:700 }}>{t.byte}</code>
+                  <span style={{ fontSize:9, color: t.color, background: t.color + '15', padding:'2px 6px', borderRadius:4, letterSpacing:'0.06em' }}>{t.name}</span>
+                </div>
+                <div style={{ fontSize:10.5, color:'#64748b', lineHeight:1.5 }}>{t.desc}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={cs.label}>BLOCK-BASED LAYOUT (32KB BLOCKS)</div>
+          <div style={{ background:'#0a0c10', border:'1px solid #1e293b', borderRadius:8, padding:'16px', marginBottom:16 }}>
+            <pre style={{ color:'#7dd3fc', fontSize:11.5, whiteSpace:'pre', lineHeight:1.9 }}>{`┌─────────────────────────────────── Block 0 (32KB) ────────────────────────────┐
+│ [FULL Record: SET key="foo"] [FULL Record: SET key="bar"]                      │
+│ [FIRST Record: large SET key="blob"... 28KB so far] [padding if needed]        │
+└────────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────── Block 1 (32KB) ────────────────────────────┐
+│ [LAST Record: ...remaining bytes of "blob"] [FULL Record: DELETE key="foo"]    │
+│ [FULL Record: CHECKPOINT seq=1000] [padding]                                   │
+└────────────────────────────────────────────────────────────────────────────────┘`}</pre>
+          </div>
+          <div style={cs.text}>Aligning to 32KB blocks means records align to OS page boundaries, making crash-safe partial-write detection easier. A torn write = partial block = CRC mismatch.</div>
+
+          <div style={cs.label}>WRITEBATCH — ATOMIC MULTI-KEY UPDATES</div>
+          <pre style={cs.code}>{`// WriteBatch payload (inside BATCH record):
+// [count: 4B] [start_seq: 8B] [op1_type: 1B] [op1_key_len: 4B] [op1_key]
+//             [op1_val_len: 4B] [op1_val] [op2_type: 1B] ...
+//
+// Guarantee: either ALL ops in a batch apply, or NONE.
+// Implementation: write single BATCH WAL record → apply atomically to MemTable
+// On crash mid-batch: partial BATCH record has bad CRC → discard entire batch
+
+let mut batch = WriteBatch::new();
+batch.set(b"account:alice", b"balance:900");
+batch.set(b"account:bob",   b"balance:100");
+db.write_batch(batch)?; // Atomic! Both or neither.`}</pre>
+        </div>
+      );
+    }
+
+    function DurabilityTab() {
+      return (
+        <div style={cs.content}>
+          <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
+            <div style={{ width:3, height:32, background:'#4ade80', borderRadius:2 }}></div>
+            <div>
+              <h2 style={cs.h2}>The Durability Ladder</h2>
+              <p style={{ fontSize:12, color:'#64748b' }}>5 levels from dangerous-but-fast to safe-but-slow</p>
+            </div>
+          </div>
+
+          <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:24 }}>
+            {[
+              { level:0, name:'No fsync (fire & forget)', speed:'1M+ writes/sec', safety:'Data loss on OS crash', example:'Redis default, Memcached', color:'#ef4444', danger:true, rust:'// Just write to OS buffer — no fsync\nfile.write_all(&record)?;' },
+              { level:1, name:'fdatasync per write', speed:'5-10K writes/sec (NVMe)', safety:'Crash safe (data survives)', example:'Basic WAL mode', color:'#f97316', rust:'file.write_all(&record)?;\nfile.sync_data()?; // fdatasync — skips metadata (mtime, size)' },
+              { level:2, name:'fsync per write', speed:'~5-8K writes/sec (NVMe)', safety:'Crash safe + metadata safe', example:'SQLite FULL mode', color:'#f59e0b', rust:'file.write_all(&record)?;\nfile.sync_all()?;  // fsync — also syncs file size, mtime' },
+              { level:3, name:'Group commit (BEST BALANCE)', speed:'100K-500K writes/sec', safety:'Crash safe', example:'MySQL, RocksDB, PostgreSQL', color:'#22c55e', best:true, rust:'// Collect N writes, fsync once, ack all N:\nlet batch = pending_writes.drain(..50).collect::<Vec<_>>();\nfor w in &batch { wal.write_all(&w.bytes)?; }\nwal.sync_data()?; // ONE fsync for all 50!\nfor w in batch { w.ack_channel.send(Ok(())); }' },
+              { level:4, name:'O_DIRECT + O_SYNC', speed:'Variable, bypasses page cache', safety:'Hardware-level sync', example:'Oracle, specialized DB appliances', color:'#a78bfa', rust:'// Linux: open with O_DIRECT | O_SYNC flags\n// Bypasses OS page cache entirely\n// Write goes directly to storage controller' },
+            ].map(lvl => (
+              <div key={lvl.level} style={{ border:`1px solid ${lvl.color}25`, background: lvl.best ? lvl.color + '0a' : 'rgba(255,255,255,0.02)', borderRadius:10, overflow:'hidden', borderLeft:`3px solid ${lvl.color}` }}>
+                <div style={{ padding:'14px 18px', display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:8 }}>
+                  <div style={{ display:'flex', gap:12, alignItems:'center' }}>
+                    <span style={{ fontSize:11, fontWeight:800, color: lvl.color, background: lvl.color + '18', padding:'4px 10px', borderRadius:6 }}>L{lvl.level}</span>
+                    <div>
+                      <span style={{ fontSize:13, fontWeight:600, color:'#f1f5f9' }}>{lvl.name}</span>
+                      {lvl.best && <span style={{ fontSize:9, color:'#22c55e', background:'rgba(34,197,94,0.12)', border:'1px solid rgba(34,197,94,0.25)', padding:'2px 8px', borderRadius:99, marginLeft:10, letterSpacing:'0.1em' }}>RECOMMENDED</span>}
+                    </div>
+                  </div>
+                  <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
+                    <span style={{ fontSize:11, color: lvl.color, background: lvl.color + '10', padding:'4px 10px', borderRadius:6 }}>{lvl.speed}</span>
+                    <span style={{ fontSize:11, color: lvl.danger ? '#fca5a5' : '#86efac', background: lvl.danger ? 'rgba(239,68,68,0.08)' : 'rgba(34,197,94,0.08)', padding:'4px 10px', borderRadius:6 }}>{lvl.safety}</span>
+                  </div>
+                </div>
+                <div style={{ padding:'0 18px 14px' }}>
+                  <div style={{ fontSize:11, color:'#475569', marginBottom:8 }}>Used by: <span style={{ color:'#64748b' }}>{lvl.example}</span></div>
+                  <pre style={{ background:'#070910', border:'1px solid #1e293b', borderRadius:6, padding:'10px 14px', fontSize:11, color:'#7dd3fc', lineHeight:1.7, overflowX:'auto', whiteSpace:'pre' }}>{lvl.rust}</pre>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div style={cs.label}>FSYNC LATENCY BY DEVICE TYPE</div>
+          <div style={{ overflowX:'auto', marginBottom:20 }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11.5 }}>
+              <thead>
+                <tr>
+                  {['Device', 'fsync latency', 'Max syncs/sec', 'Max throughput (no group commit)'].map(h => (
+                    <th key={h} style={{ padding:'9px 14px', background:'#111827', borderBottom:'1px solid #1e293b', color:'#64748b', textAlign:'left', fontSize:10, letterSpacing:'0.06em' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  ['HDD 7200rpm', '8-12ms', '~100/s', '~100 writes/sec'],
+                  ['SATA SSD', '0.5-2ms', '~2,000/s', '~2,000 writes/sec'],
+                  ['NVMe consumer', '0.05-0.2ms', '~20,000/s', '~20K writes/sec'],
+                  ['NVMe datacenter', '0.01-0.05ms', '~100,000/s', '~100K writes/sec'],
+                  ['With group commit (50×)', 'Same fsync', 'Same fsyncs', '100K-5M writes/sec !!!'],
+                ].map((row, ri) => (
+                  <tr key={ri} style={{ borderBottom:'1px solid #0f172a' }}>
+                    {row.map((cell, ci) => (
+                      <td key={ci} style={{ padding:'9px 14px', color: ri === 4 ? '#22c55e' : ci === 0 ? '#e2e8f0' : '#64748b', background: ri % 2 === 0 ? 'rgba(255,255,255,0.012)' : 'transparent', fontWeight: ri === 4 ? 700 : 400 }}>{cell}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div style={{ background:'rgba(34,197,94,0.06)', border:'1px solid rgba(34,197,94,0.2)', borderRadius:8, padding:'16px 20px', borderLeft:'3px solid #22c55e' }}>
+            <div style={{ fontSize:10, color:'#22c55e', letterSpacing:'0.14em', fontWeight:700, marginBottom:8 }}>GROUP COMMIT: THE MAGIC</div>
+            <p style={cs.text}>Without group commit: 20,000 writes/sec (NVMe, one fsync per write)</p>
+            <p style={cs.text}>With group commit (50 writes per batch): 20,000 × 50 = <strong style={{ color:'#22c55e' }}>1,000,000 writes/sec</strong></p>
+            <p style={{ fontSize:12, color:'#64748b' }}>Same hardware. Same durability guarantee. 50× throughput. This is why RocksDB, MySQL, and PostgreSQL all use group commit.</p>
+          </div>
+        </div>
+      );
+    }
+
+    function CrashRecoveryTab() {
+      return (
+        <div style={cs.content}>
+          <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
+            <div style={{ width:3, height:32, background:'#f87171', borderRadius:2 }}></div>
+            <div>
+              <h2 style={cs.h2}>Crash Recovery</h2>
+              <p style={{ fontSize:12, color:'#64748b' }}>5 crash types, 1 recovery algorithm, and the torn write problem</p>
+            </div>
+          </div>
+
+          <div style={cs.label}>5 CRASH TYPES & HOW WAL HANDLES THEM</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:24 }}>
+            {[
+              { num:1, type:'Process crash', example:'kill -9, OOM killer, panic', solution:'Easy: replay WAL. OS page cache is intact, WAL on disk is consistent.', color:'#4ade80' },
+              { num:2, type:'OS crash / kernel panic', example:'Blue screen, kernel oops', solution:'Harder: OS page cache is LOST. Only fsync\'d writes survive. WAL handles this if you sync_data().', color:'#f59e0b' },
+              { num:3, type:'Power failure', example:'UPS failure, datacenter outage', solution:'Torn writes possible! A 4KB write can be interrupted mid-block. CRC32C in every WAL record detects this.', color:'#f97316' },
+              { num:4, type:'Storage media failure', example:'Bad sectors, flash wear-out', solution:'CRC at multiple levels (WAL record + SSTable data block + SSTable footer). Multiple errors caught.', color:'#ef4444' },
+              { num:5, type:'Filesystem bug / bit rot', example:'ZFS silent corruption, cosmic ray', solution:'CRC32 won\'t help (limited Hamming distance). Use SHA-256 in footer if paranoid. ZFS + checksums.', color:'#a78bfa' },
+            ].map(crash => (
+              <div key={crash.num} style={{ display:'flex', gap:14, background:'#111827', border:'1px solid #1e293b', borderRadius:8, padding:'14px', borderLeft:`3px solid ${crash.color}` }}>
+                <span style={{ fontSize:11, fontWeight:800, color: crash.color, flexShrink:0, minWidth:18, marginTop:1 }}>{crash.num}.</span>
+                <div style={{ flex:1 }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', flexWrap:'wrap', gap:8, marginBottom:6 }}>
+                    <span style={{ fontSize:13, fontWeight:600, color:'#f1f5f9' }}>{crash.type}</span>
+                    <span style={{ fontSize:11, color:'#475569' }}>e.g.: {crash.example}</span>
+                  </div>
+                  <div style={{ fontSize:12, color:'#94a3b8', lineHeight:1.6 }}>{crash.solution}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div style={cs.label}>RECOVERY ALGORITHM (STEP BY STEP)</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:0, marginBottom:24 }}>
+            {[
+              { step:'1', title:'Find last checkpoint in MANIFEST', detail:'MANIFEST has an append-only log of "checkpoint at seq N" entries. Find the most recent one. All SSTables listed there are trusted.', color:'#22d3ee' },
+              { step:'2', title:'Open WAL files after checkpoint', detail:'Any WAL segment with sequence numbers > checkpoint seq are the ones we need to replay.', color:'#22c55e' },
+              { step:'3', title:'Replay valid WAL records', detail:'For each record: verify CRC32C. If CRC mismatch → torn write → STOP (all subsequent records are also suspect).', color:'#f59e0b' },
+              { step:'4', title:'Reconstruct MemTable', detail:'Apply all valid WAL records to a fresh MemTable. After all records: MemTable matches what was in-memory at crash time.', color:'#f97316' },
+              { step:'5', title:'Write new checkpoint, truncate old WAL', detail:'Flush reconstructed MemTable to a new SSTable. Write new MANIFEST checkpoint. Old WAL segments can be deleted.', color:'#4ade80' },
+            ].map((step, i) => (
+              <div key={step.step} style={{ display:'flex', alignItems:'stretch', gap:0 }}>
+                <div style={{ display:'flex', flexDirection:'column', alignItems:'center', marginRight:16 }}>
+                  <div style={{ width:32, height:32, borderRadius:'50%', background: step.color + '20', border:`2px solid ${step.color}`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:800, color: step.color, flexShrink:0 }}>{step.step}</div>
+                  {i < 4 && <div style={{ width:2, flex:1, background:'#1e293b', minHeight:20 }}></div>}
+                </div>
+                <div style={{ background:'#111827', border:'1px solid #1e293b', borderRadius:8, padding:'14px 16px', marginBottom:10, flex:1 }}>
+                  <div style={{ fontSize:13, fontWeight:600, color:'#f1f5f9', marginBottom:6 }}>{step.title}</div>
+                  <div style={{ fontSize:12, color:'#94a3b8', lineHeight:1.6 }}>{step.detail}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div style={cs.label}>TORN WRITE DETECTION (HOW CRC SAVES YOU)</div>
+          <div style={{ background:'#0a0c10', border:'1px solid #1e293b', borderRadius:8, padding:'16px', marginBottom:16 }}>
+            <pre style={{ color:'#7dd3fc', fontSize:11.5, whiteSpace:'pre', lineHeight:1.9 }}>{`// Before crash: writing a 4KB WAL record
+// Power fails mid-write after 2KB:
+//
+// Disk state:
+// [Record length=4096] [CRC=0xABCD1234] [Type=SET] [Seq=1001]
+// [key_len=5] [val_len=100] [key="hello"] [value: 100 bytes]
+//  ↑ First 2KB written cleanly                ↑ Last 2KB: zeros or garbage
+//
+// Recovery sees CRC mismatch:
+// computed_crc = crc32c(actual_bytes) = 0x99887766
+// stored_crc   = 0xABCD1234
+// → MISMATCH → stop recovery here
+// → All records after this point are also discarded
+//
+// Safe! We never apply a partial write.`}</pre>
+          </div>
+        </div>
+      );
+    }
+
+    function RustImplTab() {
+      return (
+        <div style={cs.content}>
+          <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
+            <div style={{ width:3, height:32, background:'#c084fc', borderRadius:2 }}></div>
+            <div>
+              <h2 style={cs.h2}>Rust Implementation</h2>
+              <p style={{ fontSize:12, color:'#64748b' }}>Complete WalWriter and WalReader with sync modes</p>
+            </div>
+          </div>
+
+          <div style={cs.label}>SYNC MODE ENUM + WAL WRITER</div>
+          <pre style={cs.code}>{`use std::fs::{File, OpenOptions};
+use std::io::{BufWriter, Write, Seek, SeekFrom};
+use crc32fast::Hasher;
+
+#[derive(Clone, Copy)]
+pub enum SyncMode {
+    None,        // Level 0: no fsync (dangerous)
+    FDataSync,   // Level 1: fdatasync (sync data, skip metadata)
+    FSync,       // Level 2: fsync (sync data + metadata)
+    // Level 3 (group commit) is handled at a higher layer
+}
+
+pub struct WalWriter {
+    file: BufWriter<File>,
+    sync_mode: SyncMode,
+    current_seq: u64,
+    bytes_written: u64,
+}
+
+impl WalWriter {
+    pub fn new(path: &str, sync_mode: SyncMode) -> std::io::Result<Self> {
+        let file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)?;
+        Ok(Self {
+            file: BufWriter::with_capacity(64 * 1024, file),
+            sync_mode,
+            current_seq: 0,
+            bytes_written: 0,
+        })
+    }
+
+    pub fn write_set(&mut self, key: &[u8], value: &[u8]) -> std::io::Result<u64> {
+        self.current_seq += 1;
+        self.write_record(0x05, key, value)?;
+        Ok(self.current_seq)
+    }
+
+    pub fn write_delete(&mut self, key: &[u8]) -> std::io::Result<u64> {
+        self.current_seq += 1;
+        self.write_record(0x06, key, &[])?;
+        Ok(self.current_seq)
+    }
+
+    fn write_record(&mut self, record_type: u8, key: &[u8], value: &[u8]) -> std::io::Result<()> {
+        // Build payload
+        let key_len = key.len() as u32;
+        let val_len = value.len() as u32;
+        let payload_len = 1 + 8 + 4 + 4 + key.len() + value.len();
+
+        // Compute CRC over type + seq + key_len + val_len + key + value
+        let mut hasher = Hasher::new();
+        hasher.update(&[record_type]);
+        hasher.update(&self.current_seq.to_le_bytes());
+        hasher.update(&key_len.to_le_bytes());
+        hasher.update(&val_len.to_le_bytes());
+        hasher.update(key);
+        hasher.update(value);
+        let crc = hasher.finalize();
+
+        // Write: [length][crc32][type][seq][key_len][val_len][key][value]
+        self.file.write_all(&(payload_len as u32).to_le_bytes())?;
+        self.file.write_all(&crc.to_le_bytes())?;
+        self.file.write_all(&[record_type])?;
+        self.file.write_all(&self.current_seq.to_le_bytes())?;
+        self.file.write_all(&key_len.to_le_bytes())?;
+        self.file.write_all(&val_len.to_le_bytes())?;
+        self.file.write_all(key)?;
+        self.file.write_all(value)?;
+
+        self.bytes_written += (8 + payload_len) as u64;
+        self.file.flush()?;
+
+        match self.sync_mode {
+            SyncMode::None => {}
+            SyncMode::FDataSync => self.file.get_ref().sync_data()?,
+            SyncMode::FSync => self.file.get_ref().sync_all()?,
+        }
+        Ok(())
+    }
+}`}</pre>
+
+          <div style={cs.label}>WAL READER (ITERATOR WITH CRC VERIFICATION)</div>
+          <pre style={cs.code}>{`use std::io::{BufReader, Read};
+
+pub struct WalRecord {
+    pub record_type: u8,
+    pub seq: u64,
+    pub key: Vec<u8>,
+    pub value: Vec<u8>,
+}
+
+pub struct WalReader {
+    reader: BufReader<File>,
+}
+
+impl WalReader {
+    pub fn new(path: &str) -> std::io::Result<Self> {
+        let file = File::open(path)?;
+        Ok(Self { reader: BufReader::new(file) })
+    }
+
+    // Returns None when EOF, Err on corruption
+    pub fn next_record(&mut self) -> std::io::Result<Option<WalRecord>> {
+        // Read 4-byte length
+        let mut len_buf = [0u8; 4];
+        match self.reader.read_exact(&mut len_buf) {
+            Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => return Ok(None),
+            Err(e) => return Err(e),
+            Ok(_) => {}
+        }
+        let payload_len = u32::from_le_bytes(len_buf) as usize;
+
+        // Read 4-byte CRC
+        let mut crc_buf = [0u8; 4];
+        self.reader.read_exact(&mut crc_buf)?;
+        let stored_crc = u32::from_le_bytes(crc_buf);
+
+        // Read payload
+        let mut payload = vec![0u8; payload_len];
+        self.reader.read_exact(&mut payload)?;
+
+        // Verify CRC
+        let computed_crc = crc32fast::hash(&payload);
+        if computed_crc != stored_crc {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "WAL CRC mismatch — torn write detected, stopping recovery"
+            ));
+        }
+
+        // Parse payload: [type(1)] [seq(8)] [key_len(4)] [val_len(4)] [key] [value]
+        let record_type = payload[0];
+        let seq = u64::from_le_bytes(payload[1..9].try_into().unwrap());
+        let key_len = u32::from_le_bytes(payload[9..13].try_into().unwrap()) as usize;
+        let val_len = u32::from_le_bytes(payload[13..17].try_into().unwrap()) as usize;
+        let key = payload[17..17 + key_len].to_vec();
+        let value = payload[17 + key_len..17 + key_len + val_len].to_vec();
+
+        Ok(Some(WalRecord { record_type, seq, key, value }))
+    }
+}
+
+// Recovery usage:
+// let mut reader = WalReader::new("wal/000001.log")?;
+// while let Some(record) = reader.next_record()? {
+//     match record.record_type {
+//         0x05 => memtable.set(record.key, record.value),
+//         0x06 => memtable.delete(record.key),
+//         _ => {}
+//     }
+// }
+// // If next_record returns Err(CRC mismatch): stop, partial record detected`}</pre>
+        </div>
+      );
+    }
+
+    const tabs = [
+      { id:'why', label:'Why WAL?', color:'#22d3ee', component: WhyWALTab },
+      { id:'format', label:'WAL Format', color:'#fbbf24', component: WALFormatTab },
+      { id:'durability', label:'Durability Ladder', color:'#4ade80', component: DurabilityTab },
+      { id:'recovery', label:'Crash Recovery', color:'#f87171', component: CrashRecoveryTab },
+      { id:'rust', label:'Rust Implementation', color:'#c084fc', component: RustImplTab },
+    ];
+
+    function WALCrash() {
+      const [active, setActive] = useState(0);
+      const Tab = tabs[active].component;
+
+      return (
+        <div style={cs.root}>
+          <header style={cs.header}>
+            <span style={{ fontSize:13, fontWeight:700, color:'#f1f5f9' }}>WAL & Crash Recovery · Cementite</span>
+            <a href="index.html" style={{ fontSize:11, color:'#475569', textDecoration:'none', padding:'4px 10px', border:'1px solid #1e293b', borderRadius:6 }}>← Back</a>
+          </header>
+          <div style={cs.tabBar}>
+            {tabs.map((t, i) => (
+              <button
+                key={t.id}
+                onClick={() => setActive(i)}
+                style={{ ...cs.tab, borderColor: active === i ? t.color + '60' : '#1e293b', color: active === i ? t.color : '#64748b', background: active === i ? t.color + '12' : 'transparent', fontWeight: active === i ? 700 : 400 }}
+              >{t.label}</button>
+            ))}
+          </div>
+          <Tab />
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<WALCrash />);
+  </script>
+</body>
+</html>
