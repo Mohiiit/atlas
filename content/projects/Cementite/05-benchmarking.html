@@ -1,624 +1,713 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Benchmarking Strategy · Cementite KV-DB</title>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #0d0d1a; font-family: 'JetBrains Mono','Fira Code',monospace; color: #e2e8f0; }
-    ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: #0d0d1a; }
-    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Benchmarking · Cementite</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #090e0a;
+  --surface: #0d1510;
+  --border: #182418;
+  --border-bright: #243428;
+  --accent: #4ade80;
+  --accent2: #a3e635;
+  --accent3: #2dd4bf;
+  --accent-dim: rgba(74,222,128,.08);
+  --accent-border: rgba(74,222,128,.28);
+  --amber: #fbbf24;
+  --red: #f87171;
+  --purple: #c084fc;
+  --blue: #60a5fa;
+  --text: #b8d4bc;
+  --text-dim: #5a7a60;
+  --text-bright: #e0ffe4;
+  --muted: #3a5040;
+  --font-body: 'Space Grotesk', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 14px; line-height: 1.7; min-height: 100vh; }
+
+.header { background: #060c07; border-bottom: 1px solid var(--border); padding: 16px 24px; position: sticky; top: 0; z-index: 200; }
+.header-meta { font-family: var(--font-mono); font-size: 10px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px; }
+.header h1 { font-size: 20px; font-weight: 700; color: var(--text-bright); }
+.header p { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+
+.wrap {
+  display: grid; grid-template-columns: 200px 1fr;
+  gap: 0 32px; padding: 24px 24px 80px;
+  max-width: 1100px; margin: 0 auto;
+}
+.toc {
+  position: sticky; top: 80px; max-height: calc(100vh - 100px);
+  overflow-y: auto; scrollbar-width: none; padding: 8px 0; align-self: start;
+}
+.toc::-webkit-scrollbar { display: none; }
+.toc-label { font-family: var(--font-mono); font-size: 9px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; padding: 0 12px 8px; }
+.toc a {
+  display: block; padding: 7px 12px; font-size: 12px;
+  color: var(--text-dim); text-decoration: none;
+  border-left: 2px solid transparent; transition: all 0.15s; border-radius: 0 4px 4px 0;
+}
+.toc a:hover { color: var(--text); background: var(--surface); }
+.toc a.active { color: var(--accent); border-left-color: var(--accent); background: var(--accent-dim); }
+
+.content { min-width: 0; }
+section { padding-bottom: 56px; border-bottom: 1px solid var(--border); margin-bottom: 48px; }
+section:last-child { border-bottom: none; }
+.stag { font-family: var(--font-mono); font-size: 10px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+section h2 { font-size: 22px; font-weight: 700; color: var(--text-bright); margin-bottom: 6px; }
+section h3 { font-size: 15px; font-weight: 600; margin: 28px 0 10px; display: flex; align-items: center; gap: 8px; }
+section h3::before { content: ''; display: block; width: 3px; height: 16px; background: currentColor; border-radius: 2px; flex-shrink: 0; }
+.intro { color: var(--text-dim); font-size: 13px; margin-bottom: 20px; }
+
+.ib { border-radius: 6px; padding: 14px 18px; margin: 14px 0; font-size: 13px; line-height: 1.8; border: 1px solid; border-left: 3px solid; }
+.ib-green { background: var(--accent-dim); border-color: var(--accent-border); border-left-color: var(--accent); }
+.ib-lime { background: rgba(163,230,53,.06); border-color: rgba(163,230,53,.28); border-left-color: var(--accent2); }
+.ib-teal { background: rgba(45,212,191,.06); border-color: rgba(45,212,191,.28); border-left-color: var(--accent3); }
+.ib-red { background: rgba(248,113,113,.06); border-color: rgba(248,113,113,.28); border-left-color: var(--red); }
+.ib-label { font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; }
+.ib-green .ib-label { color: var(--accent); }
+.ib-lime .ib-label { color: var(--accent2); }
+.ib-teal .ib-label { color: var(--accent3); }
+.ib-red .ib-label { color: var(--red); }
+
+.dw { margin: 14px 0; }
+.dl { font-family: var(--font-mono); font-size: 10px; color: var(--muted); margin-bottom: 5px; }
+.d { background: #050a06; border-radius: 6px; padding: 18px 20px; overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid; border-left: 3px solid; }
+.d pre { margin: 0; font-family: var(--font-mono); font-size: 11.5px; color: var(--text); line-height: 1.75; white-space: pre; }
+.d-green { border-color: rgba(74,222,128,.25); border-left-color: rgba(74,222,128,.5); }
+.d-lime { border-color: rgba(163,230,53,.25); border-left-color: rgba(163,230,53,.5); }
+.d-teal { border-color: rgba(45,212,191,.25); border-left-color: rgba(45,212,191,.5); }
+.d-purple { border-color: rgba(192,132,252,.25); border-left-color: rgba(192,132,252,.5); }
+
+.cb { margin: 12px 0; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); }
+.cb-lang { padding: 5px 14px; background: #070e08; border-bottom: 1px solid var(--border); font-family: var(--font-mono); font-size: 10px; color: var(--muted); }
+.cb pre { margin: 0; padding: 16px; font-family: var(--font-mono); font-size: 11.5px; color: #b8d4bc; line-height: 1.8; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: pre; background: #040904; }
+
+.metric-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-left: 3px solid var(--accent); border-radius: 6px;
+  padding: 14px 18px; margin-bottom: 12px;
+}
+.mc-name { font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 6px; }
+.mc-body { font-size: 12px; color: var(--text-dim); line-height: 1.7; }
+
+@keyframes fadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+section { animation: fadeUp .35s ease both; }
+
+@media (max-width: 768px) {
+  .wrap { grid-template-columns: 1fr; padding: 0 0 60px; }
+  .header h1 { font-size: 16px; }
+  .toc {
+    position: sticky; top: 57px; z-index: 150; max-height: none; grid-row: auto; align-self: auto;
+    display: flex; flex-direction: row; gap: 4px;
+    overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    background: var(--bg); border-bottom: 1px solid var(--border-bright); padding: 8px 12px;
+  }
+  .toc-label { display: none; }
+  .toc a {
+    white-space: nowrap; flex-shrink: 0;
+    border-left: none; border-bottom: 2px solid transparent;
+    border-radius: 4px 4px 0 0; padding: 5px 10px; font-size: 11px;
+  }
+  .toc a.active { border-left-color: transparent; border-bottom-color: var(--accent); }
+  .content { padding: 20px 16px; }
+  section h2 { font-size: 18px; }
+}
+@media (prefers-reduced-motion: reduce) { section { animation: none; } }
+</style>
 </head>
 <body>
-  <div id="root"></div>
-  <script type="text/babel">
-    const { useState } = React;
 
-    const st = {
-      root: { display:'flex', flexDirection:'column', minHeight:'100vh', background:'#0d0d1a', color:'#e2e8f0', fontFamily:"'JetBrains Mono','Fira Code',monospace" },
-      header: { display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 24px', borderBottom:'1px solid #1e293b', position:'sticky', top:0, background:'rgba(13,13,26,0.97)', zIndex:10 },
-      tabBar: { display:'flex', gap:4, padding:'14px 24px', borderBottom:'1px solid #1e293b', background:'#080b14', overflowX:'auto' },
-      tab: { padding:'8px 18px', border:'1px solid #1e293b', borderRadius:6, fontSize:12, cursor:'pointer', background:'transparent', color:'#64748b', transition:'all 0.15s', whiteSpace:'nowrap' },
-      content: { flex:1, padding:'32px 40px', maxWidth:920 },
-      h2: { fontSize:20, fontWeight:700, color:'#f1f5f9', marginBottom:8 },
-      label: { fontSize:10, letterSpacing:'0.14em', fontWeight:700, color:'#475569', marginBottom:10, marginTop:20 },
-      text: { fontSize:12.5, color:'#94a3b8', lineHeight:1.8, marginBottom:12 },
-      code: { background:'#070910', border:'1px solid #1e293b', borderRadius:8, padding:'14px 16px', fontSize:11.5, color:'#7dd3fc', lineHeight:1.8, overflowX:'auto', marginBottom:16, whiteSpace:'pre' },
-      card: { background:'#111827', border:'1px solid #1e293b', borderRadius:8, padding:'16px', marginBottom:12 },
-    };
+<header class="header">
+  <div class="header-meta">Cementite KV-DB · Module 05</div>
+  <h1>Benchmarking Strategy</h1>
+  <p>What to measure · YCSB workloads · write/read/space amplification · Rust harness · comparison vs sled &amp; RocksDB</p>
+</header>
 
-    function DataTable({ headers, rows }) {
-      return (
-        <div style={{ overflowX:'auto', marginBottom:16 }}>
-          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11.5 }}>
-            <thead>
-              <tr>{headers.map(h => <th key={h} style={{ padding:'9px 14px', background:'#111827', borderBottom:'1px solid #1e293b', color:'#64748b', textAlign:'left', letterSpacing:'0.06em', fontSize:10, whiteSpace:'nowrap' }}>{h}</th>)}</tr>
-            </thead>
-            <tbody>
-              {rows.map((row, ri) => (
-                <tr key={ri} style={{ borderBottom:'1px solid #0f172a' }}>
-                  {row.map((cell, ci) => (
-                    <td key={ci} style={{ padding:'9px 14px', color: ci === 0 ? '#e2e8f0' : '#64748b', background: ri % 2 === 0 ? 'rgba(255,255,255,0.012)' : 'transparent', verticalAlign:'top', lineHeight:1.5 }}>{cell}</td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+<div class="wrap">
+  <nav class="toc" id="toc">
+    <div class="toc-label">Contents</div>
+    <a href="#what-to-measure" class="active">What to Measure</a>
+    <a href="#ycsb">YCSB Workloads</a>
+    <a href="#amplification">Amplification</a>
+    <a href="#rust-harness">Rust Harness</a>
+    <a href="#compare">Compare DBs</a>
+  </nav>
+
+  <main class="content">
+
+    <section id="what-to-measure">
+      <div class="stag">Section 01</div>
+      <h2>What to Measure</h2>
+      <p class="intro">Most published benchmarks are wrong. Either the workload doesn't match reality, the measurement introduces overhead, the storage isn't warmed up, or the wrong metric is being optimized. This section teaches you how to build an honest, reproducible benchmark.</p>
+
+      <div class="ib ib-green">
+        <div class="ib-label">Why Benchmarking Is Hard</div>
+        Most published benchmarks are wrong. Either the workload doesn't match reality, the measurement itself introduces overhead, the storage isn't warmed up, or the wrong metric is being optimized. You need an <strong style="color:var(--accent)">honest, reproducible benchmark</strong> that tells you where your DB actually spends its time.
+      </div>
+
+      <h3 style="color:var(--accent)">The 5 Metrics That Matter</h3>
+
+      <div class="metric-card">
+        <div class="mc-name">METRIC 1: THROUGHPUT (ops/sec or MB/sec)</div>
+        <div class="mc-body">How many operations complete per second under sustained load. Run 1M+ ops to amortize warmup. Measure separately: sequential write, random write, sequential read, random read. Never measure burst — measure sustained (60+ seconds).</div>
+        <div class="dw" style="margin-top:10px">
+          <div class="d d-green"><pre>total_ops = 1_000_000;
+let start = Instant::now();
+for _ in 0..total_ops { db.set(rand_key(), rand_value()); }
+let throughput = total_ops as f64 / start.elapsed().as_secs_f64();
+// ops/sec</pre></div>
         </div>
-      );
-    }
+      </div>
 
-    function WhatToMeasureTab() {
-      return (
-        <div style={st.content}>
-          <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
-            <div style={{ width:3, height:32, background:'#4ade80', borderRadius:2 }}></div>
-            <div>
-              <h2 style={st.h2}>What to Measure</h2>
-              <p style={{ fontSize:12, color:'#64748b' }}>The 5 metrics that actually matter</p>
-            </div>
-          </div>
-
-          <div style={{ display:'flex', flexDirection:'column', gap:14, marginBottom:20 }}>
-            {[
-              {
-                num:1, title:'Throughput (ops/sec)', color:'#4ade80',
-                desc:'Measure sustained throughput over 60 seconds, not a 5-second burst. Compaction can cause throughput cliffs after 10-20 seconds.',
-                detail:'Measure at: sequential write, random write, sequential read, random read. At 1, 4, 16, 64 thread concurrency. Plot throughput vs time — you\'ll see compaction stalls clearly.',
-                metric:'ops/sec sustained 60s'
-              },
-              {
-                num:2, title:'Latency Percentiles', color:'#22d3ee',
-                desc:'NEVER report just average latency. p99 matters most for user experience. p99.9 catches pathological cases (compaction stalls).',
-                detail:'Collect Vec<u64> of latencies in microseconds. Sort. Index by percentile. Report p50, p95, p99, p999. Example: avg=0.5ms but p99=200ms means compaction stalls are killing you.',
-                metric:'p50/p95/p99/p999 μs'
-              },
-              {
-                num:3, title:'Write Amplification Factor (WAF)', color:'#fb923c',
-                desc:'disk_write_bytes / user_write_bytes. A WAF of 25× means for every 1GB you write, 25GB hits the disk. This is your compaction cost.',
-                detail:'Read /proc/self/io before and after. Key: read write_bytes field. MUST fsync before reading post-stats or OS buffer will lie to you.',
-                metric:'disk_writes / user_writes'
-              },
-              {
-                num:4, title:'Read Amplification Factor (RAF)', color:'#60a5fa',
-                desc:'disk_read_bytes / user_read_bytes. For LSM: 1 if Bloom filters are working, up to 10+ if not.',
-                detail:'Same /proc/self/io trick. Compare RAF between "all reads hit" vs "all reads miss" (key-not-found scan). Bloom filter impact is dramatic here.',
-                metric:'disk_reads / user_reads'
-              },
-              {
-                num:5, title:'Space Amplification Factor (SAF)', color:'#a78bfa',
-                desc:'actual_disk_usage / logical_data_size. Walk your data directory and sum all file sizes. Compare to user-written bytes.',
-                detail:'SAF breakdown by file type: .sst files (SSTables), .wal files, .manifest. During compaction, SAF temporarily spikes as input + output coexist.',
-                metric:'disk_bytes / logical_bytes'
-              },
-            ].map(m => (
-              <div key={m.num} style={{ display:'flex', gap:16, background:'#111827', border:'1px solid #1e293b', borderRadius:10, padding:'18px', borderLeft:`3px solid ${m.color}` }}>
-                <div style={{ flexShrink:0, width:36, height:36, borderRadius:'50%', background: m.color + '18', border:`2px solid ${m.color}`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, color: m.color }}>{m.num}</div>
-                <div style={{ flex:1 }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', flexWrap:'wrap', gap:8, marginBottom:8 }}>
-                    <span style={{ fontSize:14, fontWeight:700, color:'#f1f5f9' }}>{m.title}</span>
-                    <span style={{ fontSize:10, color: m.color, background: m.color + '12', padding:'3px 10px', borderRadius:6, letterSpacing:'0.06em' }}>{m.metric}</span>
-                  </div>
-                  <p style={{ fontSize:12.5, color:'#94a3b8', lineHeight:1.7, marginBottom:8 }}>{m.desc}</p>
-                  <p style={{ fontSize:12, color:'#64748b', lineHeight:1.6 }}>{m.detail}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div style={st.label}>PERCENTILE CALCULATION CODE</div>
-          <pre style={st.code}>{`let mut latencies_us: Vec<u64> = Vec::with_capacity(1_000_000);
-
-for _ in 0..ops {
-    let start = std::time::Instant::now();
-    db.get(&key)?;
-    latencies_us.push(start.elapsed().as_micros() as u64);
+      <div class="metric-card" style="border-left-color:var(--accent2)">
+        <div class="mc-name" style="color:var(--accent2)">METRIC 2: LATENCY PERCENTILES (p50, p95, p99, p99.9)</div>
+        <div class="mc-body">NEVER just measure average — it hides tail latency. A DB with avg=0.5ms but p99=200ms has a serious compaction stall problem. The average lies. The p99 reveals the truth. p99 is usually the SLA boundary for production systems.</div>
+        <div class="dw" style="margin-top:10px">
+          <div class="d d-lime"><pre>let mut latencies: Vec&lt;u64&gt; = Vec::with_capacity(100_000);
+for _ in 0..100_000 {
+    let t = Instant::now();
+    db.get(&key);
+    latencies.push(t.elapsed().as_micros() as u64);
 }
-
-latencies_us.sort_unstable();
-let n = latencies_us.len();
-let p50  = latencies_us[(0.500 * n as f64) as usize];
-let p95  = latencies_us[(0.950 * n as f64) as usize];
-let p99  = latencies_us[(0.990 * n as f64) as usize];
-let p999 = latencies_us[(0.999 * n as f64) as usize];
-
-println!("p50={p50}μs p95={p95}μs p99={p99}μs p999={p999}μs");`}</pre>
+latencies.sort_unstable();
+let p50  = latencies[latencies.len() / 2];
+let p99  = latencies[latencies.len() * 99 / 100];
+let p999 = latencies[(latencies.len() * 999 / 1000).min(n - 1)];</pre></div>
         </div>
-      );
-    }
+      </div>
 
-    function YCSBTab() {
-      return (
-        <div style={st.content}>
-          <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
-            <div style={{ width:3, height:32, background:'#a3e635', borderRadius:2 }}></div>
-            <div>
-              <h2 style={st.h2}>YCSB Workload Profiles</h2>
-              <p style={{ fontSize:12, color:'#64748b' }}>Industry-standard benchmarks for key-value stores</p>
-            </div>
-          </div>
+      <div class="metric-card" style="border-left-color:var(--accent3)">
+        <div class="mc-name" style="color:var(--accent3)">METRIC 3: WRITE AMPLIFICATION FACTOR (WAF)</div>
+        <div class="mc-body">Bytes actually written to storage / bytes sent by user. If user writes 1 GB but the storage device sees 10 GB written: WAF = 10×. Typical for leveled LSM compaction. Measure using /proc/self/io on Linux.</div>
+      </div>
 
-          <div style={st.label}>KEY DISTRIBUTIONS</div>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:12, marginBottom:20 }}>
-            {[
-              { name:'Uniform', desc:'All keys equally likely. Every read is a cache miss. Unrealistic for real workloads but useful for baseline.', badge:'UNREALISTIC', badgeColor:'#ef4444', color:'#ef4444' },
-              { name:'Zipfian', desc:'80/20 rule: top 20% of keys get 80% of requests. Top 100 keys get ~30% of ALL requests. This is how real systems behave.', badge:'RECOMMENDED', badgeColor:'#22c55e', color:'#22c55e' },
-              { name:'Latest', desc:'Most recently written keys are accessed most often. Models social media feeds, leaderboards, recent activity.', badge:'TIME-SERIES', badgeColor:'#22d3ee', color:'#22d3ee' },
-              { name:'Hotspot', desc:'X% of operations target a fixed fraction of the keyspace. Models hot user IDs, viral content, trending products.', badge:'ADVERSARIAL', badgeColor:'#f97316', color:'#f97316' },
-            ].map(d => (
-              <div key={d.name} style={{ background:'#111827', border:'1px solid #1e293b', borderRadius:8, padding:'14px', borderTop:`2px solid ${d.color}` }}>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-                  <span style={{ fontSize:13, fontWeight:700, color:'#f1f5f9' }}>{d.name}</span>
-                  <span style={{ fontSize:9, color: d.badgeColor, background: d.badgeColor + '15', padding:'2px 8px', borderRadius:4, letterSpacing:'0.08em' }}>{d.badge}</span>
-                </div>
-                <p style={{ fontSize:12, color:'#64748b', lineHeight:1.6 }}>{d.desc}</p>
-              </div>
-            ))}
-          </div>
+      <div class="metric-card" style="border-left-color:var(--blue)">
+        <div class="mc-name" style="color:var(--blue)">METRIC 4: READ AMPLIFICATION FACTOR (RAF)</div>
+        <div class="mc-body">Bytes read from storage / bytes returned to user. For a 100-byte value, if you had to read 4 × 4KB blocks to find it: RAF = (4 × 4096) / 100 = 163×. For Bloom-optimized LSM: typically 1-2 block reads per found key → RAF ~40-80×.</div>
+      </div>
 
-          <div style={st.label}>YCSB WORKLOAD PROFILES</div>
-          <DataTable
-            headers={['Workload', 'Read %', 'Write %', 'Distribution', 'Real-world use case', 'Tests']}
-            rows={[
-              ['A', '50%', '50% Update', 'Zipfian', 'Session store', 'Mixed read/write balance'],
-              ['B', '95%', '5% Update', 'Zipfian', 'Photo tagging', 'Read-heavy, occasional updates'],
-              ['C', '100%', '0%', 'Zipfian', 'User profile cache', 'Read throughput + cache warmup'],
-              ['D', '95%', '5% Insert', 'Latest', 'User status / feed', 'Recent-data access patterns'],
-              ['E', '95% Scans', '5% Insert', 'Zipfian', 'Threaded messages', 'Range scan performance'],
-              ['F', '50%', '50% RMW', 'Zipfian', 'User counters', 'Read-modify-write atomicity'],
-            ]}
-          />
+      <div class="metric-card" style="border-left-color:var(--purple)">
+        <div class="mc-name" style="color:var(--purple)">METRIC 5: SPACE AMPLIFICATION FACTOR (SAF)</div>
+        <div class="mc-body">Actual disk bytes used / logical data size. If you stored 1 GB of unique data but the DB uses 1.5 GB on disk: SAF = 1.5×. SAF during compaction can temporarily spike to 2× (old + new files coexist). Typical for LSM with leveled compaction.</div>
+      </div>
+    </section>
 
-          <div style={st.label}>BENCHMARK SEQUENCE (RUN IN THIS ORDER)</div>
-          <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
-            {[
-              { phase:'Phase 1', name:'Sequential Write Baseline', detail:'Insert 1M keys sequentially. Measures peak write throughput without contention. Warm up the DB.', color:'#22c55e' },
-              { phase:'Phase 2', name:'Random Write', detail:'Random key 1M writes from Zipfian distribution. Shows compaction impact and write cliff.', color:'#f59e0b' },
-              { phase:'Phase 3', name:'Read Throughput', detail:'Run sequential read + Zipfian random read. Measure Bloom filter effectiveness (RAF near 1).', color:'#22d3ee' },
-              { phase:'Phase 4', name:'Workload A (Mixed)', detail:'50/50 read/write Zipfian. Run at 1, 2, 4, 8, 16, 32 threads. Find where you saturate.', color:'#60a5fa' },
-              { phase:'Phase 5', name:'Compaction Impact', detail:'Plot throughput vs TIME (10-minute run). You\'ll see compaction stalls clearly. Critical for p99.', color:'#a78bfa' },
-              { phase:'Phase 6', name:'Worst Case', detail:'100% random reads, all misses (keys not in DB). Measures Bloom filter for absent keys.', color:'#ef4444' },
-            ].map((p, i) => (
-              <div key={p.phase} style={{ display:'flex', alignItems:'stretch', gap:0, marginBottom:6 }}>
-                <div style={{ display:'flex', flexDirection:'column', alignItems:'center', marginRight:14, flexShrink:0 }}>
-                  <div style={{ width:28, height:28, borderRadius:'50%', background: p.color + '20', border:`2px solid ${p.color}`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:800, color: p.color }}>{i+1}</div>
-                  {i < 5 && <div style={{ width:2, flex:1, background:'#1e293b', minHeight:16 }}></div>}
-                </div>
-                <div style={{ background:'#111827', border:'1px solid #1e293b', borderRadius:8, padding:'12px 16px', flex:1 }}>
-                  <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:6 }}>
-                    <span style={{ fontSize:9, color: p.color, fontWeight:700, letterSpacing:'0.1em' }}>{p.phase}</span>
-                    <span style={{ fontSize:13, fontWeight:600, color:'#f1f5f9' }}>{p.name}</span>
-                  </div>
-                  <span style={{ fontSize:12, color:'#64748b', lineHeight:1.5 }}>{p.detail}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      );
-    }
+    <section id="ycsb">
+      <div class="stag">Section 02</div>
+      <h2>YCSB Workloads</h2>
+      <p class="intro">A DB that does 2M ops/sec on sequential writes might do 100K on Zipfian random reads. Real applications have specific access patterns. YCSB (Yahoo Cloud Serving Benchmark) defines standard workloads so you can compare apples to apples.</p>
 
-    function AmpFactorsTab() {
-      return (
-        <div style={st.content}>
-          <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
-            <div style={{ width:3, height:32, background:'#2dd4bf', borderRadius:2 }}></div>
-            <div>
-              <h2 style={st.h2}>Amplification Factors</h2>
-              <p style={{ fontSize:12, color:'#64748b' }}>Read /proc/self/io to get WAF, RAF, SAF accurately</p>
-            </div>
-          </div>
+      <h3 style="color:var(--accent2)">Key Distributions</h3>
+      <div class="dw">
+        <div class="dl">// Uniform vs Zipfian — drastically different behavior</div>
+        <div class="d d-lime"><pre>UNIFORM DISTRIBUTION (unrealistic):
+  Every key has equal probability of being accessed.
+  With N=1M keys: each key accessed ~1 time on average.
+  Cache hit rate: near 0% if data &gt; RAM. Every read is a cache miss.
+  This is EASY for all DBs and doesn't reflect reality.
 
-          <div style={st.label}>IO STATS (LINUX /PROC/SELF/IO)</div>
-          <pre style={st.code}>{`#[derive(Default, Clone)]
-struct IoStats {
-    read_bytes: u64,    // Bytes read from storage (after page cache)
-    write_bytes: u64,   // Bytes written to storage (before page cache)
-    // Note: these are PHYSICAL I/O, not logical. Includes all files.
+ZIPFIAN DISTRIBUTION (realistic — "80/20 rule"):
+  Named after linguist George Zipf.
+  Rank 1 key (most popular): accessed N × (1/1^s) times  ← a LOT
+  Rank k key:                accessed N × (1/k^s) times  (s ≈ 0.99)
+
+  Practical effect with 1M keys:
+    Top 100 keys  → ~30% of all requests
+    Top 10,000    → ~60% of all requests
+    Bottom 900K   → ~40% spread thinly
+
+  Top keys fit in memory → very high cache hit rate for hot data.
+  But cold data accesses (bottom 900K keys) are still cache misses.
+  This is what your block cache, MemTable, and OS page cache optimize for.
+
+LATEST DISTRIBUTION (for time-series, logs):
+  Most recently inserted K keys are accessed most often.
+  Naturally benefits append-only systems like Bitcask and LSM.
+
+HOTSPOT DISTRIBUTION (for conflict testing):
+  80% of ops target 20% of keys, uniformly within that 20%.
+  Tests lock contention, MemTable hot path, per-key locking issues.</pre></div>
+      </div>
+
+      <h3 style="color:var(--accent2)">YCSB Workload Profiles</h3>
+      <div class="dw">
+        <div class="dl">// Standard YCSB workloads — start with A and C for your DB</div>
+        <div class="d d-lime"><pre>Workload A: 50% reads / 50% updates  (Zipfian)  ← "session store"
+Workload B: 95% reads / 5% updates   (Zipfian)  ← "photo tagging"
+Workload C: 100% reads               (Zipfian)  ← "user profile cache"
+Workload D: 95% reads / 5% inserts   (Latest)   ← "activity log, read latest"
+Workload E: 95% scans / 5% inserts   (Zipfian)  ← "thread conversations"
+Workload F: 50% reads / 50% RMW      (Zipfian)  ← "user database, read-modify-write"
+
+For YOUR KV store: start with Workload A and C.
+  A tests write throughput under concurrent reads.
+  C tests read-only performance (your best case and your ceiling).</pre></div>
+      </div>
+
+      <h3 style="color:var(--accent2)">Benchmark Phases for Your DB</h3>
+      <div class="dw">
+        <div class="dl">// The correct sequence of benchmarks to run at each implementation phase</div>
+        <div class="d d-lime"><pre>PHASE 1: BASELINE — Sequential write throughput
+  Write 1M keys sequentially (key_0000001, key_0000002, ...) with 100-byte values.
+  Measure: ops/sec, total MB/sec, p99 latency.
+  This is your DB's PEAK WRITE performance (sequential = optimal).
+
+PHASE 2: RANDOM WRITE THROUGHPUT
+  Write 1M keys in random order (from a pre-shuffled array — avoid rand overhead in loop!).
+  Bitcask: random ≈ sequential (append-only, order doesn't matter!)
+  B-Tree:  random &lt; sequential (causes page fragmentation and random I/O)
+  LSM:     random ≈ sequential (MemTable absorbs disorder, SSTable sorted at flush)
+
+PHASE 3: READ THROUGHPUT (after writing 1M keys)
+  Test A — Sequential reads (keys in sorted order):
+    Bitcask: TERRIBLE (no ordering, each read is a random seek)
+    LSM:     GOOD (SSTables sorted, sequential reads benefit from prefetch)
+    B-Tree:  GOOD (leaf pages linked list, prefetching works)
+
+  Test B — Random reads (Zipfian distribution):
+    Repeat 1M reads with Zipfian keys from the 1M-key dataset.
+    Measure: p50, p99 latency; ops/sec; cache hit rate.
+
+PHASE 4: MIXED WORKLOAD (Workload A)
+  50% reads + 50% writes simultaneously from multiple threads.
+  Most important benchmark — reveals lock contention, write-stall, compaction interference.
+  Run at: 1, 2, 4, 8, 16, 32 concurrent threads.
+  If throughput drops after 4 threads → you have lock contention.
+
+PHASE 5: COMPACTION IMPACT (LSM only)
+  Write enough data to trigger multiple compactions.
+  Plot throughput over TIME (not just the average!).
+  You should see: normal → write stall during compaction → recovery.
+
+PHASE 6: WORST CASE (100% random read misses)
+  Write 1M keys, then read 1M DIFFERENT keys (all will be misses).
+    Bitcask: RAM lookup → not found → instant!
+    LSM + Bloom: Bloom says no → 0 disk reads → fast!
+    LSM without Bloom: must check every SSTable → SLOW
+    B-Tree: log(N) reads to confirm miss → medium</pre></div>
+      </div>
+    </section>
+
+    <section id="amplification">
+      <div class="stag">Section 03</div>
+      <h2>Measuring Amplification</h2>
+      <p class="intro">Linux's /proc/self/io gives you the actual bytes read from and written to the storage device — not just what went into the OS page cache. This is the ground truth for amplification measurement.</p>
+
+      <h3 style="color:var(--accent3)">/proc/self/io Fields</h3>
+      <div class="dw">
+        <div class="dl">// Reading /proc/self/io to measure actual disk writes</div>
+        <div class="d d-teal"><pre>$ cat /proc/self/io
+rchar:  152370     ← bytes read (including from page cache)
+wchar:  4096       ← bytes written (including buffered)
+syscr:  20         ← number of read() syscalls
+syscw:  1          ← number of write() syscalls
+read_bytes:  0     ← bytes actually read from STORAGE DEVICE (after page cache)
+write_bytes: 4096  ← bytes actually written to STORAGE DEVICE (flushed through cache)
+cancelled_write_bytes: 0
+
+KEY FIELDS:
+  write_bytes: bytes that landed on actual storage device
+    → This is what we want for write amplification
+    → Unlike wchar, this doesn't count bytes still in page cache
+
+  read_bytes: bytes that caused actual device reads
+    → Use this for read amplification
+    → Reads served from page cache are NOT counted here
+
+CAVEAT: write_bytes is only accurate AFTER fsync / storage flush.
+  If you don't fsync, the OS batches writes.
+  ALWAYS call fsync() or db.flush() before reading post-benchmark stats.</pre></div>
+      </div>
+
+      <div class="cb">
+        <div class="cb-lang">rust // src/bench/amplification.rs</div>
+        <pre>#[derive(Debug, Default, Clone)]
+pub struct IoStats {
+    pub read_bytes:  u64,   // actual storage reads
+    pub write_bytes: u64,   // actual storage writes
 }
 
 impl IoStats {
-    #[cfg(target_os = "linux")]
-    fn read() -> std::io::Result<Self> {
+    pub fn snapshot() -> std::io::Result&lt;Self&gt; {
         let content = std::fs::read_to_string("/proc/self/io")?;
         let mut stats = IoStats::default();
         for line in content.lines() {
-            if let Some(val) = line.strip_prefix("read_bytes: ") {
-                stats.read_bytes = val.trim().parse().unwrap_or(0);
-            } else if let Some(val) = line.strip_prefix("write_bytes: ") {
-                stats.write_bytes = val.trim().parse().unwrap_or(0);
+            let mut parts = line.splitn(2, ": ");
+            let key = parts.next().unwrap_or("");
+            let val: u64 = parts.next().and_then(|v| v.trim().parse().ok()).unwrap_or(0);
+            match key {
+                "read_bytes"  =&gt; stats.read_bytes  = val,
+                "write_bytes" =&gt; stats.write_bytes = val,
+                _ =&gt; {}
             }
         }
         Ok(stats)
     }
+}
 
-    #[cfg(not(target_os = "linux"))]
-    fn read() -> std::io::Result<Self> {
-        // macOS: use getrusage or kstat (less accurate)
-        Ok(IoStats::default())
-    }
-}`}</pre>
-
-          <div style={st.label}>AMPLIFICATION MEASUREMENT STRUCT</div>
-          <pre style={st.code}>{`struct AmplificationMeasurement {
-    start_io: IoStats,
-    user_writes: u64,    // Bytes the USER wrote (key + value sizes)
-    user_reads: u64,     // Bytes the USER read (value sizes returned)
+pub struct AmplificationMeasurement {
+    before: IoStats,
+    user_bytes_written: u64,
+    user_bytes_read:    u64,
 }
 
 impl AmplificationMeasurement {
-    fn start() -> Self {
-        Self {
-            start_io: IoStats::read().unwrap_or_default(),
-            user_writes: 0,
-            user_reads: 0,
-        }
+    pub fn start() -&gt; std::io::Result&lt;Self&gt; {
+        Ok(Self { before: IoStats::snapshot()?, user_bytes_written: 0, user_bytes_read: 0 })
     }
 
-    fn record_write(&mut self, key: &[u8], value: &[u8]) {
-        self.user_writes += (key.len() + value.len()) as u64;
+    pub fn record_write(&mut self, key_len: usize, val_len: usize) {
+        self.user_bytes_written += (key_len + val_len) as u64;
     }
 
-    fn record_read(&mut self, value: &[u8]) {
-        self.user_reads += value.len() as u64;
-    }
-
-    fn finish(self) -> AmplificationReport {
-        // IMPORTANT: fsync before reading end stats!
-        // Otherwise OS buffer may not have flushed to device yet
-        let end_io = IoStats::read().unwrap_or_default();
-        let disk_writes = end_io.write_bytes.saturating_sub(self.start_io.write_bytes);
-        let disk_reads = end_io.read_bytes.saturating_sub(self.start_io.read_bytes);
-
-        AmplificationReport {
-            write_amp: if self.user_writes > 0 {
-                disk_writes as f64 / self.user_writes as f64
-            } else { 0.0 },
-            read_amp: if self.user_reads > 0 {
-                disk_reads as f64 / self.user_reads as f64
-            } else { 0.0 },
-            user_write_mb: self.user_writes as f64 / 1_048_576.0,
-            disk_write_mb: disk_writes as f64 / 1_048_576.0,
-        }
+    /// Call AFTER db.flush() and waiting for compaction to complete.
+    pub fn finish(self) -&gt; std::io::Result&lt;AmplificationReport&gt; {
+        let after = IoStats::snapshot()?;
+        let disk_writes = after.write_bytes.saturating_sub(self.before.write_bytes);
+        let disk_reads  = after.read_bytes.saturating_sub(self.before.read_bytes);
+        Ok(AmplificationReport {
+            write_amplification: disk_writes as f64 / self.user_bytes_written.max(1) as f64,
+            read_amplification:  disk_reads  as f64 / self.user_bytes_read.max(1) as f64,
+            disk_bytes_written:  disk_writes,
+            disk_bytes_read:     disk_reads,
+        })
     }
 }
 
-struct AmplificationReport {
-    write_amp: f64,
-    read_amp: f64,
-    user_write_mb: f64,
-    disk_write_mb: f64,
+pub struct AmplificationReport {
+    pub write_amplification: f64,
+    pub read_amplification:  f64,
+    pub disk_bytes_written:  u64,
+    pub disk_bytes_read:     u64,
+}</pre>
+      </div>
+
+      <h3 style="color:var(--accent3)">Space Amplification</h3>
+      <div class="cb">
+        <div class="cb-lang">rust // Walk data directory to measure actual disk usage</div>
+        <pre>pub fn space_amplification(data_dir: &Path, logical_bytes: u64) -&gt; std::io::Result&lt;f64&gt; {
+    let actual: u64 = std::fs::read_dir(data_dir)?
+        .filter_map(|e| e.ok())
+        .filter_map(|e| e.metadata().ok())
+        .filter(|m| m.is_file())
+        .map(|m| m.len())
+        .sum();
+    Ok(actual as f64 / logical_bytes as f64)
 }
 
-impl std::fmt::Display for AmplificationReport {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f,
-            "WAF={:.1}× (user={:.1}MB → disk={:.1}MB) | RAF={:.1}×",
-            self.write_amp, self.user_write_mb,
-            self.disk_write_mb, self.read_amp
-        )
-    }
-}`}</pre>
+// Usage: call AFTER all compaction completes
+let logical = num_keys * (key_size + value_size) as u64;
+let saf = space_amplification(Path::new("/tmp/mydb"), logical)?;
+println!("Space amplification: {:.2}×", saf);
+// Expected: ~1.5× for leveled LSM, ~2-5× for tiered (size-tiered) compaction</pre>
+      </div>
+    </section>
 
-          <div style={st.label}>SPACE AMPLIFICATION</div>
-          <pre style={st.code}>{`fn measure_space_amplification(data_dir: &str, logical_bytes: u64) -> f64 {
-    let mut total_bytes = 0u64;
-    let mut breakdown: std::collections::HashMap<&str, u64> = Default::default();
+    <section id="rust-harness">
+      <div class="stag">Section 04</div>
+      <h2>Rust Benchmark Harness</h2>
+      <p class="intro">A complete YCSB-style benchmark harness with a ZipfianGenerator, latency recording, and a trait that lets you plug in any KV store implementation.</p>
 
-    for entry in std::fs::read_dir(data_dir).unwrap().flatten() {
-        let path = entry.path();
-        let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
-        total_bytes += size;
+      <div class="cb">
+        <div class="cb-lang">rust // benches/ycsb.rs — complete YCSB harness</div>
+        <pre>use std::time::{Duration, Instant};
+use rand::prelude::*;
+use rand_distr::Zipf;
 
-        let ext = path.extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("other");
-        *breakdown.entry(ext).or_insert(0) += size;
-    }
-
-    println!("Disk breakdown:");
-    for (ext, bytes) in &breakdown {
-        println!("  .{ext}: {:.1}MB ({:.1}%)",
-            *bytes as f64 / 1_048_576.0,
-            *bytes as f64 / total_bytes as f64 * 100.0
-        );
-    }
-
-    total_bytes as f64 / logical_bytes as f64
-}`}</pre>
-        </div>
-      );
-    }
-
-    function RustHarnessTab() {
-      return (
-        <div style={st.content}>
-          <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
-            <div style={{ width:3, height:32, background:'#fbbf24', borderRadius:2 }}></div>
-            <div>
-              <h2 style={st.h2}>Rust Benchmark Harness</h2>
-              <p style={{ fontSize:12, color:'#64748b' }}>Complete harness with Zipfian keys, BenchResult, and workload implementations</p>
-            </div>
-          </div>
-
-          <div style={st.label}>KV STORE TRAIT + BENCH RESULT</div>
-          <pre style={st.code}>{`use std::time::{Duration, Instant};
-
-// Generic trait so you can swap implementations
-pub trait KVStore: Send + Sync {
-    fn get(&self, key: &[u8]) -> Option<Vec<u8>>;
-    fn set(&self, key: &[u8], value: &[u8]);
-    fn delete(&self, key: &[u8]);
-}
-
-pub struct BenchResult {
-    pub name: String,
-    pub ops: u64,
-    pub duration: Duration,
-    pub ops_per_sec: f64,
-    pub p50_us: u64,
-    pub p95_us: u64,
-    pub p99_us: u64,
-    pub p999_us: u64,
-    pub bytes_total: u64,
-    pub mb_per_sec: f64,
-}
-
-impl std::fmt::Display for BenchResult {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f,
-            "{:30} {:>10.0} ops/s  p50={:>5}μs  p99={:>6}μs  p999={:>6}μs  {:>6.1}MB/s",
-            self.name, self.ops_per_sec,
-            self.p50_us, self.p99_us, self.p999_us, self.mb_per_sec
-        )
-    }
-}`}</pre>
-
-          <div style={st.label}>ZIPFIAN KEY GENERATOR</div>
-          <pre style={st.code}>{`// Simplified Zipfian without rand_distr (pure std)
-struct ZipfianGenerator {
-    n: usize,
-    theta: f64,
-    zeta_n: f64,
-    zeta_2: f64,
-    alpha: f64,
-    eta: f64,
+/// Zipfian key generator — simulates real workload access patterns
+pub struct ZipfianGenerator {
+    dist:    Zipf&lt;f64&gt;,
+    rng:     StdRng,
+    max_key: usize,
 }
 
 impl ZipfianGenerator {
-    fn new(n: usize) -> Self {
-        let theta = 0.99; // Skew parameter
-        let zeta_n = (1..=n).map(|i| 1.0 / (i as f64).powf(theta)).sum::<f64>();
-        let zeta_2 = 1.0 + 0.5f64.powf(theta);
-        let alpha = 1.0 / (1.0 - theta);
-        let eta = (1.0 - (2.0 / n as f64).powf(1.0 - theta)) / (1.0 - zeta_2 / zeta_n);
-        ZipfianGenerator { n, theta, zeta_n, zeta_2, alpha, eta }
+    /// s ≈ 0.99 for typical web workloads, s=1.0 for strict Zipf's law
+    pub fn new(max_key: usize, s: f64) -&gt; Self {
+        Self {
+            dist:    Zipf::new(max_key as u64, s).unwrap(),
+            rng:     StdRng::from_entropy(),
+            max_key,
+        }
     }
 
-    fn next(&self, u: f64) -> usize {
-        // u is uniform random [0, 1)
-        let uz = u * self.zeta_n;
-        if uz < 1.0 { return 0; }
-        if uz < 1.0 + 0.5f64.powf(self.theta) { return 1; }
-        (self.n as f64 * (self.eta * u - self.eta + 1.0).powf(self.alpha)) as usize
+    pub fn next_key(&mut self) -&gt; usize {
+        (self.dist.sample(&mut self.rng) as usize).saturating_sub(1)
     }
 }
 
-// Fixed-width sortable key format (sortable = 0-padded decimal)
-fn format_key(i: usize) -> [u8; 16] {
-    let mut buf = [0u8; 16];
-    let s = format!("{i:016}");
-    buf.copy_from_slice(s.as_bytes());
-    buf
-}`}</pre>
+/// Format a key index as a fixed-width byte string (sortable)
+pub fn format_key(i: usize) -&gt; [u8; 16] {
+    let mut key = [0u8; 16];
+    let s = format!("{:016}", i);
+    key.copy_from_slice(s.as_bytes());
+    key
+}
 
-          <div style={st.label}>CORE BENCHMARK FUNCTIONS</div>
-          <pre style={st.code}>{`fn run_benchmark<F: Fn() -> u64>(
-    name: &str,
-    ops: u64,
-    value_size: usize,
-    f: F,
-) -> BenchResult {
-    let mut latencies = Vec::with_capacity(ops as usize);
+#[derive(Debug)]
+pub struct BenchResult {
+    pub name:        String,
+    pub ops:         u64,
+    pub duration:    Duration,
+    pub ops_per_sec: f64,
+    pub p50_us:      u64,
+    pub p95_us:      u64,
+    pub p99_us:      u64,
+    pub p999_us:     u64,
+    pub mb_per_sec:  f64,
+}
+
+impl BenchResult {
+    pub fn print(&self) {
+        println!("  [{:}]", self.name);
+        println!("  ops/sec: {:10.0}  MB/sec: {:10.2}", self.ops_per_sec, self.mb_per_sec);
+        println!("  p50: {}μs  p95: {}μs  p99: {}μs  p99.9: {}μs",
+            self.p50_us, self.p95_us, self.p99_us, self.p999_us);
+    }
+}
+
+/// Run a benchmark, collecting per-operation latencies
+pub fn run_benchmark&lt;F&gt;(name: &str, num_ops: u64, mut op: F) -&gt; BenchResult
+where F: FnMut(u64) -&gt; usize  // takes op index, returns bytes touched
+{
+    let mut latencies_us = Vec::with_capacity(num_ops as usize);
+    let mut total_bytes = 0u64;
     let start = Instant::now();
-    let mut bytes = 0u64;
 
-    for _ in 0..ops {
-        let t0 = Instant::now();
-        bytes += f();
-        latencies.push(t0.elapsed().as_micros() as u64);
+    for i in 0..num_ops {
+        let op_start = Instant::now();
+        let bytes = op(i);
+        latencies_us.push(op_start.elapsed().as_micros() as u64);
+        total_bytes += bytes as u64;
     }
 
     let duration = start.elapsed();
-    latencies.sort_unstable();
-    let n = latencies.len();
+    latencies_us.sort_unstable();
+    let n = latencies_us.len();
 
     BenchResult {
-        name: name.to_string(),
-        ops,
+        name:        name.to_string(),
+        ops:         num_ops,
         duration,
-        ops_per_sec: ops as f64 / duration.as_secs_f64(),
-        p50_us: latencies[n / 2],
-        p95_us: latencies[(n as f64 * 0.95) as usize],
-        p99_us: latencies[(n as f64 * 0.99) as usize],
-        p999_us: latencies[(n as f64 * 0.999) as usize],
-        bytes_total: bytes,
-        mb_per_sec: bytes as f64 / duration.as_secs_f64() / 1_048_576.0,
+        ops_per_sec: num_ops as f64 / duration.as_secs_f64(),
+        p50_us:      latencies_us[n * 50 / 100],
+        p95_us:      latencies_us[n * 95 / 100],
+        p99_us:      latencies_us[n * 99 / 100],
+        p999_us:     latencies_us[(n * 999 / 1000).min(n - 1)],
+        mb_per_sec:  total_bytes as f64 / duration.as_secs_f64() / 1_048_576.0,
     }
 }
 
-fn bench_sequential_write(db: &impl KVStore, n: u64, val_size: usize) -> BenchResult {
-    let value = vec![0xABu8; val_size];
-    run_benchmark("sequential_write", n, val_size, || {
-        static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-        let i = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let key = format_key(i as usize);
-        db.set(&key, &value);
-        (key.len() + val_size) as u64
-    })
-}
+/// YCSB Workload A: 50% reads, 50% updates, Zipfian
+pub fn workload_a&lt;DB: KVStore&gt;(db: &mut DB, num_keys: usize, num_ops: u64) -&gt; BenchResult {
+    let mut zipf = ZipfianGenerator::new(num_keys, 0.99);
+    let mut rng = StdRng::from_entropy();
+    let value = vec![b'x'; 100];
 
-fn workload_a(db: &impl KVStore, n: u64, key_count: usize) -> BenchResult {
-    use std::sync::atomic::{AtomicU64, Ordering};
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
-
-    let zipf = ZipfianGenerator::new(key_count);
-    let value = vec![0u8; 100];
-
-    run_benchmark("workload_a_50r50w", n, 100, || {
-        let i = COUNTER.fetch_add(1, Ordering::Relaxed);
-        // Simple LCG for "random" U[0,1)
-        let u = ((i.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407)
-            >> 33) as f64) / (u64::MAX >> 31) as f64;
-        let key_idx = zipf.next(u.fract());
-        let key = format_key(key_idx);
-        if i % 2 == 0 {
-            db.get(&key);
-            key.len() as u64
+    run_benchmark("YCSB-A: 50% read / 50% write (Zipfian)", num_ops, |_| {
+        let key = format_key(zipf.next_key());
+        if rng.gen_bool(0.5) {
+            db.set(&key, &value).unwrap();
+            key.len() + value.len()
         } else {
-            db.set(&key, &value);
-            (key.len() + 100) as u64
+            let v = db.get(&key).unwrap();
+            key.len() + v.map_or(0, |v| v.len())
         }
     })
 }
 
-fn workload_c(db: &impl KVStore, n: u64, key_count: usize) -> BenchResult {
-    use std::sync::atomic::{AtomicU64, Ordering};
-    static CTR: AtomicU64 = AtomicU64::new(0);
-    let zipf = ZipfianGenerator::new(key_count);
-
-    run_benchmark("workload_c_100r", n, 0, || {
-        let i = CTR.fetch_add(1, Ordering::Relaxed);
-        let u = ((i.wrapping_mul(2862933555777941757).wrapping_add(3037000499)) >> 33) as f64
-            / (u64::MAX >> 31) as f64;
-        let key = format_key(zipf.next(u.fract()));
-        db.get(&key).map(|v| v.len()).unwrap_or(0) as u64
+/// YCSB Workload C: 100% reads, Zipfian
+pub fn workload_c&lt;DB: KVStore&gt;(db: &mut DB, num_keys: usize, num_ops: u64) -&gt; BenchResult {
+    let mut zipf = ZipfianGenerator::new(num_keys, 0.99);
+    run_benchmark("YCSB-C: 100% read (Zipfian)", num_ops, |_| {
+        let key = format_key(zipf.next_key());
+        db.get(&key).unwrap().map_or(0, |v| v.len())
     })
-}`}</pre>
-        </div>
-      );
+}
+
+/// Sequential write — best case, establishes ceiling
+pub fn bench_sequential_write&lt;DB: KVStore&gt;(db: &mut DB, num_ops: u64) -&gt; BenchResult {
+    let value = vec![b'v'; 100];
+    run_benchmark("Sequential Write (100B values)", num_ops, |i| {
+        let key = format_key(i as usize);
+        db.set(&key, &value).unwrap();
+        key.len() + value.len()
+    })
+}
+
+/// Random write — more realistic
+pub fn bench_random_write&lt;DB: KVStore&gt;(db: &mut DB, num_ops: u64) -&gt; BenchResult {
+    let mut rng = StdRng::from_entropy();
+    let value = vec![b'v'; 100];
+    // Pre-generate to avoid rand overhead in hot path
+    let key_indices: Vec&lt;usize&gt; = (0..num_ops as usize)
+        .map(|_| rng.gen_range(0..num_ops as usize))
+        .collect();
+    run_benchmark("Random Write (100B values, uniform)", num_ops, |i| {
+        let key = format_key(key_indices[i as usize]);
+        db.set(&key, &value).unwrap();
+        key.len() + value.len()
+    })
+}
+
+// ─── Trait for your DB to implement ─────────────────────────────────────────
+pub trait KVStore: Send + Sync {
+    fn set(&mut self, key: &[u8], value: &[u8]) -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt;;
+    fn get(&self, key: &[u8]) -&gt; Result&lt;Option&lt;Vec&lt;u8&gt;&gt;, Box&lt;dyn std::error::Error&gt;&gt;;
+    fn delete(&mut self, key: &[u8]) -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt;;
+    fn flush(&mut self) -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; { Ok(()) }
+}</pre>
+      </div>
+    </section>
+
+    <section id="compare">
+      <div class="stag">Section 05</div>
+      <h2>Comparing Real Databases</h2>
+      <p class="intro">How to wire your DB into the benchmark harness alongside sled and RocksDB, and what numbers to expect at each implementation phase.</p>
+
+      <div class="cb">
+        <div class="cb-lang">rust // benches/comparison.rs — your DB vs sled vs rocksdb</div>
+        <pre>fn bench_all_engines(num_ops: u64) {
+    // ── Your Bitcask Implementation ───────────────────────────────────────────
+    {
+        let mut db = your_kv::BitcaskDB::open("/tmp/bench_yours").unwrap();
+        println!("[ Your Bitcask Implementation ]");
+        bench_sequential_write(&mut db, num_ops).print();
+        bench_random_write(&mut db, num_ops).print();
+        workload_c(&mut db, num_ops as usize, num_ops).print();
+        workload_a(&mut db, num_ops as usize, num_ops).print();
     }
+    std::fs::remove_dir_all("/tmp/bench_yours").ok();
 
-    function CompareTab() {
-      return (
-        <div style={st.content}>
-          <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
-            <div style={{ width:3, height:32, background:'#c084fc', borderRadius:2 }}></div>
-            <div>
-              <h2 style={st.h2}>Compare Real DBs</h2>
-              <p style={{ fontSize:12, color:'#64748b' }}>Expected results per phase and comparison vs RocksDB</p>
-            </div>
-          </div>
-
-          <div style={st.label}>EXPECTED RESULTS BY PHASE</div>
-          <div style={{ overflowX:'auto', marginBottom:24 }}>
-            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
-              <thead>
-                <tr>
-                  {['Phase', 'Write ops/s', 'Read ops/s', 'p99 Write', 'p99 Read', 'WAF', 'Crash Safe?'].map(h => (
-                    <th key={h} style={{ padding:'9px 12px', background:'#111827', borderBottom:'1px solid #1e293b', color:'#64748b', textAlign:'left', fontSize:10, letterSpacing:'0.06em', whiteSpace:'nowrap' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  { phase:'1. HashMap', write:'2-5M', read:'1-3M', p99w:'< 5μs', p99r:'< 5μs', waf:'1×', crash:'✗ NO', color:'#ef4444' },
-                  { phase:'2. Bitcask', write:'400-800K', read:'100-300K', p99w:'10-50μs', p99r:'100-500μs', waf:'1-2×', crash:'✓ YES', color:'#f59e0b' },
-                  { phase:'3. + Hint files', write:'400-800K', read:'100-300K', p99w:'10-50μs', p99r:'100-500μs', waf:'1-2×', crash:'✓ YES', color:'#f59e0b' },
-                  { phase:'4. LSM basic', write:'600K-1M', read:'50-150K', p99w:'50-200μs', p99r:'500μs-5ms', waf:'10-15×', crash:'✓ YES', color:'#22d3ee' },
-                  { phase:'5. + Bloom', write:'600K-1M', read:'200-500K', p99w:'50-200μs', p99r:'100-500μs', waf:'10-15×', crash:'✓ YES', color:'#22c55e' },
-                  { phase:'6. + Group WAL', write:'500-900K', read:'200-500K', p99w:'5-50μs', p99r:'100-500μs', waf:'11-16×', crash:'✓ YES', color:'#a78bfa' },
-                  { phase:'7. + MVCC', write:'400-800K', read:'200-500K', p99w:'5-50μs', p99r:'100-500μs', waf:'11-16×', crash:'✓ YES', color:'#ec4899' },
-                ].map((row, ri) => (
-                  <tr key={ri} style={{ borderBottom:'1px solid #0f172a' }}>
-                    <td style={{ padding:'9px 12px', color: row.color, fontWeight:600, background: ri % 2 === 0 ? 'rgba(255,255,255,0.012)' : 'transparent', whiteSpace:'nowrap', fontSize:11.5 }}>{row.phase}</td>
-                    <td style={{ padding:'9px 12px', color:'#22c55e', background: ri % 2 === 0 ? 'rgba(255,255,255,0.012)' : 'transparent' }}>{row.write}</td>
-                    <td style={{ padding:'9px 12px', color:'#60a5fa', background: ri % 2 === 0 ? 'rgba(255,255,255,0.012)' : 'transparent' }}>{row.read}</td>
-                    <td style={{ padding:'9px 12px', color:'#94a3b8', background: ri % 2 === 0 ? 'rgba(255,255,255,0.012)' : 'transparent' }}>{row.p99w}</td>
-                    <td style={{ padding:'9px 12px', color:'#94a3b8', background: ri % 2 === 0 ? 'rgba(255,255,255,0.012)' : 'transparent' }}>{row.p99r}</td>
-                    <td style={{ padding:'9px 12px', color:'#fb923c', background: ri % 2 === 0 ? 'rgba(255,255,255,0.012)' : 'transparent' }}>{row.waf}</td>
-                    <td style={{ padding:'9px 12px', color: row.crash.startsWith('✓') ? '#22c55e' : '#ef4444', background: ri % 2 === 0 ? 'rgba(255,255,255,0.012)' : 'transparent' }}>{row.crash}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div style={st.label}>WORKLOAD A COMPARISON (SAME HARDWARE, ~10M KEY DB)</div>
-          <div style={{ display:'flex', gap:12, marginBottom:20, flexWrap:'wrap' }}>
-            {[
-              { name:'Your Phase 5', ops:'~300K ops/s', bar:30, color:'#a78bfa' },
-              { name:'sled (Rust)', ops:'~200-400K ops/s', bar:40, color:'#22d3ee' },
-              { name:'RocksDB (C++)', ops:'~500K-1M ops/s', bar:100, color:'#22c55e' },
-            ].map(db => (
-              <div key={db.name} style={{ flex:1, minWidth:220, background:'#111827', border:'1px solid #1e293b', borderRadius:8, padding:'16px' }}>
-                <div style={{ fontSize:12, fontWeight:700, color:'#f1f5f9', marginBottom:4 }}>{db.name}</div>
-                <div style={{ fontSize:13, fontWeight:800, color: db.color, marginBottom:10 }}>{db.ops}</div>
-                <div style={{ height:6, background:'#1e293b', borderRadius:3, overflow:'hidden' }}>
-                  <div style={{ height:'100%', width:`${db.bar}%`, background: db.color, borderRadius:3, transition:'width 0.5s' }}></div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div style={{ background:'rgba(168,139,250,0.08)', border:'1px solid rgba(168,139,250,0.25)', borderRadius:8, padding:'18px 20px', borderLeft:'3px solid #a78bfa', marginBottom:20 }}>
-            <div style={{ fontSize:10, color:'#a78bfa', letterSpacing:'0.14em', fontWeight:700, marginBottom:10 }}>WHAT "GOOD" LOOKS LIKE</div>
-            <p style={{ fontSize:12.5, color:'#94a3b8', lineHeight:1.8 }}>Being within <strong style={{ color:'#a78bfa' }}>3-5× of RocksDB</strong> is EXCELLENT for a learning project written from scratch. RocksDB has 10+ years of optimization by world-class engineers. If you're at 300K ops/s vs RocksDB's 800K — that's 2.7×. That's a win.</p>
-          </div>
-
-          <div style={st.label}>STARTUP TIME COMPARISON</div>
-          <DataTable
-            headers={['Phase', 'Dataset', 'Cold start time', 'Why']}
-            rows={[
-              ['1. HashMap', '100MB', '< 100ms', 'JSON/bincode deserialization'],
-              ['2. Bitcask (no hints)', '1GB data, 1M keys', '5-15 seconds', 'Must scan entire log to rebuild KeyDir'],
-              ['3. Bitcask + hints', '1GB data, 1M keys', '50-200ms', 'Hint files only contain key + metadata'],
-              ['4. LSM', '1GB data', '100-500ms', 'Read MANIFEST + load Bloom filters'],
-              ['5. LSM + Bloom', '10GB data', '200ms-1s', 'Bloom filters are small (10 bits/key)'],
-            ]}
-          />
-        </div>
-      );
+    // ── Sled (pure Rust, BTree-like) ──────────────────────────────────────────
+    {
+        let db = sled::Config::new().path("/tmp/bench_sled").open().unwrap();
+        let mut w = SledWrapper(db);
+        println!("\n[ Sled (pure Rust) ]");
+        bench_sequential_write(&mut w, num_ops).print();
+        bench_random_write(&mut w, num_ops).print();
+        workload_c(&mut w, num_ops as usize, num_ops).print();
     }
+    std::fs::remove_dir_all("/tmp/bench_sled").ok();
 
-    const tabs = [
-      { id:'what', label:'What to Measure', color:'#4ade80', component: WhatToMeasureTab },
-      { id:'ycsb', label:'YCSB Workloads', color:'#a3e635', component: YCSBTab },
-      { id:'amp', label:'Amplification Factors', color:'#2dd4bf', component: AmpFactorsTab },
-      { id:'harness', label:'Rust Harness', color:'#fbbf24', component: RustHarnessTab },
-      { id:'compare', label:'Compare Real DBs', color:'#c084fc', component: CompareTab },
-    ];
-
-    function Benchmarking() {
-      const [active, setActive] = useState(0);
-      const Tab = tabs[active].component;
-
-      return (
-        <div style={st.root}>
-          <header style={st.header}>
-            <span style={{ fontSize:13, fontWeight:700, color:'#f1f5f9' }}>Benchmarking Strategy · Cementite</span>
-            <a href="index.html" style={{ fontSize:11, color:'#475569', textDecoration:'none', padding:'4px 10px', border:'1px solid #1e293b', borderRadius:6 }}>← Back</a>
-          </header>
-          <div style={st.tabBar}>
-            {tabs.map((t, i) => (
-              <button key={t.id} onClick={() => setActive(i)}
-                style={{ ...st.tab, borderColor: active === i ? t.color + '60' : '#1e293b', color: active === i ? t.color : '#64748b', background: active === i ? t.color + '12' : 'transparent', fontWeight: active === i ? 700 : 400 }}
-              >{t.label}</button>
-            ))}
-          </div>
-          <Tab />
-        </div>
-      );
+    // ── RocksDB ───────────────────────────────────────────────────────────────
+    {
+        let mut opts = rocksdb::Options::default();
+        opts.create_if_missing(true);
+        opts.set_write_buffer_size(64 * 1024 * 1024);   // 64MB MemTable
+        opts.set_max_write_buffer_number(4);
+        opts.set_level_compaction_dynamic_level_bytes(true);
+        let db = rocksdb::DB::open(&opts, "/tmp/bench_rocksdb").unwrap();
+        let mut w = RocksWrapper(db);
+        println!("\n[ RocksDB (Facebook LSM) ]");
+        bench_sequential_write(&mut w, num_ops).print();
+        bench_random_write(&mut w, num_ops).print();
+        workload_c(&mut w, num_ops as usize, num_ops).print();
+        workload_a(&mut w, num_ops as usize, num_ops).print();
     }
+    std::fs::remove_dir_all("/tmp/bench_rocksdb").ok();
+}
 
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<Benchmarking />);
-  </script>
+struct SledWrapper(sled::Db);
+impl KVStore for SledWrapper {
+    fn set(&mut self, k: &[u8], v: &[u8]) -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; { self.0.insert(k, v)?; Ok(()) }
+    fn get(&self, k: &[u8]) -&gt; Result&lt;Option&lt;Vec&lt;u8&gt;&gt;, Box&lt;dyn std::error::Error&gt;&gt; { Ok(self.0.get(k)?.map(|v| v.to_vec())) }
+    fn delete(&mut self, k: &[u8]) -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; { self.0.remove(k)?; Ok(()) }
+}
+
+struct RocksWrapper(rocksdb::DB);
+impl KVStore for RocksWrapper {
+    fn set(&mut self, k: &[u8], v: &[u8]) -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; { Ok(self.0.put(k, v)?) }
+    fn get(&self, k: &[u8]) -&gt; Result&lt;Option&lt;Vec&lt;u8&gt;&gt;, Box&lt;dyn std::error::Error&gt;&gt; { Ok(self.0.get(k)?) }
+    fn delete(&mut self, k: &[u8]) -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; { Ok(self.0.delete(k)?) }
+}</pre>
+      </div>
+
+      <h3 style="color:var(--purple)">Expected Results by Phase</h3>
+      <div class="dw">
+        <div class="dl">// What numbers to expect at each build phase (NVMe SSD, 100B values)</div>
+        <div class="d d-purple"><pre>PHASE 1 (HashMap + bincode persistence — no WAL):
+  Sequential write:  ~2-5M ops/sec  (pure RAM, no disk during run)
+  Random read:       ~1-3M ops/sec  (HashMap lookup)
+  p99 write:         &lt; 5μs
+  Crash safe?        NO
+
+PHASE 2 (Bitcask: append-only log, no compaction):
+  Sequential write:  ~400-800K ops/sec  (bounded by sequential NVMe ~200MB/s)
+  Random write:      ~400-800K ops/sec  (append-only = always sequential)
+  Random read:       ~100-300K ops/sec  (1 seek + read per lookup)
+  p99 write:         ~10-50μs  (dominated by fsync if using PerWrite mode)
+  Crash safe?        YES (with fsync)
+
+PHASE 3 (Bitcask + compaction + hint files):
+  Same throughput as Phase 2, but:
+  Disk usage:        Bounded (not growing forever)
+  Startup time:      ~100ms for 1M keys (vs 5-10s without hint files)
+  Write amp:         ~1.5-2× during active compaction
+
+PHASE 4 (LSM: MemTable + SSTable, no Bloom, basic compaction):
+  Sequential write:  ~600K-1M ops/sec  (MemTable in RAM, flush async)
+  Random read:       ~50-150K ops/sec  (must check multiple SSTables, no Bloom)
+  Read miss:         SLOW (30+ disk reads to confirm a key doesn't exist)
+  Write amp:         ~10-15×
+
+PHASE 5 (LSM + Bloom filters):
+  Random read:       ~200-500K ops/sec (Bloom eliminates most disk reads)
+  Read miss:         ~100-300K ops/sec (most misses = 0 disk reads via Bloom)
+  Write amp:         same ~10-15×
+
+PHASE 6 (LSM + WAL + crash recovery):
+  Throughput:        ~80% of Phase 5 (WAL write overhead)
+  p99 write:         5-50μs (group commit), 100-500μs (per-write fsync)
+  Crash safe?        YES
+
+COMPARISON — same hardware, same workload A:
+  Your Phase 5 DB:  ~300K ops/sec
+  Sled (v0.34):     ~200-400K ops/sec
+  RocksDB:          ~500K-1M ops/sec  (10 years of engineering)
+
+  Your DB within 3-5× of RocksDB on simple workloads is EXCELLENT
+  for a learning implementation.</pre></div>
+      </div>
+
+      <div class="ib ib-lime">
+        <div class="ib-label">Cargo.toml</div>
+        <code style="font-family:var(--font-mono);font-size:12px">
+[dev-dependencies]<br>
+rand = "0.8"<br>
+rand_distr = "0.4"   # Zipf distribution<br>
+sled = "0.34"<br>
+rocksdb = "0.21"     # requires librocksdb, set ROCKSDB_LIB_DIR
+        </code>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+const sections = document.querySelectorAll('section[id]');
+const links = document.querySelectorAll('.toc a');
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      links.forEach(a => a.classList.remove('active'));
+      const a = document.querySelector(`.toc a[href="#${e.target.id}"]`);
+      if (a) { a.classList.add('active'); a.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'}); }
+    }
+  });
+}, { rootMargin: '-20% 0% -70% 0%', threshold: 0 });
+sections.forEach(s => obs.observe(s));
+links.forEach(a => a.addEventListener('click', e => {
+  e.preventDefault();
+  document.querySelector(a.getAttribute('href')).scrollIntoView({behavior:'smooth'});
+}));
+</script>
 </body>
 </html>
