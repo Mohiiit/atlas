@@ -11,6 +11,7 @@ const state = {
   nodeByPath: new Map(),
   sidebarOpen: false,
   focusViewer: false,
+  workspaceEl: null,
 };
 
 function isMobileLayout() {
@@ -107,6 +108,29 @@ function ensureExpandedForPath(path) {
   }
 }
 
+// Toggle sidebar open/close without re-rendering the whole project view.
+// On mobile, the sidebar is a fixed overlay so we just toggle a class.
+function setSidebarOpen(open) {
+  state.sidebarOpen = open;
+  if (state.workspaceEl) {
+    state.workspaceEl.classList.toggle("sidebar-open", open);
+  }
+  if (open) {
+    scrollSidebarToActive();
+  }
+}
+
+// After the sidebar is shown, scroll so the active tree item is visible.
+function scrollSidebarToActive() {
+  requestAnimationFrame(() => {
+    const sidebarEl = state.workspaceEl?.querySelector(".sidebar");
+    const activeBtn = sidebarEl?.querySelector(".tree-btn.active");
+    if (activeBtn) {
+      activeBtn.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  });
+}
+
 function applyRoute() {
   const { projectId, selectedPath } = readHash();
 
@@ -137,6 +161,7 @@ function applyRoute() {
 
   if (isMobileLayout()) {
     const selectedNode = state.nodeByPath.get(state.currentSelectionPath);
+    // Show sidebar when landing on a folder; show viewer when landing on a file.
     state.sidebarOpen = !selectedNode || selectedNode.type === "dir";
     state.focusViewer = false;
   }
@@ -146,6 +171,7 @@ function applyRoute() {
 
 function renderHome() {
   appEl.innerHTML = "";
+  state.workspaceEl = null;
 
   const grid = document.createElement("div");
   grid.className = "home-grid";
@@ -201,7 +227,10 @@ function renderProjectSwitcher(currentProjectId) {
 
     btn.addEventListener("click", () => {
       state.focusViewer = false;
-      state.sidebarOpen = isMobileLayout();
+      // On mobile, close drawer after switching project
+      if (isMobileLayout()) {
+        setSidebarOpen(false);
+      }
       setRoute(project.id, project.path);
     });
 
@@ -244,9 +273,7 @@ function makeTreeNode(node, depth = 0) {
     btn.title = node.path;
     btn.addEventListener("click", () => {
       state.expanded.add(node.path);
-      if (isMobileLayout()) {
-        state.sidebarOpen = true;
-      }
+      // Folder click: keep sidebar open on mobile to browse children
       setRoute(state.currentProjectId, node.path);
     });
 
@@ -275,8 +302,9 @@ function makeTreeNode(node, depth = 0) {
   fileBtn.textContent = `📄 ${node.name}`;
   fileBtn.title = node.path;
   fileBtn.addEventListener("click", () => {
+    // On mobile: close the drawer before navigating so viewer appears immediately
     if (isMobileLayout()) {
-      state.sidebarOpen = false;
+      setSidebarOpen(false);
     }
     setRoute(state.currentProjectId, node.path);
   });
@@ -362,7 +390,7 @@ async function renderFilePreview(node, bodyEl) {
 
   const fallback = document.createElement("div");
   fallback.className = "empty";
-  fallback.textContent = `Preview not available for .${node.ext || "unknown"}. Use “Open in new tab”.`;
+  fallback.textContent = `Preview not available for .${node.ext || "unknown"}. Use "Open in new tab".`;
   bodyEl.appendChild(fallback);
 }
 
@@ -374,7 +402,7 @@ function renderFolderInfo(node, bodyEl) {
 
   const empty = document.createElement("div");
   empty.className = "empty";
-  empty.textContent = "Select a file from the left tree to preview it. Nested folders are fully supported.";
+  empty.textContent = "Select a file from the tree to preview it.";
   bodyEl.appendChild(empty);
 }
 
@@ -383,7 +411,16 @@ function renderProject(project) {
 
   const workspace = document.createElement("section");
   workspace.className = `workspace${state.sidebarOpen ? " sidebar-open" : ""}${state.focusViewer ? " focus-viewer" : ""}`;
+  state.workspaceEl = workspace;
 
+  // --- Scrim (mobile overlay backdrop) ---
+  const scrim = document.createElement("div");
+  scrim.className = "sidebar-scrim";
+  scrim.setAttribute("aria-hidden", "true");
+  scrim.addEventListener("click", () => setSidebarOpen(false));
+  workspace.appendChild(scrim);
+
+  // --- Sidebar ---
   const sidebar = document.createElement("aside");
   sidebar.className = "panel sidebar";
 
@@ -398,14 +435,8 @@ function renderProject(project) {
   const closeSidebarBtn = document.createElement("button");
   closeSidebarBtn.type = "button";
   closeSidebarBtn.className = "btn";
-  closeSidebarBtn.textContent = "Close";
-  closeSidebarBtn.addEventListener("click", () => {
-    state.sidebarOpen = false;
-    workspace.classList.remove("sidebar-open");
-    if (isMobileLayout()) {
-      renderProject(project);
-    }
-  });
+  closeSidebarBtn.textContent = "✕ Close";
+  closeSidebarBtn.addEventListener("click", () => setSidebarOpen(false));
   sidebarHead.appendChild(closeSidebarBtn);
   sidebar.appendChild(sidebarHead);
   sidebar.appendChild(renderProjectSwitcher(project.id));
@@ -415,6 +446,9 @@ function renderProject(project) {
   sidebarTree.appendChild(makeTreeNode(project.tree, 0));
   sidebar.appendChild(sidebarTree);
 
+  workspace.appendChild(sidebar);
+
+  // --- Viewer ---
   const viewer = document.createElement("section");
   viewer.className = "panel viewer";
 
@@ -429,13 +463,9 @@ function renderProject(project) {
   const treeToggle = document.createElement("button");
   treeToggle.type = "button";
   treeToggle.className = "btn tree-toggle";
-  treeToggle.innerHTML = '<span class="label-open">Browse Files</span><span class="label-close">Hide Files</span>';
+  treeToggle.innerHTML = '<span class="label-open">☰ Files</span><span class="label-close">✕ Files</span>';
   treeToggle.addEventListener("click", () => {
-    state.sidebarOpen = !state.sidebarOpen;
-    workspace.classList.toggle("sidebar-open", state.sidebarOpen);
-    if (isMobileLayout()) {
-      renderProject(project);
-    }
+    setSidebarOpen(!state.sidebarOpen);
   });
   head.appendChild(treeToggle);
 
@@ -466,9 +496,13 @@ function renderProject(project) {
   viewer.appendChild(head);
   viewer.appendChild(body);
 
-  workspace.appendChild(sidebar);
   workspace.appendChild(viewer);
   appEl.appendChild(workspace);
+
+  // Scroll sidebar so the active item is visible without the user having to hunt for it.
+  if (state.sidebarOpen) {
+    scrollSidebarToActive();
+  }
 }
 
 async function init() {
