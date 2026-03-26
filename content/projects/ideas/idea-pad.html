@@ -215,6 +215,10 @@
   .badge--ai       { background: var(--cyan-dim);   color: var(--cyan); }
   .badge--fintech  { background: var(--emerald-dim);color: var(--emerald); }
   .badge--india    { background: var(--rose-dim);   color: var(--rose); }
+  .badge--campus   { background: var(--cyan-dim);   color: var(--cyan); }
+  .badge--web3     { background: var(--emerald-dim);color: var(--emerald); }
+  .badge--realtime { background: var(--amber-dim);  color: var(--amber); }
+  .badge--edtech   { background: var(--violet-dim); color: var(--violet); }
 
   /* ── CARD BODY ── */
   .card-desc {
@@ -296,7 +300,7 @@
   <h1>Idea Pad</h1>
   <div class="page-meta">
     <div class="meta-pill"><div class="dot" style="background:var(--amber)"></div>Active — 2 in progress</div>
-    <div class="meta-pill"><div class="dot" style="background:var(--violet)"></div>Concept — 4 not started</div>
+    <div class="meta-pill"><div class="dot" style="background:var(--violet)"></div>Concept — 7 not started</div>
     <div class="meta-pill" style="color:var(--text-dim)">March 2026</div>
   </div>
 </div>
@@ -531,10 +535,153 @@
     </div>
   </div>
 
+  <!-- INTRA-CAMPUS DIGITAL PAYMENT INFRA -->
+  <div class="card card--concept" style="--i:7">
+    <div class="card-head">
+      <div class="card-emoji">🪙</div>
+      <div class="card-title-row">
+        <div class="card-name">Intra-Campus Digital Payment Infra</div>
+        <div class="card-badges">
+          <span class="badge badge--concept">Concept</span>
+          <span class="badge badge--campus">Campus</span>
+          <span class="badge badge--web3">Web3</span>
+          <span class="badge badge--fintech">Fintech</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-desc">
+      A blockchain-backed digital payment system scoped to a university campus. Students, canteens, bookstores, and admin offices transact on a private ledger. The research angle is exploring CBDC (Central Bank Digital Currency), TBDC (Token-Based Digital Currency), and TBD's Web5/tbDEX protocols to understand how institutional digital currencies could work at a micro-economy scale before national rollouts.
+    </div>
+    <div class="card-details">
+      <div class="detail-row">
+        <div class="detail-label">Core idea</div>
+        <div class="detail-value">Campus as a sandbox for digital currency experiments — closed economy with real transactions, low regulatory friction.</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Research</div>
+        <div class="detail-value">CBDC design patterns (account-based vs token-based) · TBDC tokenomics · TBD's tbDEX decentralized exchange protocol · RBI digital rupee pilot learnings</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Web3 layer</div>
+        <div class="detail-value">Private EVM or Starknet appchain for settlement. Smart contracts for merchant registration, spending limits, and programmable subsidies (meal plans, scholarship disbursement).</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Stack ideas</div>
+        <div class="detail-value">
+          <span class="chip">Solidity / Cairo</span><span class="chip">Hardhat / Foundry</span><span class="chip">React Native</span><span class="chip">NFC tap-to-pay</span><span class="chip">QR codes</span>
+        </div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Open problems</div>
+        <div class="detail-value">Fiat on/off-ramp within campus · KYC-lite for students (university ID = identity) · Offline transaction support · Privacy vs audit transparency tradeoff</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Status</div>
+        <div class="detail-value">Concept stage. First step: literature review on CBDC/TBDC models and a prototype token contract on a local devnet.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INTRA-CAMPUS VIDEO CONFERENCING -->
+  <div class="card card--concept" style="--i:8">
+    <div class="card-head">
+      <div class="card-emoji">📹</div>
+      <div class="card-title-row">
+        <div class="card-name">Intra-Campus Video Conferencing</div>
+        <div class="card-badges">
+          <span class="badge badge--concept">Concept</span>
+          <span class="badge badge--campus">Campus</span>
+          <span class="badge badge--realtime">Real-time</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-desc">
+      A self-hosted, low-latency video conferencing tool built for campus networks. Runs entirely on university infrastructure — no data leaves the campus. Designed for lectures, office hours, viva exams, and student group calls. The technical focus is on WebRTC for peer-to-peer media, WebSockets for signaling and real-time chat, and an SFU (Selective Forwarding Unit) for scaling beyond 1:1 calls.
+    </div>
+    <div class="card-details">
+      <div class="detail-row">
+        <div class="detail-label">Transport</div>
+        <div class="detail-value">WebRTC for audio/video (DTLS-SRTP, ICE candidates over campus TURN server). Peer-to-peer for small calls, SFU-routed for lectures.</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Signaling</div>
+        <div class="detail-value">WebSocket server for session negotiation (SDP offer/answer, ICE exchange), presence, and real-time chat alongside video.</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">SFU</div>
+        <div class="detail-value">Mediasoup or Janus as the SFU for multi-party rooms — simulcast support so each participant sends multiple quality layers.</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Stack ideas</div>
+        <div class="detail-value">
+          <span class="chip">WebRTC</span><span class="chip">WebSockets</span><span class="chip">Mediasoup / Janus</span><span class="chip">Node.js / Rust</span><span class="chip">React</span><span class="chip">TURN/STUN</span>
+        </div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Features</div>
+        <div class="detail-value">Screen sharing · Recording (server-side composite) · Breakout rooms · Whiteboard (Canvas API + CRDT sync) · Raise hand / polls</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Open problems</div>
+        <div class="detail-value">Scaling to 200+ participant lectures · Adaptive bitrate on spotty campus WiFi · End-to-end encryption with SFU (Insertable Streams API) · Recording storage</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Status</div>
+        <div class="detail-value">Concept stage. First step: 1:1 WebRTC call with WebSocket signaling, then integrate an SFU for multi-party.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INTRA-CAMPUS COURSE HANDLING -->
+  <div class="card card--concept" style="--i:9">
+    <div class="card-head">
+      <div class="card-emoji">📚</div>
+      <div class="card-title-row">
+        <div class="card-name">Intra-Campus Course Handling</div>
+        <div class="card-badges">
+          <span class="badge badge--concept">Concept</span>
+          <span class="badge badge--campus">Campus</span>
+          <span class="badge badge--edtech">EdTech</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-desc">
+      A lightweight, self-hosted course management system for universities — covering assignments, deadlines, submissions, grading, and announcements. Think of it as a clean, modern alternative to Moodle or Google Classroom that actually respects the workflows Indian universities use: internal exams, viva scheduling, lab submissions, and attendance-linked grading.
+    </div>
+    <div class="card-details">
+      <div class="detail-row">
+        <div class="detail-label">Core modules</div>
+        <div class="detail-value">Course creation · Assignment upload + deadline tracking · Submission portal (code, PDF, zip) · Auto-grading hooks · Announcement feed · Calendar view</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Roles</div>
+        <div class="detail-value">Admin (department heads) · Faculty (create courses, grade) · Students (enroll, submit, view grades) · TA (assist grading, manage submissions)</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Stack ideas</div>
+        <div class="detail-value">
+          <span class="chip">Next.js</span><span class="chip">PostgreSQL</span><span class="chip">Prisma</span><span class="chip">S3-compatible storage</span><span class="chip">Redis (notifications)</span><span class="chip">WebSockets (live updates)</span>
+        </div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Differentiators</div>
+        <div class="detail-value">Deadline reminders via push + email · Plagiarism detection (code similarity via AST diff) · Integration with campus payment system for fee-linked enrollment · Mobile-first UI</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Open problems</div>
+        <div class="detail-value">Bulk grading UX for 200+ students · Offline submission support · LTI compatibility for external tool integration · Auto-grading for code assignments (sandboxed execution)</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Status</div>
+        <div class="detail-value">Concept stage. First step: data model for courses/assignments/submissions and a basic faculty + student flow.</div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <div class="page-footer">
-  <span>6 ideas · 2 active · 4 concept</span>
+  <span>9 ideas · 2 active · 7 concept</span>
   <span>·</span>
   <span>March 2026</span>
 </div>
