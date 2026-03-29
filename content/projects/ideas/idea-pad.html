@@ -219,6 +219,7 @@
   .badge--web3     { background: var(--emerald-dim);color: var(--emerald); }
   .badge--realtime { background: var(--amber-dim);  color: var(--amber); }
   .badge--edtech   { background: var(--violet-dim); color: var(--violet); }
+  .badge--hardware { background: var(--rose-dim);   color: var(--rose); }
 
   /* ── CARD BODY ── */
   .card-desc {
@@ -300,7 +301,7 @@
   <h1>Idea Pad</h1>
   <div class="page-meta">
     <div class="meta-pill"><div class="dot" style="background:var(--amber)"></div>Active — 2 in progress</div>
-    <div class="meta-pill"><div class="dot" style="background:var(--violet)"></div>Concept — 7 not started</div>
+    <div class="meta-pill"><div class="dot" style="background:var(--violet)"></div>Concept — 8 not started</div>
     <div class="meta-pill" style="color:var(--text-dim)">March 2026</div>
   </div>
 </div>
@@ -678,10 +679,61 @@
     </div>
   </div>
 
+  <!-- PERSONAL VOICE CAPTURE DEVICE -->
+  <div class="card card--concept" style="--i:10">
+    <div class="card-head">
+      <div class="card-emoji">🎤</div>
+      <div class="card-title-row">
+        <div class="card-name">Personal Voice Capture Device</div>
+        <div class="card-badges">
+          <span class="badge badge--concept">Concept</span>
+          <span class="badge badge--hardware">Hardware</span>
+          <span class="badge badge--voice">Voice AI</span>
+          <span class="badge badge--ai">Agentic</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-desc">
+      A hardware device that records conversations — meetings, brainstorms, casual chats — and isolates only the owner's voice using speaker diarization and voiceprint filtering. Everything else (other speakers, background noise) is stripped out. The cleaned audio is transcribed and fed into an AI pipeline that extracts action items: schedule a meeting, jot a journal entry, note a new plan. These actions are then routed to connected tools — Calendar, Notion, Atlas, or any webhook — so they land in the right place automatically.
+    </div>
+    <div class="card-details">
+      <div class="detail-row">
+        <div class="detail-label">Hardware</div>
+        <div class="detail-value">Wearable mic badge or desk puck with multi-mic array. ESP32-S3 or Raspberry Pi Zero 2W for on-device capture. Always-on recording with circular buffer.</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Voice isolation</div>
+        <div class="detail-value">Speaker diarization (pyannote.audio or SpeechBrain) to segment speakers. Voiceprint enrollment — owner records a 30-second sample at setup. All non-owner segments are discarded before transcription.</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Transcription</div>
+        <div class="detail-value">Whisper (local or cloud) on the filtered owner-only audio. Timestamped transcript with context windows for action extraction.</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Action engine</div>
+        <div class="detail-value">LLM classifies transcript chunks into action types: meeting, task, journal, idea, follow-up. Structured output with title, description, date, and priority.</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Integrations</div>
+        <div class="detail-value">
+          <span class="chip">Google Calendar</span><span class="chip">Notion</span><span class="chip">Atlas</span><span class="chip">Todoist</span><span class="chip">Webhooks</span><span class="chip">Email</span>
+        </div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Open problems</div>
+        <div class="detail-value">Voiceprint accuracy in noisy rooms · Privacy consent from other participants · On-device vs cloud processing tradeoff · Battery life for all-day recording · Action classification accuracy across casual vs formal speech</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Status</div>
+        <div class="detail-value">Concept stage. First step: voiceprint enrollment + speaker isolation pipeline on recorded audio, then action extraction with an LLM.</div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <div class="page-footer">
-  <span>9 ideas · 2 active · 7 concept</span>
+  <span>10 ideas · 2 active · 8 concept</span>
   <span>·</span>
   <span>March 2026</span>
 </div>
