@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unit 8: Protocol Stack &amp; Packet Delivery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#060a14;--surface:#0f1520;--text:#d8e0ec;--dim:#6a7a90;
+  --accent:#00e5ff;--accent-dim:rgba(0,229,255,0.08);
+  --border:rgba(0,229,255,0.08);--border-bright:rgba(0,229,255,0.18);
+  --amber:#f59e0b;--green:#22c55e;--red:#ef4444;--purple:#a78bfa;
+  --code-bg:#111827;--font-head:'Chakra Petch',system-ui,sans-serif;
+  --font-mono:'JetBrains Mono','SF Mono',Consolas,monospace;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font-head);line-height:1.7;font-size:16px;-webkit-font-smoothing:antialiased;padding:2rem 1rem}
+.container{max-width:900px;margin:0 auto}
+h1{font-family:var(--font-head);font-size:2rem;color:var(--accent);margin-bottom:.5rem;border-bottom:2px solid rgba(0,229,255,0.2);padding-bottom:.5rem}
+h2{font-family:var(--font-head);font-size:1.5rem;color:var(--accent);margin-top:2.5rem;margin-bottom:.75rem}
+h3{font-family:var(--font-head);font-size:1.2rem;color:rgba(0,229,255,0.75);margin-top:1.5rem;margin-bottom:.5rem}
+p{margin-bottom:1rem}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+ul,ol{padding-left:1.5rem;margin-bottom:1rem}
+li{margin-bottom:.35rem}
+nav.top{display:flex;justify-content:space-between;align-items:center;padding:.75rem 0;border-bottom:1px solid #1e293b;margin-bottom:2rem;font-size:.9rem}
+nav.bottom{display:flex;justify-content:space-between;padding-top:1.5rem;border-top:1px solid #1e293b;margin-top:3rem;font-size:.9rem}
+nav.bottom a{padding:.5rem 1rem;border:1px solid rgba(0,229,255,0.25);border-radius:6px}
+nav.bottom a:hover{background:rgba(0,229,255,0.06)}
+.objectives{background:rgba(0,229,255,0.04);border:1px solid rgba(0,229,255,0.12);border-radius:8px;padding:1.25rem 1.5rem;margin:1.5rem 0}
+.objectives h2{margin-top:0}
+.objectives ul{padding-left:1.5rem}
+.objectives li{margin-bottom:.35rem}
+code{font-family:var(--font-mono);background:var(--code-bg);padding:.15em .4em;border-radius:4px;font-size:.9em;color:var(--accent)}
+pre{background:var(--code-bg);border:1px solid #1e293b;border-radius:8px;padding:1.25rem;overflow-x:auto;margin:1rem 0;font-size:.85rem;line-height:1.6}
+pre code{background:none;padding:0;color:var(--text)}
+.formula{background:var(--code-bg);border-left:3px solid var(--accent);padding:1rem 1.25rem;margin:1rem 0;border-radius:0 8px 8px 0;font-family:var(--font-mono);font-size:.95rem}
+.warn{color:var(--amber)}
+.accent{color:var(--accent)}
+.example{background:rgba(245,158,11,0.03);border:1px solid rgba(245,158,11,0.12);border-radius:8px;padding:1.25rem;margin:1rem 0}
+.example h3{color:var(--amber);margin-top:0}
+.note{background:rgba(0,229,255,0.03);border-left:3px solid var(--accent);padding:.8rem 1rem;border-radius:0 6px 6px 0;margin:1rem 0}
+.danger{background:rgba(239,68,68,0.04);border-left:3px solid var(--red);padding:.8rem 1rem;border-radius:0 6px 6px 0;margin:1rem 0}
+table{width:100%;border-collapse:collapse;margin:1rem 0}
+th,td{text-align:left;padding:.6rem .8rem;border-bottom:1px solid #1e293b;font-size:.9rem}
+th{color:var(--accent);font-weight:600;border-bottom:2px solid rgba(0,229,255,0.2)}
+tr:hover{background:rgba(255,255,255,0.02)}
+svg{display:block;margin:1.5rem auto;max-width:100%}
+.svg-container{background:var(--code-bg);border-radius:8px;padding:1rem;margin:1.5rem 0}
+.section{margin-bottom:2.5rem}
+.questions{background:var(--bg);border:2px solid rgba(245,158,11,0.2);border-radius:8px;padding:1.5rem;margin:2rem 0}
+.questions h2{color:var(--amber);margin-top:0}
+.questions ol{padding-left:1.5rem}
+.questions li{margin-bottom:1rem}
+.refs{font-size:.85rem;color:rgba(216,224,236,0.5);margin-top:2rem}
+.refs h2{color:rgba(216,224,236,0.65)}
+.refs ul{padding-left:1.5rem}
+.refs li{margin-bottom:.3rem}
+.unit-num{font-size:.85rem;color:rgba(216,224,236,0.4);text-transform:uppercase;letter-spacing:.1em;font-family:var(--font-mono)}
+svg text{font-family:var(--font-head),system-ui,sans-serif}
+</style>
+</head>
+<body>
+<div class="container">
+
+<nav class="top">
+  <a href="index.html">Home</a>
+  <span class="accent">Unit 8 of 8</span>
+  <span><a href="unit-7-modulation.html">&larr; Unit 7</a></span>
+</nav>
+
+<div class="unit-num">Unit 8</div>
+<h1>Protocol Stack &amp; Packet Delivery</h1>
+<p>Modulation encodes bits onto radio waves. But how do those bits become delivered data packets -- or lost ones? This unit bridges the physical layer (BER, modulation) and the transport layer (packets, retransmissions, goodput). It covers the sharp cliff from BER to packet error rate, the ARQ retransmission process, goodput calculation, latency sources, jitter, and the adaptive modulation system that ties everything together.</p>
+
+<!-- ============================================================ -->
+<div class="objectives">
+<h2>Learning Objectives</h2>
+<ul>
+  <li>Derive packet error rate (PER) from bit error rate and packet size</li>
+  <li>Explain the ARQ retransmission protocol and compute drop probability</li>
+  <li>Calculate goodput as a function of data rate, drop probability, and average retransmissions</li>
+  <li>Enumerate latency components and explain how each varies during a pass</li>
+  <li>Identify the three sources of jitter in satellite packet delivery</li>
+  <li>Describe how adaptive modulation with hysteresis selects ModCods during a pass</li>
+  <li>Explain the per-packet Monte Carlo simulation and the causal chain concept</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>1. From BER to Packet Error Rate</h2>
+
+<p>The bit error rate (BER) from Unit 7 tells us how likely any single bit is to be corrupted. But users send and receive <strong>packets</strong>, not individual bits. A packet is corrupted if <em>any one</em> of its bits is flipped. This creates a dramatic amplification effect.</p>
+
+<h3>The PER Formula</h3>
+<div class="formula">
+PER = 1 - (1 - BER)<sup>N</sup>
+</div>
+
+<p>Where N is the packet size in bits. For a standard 1500-byte Ethernet frame: N = 1500 * 8 = <strong>12,000 bits</strong>.</p>
+
+<p>This formula assumes independent bit errors (valid for AWGN channels after interleaving). The key insight: even a tiny BER becomes devastating at packet scale.</p>
+
+<div class="example">
+<h3>The Sharp Cliff</h3>
+<pre><code>Packet size: 1500 bytes = 12,000 bits
+
+BER = 10^-8:   PER = 1-(1-10^-8)^12000  = 0.00012  = 0.012%   OK
+BER = 10^-7:   PER = 1-(1-10^-7)^12000  = 0.0012   = 0.12%    OK
+BER = 10^-6:   PER = 1-(1-10^-6)^12000  = 0.0119   = 1.2%     Marginal
+BER = 10^-5:   PER = 1-(1-10^-5)^12000  = 0.1131   = 11.3%    Bad
+BER = 10^-4:   PER = 1-(1-10^-4)^12000  = 0.6988   = 69.9%    Catastrophic
+BER = 10^-3:   PER = 1-(1-10^-3)^12000  = 0.99999  = ~100%    Total loss</code></pre>
+<p>Notice how the transition from "fine" to "catastrophic" happens in just <strong>two orders of magnitude of BER</strong> (10<sup>-6</sup> to 10<sup>-4</sup>). This is the cliff.</p>
+</div>
+
+<div class="svg-container">
+<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg">
+  <text x="360" y="22" text-anchor="middle" fill="rgba(216,224,236,0.5)" font-size="14">Packet Error Rate vs. Bit Error Rate -- The Cliff</text>
+
+  <!-- Axes -->
+  <line x1="90" y1="360" x2="680" y2="360" stroke="var(--dim)" stroke-width="1"/>
+  <line x1="90" y1="360" x2="90" y2="50" stroke="var(--dim)" stroke-width="1"/>
+
+  <!-- Y axis: PER (linear) -->
+  <text x="35" y="210" text-anchor="middle" fill="var(--dim)" font-size="12" transform="rotate(-90,35,210)">Packet Error Rate (%)</text>
+  <text x="82" y="363" text-anchor="end" fill="var(--dim)" font-size="9" font-family="var(--font-mono)">0%</text>
+  <text x="82" y="285" text-anchor="end" fill="var(--dim)" font-size="9" font-family="var(--font-mono)">25%</text>
+  <text x="82" y="210" text-anchor="end" fill="var(--dim)" font-size="9" font-family="var(--font-mono)">50%</text>
+  <text x="82" y="135" text-anchor="end" fill="var(--dim)" font-size="9" font-family="var(--font-mono)">75%</text>
+  <text x="82" y="60" text-anchor="end" fill="var(--dim)" font-size="9" font-family="var(--font-mono)">100%</text>
+
+  <!-- Grid -->
+  <line x1="90" y1="285" x2="680" y2="285" stroke="#1e293b" stroke-width="0.5" stroke-dasharray="4,4"/>
+  <line x1="90" y1="210" x2="680" y2="210" stroke="#1e293b" stroke-width="0.5" stroke-dasharray="4,4"/>
+  <line x1="90" y1="135" x2="680" y2="135" stroke="#1e293b" stroke-width="0.5" stroke-dasharray="4,4"/>
+
+  <!-- X axis: BER (log scale) -->
+  <text x="380" y="392" text-anchor="middle" fill="var(--dim)" font-size="12">Bit Error Rate (log scale)</text>
+  <text x="90" y="378" text-anchor="middle" fill="var(--dim)" font-size="9" font-family="var(--font-mono)">10^-9</text>
+  <text x="188" y="378" text-anchor="middle" fill="var(--dim)" font-size="9" font-family="var(--font-mono)">10^-8</text>
+  <text x="286" y="378" text-anchor="middle" fill="var(--dim)" font-size="9" font-family="var(--font-mono)">10^-7</text>
+  <text x="384" y="378" text-anchor="middle" fill="var(--dim)" font-size="9" font-family="var(--font-mono)">10^-6</text>
+  <text x="482" y="378" text-anchor="middle" fill="var(--dim)" font-size="9" font-family="var(--font-mono)">10^-5</text>
+  <text x="580" y="378" text-anchor="middle" fill="var(--dim)" font-size="9" font-family="var(--font-mono)">10^-4</text>
+  <text x="680" y="378" text-anchor="middle" fill="var(--dim)" font-size="9" font-family="var(--font-mono)">10^-3</text>
+
+  <!-- PER curve for 1500-byte packets -->
+  <polyline points="90,360 140,360 188,360 238,359 286,358 336,355 384,346 410,335 434,320 458,295 482,326 530,220 555,146 580,112 605,78 630,65 655,58 680,55"
+    fill="none" stroke="var(--accent)" stroke-width="3"/>
+
+  <!-- Corrected cliff curve: smooth S-shape -->
+  <!-- Overwrite with accurate data -->
+  <polyline points="90,360 188,360 260,359 310,358 350,356 384,348 420,328 450,292 470,260 490,230 510,180 530,140 555,100 580,72 620,60 680,56"
+    fill="none" stroke="#ef4444" stroke-width="2.5"/>
+
+  <!-- "OK" zone -->
+  <rect x="95" y="340" width="280" height="18" rx="4" fill="rgba(34,197,94,0.1)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>
+  <text x="235" y="353" text-anchor="middle" fill="#22c55e" font-size="10">PER &lt; 1% -- link works</text>
+
+  <!-- "Cliff" zone -->
+  <rect x="390" y="170" width="120" height="18" rx="4" fill="rgba(239,68,68,0.15)" stroke="rgba(239,68,68,0.4)" stroke-width="1"/>
+  <text x="450" y="183" text-anchor="middle" fill="#ef4444" font-size="10">THE CLIFF</text>
+
+  <!-- "Unusable" zone -->
+  <rect x="560" y="42" width="115" height="18" rx="4" fill="rgba(167,139,250,0.15)" stroke="rgba(167,139,250,0.4)" stroke-width="1"/>
+  <text x="618" y="55" text-anchor="middle" fill="#a78bfa" font-size="10">Unusable (&gt;70%)</text>
+
+  <!-- Annotation arrows -->
+  <line x1="384" y1="348" x2="384" y2="330" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3,3"/>
+  <text x="384" y="325" text-anchor="middle" fill="var(--accent)" font-size="9">BER = 10^-6</text>
+  <text x="384" y="313" text-anchor="middle" fill="var(--accent)" font-size="9">PER = 1.2%</text>
+</svg>
+</div>
+
+<p>This cliff is why satellite links use FEC coding and adaptive modulation. The system must keep BER below ~10<sup>-6</sup> for acceptable packet delivery. Above that threshold, performance collapses within a very narrow SNR range.</p>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>2. ARQ -- Automatic Repeat Request</h2>
+
+<p>When a packet arrives corrupted (detected by CRC checksum failure), the receiver requests retransmission. The simulator uses a simple <strong>Stop-and-Wait ARQ</strong> with a maximum of <strong>4 retries</strong> (5 total attempts).</p>
+
+<h3>Drop Probability</h3>
+<p>A packet is permanently dropped only if all 5 transmission attempts fail:</p>
+<div class="formula">
+P<sub>drop</sub> = PER<sup>5</sup>
+</div>
+
+<div class="example">
+<h3>Drop Probability Examples</h3>
+<pre><code>PER = 1% (0.01):
+  P_drop = 0.01^5 = 10^-10  (one in 10 billion -- essentially zero)
+
+PER = 10% (0.1):
+  P_drop = 0.1^5 = 10^-5  (one in 100,000 -- very rare)
+
+PER = 50% (0.5):
+  P_drop = 0.5^5 = 0.03125 = 3.1%  (starting to hurt)
+
+PER = 70% (0.7):
+  P_drop = 0.7^5 = 0.168 = 16.8%  (severe packet loss)
+
+PER = 90% (0.9):
+  P_drop = 0.9^5 = 0.590 = 59%  (link is effectively down)</code></pre>
+</div>
+
+<div class="svg-container">
+<svg viewBox="0 0 720 360" xmlns="http://www.w3.org/2000/svg">
+  <text x="360" y="22" text-anchor="middle" fill="rgba(216,224,236,0.5)" font-size="13">ARQ Retransmission Flow</text>
+
+  <defs>
+    <marker id="arq-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="var(--accent)"/></marker>
+    <marker id="arq-fail" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#ef4444"/></marker>
+    <marker id="arq-ok" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#22c55e"/></marker>
+  </defs>
+
+  <!-- Transmitter -->
+  <rect x="30" y="60" width="100" height="40" rx="6" fill="rgba(0,229,255,0.08)" stroke="var(--accent)" stroke-width="1.5"/>
+  <text x="80" y="85" text-anchor="middle" fill="var(--accent)" font-size="11" font-weight="600">Transmit</text>
+
+  <!-- Attempt 1 -->
+  <line x1="130" y1="80" x2="200" y2="80" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#arq-arrow)"/>
+
+  <rect x="200" y="55" width="80" height="50" rx="6" fill="var(--surface)" stroke="#1e293b" stroke-width="1"/>
+  <text x="240" y="76" text-anchor="middle" fill="var(--text)" font-size="10" font-weight="500">Attempt 1</text>
+  <text x="240" y="92" text-anchor="middle" fill="var(--dim)" font-size="9">CRC check</text>
+
+  <!-- Attempt 1: Success path (down-right) -->
+  <line x1="240" y1="105" x2="240" y2="140" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arq-ok)"/>
+  <text x="255" y="128" fill="#22c55e" font-size="9">OK</text>
+  <rect x="200" y="145" width="80" height="30" rx="5" fill="rgba(34,197,94,0.1)" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="240" y="165" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="600">Delivered</text>
+
+  <!-- Attempt 1: Fail path (right) -->
+  <line x1="280" y1="80" x2="340" y2="80" stroke="#ef4444" stroke-width="1.5" marker-end="url(#arq-fail)"/>
+  <text x="310" y="72" text-anchor="middle" fill="#ef4444" font-size="9">CRC fail</text>
+
+  <!-- Attempt 2 -->
+  <rect x="340" y="55" width="80" height="50" rx="6" fill="var(--surface)" stroke="#1e293b" stroke-width="1"/>
+  <text x="380" y="76" text-anchor="middle" fill="var(--text)" font-size="10" font-weight="500">Attempt 2</text>
+  <text x="380" y="92" text-anchor="middle" fill="var(--dim)" font-size="9">Retry #1</text>
+
+  <line x1="380" y1="105" x2="380" y2="145" stroke="#22c55e" stroke-width="1" stroke-dasharray="3,3"/>
+  <line x1="420" y1="80" x2="470" y2="80" stroke="#ef4444" stroke-width="1.5" marker-end="url(#arq-fail)"/>
+
+  <!-- Attempt 3 -->
+  <rect x="470" y="55" width="80" height="50" rx="6" fill="var(--surface)" stroke="#1e293b" stroke-width="1"/>
+  <text x="510" y="76" text-anchor="middle" fill="var(--text)" font-size="10" font-weight="500">Attempt 3</text>
+  <text x="510" y="92" text-anchor="middle" fill="var(--dim)" font-size="9">Retry #2</text>
+
+  <line x1="510" y1="105" x2="510" y2="145" stroke="#22c55e" stroke-width="1" stroke-dasharray="3,3"/>
+  <line x1="550" y1="80" x2="590" y2="80" stroke="#ef4444" stroke-width="1" stroke-dasharray="3,3"/>
+
+  <!-- ... dots for attempts 4,5 -->
+  <text x="575" y="76" fill="var(--dim)" font-size="14">...</text>
+
+  <!-- Final: drop -->
+  <rect x="600" y="55" width="95" height="50" rx="6" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.5"/>
+  <text x="648" y="76" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="600">5th fail</text>
+  <text x="648" y="92" text-anchor="middle" fill="var(--dim)" font-size="9">Max retries</text>
+
+  <line x1="648" y1="105" x2="648" y2="145" stroke="#ef4444" stroke-width="1.5" marker-end="url(#arq-fail)"/>
+  <rect x="608" y="145" width="80" height="30" rx="5" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5"/>
+  <text x="648" y="165" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="600">DROPPED</text>
+
+  <!-- Probability annotations -->
+  <text x="240" y="200" text-anchor="middle" fill="var(--dim)" font-size="10">P = 1-PER</text>
+  <text x="648" y="200" text-anchor="middle" fill="var(--dim)" font-size="10">P = PER^5</text>
+
+  <!-- Average transmissions formula -->
+  <rect x="120" y="230" width="480" height="55" rx="8" fill="rgba(0,229,255,0.03)" stroke="var(--border-bright)" stroke-width="1"/>
+  <text x="360" y="250" text-anchor="middle" fill="var(--accent)" font-size="12" font-weight="600">Average number of transmissions per delivered packet</text>
+  <text x="360" y="270" text-anchor="middle" fill="var(--text)" font-size="12" font-family="var(--font-mono)">avg_tx = (1 - PER^5) / (1 - PER)  when PER &lt; 1</text>
+
+  <!-- Example values -->
+  <text x="160" y="310" fill="var(--dim)" font-size="10">PER=1%: avg_tx = 1.01</text>
+  <text x="320" y="310" fill="var(--dim)" font-size="10">PER=10%: avg_tx = 1.11</text>
+  <text x="490" y="310" fill="var(--dim)" font-size="10">PER=50%: avg_tx = 1.94</text>
+
+  <text x="160" y="330" fill="var(--amber)" font-size="10">PER=70%: avg_tx = 2.83</text>
+  <text x="360" y="330" fill="var(--red)" font-size="10">PER=90%: avg_tx = 4.10</text>
+</svg>
+</div>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>3. Goodput Calculation</h2>
+
+<p><strong>Goodput</strong> is the useful data rate actually delivered to the application -- data rate minus overhead from retransmissions and dropped packets. It is the metric that matters to users.</p>
+
+<div class="formula">
+Goodput = DataRate &times; (1 - P<sub>drop</sub>) / avg_transmissions
+</div>
+
+<p>Where:</p>
+<ul>
+  <li><code>DataRate</code> = raw throughput from the selected ModCod (spectral efficiency * bandwidth)</li>
+  <li><code>P_drop</code> = PER<sup>5</sup> (probability a packet is permanently lost)</li>
+  <li><code>avg_transmissions</code> = average number of transmissions per delivered packet (including retries)</li>
+</ul>
+
+<div class="example">
+<h3>Goodput Example</h3>
+<pre><code>ModCod: 16APSK 3/4  ->  Data rate: 742 Mbps
+BER: 10^-6  ->  PER: 1.2%
+
+P_drop = 0.012^5 = 2.5 * 10^-10  (negligible)
+avg_tx = (1 - 0.012^5) / (1 - 0.012) = 1 / 0.988 = 1.012
+
+Goodput = 742 * (1 - 0) / 1.012 = 733 Mbps
+Overhead: only 1.2% from retransmissions. Excellent.
+
+Now with BER = 10^-4 (SNR dropped 4 dB):
+PER = 69.9%
+P_drop = 0.699^5 = 0.168
+avg_tx = (1 - 0.168) / (1 - 0.699) = 0.832 / 0.301 = 2.76
+
+Goodput = 742 * (1 - 0.168) / 2.76 = 742 * 0.301 = 224 Mbps
+Loss: 70% of throughput! This is the catastrophic regime.</code></pre>
+</div>
+
+<p>The goodput equation captures two distinct losses: <strong>wasted bandwidth</strong> from retransmissions (each retry occupies channel time that could carry new data) and <strong>permanent drops</strong> (packets that never get through despite all retries). In the healthy regime (PER &lt; 5%), retransmission overhead is small and drops are negligible. In the degraded regime (PER &gt; 30%), both effects compound.</p>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>4. Latency Components</h2>
+
+<p>End-to-end packet latency in a LEO satellite link has several components, each varying differently over the course of a pass:</p>
+
+<table>
+<tr><th>Component</th><th>Typical Value</th><th>Variation</th></tr>
+<tr><td>Propagation delay</td><td>1.8 - 6 ms</td><td>Varies with slant range (elevation angle)</td></tr>
+<tr><td>Processing delay</td><td>~1 ms</td><td>Nearly constant (onboard + ground)</td></tr>
+<tr><td>Encoding/modulation</td><td>~0.5 ms</td><td>Constant for a given ModCod</td></tr>
+<tr><td>Retransmission delay</td><td>0 - 25 ms</td><td>0 if first attempt succeeds; adds one RTT per retry</td></tr>
+<tr style="background:rgba(0,229,255,0.04)"><td><strong>Total (first attempt)</strong></td><td><strong>3.3 - 7.5 ms</strong></td><td>Dominated by propagation</td></tr>
+</table>
+
+<h3>Propagation Delay</h3>
+<p>The speed of light gives the minimum latency floor. At zenith (550 km), the one-way delay is:</p>
+<div class="formula">
+t<sub>prop</sub> = d / c = 550,000 m / 3 &times; 10<sup>8</sup> m/s = 1.83 ms
+</div>
+<p>At low elevation (10 degrees), the slant range stretches to ~1800 km, giving t<sub>prop</sub> = 6.0 ms. The round-trip time (RTT) is double these values: 3.7 ms at zenith to 12.0 ms at low elevation.</p>
+
+<h3>Retransmission Delay</h3>
+<p>Each retry adds one full RTT to the packet's latency. If a packet requires 3 attempts (2 retries), its total latency is the one-way propagation plus 2 additional RTTs for the NACK-retransmit cycles. This is the dominant source of latency variability.</p>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>5. Jitter Sources</h2>
+
+<p>Jitter is the <em>variation</em> in packet arrival times. Even if the average latency is acceptable, high jitter degrades real-time applications (voice, video, gaming). The simulator models three distinct jitter sources:</p>
+
+<h3>Retransmission Jitter</h3>
+<p>The most significant source. Packets that arrive on the first attempt have latency ~3 ms. Packets requiring 2 retries have latency ~9 ms. This creates bimodal (or multimodal) arrival time distributions. When PER is moderate (~5-10%), most packets arrive quickly, but a fraction arrive significantly later, creating jitter spikes.</p>
+
+<h3>Compute Scheduling Jitter</h3>
+<p>The onboard processor handles multiple tasks (routing, beamforming, ISL management, housekeeping). When the CPU is heavily loaded, packet processing can be delayed by 0.1-1.0 ms. In power Mode 1 (compute reduced 30%), this jitter increases because the same workload runs on fewer resources.</p>
+
+<h3>Doppler Tracking Transients</h3>
+<p>The phased-locked loop (PLL) that tracks Doppler shift is not instantaneous. When the Doppler rate changes rapidly (near TCA -- time of closest approach), the tracking loop experiences transient errors. These transients can briefly degrade demodulation performance, causing isolated packet errors and variable processing delays.</p>
+
+<div class="svg-container">
+<svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg">
+  <text x="360" y="22" text-anchor="middle" fill="rgba(216,224,236,0.5)" font-size="13">Jitter: Packet Arrival Time Variation</text>
+
+  <!-- Time axis -->
+  <line x1="60" y1="230" x2="680" y2="230" stroke="var(--dim)" stroke-width="1"/>
+  <text x="370" y="260" text-anchor="middle" fill="var(--dim)" font-size="11">Time</text>
+
+  <!-- Expected arrival line -->
+  <line x1="60" y1="130" x2="680" y2="130" stroke="var(--accent)" stroke-width="1" stroke-dasharray="6,4"/>
+  <text x="55" y="128" text-anchor="end" fill="var(--accent)" font-size="9">Expected</text>
+
+  <!-- Packet arrival indicators (vertical lines from expected to actual) -->
+  <!-- Normal arrivals (close to expected) -->
+  <line x1="100" y1="130" x2="100" y2="140" stroke="#22c55e" stroke-width="2"/>
+  <circle cx="100" cy="140" r="3" fill="#22c55e"/>
+
+  <line x1="140" y1="130" x2="140" y2="135" stroke="#22c55e" stroke-width="2"/>
+  <circle cx="140" cy="135" r="3" fill="#22c55e"/>
+
+  <line x1="180" y1="130" x2="180" y2="138" stroke="#22c55e" stroke-width="2"/>
+  <circle cx="180" cy="138" r="3" fill="#22c55e"/>
+
+  <!-- Retry arrival (late) -->
+  <line x1="220" y1="130" x2="220" y2="185" stroke="#f59e0b" stroke-width="2"/>
+  <circle cx="220" cy="185" r="4" fill="#f59e0b"/>
+  <text x="228" y="180" fill="#f59e0b" font-size="8">1 retry</text>
+
+  <line x1="260" y1="130" x2="260" y2="137" stroke="#22c55e" stroke-width="2"/>
+  <circle cx="260" cy="137" r="3" fill="#22c55e"/>
+
+  <line x1="300" y1="130" x2="300" y2="133" stroke="#22c55e" stroke-width="2"/>
+  <circle cx="300" cy="133" r="3" fill="#22c55e"/>
+
+  <!-- Double retry (very late) -->
+  <line x1="340" y1="130" x2="340" y2="210" stroke="#ef4444" stroke-width="2"/>
+  <circle cx="340" cy="210" r="4" fill="#ef4444"/>
+  <text x="348" y="208" fill="#ef4444" font-size="8">2 retries</text>
+
+  <line x1="380" y1="130" x2="380" y2="142" stroke="#22c55e" stroke-width="2"/>
+  <circle cx="380" cy="142" r="3" fill="#22c55e"/>
+
+  <!-- Compute jitter (slightly late) -->
+  <line x1="420" y1="130" x2="420" y2="148" stroke="#a78bfa" stroke-width="2"/>
+  <circle cx="420" cy="148" r="3" fill="#a78bfa"/>
+  <text x="428" y="153" fill="#a78bfa" font-size="8">CPU</text>
+
+  <line x1="460" y1="130" x2="460" y2="136" stroke="#22c55e" stroke-width="2"/>
+  <circle cx="460" cy="136" r="3" fill="#22c55e"/>
+
+  <line x1="500" y1="130" x2="500" y2="134" stroke="#22c55e" stroke-width="2"/>
+  <circle cx="500" cy="134" r="3" fill="#22c55e"/>
+
+  <!-- Doppler transient -->
+  <line x1="540" y1="130" x2="540" y2="160" stroke="#f472b6" stroke-width="2"/>
+  <circle cx="540" cy="160" r="3" fill="#f472b6"/>
+  <text x="548" y="164" fill="#f472b6" font-size="8">Doppler</text>
+
+  <line x1="580" y1="130" x2="580" y2="139" stroke="#22c55e" stroke-width="2"/>
+  <circle cx="580" cy="139" r="3" fill="#22c55e"/>
+
+  <!-- Dropped packet -->
+  <line x1="620" y1="130" x2="620" y2="130" stroke="#ef4444" stroke-width="0"/>
+  <text x="620" y="118" text-anchor="middle" fill="#ef4444" font-size="9">DROPPED</text>
+  <line x1="612" y1="123" x2="628" y2="137" stroke="#ef4444" stroke-width="2"/>
+  <line x1="628" y1="123" x2="612" y2="137" stroke="#ef4444" stroke-width="2"/>
+
+  <line x1="660" y1="130" x2="660" y2="134" stroke="#22c55e" stroke-width="2"/>
+  <circle cx="660" cy="134" r="3" fill="#22c55e"/>
+
+  <!-- Legend -->
+  <circle cx="100" cy="270" r="3" fill="#22c55e"/>
+  <text x="110" y="274" fill="var(--dim)" font-size="10">Normal</text>
+  <circle cx="180" cy="270" r="3" fill="#f59e0b"/>
+  <text x="190" y="274" fill="var(--dim)" font-size="10">Retry jitter</text>
+  <circle cx="280" cy="270" r="3" fill="#a78bfa"/>
+  <text x="290" y="274" fill="var(--dim)" font-size="10">CPU jitter</text>
+  <circle cx="380" cy="270" r="3" fill="#f472b6"/>
+  <text x="390" y="274" fill="var(--dim)" font-size="10">Doppler</text>
+  <line x1="468" y1="266" x2="480" y2="278" stroke="#ef4444" stroke-width="2"/>
+  <line x1="480" y1="266" x2="468" y2="278" stroke="#ef4444" stroke-width="2"/>
+  <text x="490" y="274" fill="var(--dim)" font-size="10">Dropped</text>
+</svg>
+</div>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>6. Adaptive Modulation with Hysteresis</h2>
+
+<p>The satellite continuously measures channel SNR and selects the highest ModCod that the channel can support, with a <strong>1.5 dB hysteresis margin</strong>. This margin prevents rapid oscillation when the SNR hovers near a threshold.</p>
+
+<h3>How It Works During a Pass</h3>
+<p>As a satellite rises from the horizon:</p>
+<ol>
+  <li><strong>Low elevation (10-20 deg):</strong> Long slant range, high path loss, atmospheric loss, ground noise. SNR might be only 5-8 dB. System uses QPSK 3/4 or 8PSK 2/3.</li>
+  <li><strong>Mid elevation (30-50 deg):</strong> Shorter range, less atmospheric path. SNR improves to 12-15 dB. System steps up to 16APSK 3/4 or 5/6.</li>
+  <li><strong>Near zenith (60-90 deg):</strong> Minimum range, maximum antenna gain. SNR peaks at 16-20 dB. System uses 32APSK or 64APSK for maximum throughput.</li>
+  <li><strong>Descending:</strong> Mirror of the ascent. SNR drops, ModCod steps down.</li>
+</ol>
+
+<div class="svg-container">
+<svg viewBox="0 0 720 340" xmlns="http://www.w3.org/2000/svg">
+  <text x="360" y="22" text-anchor="middle" fill="rgba(216,224,236,0.5)" font-size="13">ModCod Selection During a Pass (Adaptive with Hysteresis)</text>
+
+  <!-- Axes -->
+  <line x1="80" y1="290" x2="660" y2="290" stroke="var(--dim)" stroke-width="1"/>
+  <line x1="80" y1="290" x2="80" y2="50" stroke="var(--dim)" stroke-width="1"/>
+
+  <!-- Y axis labels -->
+  <text x="30" y="175" text-anchor="middle" fill="var(--dim)" font-size="11" transform="rotate(-90,30,175)">SNR (dB) / ModCod</text>
+
+  <!-- SNR scale -->
+  <text x="72" y="290" text-anchor="end" fill="var(--dim)" font-size="9" font-family="var(--font-mono)">0</text>
+  <text x="72" y="242" text-anchor="end" fill="var(--dim)" font-size="9" font-family="var(--font-mono)">5</text>
+  <text x="72" y="194" text-anchor="end" fill="var(--dim)" font-size="9" font-family="var(--font-mono)">10</text>
+  <text x="72" y="146" text-anchor="end" fill="var(--dim)" font-size="9" font-family="var(--font-mono)">15</text>
+  <text x="72" y="98" text-anchor="end" fill="var(--dim)" font-size="9" font-family="var(--font-mono)">20</text>
+
+  <!-- X axis -->
+  <text x="370" y="320" text-anchor="middle" fill="var(--dim)" font-size="11">Pass Time (minutes)</text>
+  <text x="80" y="308" text-anchor="middle" fill="var(--dim)" font-size="9" font-family="var(--font-mono)">0</text>
+  <text x="225" y="308" text-anchor="middle" fill="var(--dim)" font-size="9" font-family="var(--font-mono)">3</text>
+  <text x="370" y="308" text-anchor="middle" fill="var(--dim)" font-size="9" font-family="var(--font-mono)">5</text>
+  <text x="515" y="308" text-anchor="middle" fill="var(--dim)" font-size="9" font-family="var(--font-mono)">7</text>
+  <text x="660" y="308" text-anchor="middle" fill="var(--dim)" font-size="9" font-family="var(--font-mono)">10</text>
+
+  <!-- Grid lines -->
+  <line x1="80" y1="242" x2="660" y2="242" stroke="#1e293b" stroke-width="0.5" stroke-dasharray="4,4"/>
+  <line x1="80" y1="194" x2="660" y2="194" stroke="#1e293b" stroke-width="0.5" stroke-dasharray="4,4"/>
+  <line x1="80" y1="146" x2="660" y2="146" stroke="#1e293b" stroke-width="0.5" stroke-dasharray="4,4"/>
+
+  <!-- SNR curve (inverted parabola) -->
+  <polyline points="80,260 120,240 170,215 225,175 280,140 330,110 370,95 410,100 450,115 500,145 545,180 590,215 630,240 660,260"
+    fill="none" stroke="var(--accent)" stroke-width="2.5"/>
+  <text x="380" y="85" text-anchor="middle" fill="var(--accent)" font-size="10">SNR</text>
+
+  <!-- ModCod steps (staircase following SNR with hysteresis) -->
+  <!-- QPSK 3/4 threshold at 4.0 dB => y=252 -->
+  <!-- 8PSK 2/3 threshold at 6.6+1.5=8.1 dB => y=213 -->
+  <!-- 16APSK 3/4 threshold at 10.2+1.5=11.7 => y=178 -->
+  <!-- 32APSK 3/4 threshold at 12.8+1.5=14.3 => y=153 -->
+
+  <polyline points="80,252 120,252 145,252 145,213 170,213 200,213 200,178 225,178 265,178 265,153 330,153 370,153 450,153 470,153 470,178 500,178 530,178 530,213 560,213 590,213 590,252 660,252"
+    fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="8,3"/>
+
+  <!-- ModCod labels -->
+  <text x="112" y="248" fill="var(--dim)" font-size="8">QPSK 3/4</text>
+  <text x="182" y="208" fill="var(--dim)" font-size="8">8PSK 2/3</text>
+  <text x="242" y="173" fill="var(--dim)" font-size="8">16APSK 3/4</text>
+  <text x="370" y="148" fill="#f59e0b" font-size="9" font-weight="600">32APSK 3/4</text>
+  <text x="510" y="173" fill="var(--dim)" font-size="8">16APSK 3/4</text>
+  <text x="570" y="208" fill="var(--dim)" font-size="8">8PSK 2/3</text>
+  <text x="640" y="248" fill="var(--dim)" font-size="8">QPSK 3/4</text>
+
+  <!-- Hysteresis annotation -->
+  <rect x="475" y="42" width="185" height="35" rx="6" fill="rgba(245,158,11,0.06)" stroke="rgba(245,158,11,0.3)" stroke-width="1"/>
+  <text x="568" y="56" text-anchor="middle" fill="#f59e0b" font-size="10">1.5 dB hysteresis margin</text>
+  <text x="568" y="70" text-anchor="middle" fill="var(--dim)" font-size="9">Step up needs SNR > thresh + 1.5</text>
+</svg>
+</div>
+
+<p>Notice that the ModCod step-up and step-down points are asymmetric: the system steps up to a higher ModCod only when SNR exceeds the threshold by 1.5 dB, but steps down as soon as SNR drops below the threshold. This prevents the rapid "ModCod flapping" that would occur without hysteresis -- analogous to the power mode hysteresis in Unit 6.</p>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>7. Per-Packet Monte Carlo Simulation</h2>
+
+<p>The simulator does not use average statistics. Instead, it simulates <strong>every individual packet</strong> using Monte Carlo methods with a seeded pseudo-random number generator (PRNG).</p>
+
+<h3>Per-Packet Process</h3>
+<ol>
+  <li><strong>Compute BER</strong> from the current SNR and selected ModCod</li>
+  <li><strong>Compute PER</strong> from BER and packet size</li>
+  <li><strong>Roll the dice</strong>: generate a random number in [0,1]. If random < PER, the packet is corrupted</li>
+  <li><strong>If corrupted</strong>: increment retry counter. If retries < 4, go to step 3 with a new random draw</li>
+  <li><strong>If max retries exceeded</strong>: mark packet as dropped</li>
+  <li><strong>If delivered</strong>: record latency (propagation + processing + retry delays)</li>
+  <li><strong>Record the causal chain</strong>: snapshot of all hardware state at transmission time</li>
+</ol>
+
+<h3>Why Seeded PRNG?</h3>
+<p>The PRNG seed ensures <strong>reproducibility</strong>. Running the same simulation with the same seed produces identical packet-level results. This is essential for debugging: if a user reports throughput collapse at T=240s, the developer can replay the exact same simulation and inspect every packet decision at that time. Without deterministic randomness, debugging stochastic behavior would be nearly impossible.</p>
+
+<pre><code>// Simplified per-packet simulation
+function simulatePacket(state: SimState, prng: PRNG): PacketRecord {
+  const ber = computeBER(state.snr_linear, state.modcod);
+  const per = 1 - Math.pow(1 - ber, PACKET_BITS);
+
+  let attempts = 0;
+  let delivered = false;
+  while (attempts < MAX_RETRIES + 1) {
+    attempts++;
+    if (prng.next() >= per) {
+      delivered = true;
+      break;
+    }
+  }
+
+  return {
+    delivered,
+    attempts,
+    latency: computeLatency(state, attempts),
+    causalChain: snapshotState(state),
+  };
+}</code></pre>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>8. The Causal Chain</h2>
+
+<p>Every <code>PacketRecord</code> in the simulator carries a <code>causalChain</code> object -- a frozen snapshot of the entire hardware state at the moment the packet was transmitted. This is the most powerful debugging tool in the system.</p>
+
+<p>The causal chain captures:</p>
+<ul>
+  <li><strong>Orbital state</strong>: elevation, azimuth, range, Doppler shift</li>
+  <li><strong>Antenna state</strong>: scan angle, realized gain, mutual coupling loss</li>
+  <li><strong>RF chain</strong>: PA power, backoff, phase noise, EVM</li>
+  <li><strong>Thermal</strong>: PA junction temperature, radiator temperature</li>
+  <li><strong>Power</strong>: SoC, power mode, PA allowed power</li>
+  <li><strong>Link budget</strong>: EIRP, FSPL, atmospheric loss, C/N, effective SNR</li>
+  <li><strong>Modulation</strong>: selected ModCod, BER, PER</li>
+  <li><strong>Protocol</strong>: attempt number, retry count, latency breakdown</li>
+</ul>
+
+<div class="note">
+<strong>Why this matters:</strong> When you see a dropped packet, you can inspect its causal chain and trace <em>exactly</em> why it was dropped. For example: "This packet was dropped because BER=10<sup>-4</sup>, which was caused by SNR=8 dB, which was caused by EIRP being 3 dB low because the PA was in Mode 2 (8W cap) because SoC=27% because the satellite had been in eclipse for 30 minutes with a degraded battery." Every metric is a downstream consequence of hardware state.
+</div>
+
+<p>This is the culmination of the "hardware-first" philosophy: the simulator does not generate random packet losses. Every packet outcome is a deterministic consequence of the physical state of the spacecraft and the channel. Nothing is independent; everything is causal.</p>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>9. Code Connection</h2>
+
+<p>The protocol layer lives in:</p>
+
+<ul>
+  <li><code>src/simulation/protocol/packet-layer.ts</code> -- The per-packet Monte Carlo simulation. Implements the ARQ retry loop, PER computation, latency calculation, jitter modeling, and causal chain snapshots. The main function <code>simulatePackets(state, count, prng)</code> generates a batch of packet records for each simulation tick.</li>
+  <li><code>src/simulation/modulation/modcod.ts</code> -- The <code>selectModCod(snr_dB)</code> function that implements adaptive modulation with the 1.5 dB hysteresis margin. Called at the beginning of each tick to determine the current ModCod before packet simulation.</li>
+</ul>
+
+<p>Key integration point:</p>
+<pre><code>// In the main simulation tick loop:
+function tick(state: SimState, prng: PRNG): TickResult {
+  // 1. Update orbital position (Unit 1)
+  updateOrbit(state);
+
+  // 2. Update power state (Unit 6)
+  stepPower(state);
+
+  // 3. Update thermal state (Unit 4)
+  stepThermal(state);
+
+  // 4. Compute antenna gain (Unit 2)
+  updateAntennaGain(state);
+
+  // 5. Compute RF chain (PA, phase noise) (Unit 3)
+  updateRFChain(state);
+
+  // 6. Compute link budget (Unit 5)
+  computeLinkBudget(state);
+
+  // 7. Select ModCod (Unit 7)
+  state.modcod = selectModCod(state.effectiveSNR);
+
+  // 8. Simulate packets (Unit 8 -- this unit)
+  const packets = simulatePackets(state, packetsPerTick, prng);
+
+  // 9. Aggregate metrics
+  return aggregateResults(packets);
+}</code></pre>
+
+<p>The tick loop shows the full causal chain in code: orbital position drives antenna pointing drives RF chain drives link budget drives modulation selection drives packet simulation. Each step depends on the outputs of previous steps. Nothing is computed in isolation.</p>
+</div>
+
+<!-- ============================================================ -->
+<div class="refs">
+<h2>References</h2>
+<ul>
+  <li>Stallings, W. -- <em>Data and Computer Communications</em>, 10th ed., Pearson. Chapters on error detection (CRC), ARQ protocols, and performance analysis.</li>
+  <li>Lin, S. & Costello, D. J. -- <em>Error Control Coding</em>, 2nd ed., Prentice Hall. Definitive reference on FEC, ARQ, and hybrid ARQ systems.</li>
+  <li>Peterson, W. W. & Davisson, L. D. -- <em>Error-Correcting Codes</em>, MIT Press. Classic treatment of coding theory and BER-to-PER relationships.</li>
+  <li>Bertsekas, D. & Gallager, R. -- <em>Data Networks</em>, 2nd ed., Prentice Hall. Analysis of retransmission protocols, throughput, and delay.</li>
+  <li><strong>ETSI EN 302 307</strong> -- DVB-S2 standard. Defines the ModCod table, FEC parameters, and adaptive coding and modulation procedures.</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<div class="questions">
+<h2>Questions</h2>
+<ol>
+  <li>
+    <strong>PER computation.</strong> A satellite link has BER = 5 &times; 10<sup>-6</sup>. What is the PER for 1500-byte packets? For 500-byte packets? For 64-byte packets (small TCP ACK)? What does this tell you about the relationship between packet size and error resilience?
+  </li>
+  <li>
+    <strong>ARQ effectiveness.</strong> At PER = 15%, what is the drop probability with 4 retries (5 total attempts)? How many retransmissions per delivered packet on average? If the raw data rate is 600 Mbps, what is the goodput?
+  </li>
+  <li>
+    <strong>Latency budget.</strong> A satellite is at 40-degree elevation (slant range = 730 km). A packet requires 2 retransmissions before delivery. Calculate the total one-way latency including propagation (d/c), processing (1 ms), and two retry RTTs. How does this compare to the latency at zenith with no retries?
+  </li>
+  <li>
+    <strong>ModCod selection during a pass.</strong> A satellite pass has the following SNR profile: T=0: 6 dB, T=2 min: 10 dB, T=5 min: 17 dB, T=8 min: 10 dB, T=10 min: 6 dB. Using the DVB-S2X ModCod table from Unit 7 with 1.5 dB hysteresis, trace the ModCod selection at each time point. When does the first ModCod step-up occur? When does the first step-down?
+  </li>
+  <li>
+    <strong>The goodput cliff.</strong> Plot (or calculate) the goodput for raw data rate = 800 Mbps at BER values of 10<sup>-8</sup>, 10<sup>-7</sup>, 10<sup>-6</sup>, 10<sup>-5</sup>, 10<sup>-4</sup>, and 10<sup>-3</sup>. At what BER does goodput drop below 50% of the raw rate? Below 10%? This defines the operating boundary of the link.
+  </li>
+  <li>
+    <strong>Causal chain debugging.</strong> A simulation shows a packet dropped at T=312s. The causal chain snapshot shows: elevation=32 deg, PA power=8W (Mode 2), SoC=24%, SNR=7.2 dB, ModCod=QPSK 3/4, BER=2.1 &times; 10<sup>-5</sup>, PER=22.3%. Trace the root cause: why is the PA at 8W? Why is SoC so low? What single upstream change would most improve this packet's chances of delivery?
+  </li>
+</ol>
+</div>
+
+<nav class="bottom">
+  <a href="unit-7-modulation.html">&larr; Unit 7: Modulation</a>
+  <a href="index.html">Course Index</a>
+</nav>
+
+</div>
+</body>
+</html>

@@ -548,6 +548,46 @@ svg text{font-family:var(--font-body),system-ui,sans-serif;}
 
 <p>Earth rotates at about 0.0042 deg/s at the equator. Compared to the satellite's orbital angular velocity of 0.0628 deg/s, Earth's rotation is only about 7% as fast. This means the ground track of the satellite shifts westward by about 22.5 degrees per orbit (1440 minutes / 15.35 revolutions * 0.0042 deg/s * 60 s/min). This is why you do not see the same satellite at the same time every day -- the ground track pattern repeats only after many orbits.</p>
 
+<h3>Pass Quality Classification</h3>
+
+<p>Not all passes are created equal. The maximum elevation determines how much useful data can be transferred. Engineers classify passes by their peak elevation:</p>
+
+<table>
+  <tr><th>Max Elevation</th><th>Classification</th><th>Typical Duration</th><th>Link Quality</th></tr>
+  <tr><td>70-90 deg</td><td>Excellent (overhead)</td><td>7-10 minutes</td><td>Shortest slant range, minimal scan loss, highest throughput. The best ~5% of passes.</td></tr>
+  <tr><td>50-70 deg</td><td>Good</td><td>5-7 minutes</td><td>Moderate geometry. 2-4 dB worse than overhead. The majority of useful passes.</td></tr>
+  <tr><td>35-50 deg</td><td>Fair</td><td>3-5 minutes</td><td>Noticeably longer range and higher scan angles. 5-7 dB worse than overhead.</td></tr>
+  <tr><td>25-35 deg</td><td>Marginal</td><td>1-3 minutes</td><td>Near the elevation mask. Geometry changes rapidly. High path loss and scan loss. Link may use only QPSK.</td></tr>
+</table>
+
+<p>The simulator's <code>findBestPass()</code> searches 48 hours of orbital data specifically to find the highest-elevation pass. It rejects passes below 15 degrees maximum elevation entirely, because they provide negligible useful link time after accounting for all the geometric penalties.</p>
+
+<h3>Coordinate Frames</h3>
+
+<p>Understanding orbital mechanics requires working in several coordinate frames. The simulator uses three:</p>
+
+<p><strong>ECI (Earth-Centered Inertial):</strong> The primary frame for orbital propagation. The origin is at Earth's center. The X-axis points toward the vernal equinox, the Z-axis points toward the north pole, and Y completes the right-handed system. This frame does NOT rotate with the Earth -- it is fixed relative to the stars. SGP4 outputs position and velocity in ECI.</p>
+
+<p><strong>ECEF (Earth-Centered Earth-Fixed):</strong> Same origin as ECI, but rotates with the Earth. The X-axis passes through the intersection of the equator and the prime meridian (0 degrees longitude). Converting from ECI to ECEF requires knowing the Greenwich Mean Sidereal Time (GMST), which accounts for Earth's rotation angle at any given moment.</p>
+
+<p><strong>Topocentric (Look Angles):</strong> Centered on the ground station. The "up" direction is the local zenith, north and east are along the local horizon. Elevation and azimuth are angles in this frame. The <code>satellite.ecfToLookAngles()</code> function performs the ECEF-to-topocentric conversion.</p>
+
+<div class="info-box">
+  <strong>Why ECI matters:</strong> Orbital mechanics equations are simplest in ECI because this frame is approximately inertial (non-rotating, non-accelerating). In ECEF, you would need to add Coriolis and centrifugal pseudo-forces, complicating the equations unnecessarily. The simulator propagates in ECI, then converts to ECEF only when computing look angles from the ground station.
+</div>
+
+<h3>Satellite Footprint and Coverage</h3>
+
+<p>The instantaneous coverage area of a satellite at altitude h is the region of Earth's surface from which the satellite appears above a minimum elevation angle. For h = 550 km and an elevation mask of 25 degrees, the footprint has a radius of approximately:</p>
+
+<div class="math-block">
+  r_footprint = R_E * arccos( R_E * cos(el_min) / (R_E + h) ) - el_min
+  <br>= 6371 * arccos( 6371 * cos(25) / 6921 ) - 25 deg
+  <br>= 6371 * arccos(0.8342) - 25 = 6371 * 33.5 - 25 = ~540 km on the ground
+</div>
+
+<p>This means a single Starlink satellite can serve ground stations within a circle of roughly 540 km radius -- about the size of a large US state. The constellation of 4000+ satellites in the first shell ensures that multiple satellites are usually visible from any point within the coverage latitude band (roughly 53 degrees N to 53 degrees S, matching the orbital inclination).</p>
+
 <!-- ════════════════════════════════════════════════════════ -->
 <!-- SECTION 7: Code Connection -->
 <!-- ════════════════════════════════════════════════════════ -->

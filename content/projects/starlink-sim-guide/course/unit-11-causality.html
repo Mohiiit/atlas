@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unit 11: Cross-Layer Causality &amp; Root Cause Analysis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:         #060a14;
+    --surface:    #0f1520;
+    --bg-code:    #111827;
+    --text:       #d8e0ec;
+    --text-dim:   #6a7a90;
+    --accent:     #00e5ff;
+    --accent-dim: rgba(0,229,255,0.08);
+    --secondary:  #f59e0b;
+    --success:    #34d399;
+    --error:      #f87171;
+    --purple:     #a78bfa;
+    --pink:       #f472b6;
+    --border:     #1e293b;
+    --radius:     8px;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Chakra Petch', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+  }
+
+  /* -- Navigation -------------------------------- */
+  nav.top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2rem;
+    font-size: 0.9rem;
+  }
+  nav.top a { color: var(--accent); text-decoration: none; transition: color 0.2s; }
+  nav.top a:hover { color: #5ef5ff; }
+
+  nav.bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.9rem;
+  }
+  nav.bottom a {
+    display: flex; align-items: center; gap: 0.4rem;
+    color: var(--accent); text-decoration: none;
+    padding: 0.5rem 1rem; border: 1px solid var(--border); border-radius: var(--radius);
+    transition: background 0.2s, border-color 0.2s;
+  }
+  nav.bottom a:hover { background: rgba(0,229,255,0.06); border-color: var(--accent); }
+
+  /* -- Header ------------------------------------ */
+  .unit-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #004d5e, #00333e);
+    color: var(--accent); font-size: 0.75rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    padding: 0.3em 0.8em; border-radius: 4px; margin-bottom: 0.75rem;
+  }
+
+  h1 {
+    font-family: 'Chakra Petch', system-ui, sans-serif;
+    font-size: 2.2rem; font-weight: 700; color: #fff;
+    letter-spacing: -0.02em; margin-bottom: 0.5rem; line-height: 1.2;
+  }
+  .subtitle { font-size: 1.05rem; color: var(--text-dim); margin-bottom: 2rem; font-weight: 300; }
+
+  h2 {
+    font-family: 'Chakra Petch', system-ui, sans-serif;
+    font-size: 1.5rem; font-weight: 700; color: #fff;
+    margin: 3rem 0 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--border);
+  }
+  h2 .sn { color: var(--accent); margin-right: 0.3em; font-family: 'JetBrains Mono', monospace; }
+
+  h3 {
+    font-family: 'Chakra Petch', system-ui, sans-serif;
+    font-size: 1.15rem; font-weight: 600; color: var(--accent); margin: 1.8rem 0 0.6rem;
+  }
+
+  p { margin-bottom: 1rem; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  strong { color: #fff; }
+  em { color: var(--text-dim); }
+  ul, ol { padding-left: 1.5em; margin-bottom: 1rem; }
+  li { margin-bottom: 0.5rem; }
+
+  /* -- Objectives -------------------------------- */
+  .objectives {
+    background: linear-gradient(135deg, #0c1a2e, #0f1f35);
+    border: 1px solid #1e3a5f; border-left: 4px solid var(--accent);
+    border-radius: var(--radius); padding: 1.5rem 1.5rem 1rem; margin: 1.5rem 0 2rem;
+  }
+  .objectives h3 { margin-top: 0; color: var(--accent); font-size: 1rem; text-transform: uppercase; letter-spacing: 0.08em; }
+  .objectives ul { list-style: none; padding: 0; }
+  .objectives li { padding: 0.3em 0 0.3em 1.5em; position: relative; }
+  .objectives li::before { content: '\2713'; position: absolute; left: 0; color: var(--success); font-weight: 700; }
+
+  /* -- Code blocks ------------------------------- */
+  pre {
+    background: var(--bg-code); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 1.2rem 1.5rem; overflow-x: auto; margin: 1rem 0 1.5rem; font-size: 0.88rem; line-height: 1.6;
+  }
+  code { font-family: 'JetBrains Mono', 'SF Mono', Consolas, monospace; font-size: 0.88em; }
+  pre code { color: var(--text); background: none; padding: 0; }
+  p code, li code, td code {
+    background: var(--bg-code); border: 1px solid var(--border);
+    padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.88em; color: var(--accent);
+  }
+  .kw { color: var(--accent); } .str { color: var(--success); } .num { color: var(--secondary); }
+  .cmt { color: var(--text-dim); font-style: italic; } .fn { color: var(--purple); } .type { color: var(--pink); }
+
+  /* -- Math blocks ------------------------------- */
+  .math-block {
+    background: var(--bg-code); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 1rem 1.5rem; margin: 1rem 0 1.5rem;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.95rem;
+    text-align: center; color: var(--secondary); letter-spacing: 0.02em; line-height: 1.8;
+  }
+
+  /* -- Info / warning / danger boxes ------------- */
+  .info-box {
+    background: rgba(0,229,255,0.06); border: 1px solid rgba(0,229,255,0.2);
+    border-radius: var(--radius); padding: 1rem 1.2rem; margin: 1rem 0 1.5rem; font-size: 0.93rem;
+  }
+  .info-box strong { color: var(--accent); }
+
+  .warn-box {
+    background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25);
+    border-radius: var(--radius); padding: 1rem 1.2rem; margin: 1rem 0 1.5rem; font-size: 0.93rem;
+  }
+  .warn-box strong { color: var(--secondary); }
+
+  .danger-box {
+    background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25);
+    border-radius: var(--radius); padding: 1rem 1.2rem; margin: 1rem 0 1.5rem; font-size: 0.93rem;
+  }
+  .danger-box strong { color: var(--error); }
+
+  /* -- Tables ------------------------------------ */
+  table {
+    width: 100%; border-collapse: collapse; margin: 1rem 0 1.5rem; font-size: 0.9rem;
+  }
+  th {
+    background: var(--bg-code); color: var(--accent); font-weight: 600;
+    text-align: left; padding: 0.7em 0.8em; border-bottom: 2px solid var(--border);
+  }
+  td { padding: 0.6em 0.8em; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:hover td { background: rgba(0,229,255,0.03); }
+
+  /* -- SVG diagrams ------------------------------ */
+  .diagram-wrapper { display: flex; justify-content: center; margin: 1.5rem 0; }
+  .diagram-wrapper svg { max-width: 100%; height: auto; }
+  .diagram-caption {
+    text-align: center; font-size: 0.85rem; color: var(--text-dim);
+    margin-top: -0.5rem; margin-bottom: 1.5rem; font-style: italic;
+  }
+
+  /* -- Step cards for tick loop ------------------ */
+  .tick-step {
+    display: grid; grid-template-columns: 40px 1fr; gap: 12px;
+    padding: 0.9rem 1rem; margin-bottom: 0.5rem;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    border-left: 4px solid var(--accent);
+  }
+  .tick-step .step-num {
+    font-family: 'JetBrains Mono', monospace; font-size: 1.1rem; font-weight: 700;
+    color: var(--accent); display: flex; align-items: center; justify-content: center;
+  }
+  .tick-step h4 { font-family: 'Chakra Petch', sans-serif; font-size: 0.95rem; font-weight: 600; color: #fff; margin-bottom: 0.2rem; }
+  .tick-step p { font-size: 0.88rem; margin-bottom: 0.2rem; color: var(--text-dim); }
+  .tick-step .step-deps { font-size: 0.78rem; color: var(--purple); }
+  .ts-orbit { border-left-color: #818cf8; }
+  .ts-orbit .step-num { color: #818cf8; }
+  .ts-fault { border-left-color: #ef4444; }
+  .ts-fault .step-num { color: #ef4444; }
+  .ts-power { border-left-color: #f59e0b; }
+  .ts-power .step-num { color: #f59e0b; }
+  .ts-thermal { border-left-color: #f87171; }
+  .ts-thermal .step-num { color: #f87171; }
+  .ts-osc { border-left-color: #00e5ff; }
+  .ts-osc .step-num { color: #00e5ff; }
+  .ts-pa { border-left-color: #f59e0b; }
+  .ts-pa .step-num { color: #f59e0b; }
+  .ts-ant { border-left-color: #34d399; }
+  .ts-ant .step-num { color: #34d399; }
+  .ts-link { border-left-color: #60a5fa; }
+  .ts-link .step-num { color: #60a5fa; }
+  .ts-mod { border-left-color: #a78bfa; }
+  .ts-mod .step-num { color: #a78bfa; }
+  .ts-proto { border-left-color: #f472b6; }
+  .ts-proto .step-num { color: #f472b6; }
+
+  /* -- Debug walkthrough blocks ------------------ */
+  .debug-step {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 1rem 1.2rem; margin-bottom: 0.75rem; border-left: 3px solid var(--secondary);
+  }
+  .debug-step .debug-q { font-weight: 600; color: var(--secondary); margin-bottom: 0.3rem; }
+  .debug-step .debug-a { color: var(--text); font-size: 0.93rem; }
+
+  /* -- Questions --------------------------------- */
+  .questions { counter-reset: question; list-style: none; padding: 0; }
+  .questions li {
+    counter-increment: question;
+    background: var(--bg-code); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 1rem 1.2rem; margin-bottom: 0.75rem; position: relative; padding-left: 3.5rem;
+  }
+  .questions li::before {
+    content: 'Q' counter(question); position: absolute; left: 1rem; top: 1rem;
+    color: var(--accent); font-weight: 700; font-size: 0.85rem; font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* -- References -------------------------------- */
+  .ref-list { list-style: none; padding: 0; }
+  .ref-list li { padding: 0.5em 0 0.5em 1.5em; position: relative; font-size: 0.93rem; }
+  .ref-list li::before { content: '\25B8'; position: absolute; left: 0; color: var(--accent); }
+
+  /* -- Responsive -------------------------------- */
+  @media (max-width: 640px) {
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.25rem; }
+    pre { font-size: 0.8rem; padding: 1rem; }
+    .container { padding: 1rem; }
+    .tick-step { grid-template-columns: 32px 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- ============ TOP NAV ============ -->
+<nav class="top">
+  <a href="unit-10-faults.html">&larr; Unit 10</a>
+  <span style="color:var(--text-dim)">Unit 11 of 11</span>
+  <a href="index.html">Home</a>
+</nav>
+
+<div class="unit-badge">Unit 11 -- Capstone</div>
+<h1>Cross-Layer Causality &amp; Root Cause Analysis</h1>
+<p class="subtitle">Why independent throughput curves are wrong and how to debug from hardware up.</p>
+
+<!-- ============ LEARNING OBJECTIVES ============ -->
+<div class="objectives">
+  <h3>Learning Objectives</h3>
+  <ul>
+    <li>Articulate why throughput = f(elevation) is fundamentally incomplete for satellite communications</li>
+    <li>Enumerate the 10-step simulation tick loop and explain each step's data dependencies</li>
+    <li>Explain why steps 3-4 use the previous tick's state to break circular dependencies</li>
+    <li>Perform a root cause analysis: starting from a goodput anomaly, trace backward through the causal chain to identify hardware root causes</li>
+    <li>Describe the causalChain field in PacketRecord and its role in per-packet attribution</li>
+    <li>Predict emergent behaviors from interacting faults that no single-layer model would capture</li>
+  </ul>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 1: The Fundamental Insight -->
+<!-- ============================================================ -->
+<h2><span class="sn">11.1</span> The Fundamental Insight</h2>
+
+<p>
+Most satellite communication simulators model throughput as a function of elevation angle: as the satellite rises above the horizon, throughput climbs; at TCA (Time of Closest Approach) it peaks; then it falls as the satellite sets. The shape is smooth, predictable, and wrong.
+</p>
+
+<p>
+This model treats the satellite as a <strong>black box</strong>. It assumes that given the same geometry, the satellite will always produce the same throughput. But reality is different: <strong>two passes at the same elevation can produce wildly different throughput</strong> depending on:
+</p>
+
+<ul>
+  <li><strong>PA temperature:</strong> If the PA has been transmitting for 3 minutes, it is 30&#176;C hotter than at pass start. Output power is lower, EVM is higher (Unit 3, Unit 4).</li>
+  <li><strong>Battery state:</strong> During eclipse or after sustained high-power operation, the battery SoC may trigger power-saving modes that reduce PA drive (Unit 4).</li>
+  <li><strong>Element health:</strong> Degraded array elements reduce gain and increase sidelobes regardless of elevation (Unit 2).</li>
+  <li><strong>Oscillator stability:</strong> Frequency drift and phase noise depend on thermal history, not geometry (Unit 9).</li>
+  <li><strong>Fault state:</strong> Active faults inject hardware degradation that has nothing to do with the pass geometry (Unit 10).</li>
+</ul>
+
+<div class="danger-box">
+  <strong>The core problem with elevation-based models:</strong> They conflate correlation with causation. Throughput correlates with elevation because elevation determines path loss -- but throughput also depends on a dozen hardware states that are invisible to geometry. The simulator exists to make these hidden variables visible.
+</div>
+
+<!-- SVG: Comparison of idealized vs actual throughput -->
+<div class="diagram-wrapper">
+<svg viewBox="0 0 780 380" xmlns="http://www.w3.org/2000/svg">
+  <rect width="780" height="380" fill="#111827" rx="8"/>
+
+  <text x="390" y="28" fill="#d8e0ec" font-size="14" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">Idealized vs. Actual Goodput During a Pass</text>
+
+  <!-- Axes -->
+  <line x1="70" y1="330" x2="730" y2="330" stroke="#6a7a90" stroke-width="1"/>
+  <line x1="70" y1="50" x2="70" y2="330" stroke="#6a7a90" stroke-width="1"/>
+
+  <!-- X axis labels -->
+  <text x="70" y="350" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">AOS</text>
+  <text x="250" y="350" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">T+120s</text>
+  <text x="400" y="350" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">TCA</text>
+  <text x="550" y="350" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">T+360s</text>
+  <text x="730" y="350" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">LOS</text>
+  <text x="400" y="372" fill="#6a7a90" font-size="11" font-family="Chakra Petch, sans-serif" text-anchor="middle">Pass Time</text>
+
+  <!-- Y axis labels -->
+  <text x="62" y="334" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="end">0</text>
+  <text x="62" y="264" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="end">40</text>
+  <text x="62" y="194" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="end">80</text>
+  <text x="62" y="124" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="end">120</text>
+  <text x="62" y="60" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="end">160</text>
+  <text x="25" y="195" fill="#6a7a90" font-size="11" font-family="Chakra Petch, sans-serif" text-anchor="middle" transform="rotate(-90, 25, 195)">Goodput (Mbps)</text>
+
+  <!-- Grid -->
+  <line x1="70" y1="264" x2="730" y2="264" stroke="#1e293b" stroke-width="0.5"/>
+  <line x1="70" y1="194" x2="730" y2="194" stroke="#1e293b" stroke-width="0.5"/>
+  <line x1="70" y1="124" x2="730" y2="124" stroke="#1e293b" stroke-width="0.5"/>
+  <line x1="400" y1="50" x2="400" y2="330" stroke="#1e293b" stroke-width="0.5" stroke-dasharray="6,4"/>
+
+  <!-- Idealized curve: smooth parabolic shape -->
+  <polyline fill="none" stroke="#6a7a90" stroke-width="2" stroke-dasharray="8,4"
+    points="70,330 100,312 140,282 180,248 220,210 260,176 300,148 340,126 370,114 400,108 430,114 460,126 500,148 540,176 580,210 620,248 660,282 700,312 730,330"/>
+
+  <!-- Fill under idealized -->
+  <polygon fill="rgba(106,122,144,0.05)"
+    points="70,330 100,312 140,282 180,248 220,210 260,176 300,148 340,126 370,114 400,108 430,114 460,126 500,148 540,176 580,210 620,248 660,282 700,312 730,330"/>
+
+  <!-- Actual curve: jagged, with hardware-induced variations -->
+  <polyline fill="none" stroke="#00e5ff" stroke-width="2.5"
+    points="70,330 85,320 100,308 120,290 140,275 160,255 180,240 200,218 220,200 240,182 260,168 280,155 300,142 320,130 340,120 355,114 370,110 385,107 400,105 415,108 425,122 432,138 440,130 450,135 465,145 480,150 500,160 515,180 530,200 540,215 550,230 560,228 570,235 580,248 590,256 600,268 620,260 630,275 650,290 670,302 690,316 710,325 730,330"/>
+
+  <!-- Fill under actual -->
+  <polygon fill="rgba(0,229,255,0.04)"
+    points="70,330 85,320 100,308 120,290 140,275 160,255 180,240 200,218 220,200 240,182 260,168 280,155 300,142 320,130 340,120 355,114 370,110 385,107 400,105 415,108 425,122 432,138 440,130 450,135 465,145 480,150 500,160 515,180 530,200 540,215 550,230 560,228 570,235 580,248 590,256 600,268 620,260 630,275 650,290 670,302 690,316 710,325 730,330"/>
+
+  <!-- Annotations for dips -->
+  <!-- Dip at ~T+250s: attitude glitch -->
+  <line x1="425" y1="122" x2="460" y2="80" stroke="#f59e0b" stroke-width="1" stroke-dasharray="3,2"/>
+  <rect x="462" y="68" width="130" height="24" rx="4" fill="#0f1520" stroke="#f59e0b" stroke-width="1"/>
+  <text x="527" y="84" fill="#f59e0b" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">Attitude glitch</text>
+
+  <!-- Dip at ~T+310s: PA thermal -->
+  <line x1="530" y1="200" x2="560" y2="92" stroke="#ef4444" stroke-width="1" stroke-dasharray="3,2"/>
+  <rect x="562" y="80" width="138" height="24" rx="4" fill="#0f1520" stroke="#ef4444" stroke-width="1"/>
+  <text x="631" y="96" fill="#ef4444" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">PA thermal throttle</text>
+
+  <!-- Recovery bump at ~T+350s -->
+  <line x1="620" y1="260" x2="650" y2="118" stroke="#34d399" stroke-width="1" stroke-dasharray="3,2"/>
+  <rect x="612" y="104" width="110" height="24" rx="4" fill="#0f1520" stroke="#34d399" stroke-width="1"/>
+  <text x="667" y="120" fill="#34d399" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">Brief recovery</text>
+
+  <!-- Legend -->
+  <rect x="100" y="55" width="220" height="52" rx="6" fill="#0f1520" stroke="#1e293b" stroke-width="1"/>
+  <line x1="112" y1="72" x2="142" y2="72" stroke="#6a7a90" stroke-width="2" stroke-dasharray="8,4"/>
+  <text x="150" y="76" fill="#d8e0ec" font-size="10" font-family="Chakra Petch, sans-serif">Idealized: throughput = f(elevation)</text>
+  <line x1="112" y1="92" x2="142" y2="92" stroke="#00e5ff" stroke-width="2.5"/>
+  <text x="150" y="96" fill="#d8e0ec" font-size="10" font-family="Chakra Petch, sans-serif">Actual: hardware-coupled simulation</text>
+</svg>
+</div>
+<div class="diagram-caption">Figure 11.1 -- The dashed gray curve is what an elevation-only model predicts: smooth, symmetric, deterministic. The cyan curve is the simulator output with hardware coupling and faults: jagged, asymmetric, with dips and recoveries caused by thermal throttling, attitude glitches, and oscillator effects. Same orbital pass, same geometry -- different hardware states produce different throughput.</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 2: The 10-Step Tick Loop -->
+<!-- ============================================================ -->
+<h2><span class="sn">11.2</span> The 10-Step Simulation Tick Loop</h2>
+
+<p>
+Every second of simulated time, the simulation engine executes 10 steps in a specific order. The order is not arbitrary -- it is determined by the data dependencies between subsystems. Each step consumes outputs from previous steps and produces inputs for subsequent ones.
+</p>
+
+<div class="tick-step ts-orbit">
+  <div class="step-num">1</div>
+  <div>
+    <h4>Orbit Geometry</h4>
+    <p>SGP4 propagation computes satellite position. From position + ground station location, derive: elevation, azimuth, slant range, Doppler shift, and the required beam steering angle.</p>
+    <p class="step-deps">Inputs: TLE, current time, ground station coordinates | Outputs: elevation, azimuth, range, steeringAngle</p>
+  </div>
+</div>
+
+<div class="tick-step ts-fault">
+  <div class="step-num">2</div>
+  <div>
+    <h4>Fault Engine</h4>
+    <p>Check the fault schedule against current time. Activate, maintain, or deactivate faults. Apply fault effects to component states: disable elements, reduce P1dB, drop emissivity, set PLL unlock flag, etc.</p>
+    <p class="step-deps">Inputs: fault schedule, current time | Outputs: modified component states (antenna, PA, oscillator, thermal, power)</p>
+  </div>
+</div>
+
+<div class="tick-step ts-power">
+  <div class="step-num">3</div>
+  <div>
+    <h4>Power Bus</h4>
+    <p>Compute solar panel output (based on sun angle and panel health), battery charge/discharge, and available bus power. Determine if power-saving modes are needed. <strong>Uses previous tick's thermal state</strong> to compute panel efficiency degradation from temperature.</p>
+    <p class="step-deps">Inputs: sun angle, battery SoC, panel faults, <em>prev thermal state</em> | Outputs: busVoltage, availablePower, batteryState, powerMode</p>
+  </div>
+</div>
+
+<div class="tick-step ts-thermal">
+  <div class="step-num">4</div>
+  <div>
+    <h4>Thermal Model</h4>
+    <p>Lumped thermal model: compute heat generation from each component, radiative cooling (Stefan-Boltzmann), conductive coupling between nodes. <strong>Uses previous tick's PA heat dissipation</strong> to break the PA-temperature circular dependency.</p>
+    <p class="step-deps">Inputs: radiator state, <em>prev PA heat</em>, sun flux, eclipse state | Outputs: paTemp, oscTemp, batteryTemp, busTemp</p>
+  </div>
+</div>
+
+<div class="tick-step ts-osc">
+  <div class="step-num">5</div>
+  <div>
+    <h4>Oscillator</h4>
+    <p>Compute frequency offset from thermal drift model (Unit 9). Determine PLL lock state. Calculate phase noise including temperature degradation and unlock penalties.</p>
+    <p class="step-deps">Inputs: oscTemp (from step 4), fault flags, PLL state | Outputs: freqOffset, phaseNoise, pllLocked, oscEvm</p>
+  </div>
+</div>
+
+<div class="tick-step ts-pa">
+  <div class="step-num">6</div>
+  <div>
+    <h4>Power Amplifier</h4>
+    <p>Rapp model: compute output power at current operating point, accounting for thermal derating (paTemp from step 4), available bus power (step 3), and PA faults (step 2). Calculate AM/AM compression, AM/PM distortion, and PA contribution to EVM.</p>
+    <p class="step-deps">Inputs: paTemp, availablePower, PA faults, backoff setting | Outputs: outputPower, paEvm, heatDissipated</p>
+  </div>
+</div>
+
+<div class="tick-step ts-ant">
+  <div class="step-num">7</div>
+  <div>
+    <h4>Phased Array</h4>
+    <p>Compute antenna gain at the current steering angle (from step 1). Apply scan loss, mutual coupling degradation, and element failure effects (from step 2). Calculate effective beam pattern.</p>
+    <p class="step-deps">Inputs: steeringAngle, active elements, element faults | Outputs: antennaGain, scanLoss, effectivePattern</p>
+  </div>
+</div>
+
+<div class="tick-step ts-link">
+  <div class="step-num">8</div>
+  <div>
+    <h4>Link Budget</h4>
+    <p>The central calculation (Unit 5). EIRP = PA output + antenna gain. Path loss from slant range. Atmospheric attenuation from elevation angle. Receiver G/T. Compute C/N, then SNR including all penalties: EVM from PA, EVM from oscillator, pointing loss.</p>
+    <p class="step-deps">Inputs: outputPower, antennaGain, range, elevation, paEvm, oscEvm | Outputs: eirp, pathLoss, snr, effectiveSNR</p>
+  </div>
+</div>
+
+<div class="tick-step ts-mod">
+  <div class="step-num">9</div>
+  <div>
+    <h4>Modulation Selection</h4>
+    <p>DVB-S2X adaptive modulation: select the highest ModCod whose SNR threshold is met with the required margin (Unit 6). Compute spectral efficiency and theoretical BER.</p>
+    <p class="step-deps">Inputs: effectiveSNR, channel bandwidth | Outputs: modCod, spectralEfficiency, theoreticalBER, bitsPerSymbol</p>
+  </div>
+</div>
+
+<div class="tick-step ts-proto">
+  <div class="step-num">10</div>
+  <div>
+    <h4>Protocol Layer</h4>
+    <p>Packet formation, FEC encoding, transmission. Apply BER to compute packet error rate. ARQ retransmissions. Compute goodput = gross bitrate &times; (1 - overhead) &times; (1 - packetLossRate). Build causalChain record.</p>
+    <p class="step-deps">Inputs: modCod, spectralEfficiency, BER, scheduling jitter | Outputs: goodput, packetsSent, packetsLost, causalChain</p>
+  </div>
+</div>
+
+<div class="warn-box">
+  <strong>Why order matters:</strong> If you computed the PA output before knowing the temperature (swapping steps 4 and 6), the PA model would use stale thermal data and miss thermal throttling. If you computed the link budget before the antenna gain (swapping steps 7 and 8), you would have no gain value to use. The simulation's causal fidelity depends on this ordering.
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 3: Why Steps 3-4 Use Previous Tick -->
+<!-- ============================================================ -->
+<h2><span class="sn">11.3</span> Breaking Circular Dependencies</h2>
+
+<p>
+There is a fundamental circular dependency in the simulation: <strong>the PA generates heat that affects temperature, but temperature determines how much power the PA can output, which determines how much heat it generates</strong>. In continuous time, this is a differential equation. In discrete simulation ticks, we must break the cycle.
+</p>
+
+<p>The solution: steps 3 (Power) and 4 (Thermal) use the <strong>previous tick's</strong> PA heat dissipation to compute the current tick's temperature. Then steps 5-6 use the current tick's temperature to compute the new PA output and heat. This introduces a one-tick (1 second) delay in the thermal feedback loop.</p>
+
+<div class="math-block">
+  T[t] = f(T[t-1], Q<sub>PA</sub>[t-1], Q<sub>radiator</sub>[t-1])<br>
+  P<sub>PA</sub>[t] = g(T[t], V<sub>bus</sub>[t], faults[t])<br>
+  Q<sub>PA</sub>[t] = P<sub>PA</sub>[t] &times; (1 - &eta;)
+</div>
+
+<p>
+This is the standard approach in real-time simulation (Euler integration with explicit thermal coupling). The 1-second delay is physically justified: the thermal mass of the PA heat sink and the thermal bus means that heat generated at time t does not instantaneously change the temperature -- it takes seconds to propagate. The simulation's 1-second tick rate is well within the thermal time constant (~30-60 seconds).
+</p>
+
+<div class="info-box">
+  <strong>Stability criterion:</strong> This explicit integration scheme is stable as long as the tick rate is much shorter than the system's fastest thermal time constant. With a 30-second PA thermal time constant and a 1-second tick, we have a 30x margin. If you tried to run the simulation at 1 tick per 60 seconds, the thermal feedback could become unstable.
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 4: The Tick Loop Dependency Diagram -->
+<!-- ============================================================ -->
+<h2><span class="sn">11.4</span> Data Dependency Diagram</h2>
+
+<p>
+The following diagram shows all 10 steps with their data flow connections. Solid arrows are current-tick dependencies; dashed arrows are previous-tick dependencies.
+</p>
+
+<!-- SVG: Full dependency diagram -->
+<div class="diagram-wrapper">
+<svg viewBox="0 0 800 580" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="580" fill="#111827" rx="8"/>
+
+  <text x="400" y="24" fill="#d8e0ec" font-size="13" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">Simulation Tick Loop -- Data Dependencies</text>
+
+  <!-- Step boxes arranged in a flow -->
+  <!-- Row 1: Geometry + Faults -->
+  <rect x="60" y="45" width="170" height="38" rx="6" fill="rgba(129,140,248,0.1)" stroke="#818cf8" stroke-width="1.5"/>
+  <text x="145" y="69" fill="#818cf8" font-size="12" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">1. Orbit Geometry</text>
+
+  <rect x="300" y="45" width="170" height="38" rx="6" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5"/>
+  <text x="385" y="69" fill="#ef4444" font-size="12" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">2. Fault Engine</text>
+
+  <!-- Row 2: Power + Thermal -->
+  <rect x="60" y="130" width="170" height="38" rx="6" fill="rgba(245,158,11,0.1)" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="145" y="154" fill="#f59e0b" font-size="12" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">3. Power Bus</text>
+
+  <rect x="300" y="130" width="170" height="38" rx="6" fill="rgba(248,113,113,0.1)" stroke="#f87171" stroke-width="1.5"/>
+  <text x="385" y="154" fill="#f87171" font-size="12" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">4. Thermal Model</text>
+
+  <!-- Row 3: Oscillator + PA -->
+  <rect x="60" y="215" width="170" height="38" rx="6" fill="rgba(0,229,255,0.1)" stroke="#00e5ff" stroke-width="1.5"/>
+  <text x="145" y="239" fill="#00e5ff" font-size="12" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">5. Oscillator</text>
+
+  <rect x="300" y="215" width="170" height="38" rx="6" fill="rgba(245,158,11,0.1)" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="385" y="239" fill="#f59e0b" font-size="12" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">6. Power Amplifier</text>
+
+  <!-- Row 4: Antenna -->
+  <rect x="540" y="215" width="170" height="38" rx="6" fill="rgba(52,211,153,0.1)" stroke="#34d399" stroke-width="1.5"/>
+  <text x="625" y="239" fill="#34d399" font-size="12" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">7. Phased Array</text>
+
+  <!-- Row 5: Link Budget -->
+  <rect x="200" y="310" width="200" height="38" rx="6" fill="rgba(96,165,250,0.1)" stroke="#60a5fa" stroke-width="1.5"/>
+  <text x="300" y="334" fill="#60a5fa" font-size="12" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">8. Link Budget</text>
+
+  <!-- Row 6: Modulation -->
+  <rect x="200" y="395" width="200" height="38" rx="6" fill="rgba(167,139,250,0.1)" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="300" y="419" fill="#a78bfa" font-size="12" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">9. Modulation Select</text>
+
+  <!-- Row 7: Protocol -->
+  <rect x="200" y="480" width="200" height="38" rx="6" fill="rgba(244,114,182,0.1)" stroke="#f472b6" stroke-width="1.5"/>
+  <text x="300" y="504" fill="#f472b6" font-size="12" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">10. Protocol Layer</text>
+
+  <!-- ARROWS: current-tick (solid) -->
+  <!-- Faults -> Power, Thermal, PA, Antenna, Oscillator -->
+  <line x1="385" y1="83" x2="200" y2="130" stroke="#ef4444" stroke-width="1" opacity="0.5" marker-end="url(#arr11r)"/>
+  <line x1="385" y1="83" x2="385" y2="130" stroke="#ef4444" stroke-width="1" opacity="0.5" marker-end="url(#arr11r)"/>
+  <line x1="385" y1="83" x2="145" y2="215" stroke="#ef4444" stroke-width="1" opacity="0.3" marker-end="url(#arr11r)"/>
+  <line x1="385" y1="83" x2="385" y2="215" stroke="#ef4444" stroke-width="1" opacity="0.3" marker-end="url(#arr11r)"/>
+  <line x1="450" y1="83" x2="625" y2="215" stroke="#ef4444" stroke-width="1" opacity="0.3" marker-end="url(#arr11r)"/>
+
+  <!-- Geometry -> Antenna, Link Budget -->
+  <line x1="230" y1="64" x2="540" y2="234" stroke="#818cf8" stroke-width="1" opacity="0.5" marker-end="url(#arr11b)"/>
+  <line x1="145" y1="83" x2="230" y2="310" stroke="#818cf8" stroke-width="1" opacity="0.4" marker-end="url(#arr11b)"/>
+
+  <!-- Power -> PA -->
+  <line x1="200" y1="168" x2="340" y2="215" stroke="#f59e0b" stroke-width="1" opacity="0.5" marker-end="url(#arr11y)"/>
+
+  <!-- Thermal -> Oscillator, PA -->
+  <line x1="340" y1="168" x2="200" y2="215" stroke="#f87171" stroke-width="1" opacity="0.6" marker-end="url(#arr11o)"/>
+  <line x1="385" y1="168" x2="385" y2="215" stroke="#f87171" stroke-width="1" opacity="0.6" marker-end="url(#arr11o)"/>
+
+  <!-- Oscillator -> Link Budget -->
+  <line x1="145" y1="253" x2="230" y2="310" stroke="#00e5ff" stroke-width="1" opacity="0.5" marker-end="url(#arr11c)"/>
+
+  <!-- PA -> Link Budget -->
+  <line x1="385" y1="253" x2="340" y2="310" stroke="#f59e0b" stroke-width="1" opacity="0.6" marker-end="url(#arr11y)"/>
+
+  <!-- Antenna -> Link Budget -->
+  <line x1="580" y1="253" x2="400" y2="318" stroke="#34d399" stroke-width="1" opacity="0.5" marker-end="url(#arr11g)"/>
+
+  <!-- Link Budget -> Modulation -->
+  <line x1="300" y1="348" x2="300" y2="395" stroke="#60a5fa" stroke-width="1.5" opacity="0.7" marker-end="url(#arr11bl)"/>
+
+  <!-- Modulation -> Protocol -->
+  <line x1="300" y1="433" x2="300" y2="480" stroke="#a78bfa" stroke-width="1.5" opacity="0.7" marker-end="url(#arr11p)"/>
+
+  <!-- DASHED ARROWS: previous-tick feedback -->
+  <!-- PA heat -> Thermal (prev tick) -->
+  <path d="M 470 230 Q 530 180 470 149" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="6,4" opacity="0.6" marker-end="url(#arr11y)"/>
+  <text x="530" y="185" fill="#f59e0b" font-size="9" font-family="JetBrains Mono, monospace" opacity="0.7">t-1</text>
+
+  <!-- Thermal -> Power (prev tick) -->
+  <path d="M 300 148 Q 260 148 230 148" fill="none" stroke="#f87171" stroke-width="1.5" stroke-dasharray="6,4" opacity="0.5" marker-end="url(#arr11o)"/>
+  <text x="265" y="140" fill="#f87171" font-size="9" font-family="JetBrains Mono, monospace" opacity="0.7">t-1</text>
+
+  <!-- Output label -->
+  <rect x="220" y="536" width="160" height="28" rx="6" fill="rgba(244,114,182,0.08)" stroke="#f472b6" stroke-width="1"/>
+  <text x="300" y="555" fill="#f472b6" font-size="11" font-family="JetBrains Mono, monospace" text-anchor="middle">goodput, causalChain</text>
+
+  <line x1="300" y1="518" x2="300" y2="536" stroke="#f472b6" stroke-width="1" marker-end="url(#arr11pk)"/>
+
+  <!-- Legend -->
+  <rect x="560" y="45" width="210" height="80" rx="6" fill="#0f1520" stroke="#1e293b" stroke-width="1"/>
+  <line x1="575" y1="65" x2="605" y2="65" stroke="#6a7a90" stroke-width="1.5"/>
+  <text x="612" y="69" fill="#d8e0ec" font-size="10" font-family="Chakra Petch, sans-serif">Current tick dependency</text>
+  <line x1="575" y1="85" x2="605" y2="85" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="6,4"/>
+  <text x="612" y="89" fill="#d8e0ec" font-size="10" font-family="Chakra Petch, sans-serif">Previous tick (t-1)</text>
+  <text x="575" y="112" fill="#6a7a90" font-size="9" font-family="Chakra Petch, sans-serif">Color = source subsystem</text>
+
+  <defs>
+    <marker id="arr11r" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="7" markerHeight="5" orient="auto"><path d="M0,0 L10,3 L0,6" fill="#ef4444"/></marker>
+    <marker id="arr11b" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="7" markerHeight="5" orient="auto"><path d="M0,0 L10,3 L0,6" fill="#818cf8"/></marker>
+    <marker id="arr11y" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="7" markerHeight="5" orient="auto"><path d="M0,0 L10,3 L0,6" fill="#f59e0b"/></marker>
+    <marker id="arr11o" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="7" markerHeight="5" orient="auto"><path d="M0,0 L10,3 L0,6" fill="#f87171"/></marker>
+    <marker id="arr11c" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="7" markerHeight="5" orient="auto"><path d="M0,0 L10,3 L0,6" fill="#00e5ff"/></marker>
+    <marker id="arr11g" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="7" markerHeight="5" orient="auto"><path d="M0,0 L10,3 L0,6" fill="#34d399"/></marker>
+    <marker id="arr11bl" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="7" markerHeight="5" orient="auto"><path d="M0,0 L10,3 L0,6" fill="#60a5fa"/></marker>
+    <marker id="arr11p" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="7" markerHeight="5" orient="auto"><path d="M0,0 L10,3 L0,6" fill="#a78bfa"/></marker>
+    <marker id="arr11pk" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="7" markerHeight="5" orient="auto"><path d="M0,0 L10,3 L0,6" fill="#f472b6"/></marker>
+  </defs>
+</svg>
+</div>
+<div class="diagram-caption">Figure 11.2 -- The full 10-step tick loop with data dependencies. Solid arrows flow within the current tick; dashed arrows (labeled t-1) carry data from the previous tick to break the thermal-RF circular dependency.</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 5: Debugging Walkthrough -->
+<!-- ============================================================ -->
+<h2><span class="sn">11.5</span> A Debugging Walkthrough</h2>
+
+<p>
+This is the core skill of hardware-first satellite communications engineering: <strong>given an anomaly in the output, trace backward through the causal chain to find the root cause</strong>. Let us work a concrete example.
+</p>
+
+<h3>The Symptom</h3>
+<p>
+At T+247s into a pass, goodput drops from 120 Mbps to 40 Mbps -- a 67% collapse. The pass elevation at T+247s is still 58&#176; (well above the 10&#176; minimum), so geometry alone cannot explain this.
+</p>
+
+<h3>The Investigation</h3>
+
+<div class="debug-step">
+  <div class="debug-q">Step 1: What did the ModCod do?</div>
+  <div class="debug-a">The modulation dropped from <strong>16QAM 3/4</strong> (4.44 bits/symbol) to <strong>QPSK 1/2</strong> (1.0 bits/symbol) at T+245s. That is a 4.4x spectral efficiency reduction, which accounts for the ~3x throughput drop (the remaining factor comes from increased retransmissions). <em>The ModCod selection was responding to an SNR threshold crossing.</em></div>
+</div>
+
+<div class="debug-step">
+  <div class="debug-q">Step 2: What happened to SNR?</div>
+  <div class="debug-a">Effective SNR dropped from 18.2 dB to 10.1 dB -- an <strong>8.1 dB</strong> collapse. 16QAM 3/4 requires 16.5 dB; QPSK 1/2 requires 6.7 dB. The SNR fell through the 16QAM threshold and landed with margin only for QPSK. <em>Now we need to find the 8.1 dB.</em></div>
+</div>
+
+<div class="debug-step">
+  <div class="debug-q">Step 3: Where did the 8.1 dB go?</div>
+  <div class="debug-a">Breaking down the SNR components at T+247s vs T+240s (before the drop):
+  <br>-- EIRP dropped by <strong>3.2 dB</strong> (from 44.1 to 40.9 dBW)
+  <br>-- Free-space path loss increased by <strong>0.3 dB</strong> (elevation changed slightly)
+  <br>-- EVM penalty increased by <strong>4.6 dB</strong> (from 1.1 to 5.7 dB effective SNR penalty)
+  <br>Total: 3.2 + 0.3 + 4.6 = <strong>8.1 dB</strong>. Accounted for.
+  </div>
+</div>
+
+<div class="debug-step">
+  <div class="debug-q">Step 4: Why did EIRP drop 3.2 dB?</div>
+  <div class="debug-a">PA output power fell from 9.8 W to 4.7 W. The PA temperature hit <strong>85&#176;C</strong>, triggering the thermal throttle derating curve. Additionally, antenna gain dropped 0.5 dB because the steering angle increased as the satellite moved past TCA. <em>Root cause #1: PA thermal throttling.</em></div>
+</div>
+
+<div class="debug-step">
+  <div class="debug-q">Step 5: Why did EVM spike 4.6 dB?</div>
+  <div class="debug-a">Two contributing factors:
+  <br>-- PA EVM increased from 3.2% to 5.8% because the PA operating point shifted closer to compression as output power was throttled (the backoff decreased).
+  <br>-- Oscillator EVM increased from 0.5% to 4.1% because the oscillator temperature reached 62&#176;C, causing 180 kHz of frequency drift. The PLL tracking error grew to 15% of the loop bandwidth.
+  <br>RSS total EVM: sqrt(5.8&sup2; + 4.1&sup2;) = 7.1%, translating to the 5.7 dB SNR penalty. <em>Root cause #2: Oscillator thermal drift (coupled to PA heating).</em></div>
+</div>
+
+<h3>Root Cause Summary</h3>
+
+<p>
+The 120 &rarr; 40 Mbps collapse was caused by two coupled hardware effects:
+</p>
+
+<ol>
+  <li><strong>PA thermal throttling</strong> at 85&#176;C reduced EIRP by 3.2 dB (direct power loss).</li>
+  <li><strong>Oscillator thermal drift</strong> from PA heating increased EVM by 4.6 dB (signal quality degradation).</li>
+</ol>
+
+<p>
+Both root causes trace to the same physical origin: <strong>accumulated PA heat after 4 minutes of high-power transmission</strong>. An elevation-only model would have predicted 120 Mbps at 58&#176; elevation. The hardware-coupled simulation correctly predicts 40 Mbps because it tracks the thermal history.
+</p>
+
+<!-- SVG: Causal tree for this investigation -->
+<div class="diagram-wrapper">
+<svg viewBox="0 0 780 420" xmlns="http://www.w3.org/2000/svg">
+  <rect width="780" height="420" fill="#111827" rx="8"/>
+
+  <text x="390" y="24" fill="#d8e0ec" font-size="13" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">Root Cause Tree: Goodput Collapse at T+247s</text>
+
+  <!-- Top: symptom -->
+  <rect x="250" y="40" width="280" height="36" rx="6" fill="rgba(244,114,182,0.12)" stroke="#f472b6" stroke-width="2"/>
+  <text x="390" y="63" fill="#f472b6" font-size="12" font-family="JetBrains Mono, monospace" text-anchor="middle">Goodput: 120 &rarr; 40 Mbps</text>
+
+  <line x1="390" y1="76" x2="390" y2="100" stroke="#6a7a90" stroke-width="1.5" marker-end="url(#arr11d)"/>
+
+  <!-- ModCod drop -->
+  <rect x="240" y="100" width="300" height="32" rx="6" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="390" y="121" fill="#a78bfa" font-size="11" font-family="JetBrains Mono, monospace" text-anchor="middle">ModCod: 16QAM 3/4 &rarr; QPSK 1/2</text>
+
+  <line x1="390" y1="132" x2="390" y2="155" stroke="#6a7a90" stroke-width="1.5" marker-end="url(#arr11d)"/>
+
+  <!-- SNR drop -->
+  <rect x="265" y="155" width="250" height="32" rx="6" fill="rgba(96,165,250,0.08)" stroke="#60a5fa" stroke-width="1.5"/>
+  <text x="390" y="176" fill="#60a5fa" font-size="11" font-family="JetBrains Mono, monospace" text-anchor="middle">SNR: 18.2 &rarr; 10.1 dB (-8.1 dB)</text>
+
+  <!-- Branch -->
+  <line x1="320" y1="187" x2="200" y2="220" stroke="#6a7a90" stroke-width="1.5" marker-end="url(#arr11d)"/>
+  <line x1="460" y1="187" x2="570" y2="220" stroke="#6a7a90" stroke-width="1.5" marker-end="url(#arr11d)"/>
+
+  <!-- Left branch: EIRP -->
+  <rect x="90" y="220" width="220" height="32" rx="6" fill="rgba(245,158,11,0.08)" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="200" y="241" fill="#f59e0b" font-size="11" font-family="JetBrains Mono, monospace" text-anchor="middle">EIRP: -3.2 dB</text>
+
+  <!-- Right branch: EVM -->
+  <rect x="470" y="220" width="220" height="32" rx="6" fill="rgba(0,229,255,0.08)" stroke="#00e5ff" stroke-width="1.5"/>
+  <text x="580" y="241" fill="#00e5ff" font-size="11" font-family="JetBrains Mono, monospace" text-anchor="middle">EVM penalty: +4.6 dB</text>
+
+  <!-- EIRP breakdown -->
+  <line x1="160" y1="252" x2="130" y2="280" stroke="#6a7a90" stroke-width="1" marker-end="url(#arr11d)"/>
+  <line x1="240" y1="252" x2="270" y2="280" stroke="#6a7a90" stroke-width="1" marker-end="url(#arr11d)"/>
+
+  <rect x="40" y="280" width="180" height="28" rx="5" fill="rgba(245,158,11,0.06)" stroke="#f59e0b" stroke-width="1"/>
+  <text x="130" y="299" fill="#f59e0b" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">PA output: 9.8 &rarr; 4.7 W</text>
+
+  <rect x="230" y="280" width="140" height="28" rx="5" fill="rgba(52,211,153,0.06)" stroke="#34d399" stroke-width="1"/>
+  <text x="300" y="299" fill="#34d399" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">Gain: -0.5 dB</text>
+
+  <!-- EVM breakdown -->
+  <line x1="540" y1="252" x2="500" y2="280" stroke="#6a7a90" stroke-width="1" marker-end="url(#arr11d)"/>
+  <line x1="620" y1="252" x2="660" y2="280" stroke="#6a7a90" stroke-width="1" marker-end="url(#arr11d)"/>
+
+  <rect x="420" y="280" width="160" height="28" rx="5" fill="rgba(245,158,11,0.06)" stroke="#f59e0b" stroke-width="1"/>
+  <text x="500" y="299" fill="#f59e0b" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">PA EVM: 5.8%</text>
+
+  <rect x="600" y="280" width="160" height="28" rx="5" fill="rgba(0,229,255,0.06)" stroke="#00e5ff" stroke-width="1"/>
+  <text x="680" y="299" fill="#00e5ff" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">Osc EVM: 4.1%</text>
+
+  <!-- Root causes -->
+  <line x1="130" y1="308" x2="130" y2="340" stroke="#6a7a90" stroke-width="1" marker-end="url(#arr11d)"/>
+  <line x1="500" y1="308" x2="350" y2="340" stroke="#6a7a90" stroke-width="1" marker-end="url(#arr11d)"/>
+  <line x1="680" y1="308" x2="580" y2="340" stroke="#6a7a90" stroke-width="1" marker-end="url(#arr11d)"/>
+
+  <rect x="55" y="340" width="150" height="32" rx="5" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5"/>
+  <text x="130" y="361" fill="#ef4444" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">PA temp: 85&#176;C</text>
+
+  <rect x="280" y="340" width="150" height="32" rx="5" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5"/>
+  <text x="355" y="361" fill="#ef4444" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">PA near compress</text>
+
+  <rect x="500" y="340" width="170" height="32" rx="5" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5"/>
+  <text x="585" y="361" fill="#ef4444" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">Osc temp: 62&#176;C</text>
+
+  <!-- Common root -->
+  <line x1="130" y1="372" x2="350" y2="395" stroke="#ef4444" stroke-width="1" stroke-dasharray="4,3"/>
+  <line x1="355" y1="372" x2="350" y2="395" stroke="#ef4444" stroke-width="1" stroke-dasharray="4,3"/>
+  <line x1="585" y1="372" x2="350" y2="395" stroke="#ef4444" stroke-width="1" stroke-dasharray="4,3"/>
+
+  <rect x="230" y="392" width="240" height="24" rx="5" fill="rgba(239,68,68,0.2)" stroke="#ef4444" stroke-width="2"/>
+  <text x="350" y="409" fill="#ef4444" font-size="11" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="700">ROOT: PA accumulated heat</text>
+
+  <defs>
+    <marker id="arr11d" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="7" markerHeight="5" orient="auto"><path d="M0,0 L10,3 L0,6" fill="#6a7a90"/></marker>
+  </defs>
+</svg>
+</div>
+<div class="diagram-caption">Figure 11.3 -- Root cause tree for the T+247s goodput collapse. The investigation branches at the SNR level (EIRP vs EVM), then converges on a common root cause: PA accumulated heat over 4+ minutes of operation.</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 6: The causalChain Field -->
+<!-- ============================================================ -->
+<h2><span class="sn">11.6</span> Per-Packet Causality: The causalChain Record</h2>
+
+<p>
+Every packet generated by the simulator carries a <code>causalChain</code> field -- a snapshot of the complete hardware state at the moment of transmission. This enables <strong>per-packet root cause analysis</strong>: you can select any packet and see exactly what every subsystem was doing when that packet was created.
+</p>
+
+<pre><code><span class="kw">interface</span> <span class="type">CausalChain</span> {
+  <span class="cmt">// Geometry (Step 1)</span>
+  elevation: <span class="type">number</span>;         <span class="cmt">// degrees</span>
+  steeringAngle: <span class="type">number</span>;    <span class="cmt">// degrees from boresight</span>
+  slantRange: <span class="type">number</span>;       <span class="cmt">// km</span>
+
+  <span class="cmt">// Active faults (Step 2)</span>
+  activeFaults: <span class="type">string</span>[];   <span class="cmt">// list of active fault types</span>
+
+  <span class="cmt">// Power (Step 3)</span>
+  busVoltage: <span class="type">number</span>;       <span class="cmt">// V</span>
+  batterySoC: <span class="type">number</span>;       <span class="cmt">// 0-1</span>
+  powerMode: <span class="type">string</span>;        <span class="cmt">// 'nominal' | 'reduced' | 'survival'</span>
+
+  <span class="cmt">// Thermal (Step 4)</span>
+  paTemp: <span class="type">number</span>;           <span class="cmt">// °C</span>
+  oscTemp: <span class="type">number</span>;          <span class="cmt">// °C</span>
+
+  <span class="cmt">// Oscillator (Step 5)</span>
+  freqOffset: <span class="type">number</span>;       <span class="cmt">// Hz</span>
+  pllLocked: <span class="type">boolean</span>;
+  oscEvm: <span class="type">number</span>;           <span class="cmt">// % from oscillator</span>
+
+  <span class="cmt">// PA (Step 6)</span>
+  paOutputPower: <span class="type">number</span>;    <span class="cmt">// W</span>
+  paEvm: <span class="type">number</span>;            <span class="cmt">// % from PA compression</span>
+
+  <span class="cmt">// Antenna (Step 7)</span>
+  antennaGain: <span class="type">number</span>;      <span class="cmt">// dBi</span>
+  scanLoss: <span class="type">number</span>;         <span class="cmt">// dB</span>
+  activeElements: <span class="type">number</span>;
+
+  <span class="cmt">// Link Budget (Step 8)</span>
+  eirp: <span class="type">number</span>;             <span class="cmt">// dBW</span>
+  pathLoss: <span class="type">number</span>;         <span class="cmt">// dB</span>
+  effectiveSNR: <span class="type">number</span>;     <span class="cmt">// dB (after all penalties)</span>
+
+  <span class="cmt">// Modulation (Step 9)</span>
+  modCod: <span class="type">string</span>;           <span class="cmt">// e.g., '16QAM 3/4'</span>
+  spectralEfficiency: <span class="type">number</span>; <span class="cmt">// bits/symbol</span>
+}</code></pre>
+
+<p>
+This data structure is the key to the simulator's educational value. Instead of just seeing "throughput dropped," a student can inspect the causalChain and see <em>exactly which hardware parameters contributed to the drop</em>. The CausalityView component in the UI visualizes this data as an interactive waterfall.
+</p>
+
+<div class="info-box">
+  <strong>Every field corresponds to a tick-loop step.</strong> The causalChain is assembled at step 10 by collecting outputs from all previous steps. It is a complete cross-section of the system state at one instant in time. Comparing causalChain records from two adjacent seconds reveals exactly what changed and by how much.
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 7: Emergent Behavior -->
+<!-- ============================================================ -->
+<h2><span class="sn">11.7</span> Emergent Behavior from Interacting Faults</h2>
+
+<p>
+The most valuable insight from hardware-coupled simulation is that <strong>interacting faults produce behavior that no single-fault analysis would predict</strong>. Here are three examples:
+</p>
+
+<h3>Triple Degradation: Thermal + Power + Geometry</h3>
+
+<p>
+Consider a satellite late in its pass (elevation falling, 250s after AOS) with:
+</p>
+<ul>
+  <li><strong>Radiator degradation</strong> (severity 0.3): all temperatures are 15&#176;C above nominal</li>
+  <li><strong>Battery degradation</strong> (severity 0.3): power mode has shifted to "reduced," cutting PA drive by 20%</li>
+  <li><strong>High steering angle</strong> (50&#176;): scan loss is 4 dB from the phased array</li>
+</ul>
+
+<p>
+Each factor independently might cost 2-4 dB of SNR. But together, they interact:
+</p>
+<ul>
+  <li>The PA is thermally derated AND power-limited simultaneously, so output power drops more than either effect alone.</li>
+  <li>The reduced PA output means less heat generation, which slightly helps thermal -- but the reduced radiator emissivity means the thermal benefit is smaller than expected.</li>
+  <li>The high scan angle means the antenna gain is already low, so the EIRP drop from PA derating has less "headroom" to absorb before crossing the ModCod threshold.</li>
+</ul>
+
+<p>
+Result: each factor alone might cause a 1 ModCod step down. Together, they cause a 3-step drop, producing less than 25% of the expected throughput. This is not additive -- it is <strong>multiplicative degradation in the dB domain</strong>.
+</p>
+
+<h3>Recovery Oscillation</h3>
+
+<p>
+When a PA thermally throttles, it reduces output power, which reduces heat generation, which allows the temperature to drop, which allows the PA to increase power, which increases heat generation again. This can produce <strong>oscillation in throughput</strong> with a period of 30-60 seconds (the thermal time constant).
+</p>
+
+<p>
+An elevation-only model shows a smooth curve. The hardware-coupled simulation shows throughput oscillating by 20-30% as the PA hunts between thermal throttle and full power. This is a real phenomenon observed in satellite communications systems.
+</p>
+
+<h3>Eclipse Transition Cliff</h3>
+
+<p>
+When the satellite enters eclipse, solar panel output drops to zero. The battery takes over, but if the battery is degraded (fault #7), the bus voltage sags. This causes:
+</p>
+<ol>
+  <li>PA drive is reduced (power-limited operation)</li>
+  <li>Oscillator compensation circuit voltage changes, causing a frequency jump</li>
+  <li>PLL must track the sudden frequency change while simultaneously losing 3-4 dB of EIRP</li>
+  <li>If the PLL bandwidth is marginal, it can lose lock entirely</li>
+</ol>
+
+<p>
+The result is a "cliff" in throughput at eclipse entry that is much steeper than the gradual EIRP reduction from power limitation alone. Without the oscillator coupling, you would predict a smooth ~3 dB degradation. With it, you get a potential complete link loss for several hundred milliseconds.
+</p>
+
+<div class="warn-box">
+  <strong>This is why the simulator exists.</strong> No amount of spreadsheet link-budget analysis would predict the eclipse transition cliff, the PA thermal oscillation, or the triple degradation interaction. These are emergent properties of a coupled system that only appear when all subsystems are simulated together at sufficient time resolution.
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 8: Code Connection -->
+<!-- ============================================================ -->
+<h2><span class="sn">11.8</span> Code Connection</h2>
+
+<h3>src/simulation/engine.ts -- The Tick Loop</h3>
+
+<p>
+The simulation engine implements the 10-step tick loop. The core structure:
+</p>
+
+<pre><code><span class="kw">function</span> <span class="fn">simulateTick</span>(
+  <span class="type">prevState</span>: <span class="type">SimulationState</span>,
+  <span class="type">time</span>: <span class="type">number</span>,
+  <span class="type">faults</span>: <span class="type">FaultConfig</span>[]
+): <span class="type">TickResult</span> {
+  <span class="cmt">// Step 1: Geometry</span>
+  <span class="kw">const</span> geo = <span class="fn">computeGeometry</span>(time, prevState.tle, prevState.groundStation);
+
+  <span class="cmt">// Step 2: Faults</span>
+  <span class="kw">const</span> faulted = <span class="fn">applyFaults</span>(prevState, faults, time);
+
+  <span class="cmt">// Step 3: Power (uses PREV thermal)</span>
+  <span class="kw">const</span> power = <span class="fn">computePower</span>(faulted.power, prevState.thermal);
+
+  <span class="cmt">// Step 4: Thermal (uses PREV PA heat)</span>
+  <span class="kw">const</span> thermal = <span class="fn">computeThermal</span>(
+    faulted.thermal,
+    prevState.pa.heatDissipated,  <span class="cmt">// &lt;-- previous tick!</span>
+    geo.inEclipse
+  );
+
+  <span class="cmt">// Step 5: Oscillator</span>
+  <span class="kw">const</span> osc = <span class="fn">computeOscillator</span>(faulted.osc, thermal.oscTemp);
+
+  <span class="cmt">// Step 6: Power Amplifier</span>
+  <span class="kw">const</span> pa = <span class="fn">computePA</span>(faulted.pa, thermal.paTemp, power.available);
+
+  <span class="cmt">// Step 7: Phased Array</span>
+  <span class="kw">const</span> ant = <span class="fn">computeAntenna</span>(faulted.antenna, geo.steeringAngle);
+
+  <span class="cmt">// Step 8: Link Budget</span>
+  <span class="kw">const</span> link = <span class="fn">computeLinkBudget</span>(pa, ant, osc, geo);
+
+  <span class="cmt">// Step 9: Modulation</span>
+  <span class="kw">const</span> mod = <span class="fn">selectModCod</span>(link.effectiveSNR);
+
+  <span class="cmt">// Step 10: Protocol + causalChain</span>
+  <span class="kw">const</span> proto = <span class="fn">computeProtocol</span>(mod, faulted.compute);
+  <span class="kw">const</span> chain = <span class="fn">buildCausalChain</span>(geo, power, thermal, osc, pa, ant, link, mod);
+
+  <span class="kw">return</span> { geo, power, thermal, osc, pa, ant, link, mod, proto, chain };
+}</code></pre>
+
+<p>
+Note lines 3-4: <code>computePower</code> receives <code>prevState.thermal</code> and <code>computeThermal</code> receives <code>prevState.pa.heatDissipated</code>. This is the explicit one-tick delay that breaks the circular dependency discussed in Section 11.3.
+</p>
+
+<h3>src/components/causality/CausalityView.tsx</h3>
+
+<p>
+The UI component that visualizes the causal chain. It renders an interactive waterfall chart showing each contribution to the final SNR, and highlights which factors changed most between selected time steps:
+</p>
+
+<pre><code><span class="cmt">// Simplified structure of the causality visualization</span>
+<span class="kw">function</span> <span class="fn">CausalityView</span>({ <span class="type">tickData</span> }: <span class="type">Props</span>) {
+  <span class="kw">const</span> { chain } = tickData;
+
+  <span class="cmt">// Build waterfall: EIRP contribution breakdown</span>
+  <span class="kw">const</span> waterfall = [
+    { label: <span class="str">'PA Output'</span>,    value: <span class="fn">toDbw</span>(chain.paOutputPower) },
+    { label: <span class="str">'Antenna Gain'</span>,  value: chain.antennaGain },
+    { label: <span class="str">'Scan Loss'</span>,     value: -chain.scanLoss },
+    { label: <span class="str">'= EIRP'</span>,        value: chain.eirp, isTotal: <span class="num">true</span> },
+    { label: <span class="str">'Path Loss'</span>,     value: -chain.pathLoss },
+    { label: <span class="str">'Atm Loss'</span>,      value: -chain.atmosphericLoss },
+    { label: <span class="str">'Rx G/T'</span>,        value: chain.rxGT },
+    { label: <span class="str">'EVM Penalty'</span>,   value: -chain.evmPenalty },
+    { label: <span class="str">'= Eff SNR'</span>,     value: chain.effectiveSNR, isTotal: <span class="num">true</span> },
+  ];
+
+  <span class="kw">return</span> &lt;<span class="type">WaterfallChart</span> data={waterfall} /&gt;;
+}</code></pre>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 9: References -->
+<!-- ============================================================ -->
+<h2><span class="sn">11.9</span> References</h2>
+
+<ul class="ref-list">
+  <li><strong>NASA</strong> -- <em>Systems Engineering Handbook</em>, NASA/SP-2016-6105 Rev 2. Chapter 6 covers systems analysis methods including fault tree analysis (FTA) and failure mode and effects analysis (FMEA).</li>
+  <li><strong>Vesely, W. E. et al.</strong> -- <em>Fault Tree Handbook</em>, NUREG-0492 (NRC, 1981). The foundational reference on fault tree methodology, directly applicable to tracing satellite failure cascades.</li>
+  <li><strong>Blanchard, B. S. &amp; Fabrycky, W. J.</strong> -- <em>Systems Engineering and Analysis</em>, 5th Edition (Pearson, 2010). Chapters on reliability engineering and systems-level failure analysis.</li>
+  <li><strong>Maral, G. &amp; Bousquet, M.</strong> -- <em>Satellite Communications Systems</em>, 6th Edition (Wiley, 2020). Chapter 5 on link budget methodology; Chapter 13 on system-level availability analysis.</li>
+  <li><strong>Razavi, B.</strong> -- <em>RF Microelectronics</em>, 2nd Edition (Pearson, 2011). Oscillator, PLL, and phase noise analysis referenced in the debugging walkthrough.</li>
+</ul>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 10: Self-Assessment Questions -->
+<!-- ============================================================ -->
+<h2><span class="sn">11.10</span> Self-Assessment Questions</h2>
+
+<ul class="questions">
+  <li>
+    You observe that two passes over the same ground station at the same maximum elevation (72&#176;) produce peak goodput of 140 Mbps and 95 Mbps respectively. The orbital geometry is essentially identical. List at least four hardware-state variables that could differ between the passes and explain how each would affect throughput. Which would you check first, and why?
+  </li>
+  <li>
+    In the 10-step tick loop, steps 3 and 4 use the previous tick's data. Explain what would happen if you instead used the <em>current</em> tick's PA heat dissipation in step 4 (i.e., computed the PA first, then used its heat in the thermal model). Consider both correctness and computational implications.
+  </li>
+  <li>
+    Perform a root cause analysis: At T+180s, the ModCod drops from 64QAM 5/6 to 16QAM 3/4. The elevation is 65&#176; (near peak). The causalChain shows: paTemp=78&#176;C, oscTemp=55&#176;C, freqOffset=195 kHz, paEvm=6.2%, oscEvm=3.5%, pllLocked=true. Break down the likely SNR contributors and identify the primary root cause. What would you predict happens at T+200s if no intervention occurs?
+  </li>
+  <li>
+    The Failing scenario injects PA Thermal Runaway at TCA+90s and Oscillator Unlock at TCA+120s. Draw a timeline showing the expected behavior of these metrics between TCA+80s and TCA+140s: PA temperature, oscillator frequency offset, EVM, ModCod, and goodput. Mark the two fault trigger points and explain the 30-second delay between them.
+  </li>
+  <li>
+    Consider the "Recovery Oscillation" described in Section 11.7. If the PA thermal time constant is 45 seconds and the thermal throttle activates at 82&#176;C with 3 dB derating, sketch the expected PA temperature and output power over 3 minutes. At what temperature does equilibrium occur? How does this affect the average throughput vs. the idealized prediction?
+  </li>
+  <li>
+    This is the capstone question. Design a fault scenario (specify fault types, trigger times, durations, and severities) that would produce <em>approximately normal throughput for the first 200 seconds of a pass</em>, followed by a <em>sudden collapse to less than 20% of peak within 30 seconds</em>. Explain your design rationale, referencing concepts from Units 3 (RF chain), 4 (thermal), 9 (oscillator), and 10 (faults). Why would an elevation-only model completely fail to predict your scenario?
+  </li>
+</ul>
+
+
+<!-- ============ BOTTOM NAV ============ -->
+<nav class="bottom">
+  <a href="unit-10-faults.html">&larr; Unit 10: Fault Injection</a>
+  <a href="index.html">Course Home</a>
+</nav>
+
+</div><!-- .container -->
+</body>
+</html>
