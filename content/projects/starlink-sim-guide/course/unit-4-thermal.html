@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unit 4: Spacecraft Thermal &amp; Power Systems</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0a0e1a; color: #d8dfe8; font-family: system-ui, -apple-system, sans-serif;
+    line-height: 1.72; padding: 2rem 1rem;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 2rem; color: #00e5ff; margin-bottom: .3rem; }
+  h2 { font-size: 1.45rem; color: #00e5ff; margin-top: 2.8rem; margin-bottom: .6rem; border-bottom: 1px solid #1e293b; padding-bottom: .35rem; }
+  h3 { font-size: 1.15rem; color: #7dd3fc; margin-top: 1.6rem; margin-bottom: .4rem; }
+  p, li { margin-bottom: .65rem; }
+  ul, ol { padding-left: 1.4rem; }
+  a { color: #00e5ff; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code { font-family: 'SF Mono', 'Fira Code', monospace; background: #111827; padding: .15rem .4rem; border-radius: 4px; font-size: .92em; color: #7dd3fc; }
+  pre { background: #111827; padding: 1.1rem 1.3rem; border-radius: 8px; overflow-x: auto; margin: 1rem 0; line-height: 1.55; }
+  pre code { background: none; padding: 0; font-size: .88em; color: #d8dfe8; }
+  .note { background: #0c1a2e; border-left: 3px solid #00e5ff; padding: .8rem 1rem; border-radius: 0 6px 6px 0; margin: 1rem 0; }
+  .warn { background: #1a1708; border-left: 3px solid #f59e0b; padding: .8rem 1rem; border-radius: 0 6px 6px 0; margin: 1rem 0; }
+  .danger { background: #1a0a0a; border-left: 3px solid #ef4444; padding: .8rem 1rem; border-radius: 0 6px 6px 0; margin: 1rem 0; }
+  .formula { background: #111827; padding: .9rem 1.2rem; border-radius: 6px; margin: 1rem 0; font-family: 'SF Mono', monospace; font-size: .95em; overflow-x: auto; color: #7dd3fc; }
+  nav.top { display: flex; gap: 1.2rem; margin-bottom: 1.8rem; font-size: .9rem; flex-wrap: wrap; }
+  nav.bottom { display: flex; justify-content: space-between; margin-top: 3rem; padding-top: 1.2rem; border-top: 1px solid #1e293b; font-size: .92rem; flex-wrap: wrap; gap: .5rem; }
+  .obj-list { background: #0c1a2e; border-radius: 8px; padding: 1rem 1.3rem; margin: 1rem 0; }
+  .obj-list li { margin-bottom: .4rem; }
+  .ref-list { font-size: .9rem; }
+  .ref-list li { margin-bottom: .35rem; color: #94a3b8; }
+  .question-block { background: #0c1a2e; border-radius: 8px; padding: 1rem 1.3rem; margin: .6rem 0; }
+  .question-block summary { cursor: pointer; font-weight: 600; color: #7dd3fc; }
+  .question-block p { margin-top: .5rem; }
+  svg text { font-family: system-ui, sans-serif; }
+  .subtitle { color: #94a3b8; font-size: 1rem; margin-bottom: 1.8rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { padding: .55rem .8rem; border: 1px solid #1e293b; font-size: .92rem; }
+  th { background: #111827; color: #7dd3fc; text-align: left; }
+  td { color: #d8dfe8; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav class="top">
+  <a href="index.html">Index</a>
+  <a href="unit-3-rf-chain.html">&larr; Unit 3: RF Chain</a>
+  <a href="unit-5-doppler.html">Unit 5: Doppler &amp; Tracking &rarr;</a>
+</nav>
+
+<h1>Unit 4: Spacecraft Thermal &amp; Power Systems</h1>
+<p class="subtitle">Heat management, solar power, batteries, and the power-thermal feedback loop</p>
+
+<!-- ===== Learning Objectives ===== -->
+<h2>Learning Objectives</h2>
+<ol class="obj-list">
+  <li>Explain why thermal management in LEO spacecraft relies on radiation, not convection.</li>
+  <li>Set up a lumped-parameter thermal model with discrete nodes and conductances.</li>
+  <li>Apply the Stefan-Boltzmann law to compute radiative heat rejection.</li>
+  <li>Describe the 5-node thermal network used in the simulator and its coupling terms.</li>
+  <li>Calculate solar panel power as a function of sun angle and eclipse state.</li>
+  <li>Understand battery cycling, SoC limits, and power mode transitions.</li>
+  <li>Trace the closed-loop feedback between PA power draw, thermal load, and derating.</li>
+</ol>
+
+<!-- ===== 1. Thermal Challenges in Space ===== -->
+<h2>1. Thermal Challenges in Space</h2>
+<p>On the ground, electronics cool through convection (air moving over surfaces) and conduction (heat sinking to chassis). In orbit, there is no air. The only path for waste heat to leave the spacecraft is <strong>thermal radiation</strong>.</p>
+
+<ul>
+  <li><strong>Sun-facing side:</strong> up to +120&deg;C from direct solar flux (~1361 W/m&sup2;).</li>
+  <li><strong>Shadow side:</strong> down to -150&deg;C when facing deep space (3 K background).</li>
+  <li><strong>Eclipse transitions:</strong> Temperature swings of 100+ degrees over minutes as the satellite enters/exits Earth's shadow.</li>
+</ul>
+
+<svg viewBox="0 0 700 380" xmlns="http://www.w3.org/2000/svg" style="width:100%;margin:1.2rem 0;">
+  <defs>
+    <marker id="arr4" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6Z" fill="#f59e0b"/></marker>
+    <marker id="arr4b" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6Z" fill="#00e5ff"/></marker>
+    <radialGradient id="sun4" cx="50%" cy="50%"><stop offset="0%" stop-color="#f59e0b"/><stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect x="0" y="0" width="700" height="380" rx="8" fill="#111827"/>
+  <text x="350" y="28" fill="#00e5ff" text-anchor="middle" font-size="15" font-weight="700">Thermal Environment in LEO</text>
+  <!-- Sun -->
+  <circle cx="80" cy="190" r="45" fill="url(#sun4)" opacity=".5"/>
+  <circle cx="80" cy="190" r="22" fill="#f59e0b"/>
+  <text x="80" y="195" fill="#0a0e1a" text-anchor="middle" font-size="12" font-weight="700">Sun</text>
+  <!-- Solar arrows -->
+  <line x1="115" y1="170" x2="250" y2="140" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arr4)"/>
+  <line x1="115" y1="190" x2="250" y2="180" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arr4)"/>
+  <line x1="115" y1="210" x2="250" y2="220" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arr4)"/>
+  <text x="180" y="155" fill="#f59e0b" font-size="11">1361 W/m&sup2;</text>
+  <!-- Satellite body -->
+  <rect x="260" y="130" width="160" height="120" rx="6" fill="#162032" stroke="#7dd3fc" stroke-width="1.5"/>
+  <text x="340" y="170" fill="#d8dfe8" text-anchor="middle" font-size="13" font-weight="600">Satellite</text>
+  <text x="340" y="190" fill="#94a3b8" text-anchor="middle" font-size="11">Body</text>
+  <!-- Sun side label -->
+  <rect x="265" y="135" width="8" height="110" rx="2" fill="#f59e0b" opacity=".3"/>
+  <text x="258" y="290" fill="#f59e0b" text-anchor="middle" font-size="11" font-weight="600">Sun side</text>
+  <text x="258" y="305" fill="#f59e0b" text-anchor="middle" font-size="10">+120&deg;C</text>
+  <!-- Shadow side label -->
+  <rect x="407" y="135" width="8" height="110" rx="2" fill="#7dd3fc" opacity=".3"/>
+  <text x="420" y="290" fill="#7dd3fc" text-anchor="middle" font-size="11" font-weight="600">Shadow side</text>
+  <text x="420" y="305" fill="#7dd3fc" text-anchor="middle" font-size="10">-150&deg;C</text>
+  <!-- Solar panel (left) -->
+  <rect x="185" y="165" width="70" height="50" rx="3" fill="#0c1a2e" stroke="#f59e0b" stroke-width="1"/>
+  <text x="220" y="194" fill="#f59e0b" text-anchor="middle" font-size="9">Solar Panel</text>
+  <!-- Solar panel (right) -->
+  <rect x="425" y="165" width="70" height="50" rx="3" fill="#0c1a2e" stroke="#7dd3fc" stroke-width="1"/>
+  <text x="460" y="194" fill="#7dd3fc" text-anchor="middle" font-size="9">Solar Panel</text>
+  <!-- Radiator -->
+  <rect x="295" y="255" width="90" height="30" rx="3" fill="#0c1a2e" stroke="#00e5ff" stroke-width="1.2"/>
+  <text x="340" y="275" fill="#00e5ff" text-anchor="middle" font-size="10">Radiator</text>
+  <!-- Radiation arrows from radiator -->
+  <line x1="310" y1="290" x2="290" y2="340" stroke="#00e5ff" stroke-width="1" marker-end="url(#arr4b)"/>
+  <line x1="340" y1="290" x2="340" y2="345" stroke="#00e5ff" stroke-width="1" marker-end="url(#arr4b)"/>
+  <line x1="370" y1="290" x2="390" y2="340" stroke="#00e5ff" stroke-width="1" marker-end="url(#arr4b)"/>
+  <text x="340" y="365" fill="#00e5ff" text-anchor="middle" font-size="10">IR radiation to space</text>
+  <!-- Deep space label -->
+  <text x="590" y="190" fill="#475569" text-anchor="middle" font-size="12">Deep space</text>
+  <text x="590" y="208" fill="#475569" text-anchor="middle" font-size="10">~3 K</text>
+  <!-- Earth below -->
+  <path d="M200,380 Q350,330 500,380" fill="none" stroke="#334155" stroke-width="1.5"/>
+  <text x="350" y="375" fill="#334155" text-anchor="middle" font-size="10">Earth (albedo + IR)</text>
+</svg>
+
+<div class="note">
+  <strong>Key insight:</strong> In vacuum, the only way to reject waste heat is to radiate it as infrared photons. This makes radiator area and emissivity the primary design constraints&mdash;not fans or heat sinks.
+</div>
+
+<!-- ===== 2. Lumped Thermal Models ===== -->
+<h2>2. Lumped Thermal Models</h2>
+<p>Rather than solving the full 3D heat equation, spacecraft thermal engineers discretize the vehicle into a network of <strong>thermal nodes</strong>. Each node represents a component or region with a single temperature.</p>
+
+<h3>The Node ODE</h3>
+<div class="formula">
+C<sub>i</sub> &middot; dT<sub>i</sub>/dt = Q<sub>gen,i</sub> + &Sigma;<sub>j</sub> G<sub>ij</sub> &middot; (T<sub>j</sub> - T<sub>i</sub>) - Q<sub>rad,i</sub>
+</div>
+
+<ul>
+  <li><code>C<sub>i</sub></code> &mdash; thermal capacitance of node i (J/K). Determines how fast the node responds to heat input.</li>
+  <li><code>Q<sub>gen,i</sub></code> &mdash; internal heat generation (W). For a PA, this is P<sub>DC</sub> - P<sub>RF</sub>.</li>
+  <li><code>G<sub>ij</sub></code> &mdash; thermal conductance between nodes i and j (W/K). Models conduction through structure, bolts, thermal straps.</li>
+  <li><code>Q<sub>rad,i</sub></code> &mdash; radiative heat loss from node i (W). See Stefan-Boltzmann below.</li>
+</ul>
+
+<p>This is a system of coupled first-order ODEs. The simulator integrates them with a 4th-order Runge-Kutta solver at each time step.</p>
+
+<!-- ===== 3. Stefan-Boltzmann Radiative Cooling ===== -->
+<h2>3. Stefan-Boltzmann Radiative Cooling</h2>
+
+<div class="formula">
+Q<sub>rad</sub> = &epsilon; &middot; &sigma; &middot; A &middot; (T<sup>4</sup> - T<sub>env</sub><sup>4</sup>)
+</div>
+
+<ul>
+  <li><code>&epsilon;</code> &mdash; surface emissivity (0 to 1). White paint: ~0.85. Bare aluminum: ~0.04. Radiator coating: ~0.90.</li>
+  <li><code>&sigma;</code> &mdash; Stefan-Boltzmann constant = 5.67 &times; 10<sup>-8</sup> W/m&sup2;/K<sup>4</sup>.</li>
+  <li><code>A</code> &mdash; radiating area (m&sup2;).</li>
+  <li><code>T</code> &mdash; surface temperature (Kelvin). <strong>Must be absolute.</strong></li>
+  <li><code>T<sub>env</sub></code> &mdash; environment temperature. Deep space: ~3&thinsp;K. Earth-facing: ~250&thinsp;K.</li>
+</ul>
+
+<svg viewBox="0 0 600 240" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:600px;margin:1.2rem auto;display:block;">
+  <defs>
+    <marker id="arrin" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6Z" fill="#f59e0b"/></marker>
+    <marker id="arrout" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6Z" fill="#00e5ff"/></marker>
+  </defs>
+  <rect x="0" y="0" width="600" height="240" rx="8" fill="#111827"/>
+  <text x="300" y="22" fill="#00e5ff" text-anchor="middle" font-size="14" font-weight="700">Radiator Heat Balance</text>
+  <!-- Radiator block -->
+  <rect x="220" y="70" width="160" height="80" rx="8" fill="#162032" stroke="#00e5ff" stroke-width="1.5"/>
+  <text x="300" y="105" fill="#d8dfe8" text-anchor="middle" font-size="13" font-weight="600">Radiator</text>
+  <text x="300" y="125" fill="#94a3b8" text-anchor="middle" font-size="11">T, A, &epsilon;</text>
+  <!-- Q_in arrow -->
+  <line x1="80" y1="110" x2="215" y2="110" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrin)"/>
+  <text x="148" y="100" fill="#f59e0b" text-anchor="middle" font-size="12" font-weight="600">Q<tspan font-size="9" dy="2">in</tspan></text>
+  <text x="148" y="130" fill="#94a3b8" text-anchor="middle" font-size="10">from spacecraft</text>
+  <!-- Q_rad arrow -->
+  <line x1="385" y1="110" x2="530" y2="110" stroke="#00e5ff" stroke-width="2" marker-end="url(#arrout)"/>
+  <text x="460" y="100" fill="#00e5ff" text-anchor="middle" font-size="12" font-weight="600">Q<tspan font-size="9" dy="2">rad</tspan></text>
+  <text x="460" y="130" fill="#94a3b8" text-anchor="middle" font-size="10">&epsilon;&sigma;A(T&#8308; - T&#8308;<tspan font-size="8" dy="2">env</tspan>)</text>
+  <!-- Equilibrium note -->
+  <text x="300" y="195" fill="#7dd3fc" text-anchor="middle" font-size="12">Steady state: Q<tspan font-size="9" dy="2">in</tspan><tspan dy="-2"> = Q</tspan><tspan font-size="9" dy="2">rad</tspan></text>
+  <text x="300" y="215" fill="#94a3b8" text-anchor="middle" font-size="11">T<tspan font-size="9" dy="2">eq</tspan><tspan dy="-2"> = (Q</tspan><tspan font-size="9" dy="2">in</tspan><tspan dy="-2"> / &epsilon;&sigma;A + T</tspan><tspan font-size="9" dy="2">env</tspan><tspan dy="-2">&#8308;)</tspan><tspan dy="-2"><tspan font-size="9" baseline-shift="super">1/4</tspan></tspan></text>
+</svg>
+
+<div class="warn">
+  <strong>The T<sup>4</sup> relationship:</strong> Radiative cooling is extremely nonlinear. A radiator at 350 K rejects ~2.6x more heat than one at 300 K (because (350/300)<sup>4</sup> &asymp; 1.85, plus the T<sub>env</sub> term). This means hot components cool more effectively, which provides natural negative feedback&mdash;but the flip side is that cold components are very slow to warm up.
+</div>
+
+<!-- ===== 4. The 5-Node Model ===== -->
+<h2>4. The 5-Node Thermal Model</h2>
+<p>The simulator uses a 5-node lumped model to capture the key thermal dynamics:</p>
+
+<table>
+  <thead>
+    <tr><th>Node</th><th>Component</th><th>C (J/K)</th><th>Q<sub>gen</sub> (W)</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>1</td><td>PA junction</td><td>15</td><td>6 (at full power)</td></tr>
+    <tr><td>2</td><td>Array panel</td><td>800</td><td>0 (passive)</td></tr>
+    <tr><td>3</td><td>Digital board</td><td>120</td><td>12</td></tr>
+    <tr><td>4</td><td>Oscillator</td><td>8</td><td>0.5</td></tr>
+    <tr><td>5</td><td>Radiator</td><td>400</td><td>0 (heat sink)</td></tr>
+  </tbody>
+</table>
+
+<h3>Thermal Network Diagram</h3>
+<svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg" style="width:100%;margin:1.2rem 0;">
+  <rect x="0" y="0" width="700" height="400" rx="8" fill="#111827"/>
+  <text x="350" y="28" fill="#00e5ff" text-anchor="middle" font-size="15" font-weight="700">5-Node Thermal Network</text>
+  <!-- Node 1: PA Junction -->
+  <rect x="40" y="80" width="130" height="60" rx="8" fill="#1a1020" stroke="#f59e0b" stroke-width="2"/>
+  <text x="105" y="105" fill="#f59e0b" text-anchor="middle" font-size="12" font-weight="700">PA Junction</text>
+  <text x="105" y="125" fill="#94a3b8" text-anchor="middle" font-size="10">C=15 J/K, Q=6W</text>
+  <!-- Node 2: Array Panel -->
+  <rect x="280" y="55" width="140" height="60" rx="8" fill="#162032" stroke="#7dd3fc" stroke-width="1.5"/>
+  <text x="350" y="80" fill="#7dd3fc" text-anchor="middle" font-size="12" font-weight="600">Array Panel</text>
+  <text x="350" y="100" fill="#94a3b8" text-anchor="middle" font-size="10">C=800 J/K</text>
+  <!-- Node 3: Digital Board -->
+  <rect x="530" y="80" width="130" height="60" rx="8" fill="#162032" stroke="#7dd3fc" stroke-width="1.5"/>
+  <text x="595" y="105" fill="#7dd3fc" text-anchor="middle" font-size="12" font-weight="600">Digital Board</text>
+  <text x="595" y="125" fill="#94a3b8" text-anchor="middle" font-size="10">C=120 J/K, Q=12W</text>
+  <!-- Node 4: Oscillator -->
+  <rect x="100" y="260" width="130" height="60" rx="8" fill="#162032" stroke="#7dd3fc" stroke-width="1.5"/>
+  <text x="165" y="285" fill="#7dd3fc" text-anchor="middle" font-size="12" font-weight="600">Oscillator</text>
+  <text x="165" y="305" fill="#94a3b8" text-anchor="middle" font-size="10">C=8 J/K, Q=0.5W</text>
+  <!-- Node 5: Radiator -->
+  <rect x="420" y="260" width="140" height="60" rx="8" fill="#0c1a2e" stroke="#00e5ff" stroke-width="2"/>
+  <text x="490" y="285" fill="#00e5ff" text-anchor="middle" font-size="12" font-weight="700">Radiator</text>
+  <text x="490" y="305" fill="#94a3b8" text-anchor="middle" font-size="10">C=400 J/K</text>
+  <!-- Conductances (lines with labels) -->
+  <!-- PA to Array Panel -->
+  <line x1="170" y1="100" x2="280" y2="85" stroke="#475569" stroke-width="1.8"/>
+  <rect x="200" y="78" width="60" height="18" rx="3" fill="#111827"/>
+  <text x="230" y="91" fill="#94a3b8" text-anchor="middle" font-size="10">G<tspan font-size="8" dy="2">12</tspan><tspan dy="-2">=0.8</tspan></text>
+  <!-- PA to Oscillator -->
+  <line x1="105" y1="140" x2="150" y2="260" stroke="#475569" stroke-width="1.8"/>
+  <rect x="95" y="192" width="60" height="18" rx="3" fill="#111827"/>
+  <text x="125" y="205" fill="#94a3b8" text-anchor="middle" font-size="10">G<tspan font-size="8" dy="2">14</tspan><tspan dy="-2">=0.2</tspan></text>
+  <!-- Array Panel to Digital Board -->
+  <line x1="420" y1="85" x2="530" y2="100" stroke="#475569" stroke-width="1.8"/>
+  <rect x="448" y="78" width="60" height="18" rx="3" fill="#111827"/>
+  <text x="478" y="91" fill="#94a3b8" text-anchor="middle" font-size="10">G<tspan font-size="8" dy="2">23</tspan><tspan dy="-2">=1.5</tspan></text>
+  <!-- Array Panel to Radiator -->
+  <line x1="370" y1="115" x2="480" y2="260" stroke="#475569" stroke-width="1.8"/>
+  <rect x="400" y="178" width="60" height="18" rx="3" fill="#111827"/>
+  <text x="430" y="191" fill="#94a3b8" text-anchor="middle" font-size="10">G<tspan font-size="8" dy="2">25</tspan><tspan dy="-2">=2.0</tspan></text>
+  <!-- Digital Board to Radiator -->
+  <line x1="580" y1="140" x2="520" y2="260" stroke="#475569" stroke-width="1.8"/>
+  <rect x="530" y="192" width="60" height="18" rx="3" fill="#111827"/>
+  <text x="560" y="205" fill="#94a3b8" text-anchor="middle" font-size="10">G<tspan font-size="8" dy="2">35</tspan><tspan dy="-2">=1.8</tspan></text>
+  <!-- PA to Radiator (long path) -->
+  <path d="M105,140 Q105,210 300,290 L420,290" fill="none" stroke="#475569" stroke-width="1.3" stroke-dasharray="5"/>
+  <rect x="240" y="240" width="60" height="18" rx="3" fill="#111827"/>
+  <text x="270" y="253" fill="#94a3b8" text-anchor="middle" font-size="10">G<tspan font-size="8" dy="2">15</tspan><tspan dy="-2">=0.5</tspan></text>
+  <!-- Radiation from radiator -->
+  <line x1="470" y1="325" x2="450" y2="370" stroke="#00e5ff" stroke-width="1.2"/>
+  <line x1="490" y1="325" x2="490" y2="375" stroke="#00e5ff" stroke-width="1.2"/>
+  <line x1="510" y1="325" x2="530" y2="370" stroke="#00e5ff" stroke-width="1.2"/>
+  <text x="490" y="390" fill="#00e5ff" text-anchor="middle" font-size="10">Q<tspan font-size="8" dy="2">rad</tspan><tspan dy="-2"> to space</tspan></text>
+  <!-- Solar input to array panel -->
+  <line x1="350" y1="40" x2="350" y2="55" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="350" y="38" fill="#f59e0b" text-anchor="middle" font-size="10">Q<tspan font-size="8" dy="2">solar</tspan></text>
+  <!-- Conductance units note -->
+  <text x="350" y="380" fill="#475569" text-anchor="middle" font-size="10">Conductances G in W/K</text>
+</svg>
+
+<div class="note">
+  <strong>Why 5 nodes?</strong> The PA junction (node 1) has very low thermal mass (C=15 J/K) so it responds rapidly to power changes. The array panel (node 2) is a massive thermal flywheel (C=800 J/K) that damps oscillations. The radiator (node 5) is the only node that loses heat to space. All heat ultimately flows to node 5.
+</div>
+
+<!-- ===== 5. Solar Loading ===== -->
+<h2>5. Solar Loading</h2>
+<p>The sun delivers approximately <strong>1361 W/m&sup2;</strong> (the solar constant) at Earth's orbital distance. The actual flux on any spacecraft surface depends on orientation:</p>
+
+<div class="formula">
+Q<sub>solar</sub> = S &middot; A<sub>projected</sub> &middot; &alpha;<sub>abs</sub> = S &middot; A &middot; cos(&theta;) &middot; &alpha;<sub>abs</sub>
+</div>
+
+<ul>
+  <li><code>S</code> &mdash; solar constant, 1361 W/m&sup2;.</li>
+  <li><code>&theta;</code> &mdash; angle between the surface normal and the sun vector.</li>
+  <li><code>&alpha;<sub>abs</sub></code> &mdash; solar absorptivity (fraction of incident light absorbed as heat).</li>
+</ul>
+
+<h3>Eclipse Transitions</h3>
+<p>A Starlink satellite in a 550 km orbit spends roughly <strong>35% of each 95-minute orbit in eclipse</strong> (~33 minutes in shadow). At eclipse entry:</p>
+<ul>
+  <li>Solar input drops to zero within seconds.</li>
+  <li>All surfaces begin cooling radiatively.</li>
+  <li>The battery must supply all spacecraft power.</li>
+  <li>Temperature transients stress oscillator frequency stability (Unit 3, Section 9).</li>
+</ul>
+
+<!-- ===== 6. Solar Panels in LEO ===== -->
+<h2>6. Solar Panels in LEO</h2>
+<p>Starlink uses <strong>GaAs triple-junction solar cells</strong> with beginning-of-life efficiency around 30%. The electrical power output:</p>
+
+<div class="formula">
+P<sub>solar</sub> = &eta; &middot; A &middot; S &middot; cos(&theta;) &nbsp;&nbsp; [Watts]
+</div>
+
+<ul>
+  <li><code>&eta;</code> &mdash; cell efficiency (~0.30 BOL, degrades ~2.5%/year from radiation).</li>
+  <li><code>A</code> &mdash; total panel area. Starlink v1.5: ~12 m&sup2; per satellite.</li>
+  <li><code>&theta;</code> &mdash; angle between panel normal and sun vector. Tracking sun keeps &theta; near 0&deg;.</li>
+</ul>
+
+<div class="note">
+  <strong>Typical numbers:</strong> 0.30 &times; 12 m&sup2; &times; 1361 W/m&sup2; &times; cos(0&deg;) = <strong>~4900 W peak</strong> in full sun. During eclipse: <strong>0 W</strong> from panels. Average over an orbit (65% sunlit): ~3200 W.
+</div>
+
+<p>The panel also heats up under solar illumination (70% of absorbed light becomes heat), which feeds back into the thermal model as Q<sub>solar,thermal</sub> on the array panel node.</p>
+
+<!-- ===== 7. Battery Management ===== -->
+<h2>7. Battery Management</h2>
+<p>Starlink satellites carry <strong>Li-ion battery packs</strong> with approximately 2500 Wh of total energy capacity. The battery is the energy buffer between solar generation and continuous power demand.</p>
+
+<h3>Cycling</h3>
+<ul>
+  <li>~15 charge/discharge cycles per day (one per orbit).</li>
+  <li>Designed for >20,000 cycles over the satellite's ~5 year life.</li>
+  <li>Depth of discharge (DoD) is limited to preserve cycle life: typical max DoD is 30&ndash;40% in normal operation.</li>
+</ul>
+
+<h3>State of Charge (SoC) Limits</h3>
+<table>
+  <thead>
+    <tr><th>SoC Range</th><th>Condition</th><th>Action</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>80&ndash;100%</td><td>Fully charged</td><td>Taper charge current, nominal ops</td></tr>
+    <tr><td>50&ndash;80%</td><td>Nominal</td><td>Full power operations</td></tr>
+    <tr><td>30&ndash;50%</td><td>Caution</td><td>Shed non-essential loads (ISLs)</td></tr>
+    <tr><td>15&ndash;30%</td><td>Warning</td><td>Reduce compute, lower PA power</td></tr>
+    <tr><td>&lt;15%</td><td>Survival</td><td>PA off, minimum power mode</td></tr>
+  </tbody>
+</table>
+
+<!-- ===== 8. Power Modes ===== -->
+<h2>8. Power Modes</h2>
+<p>The spacecraft power management system defines discrete operating modes that progressively shed loads as battery SoC drops:</p>
+
+<table>
+  <thead>
+    <tr><th>Mode</th><th>Name</th><th>SoC Trigger</th><th>Power Draw</th><th>Loads Shed</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>0</td><td>Nominal</td><td>&gt; 50%</td><td>~2200 W</td><td>None</td></tr>
+    <tr><td>1</td><td>Conservation</td><td>&lt; 50%</td><td>~1600 W</td><td>Inter-satellite links (ISL)</td></tr>
+    <tr><td>2</td><td>Emergency</td><td>&lt; 30%</td><td>~800 W</td><td>ISL + compute + reduced PA</td></tr>
+    <tr><td>3</td><td>Survival</td><td>&lt; 15%</td><td>~200 W</td><td>PA off, C&amp;DH only</td></tr>
+  </tbody>
+</table>
+
+<div class="warn">
+  <strong>Load shedding order matters:</strong> ISLs are shed first because they are high-power (~100&thinsp;W each) but not required for direct-to-ground service. Compute is shed next (reduces onboard processing, falls back to bent-pipe mode). PA power reduction is a last resort&mdash;it directly reduces EIRP and coverage.
+</div>
+
+<h3>Hysteresis</h3>
+<p>Mode transitions use hysteresis to prevent oscillation. For example, Mode 0&rarr;1 triggers at SoC &lt; 50%, but recovery 1&rarr;0 requires SoC &gt; 60%. This 10% dead band prevents rapid cycling between modes.</p>
+
+<!-- ===== 9. The Power-Thermal Coupling ===== -->
+<h2>9. The Power-Thermal Coupling</h2>
+<p>The most important feedback loop in the spacecraft is the coupling between the power subsystem and the thermal subsystem. It works like this:</p>
+
+<svg viewBox="0 0 700 320" xmlns="http://www.w3.org/2000/svg" style="width:100%;margin:1.2rem 0;">
+  <defs>
+    <marker id="arrf" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><path d="M0,0 L10,3.5 L0,7Z" fill="#00e5ff"/></marker>
+    <marker id="arrw" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><path d="M0,0 L10,3.5 L0,7Z" fill="#f59e0b"/></marker>
+  </defs>
+  <rect x="0" y="0" width="700" height="320" rx="8" fill="#111827"/>
+  <text x="350" y="25" fill="#00e5ff" text-anchor="middle" font-size="15" font-weight="700">Power-Thermal Feedback Loop</text>
+  <!-- PA Power Draw -->
+  <rect x="40" y="70" width="150" height="55" rx="8" fill="#1a1020" stroke="#f59e0b" stroke-width="2"/>
+  <text x="115" y="95" fill="#f59e0b" text-anchor="middle" font-size="12" font-weight="700">PA draws power</text>
+  <text x="115" y="112" fill="#94a3b8" text-anchor="middle" font-size="10">P<tspan font-size="8" dy="1">DC</tspan><tspan dy="-1"> = P</tspan><tspan font-size="8" dy="1">RF</tspan><tspan dy="-1"> / &eta;</tspan></text>
+  <!-- Heat Generation -->
+  <rect x="270" y="70" width="160" height="55" rx="8" fill="#1a0a0a" stroke="#ef4444" stroke-width="1.5"/>
+  <text x="350" y="95" fill="#ef4444" text-anchor="middle" font-size="12" font-weight="600">Heat generated</text>
+  <text x="350" y="112" fill="#94a3b8" text-anchor="middle" font-size="10">Q = P<tspan font-size="8" dy="1">DC</tspan><tspan dy="-1"> - P</tspan><tspan font-size="8" dy="1">RF</tspan></text>
+  <!-- Temperature Rise -->
+  <rect x="510" y="70" width="150" height="55" rx="8" fill="#1a0a0a" stroke="#ef4444" stroke-width="1.5"/>
+  <text x="585" y="95" fill="#ef4444" text-anchor="middle" font-size="12" font-weight="600">T<tspan font-size="9" dy="2">junction</tspan><tspan dy="-2"> rises</tspan></text>
+  <text x="585" y="112" fill="#94a3b8" text-anchor="middle" font-size="10">&Delta;T = Q / G<tspan font-size="8" dy="1">total</tspan></text>
+  <!-- PA Derates -->
+  <rect x="510" y="200" width="150" height="55" rx="8" fill="#162032" stroke="#7dd3fc" stroke-width="1.5"/>
+  <text x="585" y="225" fill="#7dd3fc" text-anchor="middle" font-size="12" font-weight="600">PA derates</text>
+  <text x="585" y="242" fill="#94a3b8" text-anchor="middle" font-size="10">P<tspan font-size="8" dy="1">1dB</tspan><tspan dy="-1"> drops, EVM rises</tspan></text>
+  <!-- Less Power / Lower EIRP -->
+  <rect x="270" y="200" width="160" height="55" rx="8" fill="#0c1a2e" stroke="#00e5ff" stroke-width="1.5"/>
+  <text x="350" y="222" fill="#00e5ff" text-anchor="middle" font-size="12" font-weight="600">EIRP drops</text>
+  <text x="350" y="242" fill="#94a3b8" text-anchor="middle" font-size="10">Lower modulation order</text>
+  <!-- Reduced Power Draw -->
+  <rect x="40" y="200" width="150" height="55" rx="8" fill="#0c1a2e" stroke="#00e5ff" stroke-width="1.5"/>
+  <text x="115" y="222" fill="#00e5ff" text-anchor="middle" font-size="12" font-weight="600">Less P<tspan font-size="9" dy="1">DC</tspan><tspan dy="-1"> drawn</tspan></text>
+  <text x="115" y="242" fill="#94a3b8" text-anchor="middle" font-size="10">Negative feedback</text>
+  <!-- Arrows (clockwise) -->
+  <line x1="190" y1="97" x2="265" y2="97" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrw)"/>
+  <line x1="430" y1="97" x2="505" y2="97" stroke="#ef4444" stroke-width="2" marker-end="url(#arrw)"/>
+  <line x1="585" y1="130" x2="585" y2="195" stroke="#ef4444" stroke-width="2" marker-end="url(#arrw)"/>
+  <line x1="510" y1="227" x2="435" y2="227" stroke="#00e5ff" stroke-width="2" marker-end="url(#arrf)"/>
+  <line x1="270" y1="227" x2="195" y2="227" stroke="#00e5ff" stroke-width="2" marker-end="url(#arrf)"/>
+  <line x1="115" y1="200" x2="115" y2="130" stroke="#00e5ff" stroke-width="2" marker-end="url(#arrf)"/>
+  <!-- Feedback label -->
+  <text x="30" y="170" fill="#7dd3fc" font-size="11" font-weight="600" transform="rotate(-90,30,170)">feedback</text>
+  <!-- Loop type -->
+  <rect x="260" y="140" width="180" height="28" rx="5" fill="#0c1a2e" stroke="#00e5ff" stroke-width="1"/>
+  <text x="350" y="159" fill="#00e5ff" text-anchor="middle" font-size="12" font-weight="700">Negative feedback loop</text>
+</svg>
+
+<p>This is a <strong>negative feedback loop</strong>: the system self-regulates. As the PA heats up, it derates, draws less power, generates less heat, and eventually reaches a thermal equilibrium. However, the equilibrium point may be at a significantly reduced EIRP, impacting throughput.</p>
+
+<div class="danger">
+  <strong>Worst case:</strong> Long sun exposure heats the satellite. PA junction reaches 100&deg;C. P<sub>1dB</sub> drops 1.5 dB (derating). EVM rises above threshold. The link controller drops from 64-QAM to 16-QAM, cutting throughput by 33%. If SoC also drops (long eclipse preceding this), Mode 1 kicks in and sheds ISLs. The user sees degraded throughput from a satellite that is technically "working."
+</div>
+
+<!-- ===== 10. Code Connection ===== -->
+<h2>10. Code Connection</h2>
+<p>The simulator models the thermal and power subsystems in two interconnected modules:</p>
+
+<pre><code><span style="color:#94a3b8">// 5-node thermal model, RK4 integrator, radiative cooling</span>
+src/simulation/thermal/thermal-model.ts
+
+<span style="color:#94a3b8">// Solar power, battery SoC, power mode state machine</span>
+src/simulation/power/power-bus.ts</code></pre>
+
+<ul>
+  <li><code>thermal-model.ts</code> implements the 5-node ODE system. At each time step, it computes Q<sub>gen</sub> from the power bus (PA power, digital load), evaluates conductive coupling between nodes, computes Stefan-Boltzmann radiation from the radiator, and integrates forward using RK4. Node temperatures feed back to the PA (derating) and oscillator (frequency drift).</li>
+  <li><code>power-bus.ts</code> tracks solar panel output (sun angle, eclipse state), battery SoC, charge/discharge dynamics, and the power mode state machine. It receives load demands from each subsystem and executes load shedding when SoC thresholds are crossed. Hysteresis is implemented with separate entry/exit thresholds for each mode.</li>
+</ul>
+
+<p>The coupling is bidirectional: <code>power-bus.ts</code> tells <code>thermal-model.ts</code> how much heat each node generates, and <code>thermal-model.ts</code> tells the PA and oscillator modules their current temperatures.</p>
+
+<!-- ===== References ===== -->
+<h2>References</h2>
+<ol class="ref-list">
+  <li>D. G. Gilmore, ed., <em>Spacecraft Thermal Control Handbook, Volume 1: Fundamental Technologies</em>, 2nd ed. AIAA, 2002.</li>
+  <li>M. R. Patel, <em>Spacecraft Power Systems</em>. CRC Press, 2004.</li>
+  <li>P. Fortescue, G. Swinerd, and J. Stark, <em>Spacecraft Systems Engineering</em>, 4th ed. Wiley, 2011.</li>
+  <li>NASA Technical Report, "State of the Art of Small Spacecraft Technology," 2023 &mdash; battery and solar cell data.</li>
+</ol>
+
+<!-- ===== Questions ===== -->
+<h2>Questions</h2>
+
+<details class="question-block">
+  <summary>Q1: A radiator has area 0.5 m&sup2;, emissivity 0.88, and operates at 330 K facing deep space (3 K). How much heat does it reject? If the PA dissipates 6 W of waste heat, is this radiator sufficient?</summary>
+  <p>Q<sub>rad</sub> = &epsilon; &middot; &sigma; &middot; A &middot; (T<sup>4</sup> - T<sub>env</sub><sup>4</sup>)<br>
+  = 0.88 &times; 5.67&times;10<sup>-8</sup> &times; 0.5 &times; (330<sup>4</sup> - 3<sup>4</sup>)<br>
+  = 0.88 &times; 5.67&times;10<sup>-8</sup> &times; 0.5 &times; (1.186&times;10<sup>10</sup>)<br>
+  &asymp; 0.88 &times; 5.67&times;10<sup>-8</sup> &times; 5.93&times;10<sup>9</sup><br>
+  &asymp; 0.88 &times; 336 &asymp; 296 W.<br>
+  Yes, this radiator can reject far more than 6 W. In practice, the radiator must handle the total spacecraft waste heat (~18.5 W from all nodes), which it easily can. The radiator is sized for worst-case hot conditions.</p>
+</details>
+
+<details class="question-block">
+  <summary>Q2: The solar panels produce 4900 W in sunlight and zero in eclipse. The orbit is 65% sunlit. If the satellite draws a constant 2200 W, what is the minimum battery capacity needed (in Wh) to survive one eclipse?</summary>
+  <p>Eclipse duration = 35% of 95 min = 33.25 min = 0.554 hr.<br>
+  Energy needed during eclipse = 2200 W &times; 0.554 hr = 1219 Wh.<br>
+  With a max DoD of 40%, minimum battery capacity = 1219 / 0.40 = 3048 Wh.<br>
+  The actual 2500 Wh battery with 40% DoD can only provide 1000 Wh, which is slightly short&mdash;this is why Mode 1 (conservation) may activate during long eclipses to reduce draw to ~1600 W, needing only 886 Wh (within 40% DoD of 2500 Wh = 1000 Wh).</p>
+</details>
+
+<details class="question-block">
+  <summary>Q3: The PA junction node has C = 15 J/K and generates 6 W with a total conductance to other nodes of 0.8 W/K (to the array panel). Ignoring radiation from the junction itself, estimate the junction temperature rise above the array panel temperature and the thermal time constant.</summary>
+  <p>Steady-state &Delta;T = Q / G = 6 W / 0.8 W/K = 7.5 K above the array panel temperature.<br>
+  Thermal time constant &tau; = C / G = 15 J/K / 0.8 W/K = 18.75 seconds.<br>
+  This means the PA junction responds to power changes in under a minute (3&tau; &asymp; 56 s to reach 95% of the new equilibrium). The fast response means thermal derating kicks in quickly when the PA is driven hard.</p>
+</details>
+
+<details class="question-block">
+  <summary>Q4: During a worst-case scenario, the battery SoC drops to 25%. What power mode is the satellite in? What loads have been shed? If the current draw is now 800 W and eclipse has 10 minutes remaining, will SoC drop below 15%?</summary>
+  <p>At SoC = 25%, the satellite is in <strong>Mode 2 (Emergency)</strong>. ISLs, non-essential compute, and PA power have been reduced.<br>
+  Energy remaining above 15% threshold: (25% - 15%) &times; 2500 Wh = 250 Wh.<br>
+  Energy needed for 10 min at 800 W: 800 &times; (10/60) = 133.3 Wh.<br>
+  250 Wh &gt; 133.3 Wh, so SoC will not drop below 15%. It will reach approximately 25% - (133.3/2500)&times;100 = 25% - 5.3% = 19.7%, staying above the Mode 3 threshold.</p>
+</details>
+
+<details class="question-block">
+  <summary>Q5: Explain why the T<sup>4</sup> relationship in Stefan-Boltzmann radiation acts as a natural thermal regulator. What happens if you double the heat generation?</summary>
+  <p>Because Q<sub>rad</sub> scales as T<sup>4</sup>, a small increase in temperature produces a large increase in radiated power. If you double Q<sub>gen</sub>, the equilibrium temperature does not double&mdash;it increases by a factor of 2<sup>1/4</sup> &asymp; 1.19 (in absolute temperature). For example, if equilibrium was 330 K, it rises to about 393 K. This strong nonlinearity provides natural stability: any perturbation that raises temperature is countered by a rapid increase in radiation. However, the flip side is that at low temperatures, radiation is very weak (T<sup>4</sup> at 200 K is only 24% of T<sup>4</sup> at 300 K), so cold components warm up very slowly.</p>
+</details>
+
+<details class="question-block">
+  <summary>Q6: Trace through the full power-thermal feedback loop. The satellite exits eclipse into full sun. Describe the sequence of events over the next 10 minutes for the PA junction temperature, battery SoC, power mode, and EIRP.</summary>
+  <p><strong>t=0 (eclipse exit):</strong> Solar panels start generating ~4900 W. Battery begins charging. SoC may be low (e.g., 40%), possibly in Mode 1.<br>
+  <strong>t=0-2 min:</strong> Battery SoC climbs. Solar loading heats the array panel. PA junction is still cool from eclipse, running at full rated power. EIRP is at maximum for the current mode.<br>
+  <strong>t=2-5 min:</strong> SoC crosses 60% (with hysteresis), Mode 0 restored. ISLs reactivated. Full compute load. PA now draws full power. Array panel temperature climbing from solar + waste heat. PA junction begins warming from increased Q<sub>gen</sub>.<br>
+  <strong>t=5-10 min:</strong> PA junction temperature rises by 15-25 K above eclipse minimum. P<sub>1dB</sub> drops ~0.3-0.5 dB. EVM increases slightly but remains within 64-QAM spec. EIRP is near maximum with a small thermal penalty. Battery continues charging. The system reaches a new hot-case thermal equilibrium where PA waste heat is balanced by conduction to the radiator. Throughput is at or near peak.</p>
+</details>
+
+<!-- ===== Navigation ===== -->
+<nav class="bottom">
+  <a href="unit-3-rf-chain.html">&larr; Unit 3: RF Chain</a>
+  <a href="index.html">Index</a>
+  <a href="unit-5-doppler.html">Unit 5: Doppler &amp; Tracking &rarr;</a>
+</nav>
+
+</div>
+</body>
+</html>

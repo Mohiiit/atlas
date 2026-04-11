@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unit 5: The Satellite Link Budget</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0e1a;color:#d8dfe8;font-family:system-ui,-apple-system,sans-serif;line-height:1.7;padding:2rem 1rem}
+.container{max-width:900px;margin:0 auto}
+h1{font-size:2rem;color:#00e5ff;margin-bottom:.5rem;border-bottom:2px solid #00e5ff33;padding-bottom:.5rem}
+h2{font-size:1.5rem;color:#00e5ff;margin-top:2.5rem;margin-bottom:.75rem}
+h3{font-size:1.2rem;color:#00e5ffc0;margin-top:1.5rem;margin-bottom:.5rem}
+p{margin-bottom:1rem}
+a{color:#00e5ff;text-decoration:none}
+a:hover{text-decoration:underline}
+nav.top{display:flex;justify-content:space-between;align-items:center;padding:.75rem 0;border-bottom:1px solid #1e293b;margin-bottom:2rem;font-size:.9rem}
+nav.bottom{display:flex;justify-content:space-between;padding-top:1.5rem;border-top:1px solid #1e293b;margin-top:3rem;font-size:.9rem}
+nav.bottom a{padding:.5rem 1rem;border:1px solid #00e5ff44;border-radius:6px}
+nav.bottom a:hover{background:#00e5ff11}
+.objectives{background:#00e5ff0a;border:1px solid #00e5ff22;border-radius:8px;padding:1.25rem 1.5rem;margin:1.5rem 0}
+.objectives h2{margin-top:0}
+.objectives ul{padding-left:1.5rem}
+.objectives li{margin-bottom:.35rem}
+code{font-family:'SF Mono',Consolas,'Liberation Mono',Menlo,monospace;background:#111827;padding:.15em .4em;border-radius:4px;font-size:.9em;color:#00e5ff}
+pre{background:#111827;border:1px solid #1e293b;border-radius:8px;padding:1.25rem;overflow-x:auto;margin:1rem 0;font-size:.85rem;line-height:1.6}
+pre code{background:none;padding:0;color:#d8dfe8}
+.warn{color:#f59e0b}
+.accent{color:#00e5ff}
+.formula{background:#111827;border-left:3px solid #00e5ff;padding:1rem 1.25rem;margin:1rem 0;border-radius:0 8px 8px 0;font-family:'SF Mono',Consolas,monospace;font-size:.95rem}
+.example{background:#f59e0b08;border:1px solid #f59e0b22;border-radius:8px;padding:1.25rem;margin:1rem 0}
+.example h3{color:#f59e0b;margin-top:0}
+table{width:100%;border-collapse:collapse;margin:1rem 0}
+th,td{text-align:left;padding:.6rem .8rem;border-bottom:1px solid #1e293b;font-size:.9rem}
+th{color:#00e5ff;font-weight:600;border-bottom:2px solid #00e5ff33}
+tr:hover{background:#ffffff05}
+svg{display:block;margin:1.5rem auto;max-width:100%}
+.svg-container{background:#111827;border-radius:8px;padding:1rem;margin:1.5rem 0}
+.section{margin-bottom:2.5rem}
+.questions{background:#0a0e1a;border:2px solid #f59e0b33;border-radius:8px;padding:1.5rem;margin:2rem 0}
+.questions h2{color:#f59e0b;margin-top:0}
+.questions ol{padding-left:1.5rem}
+.questions li{margin-bottom:1rem}
+.refs{font-size:.85rem;color:#d8dfe888;margin-top:2rem}
+.refs h2{color:#d8dfe8aa}
+.refs ul{padding-left:1.5rem}
+.refs li{margin-bottom:.3rem}
+.unit-num{font-size:.85rem;color:#d8dfe866;text-transform:uppercase;letter-spacing:.1em}
+</style>
+</head>
+<body>
+<div class="container">
+
+<nav class="top">
+  <a href="index.html">Home</a>
+  <span class="accent">Unit 5 of 7</span>
+  <a href="unit-6-modulation-protocol.html">Unit 6 &rarr;</a>
+</nav>
+
+<div class="unit-num">Unit 5</div>
+<h1>The Satellite Link Budget</h1>
+<p>The link budget is the single most important calculation in satellite communications. It is a methodical accounting of every gain and every loss between the transmitter and the receiver, expressed in decibels. If you understand one calculation in satcom, make it this one.</p>
+
+<div class="objectives">
+<h2>Learning Objectives</h2>
+<ul>
+  <li>Calculate EIRP from transmit power, antenna gain, and feed loss</li>
+  <li>Derive Free Space Path Loss and explain why it varies with elevation angle</li>
+  <li>Account for atmospheric attenuation, rain fade, and polarization loss</li>
+  <li>Compute receiver G/T and understand system noise temperature</li>
+  <li>Assemble the complete link budget equation and compute C/N</li>
+  <li>Apply SNR penalties and determine link margin</li>
+  <li>Read and construct a waterfall chart for visual link budget analysis</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>1. What Is a Link Budget?</h2>
+
+<p>A link budget is a bookkeeping exercise. You start with the power leaving the transmitter and then add every gain (antenna gain, coding gain) and subtract every loss (path loss, atmospheric loss, cable loss) until you arrive at the signal-to-noise ratio at the receiver. Every term is in decibels, so the entire calculation is addition and subtraction.</p>
+
+<p>The chain looks like this:</p>
+<div class="formula">
+C/N = (Transmit Power + Gains) - (Losses) + (Receiver Figure of Merit) - (Noise Reference)
+</div>
+
+<p>This is <strong>THE</strong> central calculation in satcom because it answers the only question that matters: <span class="accent">Does the link close?</span> If C/N exceeds the required threshold, data gets through. If not, the link fails. Every design decision in a satellite system -- antenna size, transmit power, orbit altitude, modulation scheme -- ultimately flows through the link budget.</p>
+
+<p>Why decibels? Because multiplication becomes addition. A signal passing through an amplifier (gain) and then a lossy cable (loss) involves multiplying power ratios. In dB, you simply add the gain and subtract the loss. This makes the entire link budget a single column of additions.</p>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>2. EIRP -- Effective Isotropic Radiated Power</h2>
+
+<p>EIRP represents how much power an isotropic (omnidirectional) antenna would need to radiate to produce the same signal strength in the direction of the receiver. It bundles the transmitter power, antenna gain, and feed losses into a single number.</p>
+
+<div class="formula">
+EIRP = P<sub>tx</sub> + G<sub>tx</sub> - L<sub>feed</sub> &nbsp; [dBW]
+</div>
+
+<p>The unit is <strong>dBW</strong> (decibels relative to 1 Watt). Using dBW rather than dBm avoids confusion in link budgets since all standard reference tables use Watts.</p>
+
+<p>For a Starlink satellite at Ku-band: P<sub>tx</sub> ~ 10 W (+10 dBW), G<sub>tx</sub> ~ 38 dBi peak, L<sub>feed</sub> ~ 1 dB. This yields EIRP ~ 47 dBW at boresight.</p>
+
+<div class="svg-container">
+<svg viewBox="0 0 700 220" xmlns="http://www.w3.org/2000/svg">
+  <!-- Transmitter box -->
+  <rect x="30" y="70" width="120" height="70" rx="8" fill="#111827" stroke="#00e5ff" stroke-width="1.5"/>
+  <text x="90" y="100" text-anchor="middle" fill="#d8dfe8" font-size="13" font-family="system-ui">Transmitter</text>
+  <text x="90" y="120" text-anchor="middle" fill="#00e5ff" font-size="12" font-family="monospace">P_tx = +10 dBW</text>
+
+  <!-- Feed loss -->
+  <line x1="150" y1="105" x2="240" y2="105" stroke="#f59e0b" stroke-width="2" stroke-dasharray="6,4"/>
+  <text x="195" y="95" text-anchor="middle" fill="#f59e0b" font-size="11" font-family="system-ui">-1 dB feed</text>
+
+  <!-- Antenna -->
+  <path d="M 260 60 Q 280 40 310 60 L 310 150 Q 280 170 260 150 Z" fill="#111827" stroke="#00e5ff" stroke-width="1.5"/>
+  <text x="285" y="110" text-anchor="middle" fill="#00e5ff" font-size="11" font-family="monospace">+38 dBi</text>
+  <text x="285" y="190" text-anchor="middle" fill="#d8dfe8" font-size="12" font-family="system-ui">Antenna</text>
+
+  <!-- Arrow to EIRP -->
+  <line x1="310" y1="105" x2="440" y2="105" stroke="#00e5ff" stroke-width="2" marker-end="url(#arrowhead5)"/>
+  <defs><marker id="arrowhead5" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#00e5ff"/></marker></defs>
+
+  <!-- Radiated beams -->
+  <line x1="310" y1="85" x2="420" y2="55" stroke="#00e5ff44" stroke-width="1"/>
+  <line x1="310" y1="75" x2="420" y2="50" stroke="#00e5ff33" stroke-width="1"/>
+  <line x1="310" y1="125" x2="420" y2="155" stroke="#00e5ff44" stroke-width="1"/>
+  <line x1="310" y1="135" x2="420" y2="160" stroke="#00e5ff33" stroke-width="1"/>
+
+  <!-- EIRP result -->
+  <rect x="450" y="70" width="200" height="70" rx="8" fill="#00e5ff11" stroke="#00e5ff" stroke-width="2"/>
+  <text x="550" y="100" text-anchor="middle" fill="#00e5ff" font-size="14" font-weight="bold" font-family="system-ui">EIRP = 47 dBW</text>
+  <text x="550" y="122" text-anchor="middle" fill="#d8dfe888" font-size="11" font-family="monospace">10 + 38 - 1 = 47</text>
+</svg>
+</div>
+
+<p>Notice: EIRP is a <em>direction-dependent</em> quantity. The 47 dBW above is at boresight. As the satellite scans its beam off-axis, the antenna gain drops and so does EIRP. At a 60-degree scan angle, you might lose 3-4 dB of gain, reducing EIRP to ~43 dBW.</p>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>3. Free Space Path Loss</h2>
+
+<p>Free Space Path Loss (FSPL) represents the spreading of electromagnetic energy as it propagates through a vacuum. It is not absorption -- it is geometry. The power per unit area decreases with the square of the distance.</p>
+
+<div class="formula">
+FSPL = 20 &middot; log<sub>10</sub>(4&pi; &middot; d &middot; f / c) &nbsp; [dB]
+</div>
+
+<p>Where <code>d</code> is distance in meters, <code>f</code> is frequency in Hz, and <code>c</code> is speed of light (3 &times; 10<sup>8</sup> m/s).</p>
+
+<div class="example">
+<h3>Concrete Example: Starlink at 12 GHz, 550 km</h3>
+<p>At zenith (satellite directly overhead): d = 550 km = 5.5 &times; 10<sup>5</sup> m</p>
+<pre><code>FSPL = 20 * log10(4 * pi * 5.5e5 * 12e9 / 3e8)
+     = 20 * log10(4 * pi * 2.2e7)
+     = 20 * log10(2.765e8)
+     = 20 * 8.442
+     = 168.8 dB  (~169 dB)</code></pre>
+<p>At the horizon (elevation ~ 25 degrees): d ~ 1100 km. The FSPL becomes ~175 dB, roughly <span class="warn">6 dB more loss</span>. At very low elevations (10 degrees), the slant range stretches further, and FSPL can reach ~180 dB. The total variation across a pass is <strong>roughly 11 dB</strong>.</p>
+</div>
+
+<div class="svg-container">
+<svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg">
+  <!-- Title -->
+  <text x="350" y="25" text-anchor="middle" fill="#d8dfe888" font-size="13" font-family="system-ui">Inverse-Square Law: Power Density vs Distance</text>
+
+  <!-- Satellite (source) -->
+  <circle cx="80" cy="150" r="18" fill="#00e5ff22" stroke="#00e5ff" stroke-width="1.5"/>
+  <text x="80" y="155" text-anchor="middle" fill="#00e5ff" font-size="10" font-family="system-ui">SAT</text>
+
+  <!-- Concentric wavefronts -->
+  <circle cx="80" cy="150" r="60" fill="none" stroke="#00e5ff33" stroke-width="1" stroke-dasharray="4,4"/>
+  <circle cx="80" cy="150" r="120" fill="none" stroke="#00e5ff22" stroke-width="1" stroke-dasharray="4,4"/>
+  <circle cx="80" cy="150" r="200" fill="none" stroke="#00e5ff11" stroke-width="1" stroke-dasharray="4,4"/>
+
+  <!-- Distance labels -->
+  <text x="145" y="100" fill="#d8dfe866" font-size="10" font-family="monospace">d</text>
+  <text x="205" y="75" fill="#d8dfe866" font-size="10" font-family="monospace">2d</text>
+  <text x="280" y="55" fill="#d8dfe866" font-size="10" font-family="monospace">3d</text>
+
+  <!-- Power density blocks at different distances -->
+  <!-- Near -->
+  <rect x="370" y="60" width="80" height="80" rx="4" fill="#00e5ff44" stroke="#00e5ff" stroke-width="1"/>
+  <text x="410" y="105" text-anchor="middle" fill="#d8dfe8" font-size="10" font-family="monospace">P / A</text>
+  <text x="410" y="155" text-anchor="middle" fill="#d8dfe8" font-size="11" font-family="system-ui">at d</text>
+
+  <!-- Mid -->
+  <rect x="475" y="80" width="55" height="55" rx="4" fill="#00e5ff22" stroke="#00e5ff" stroke-width="1"/>
+  <text x="502" y="112" text-anchor="middle" fill="#d8dfe8" font-size="9" font-family="monospace">P / 4A</text>
+  <text x="502" y="155" text-anchor="middle" fill="#d8dfe8" font-size="11" font-family="system-ui">at 2d</text>
+
+  <!-- Far -->
+  <rect x="555" y="90" width="38" height="38" rx="4" fill="#00e5ff11" stroke="#00e5ff" stroke-width="1"/>
+  <text x="574" y="113" text-anchor="middle" fill="#d8dfe8" font-size="8" font-family="monospace">P/9A</text>
+  <text x="574" y="155" text-anchor="middle" fill="#d8dfe8" font-size="11" font-family="system-ui">at 3d</text>
+
+  <!-- Explanation -->
+  <text x="350" y="200" text-anchor="middle" fill="#d8dfe8" font-size="12" font-family="system-ui">Double the distance = 1/4 the power density = 6 dB more loss</text>
+  <text x="350" y="220" text-anchor="middle" fill="#f59e0b" font-size="12" font-family="system-ui">This is why elevation angle matters so much!</text>
+
+  <!-- Distance vs FSPL mini table -->
+  <text x="130" y="245" fill="#d8dfe866" font-size="11" font-family="monospace">Elev 90deg: d=550km  FSPL=169dB</text>
+  <text x="130" y="262" fill="#d8dfe866" font-size="11" font-family="monospace">Elev 45deg: d=730km  FSPL=172dB</text>
+  <text x="130" y="279" fill="#d8dfe866" font-size="11" font-family="monospace">Elev 25deg: d=1100km FSPL=175dB</text>
+  <text x="130" y="296" fill="#f59e0b88" font-size="11" font-family="monospace">Elev 10deg: d=1800km FSPL=180dB</text>
+</svg>
+</div>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>4. Atmospheric Attenuation</h2>
+
+<p>The signal must pass through Earth's atmosphere. At Ku-band (12 GHz), the atmosphere absorbs and scatters energy. The loss depends on the <em>path length through the atmosphere</em>, which is a function of elevation angle.</p>
+
+<div class="formula">
+L<sub>atmo</sub> = L<sub>zenith</sub> / sin(elevation)
+</div>
+
+<p>This is the ITU-R P.676 "cosecant law" model. At zenith, L<sub>zenith</sub> is roughly 0.3 dB at 12 GHz in clear sky. But at 10-degree elevation, the path slices through ~5.7x more atmosphere:</p>
+
+<pre><code>L_atmo(90deg) = 0.3 / sin(90) = 0.3 dB
+L_atmo(45deg) = 0.3 / sin(45) = 0.42 dB
+L_atmo(25deg) = 0.3 / sin(25) = 0.71 dB
+L_atmo(10deg) = 0.3 / sin(10) = 1.73 dB</code></pre>
+
+<h3>Rain Fade</h3>
+<p>Rain is the dominant atmospheric impairment at Ku-band. Raindrops absorb and scatter microwave energy. The ITU-R P.618 rain model uses:</p>
+<ul>
+  <li><strong>Rain rate</strong>: mm/hr exceeded for a given percentage of time</li>
+  <li><strong>Specific attenuation</strong>: dB/km at the operating frequency</li>
+  <li><strong>Effective path length</strong>: geometric path through the rain cell</li>
+</ul>
+
+<p>Typical values at 12 GHz: light rain (5 mm/hr) adds ~1 dB, moderate rain (25 mm/hr) adds ~4 dB, heavy rain (50 mm/hr) adds <span class="warn">8+ dB</span>. Rain fade is the largest single variable in a Ku-band link budget and the primary reason LEO systems include generous link margin.</p>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>5. Polarization Loss</h2>
+
+<p>Starlink uses circular polarization. The ground terminal uses a linearly polarized antenna (phased array with electronic polarization synthesis). The mismatch between transmitted and received polarization introduces loss.</p>
+
+<h3>Key Concepts</h3>
+<ul>
+  <li><strong>Axial ratio</strong>: A perfectly circular wave has AR = 0 dB. Practical antennas might have AR = 1-2 dB.</li>
+  <li><strong>Cross-pol isolation</strong>: How well the antenna rejects the opposite polarization. Typical: 25-30 dB.</li>
+  <li><strong>Polarization mismatch loss</strong>: With circular TX and linear RX, the theoretical loss is 3 dB (you capture only one linear component). Starlink ground terminals synthesize circular from linear elements, reducing this to ~0.3-0.5 dB.</li>
+</ul>
+
+<p><strong>Scan-angle degradation:</strong> As the phased array scans off boresight, the element patterns become asymmetric. The circular polarization purity degrades, increasing polarization loss. At 60-degree scan, the additional polarization loss can be 0.5-1.0 dB.</p>
+
+<p>In the link budget, we use <code>L_pol</code> ~ 0.5 dB nominal, increasing at low elevation angles.</p>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>6. Receiver G/T -- Figure of Merit</h2>
+
+<p>G/T (pronounced "G over T") is the receiver's figure of merit. It captures both the receive antenna gain and the system noise in a single number.</p>
+
+<div class="formula">
+G/T = G<sub>rx</sub> - 10 &middot; log<sub>10</sub>(T<sub>sys</sub>) &nbsp; [dB/K]
+</div>
+
+<h3>System Noise Temperature</h3>
+<p>The system noise temperature <code>T_sys</code> is the sum of all noise sources referred to the antenna port:</p>
+<div class="formula">
+T<sub>sys</sub> = T<sub>ant</sub> + T<sub>lna</sub> + T<sub>cable</sub>
+</div>
+
+<table>
+<tr><th>Component</th><th>Typical Value</th><th>Notes</th></tr>
+<tr><td>T<sub>ant</sub> (antenna noise)</td><td>40-200 K</td><td>Varies strongly with elevation</td></tr>
+<tr><td>T<sub>lna</sub> (LNA noise)</td><td>75 K</td><td>NF ~1 dB</td></tr>
+<tr><td>T<sub>cable</sub> (cable/feed)</td><td>15 K</td><td>Short cable, low loss</td></tr>
+</table>
+
+<p><strong>Why T<sub>ant</sub> varies with elevation:</strong> When the antenna points at zenith, it "sees" cold sky (~20-40 K). When it points near the horizon, the antenna sidelobes pick up thermal radiation from the warm ground (~290 K). This ground noise spillover can increase T<sub>ant</sub> by 100-150 K at low elevations.</p>
+
+<div class="svg-container">
+<svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg">
+  <text x="350" y="20" text-anchor="middle" fill="#d8dfe888" font-size="13" font-family="system-ui">Noise Temperature vs Elevation Angle</text>
+
+  <!-- Axes -->
+  <line x1="100" y1="240" x2="620" y2="240" stroke="#d8dfe844" stroke-width="1"/>
+  <line x1="100" y1="240" x2="100" y2="50" stroke="#d8dfe844" stroke-width="1"/>
+
+  <!-- Y axis labels -->
+  <text x="90" y="238" text-anchor="end" fill="#d8dfe866" font-size="10" font-family="monospace">100K</text>
+  <text x="90" y="192" text-anchor="end" fill="#d8dfe866" font-size="10" font-family="monospace">150K</text>
+  <text x="90" y="144" text-anchor="end" fill="#d8dfe866" font-size="10" font-family="monospace">200K</text>
+  <text x="90" y="96" text-anchor="end" fill="#d8dfe866" font-size="10" font-family="monospace">250K</text>
+  <text x="90" y="60" text-anchor="end" fill="#d8dfe866" font-size="10" font-family="monospace">300K</text>
+  <text x="30" y="150" text-anchor="middle" fill="#d8dfe888" font-size="11" font-family="system-ui" transform="rotate(-90,30,150)">T_sys (Kelvin)</text>
+
+  <!-- X axis labels -->
+  <text x="100" y="258" text-anchor="middle" fill="#d8dfe866" font-size="10" font-family="monospace">10</text>
+  <text x="200" y="258" text-anchor="middle" fill="#d8dfe866" font-size="10" font-family="monospace">25</text>
+  <text x="310" y="258" text-anchor="middle" fill="#d8dfe866" font-size="10" font-family="monospace">40</text>
+  <text x="420" y="258" text-anchor="middle" fill="#d8dfe866" font-size="10" font-family="monospace">55</text>
+  <text x="520" y="258" text-anchor="middle" fill="#d8dfe866" font-size="10" font-family="monospace">70</text>
+  <text x="620" y="258" text-anchor="middle" fill="#d8dfe866" font-size="10" font-family="monospace">90</text>
+  <text x="360" y="275" text-anchor="middle" fill="#d8dfe888" font-size="11" font-family="system-ui">Elevation Angle (degrees)</text>
+
+  <!-- Grid lines -->
+  <line x1="100" y1="192" x2="620" y2="192" stroke="#d8dfe811" stroke-width="1" stroke-dasharray="4,4"/>
+  <line x1="100" y1="144" x2="620" y2="144" stroke="#d8dfe811" stroke-width="1" stroke-dasharray="4,4"/>
+  <line x1="100" y1="96" x2="620" y2="96" stroke="#d8dfe811" stroke-width="1" stroke-dasharray="4,4"/>
+
+  <!-- Noise temperature curve (T_sys) - exponential rise at low elevation -->
+  <polyline points="100,72 140,108 180,148 220,175 260,195 310,210 360,220 420,228 480,232 540,234 600,235 620,236" fill="none" stroke="#f59e0b" stroke-width="2.5"/>
+
+  <!-- T_ant component (lower curve) -->
+  <polyline points="100,110 140,150 180,182 220,200 260,212 310,222 360,228 420,232 480,234 540,235 600,236 620,236" fill="none" stroke="#00e5ff" stroke-width="1.5" stroke-dasharray="6,3"/>
+
+  <!-- Constant T_lna + T_cable line -->
+  <line x1="100" y1="231" x2="620" y2="231" stroke="#d8dfe833" stroke-width="1" stroke-dasharray="3,3"/>
+  <text x="630" y="234" fill="#d8dfe866" font-size="9" font-family="monospace">T_lna+T_cable=90K</text>
+
+  <!-- Legend -->
+  <line x1="400" y1="38" x2="430" y2="38" stroke="#f59e0b" stroke-width="2.5"/>
+  <text x="435" y="42" fill="#f59e0b" font-size="10" font-family="system-ui">T_sys (total)</text>
+  <line x1="510" y1="38" x2="540" y2="38" stroke="#00e5ff" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <text x="545" y="42" fill="#00e5ff" font-size="10" font-family="system-ui">T_ant</text>
+
+  <!-- Annotation: danger zone -->
+  <rect x="100" y="50" width="70" height="25" rx="4" fill="#f59e0b22" stroke="#f59e0b44" stroke-width="1"/>
+  <text x="135" y="66" text-anchor="middle" fill="#f59e0b" font-size="9" font-family="system-ui">high noise!</text>
+</svg>
+</div>
+
+<div class="example">
+<h3>Example G/T Calculation</h3>
+<p>At 45-degree elevation: G<sub>rx</sub> = 33 dBi, T<sub>sys</sub> = 140 K</p>
+<pre><code>G/T = 33 - 10*log10(140)
+    = 33 - 21.5
+    = 11.5 dB/K</code></pre>
+<p>At 10-degree elevation: G<sub>rx</sub> = 28 dBi (scan loss), T<sub>sys</sub> = 280 K (ground noise)</p>
+<pre><code>G/T = 28 - 10*log10(280)
+    = 28 - 24.5
+    = 3.5 dB/K</code></pre>
+<p>That is an <span class="warn">8 dB swing</span> in G/T between zenith and low elevation. This is why low-elevation performance is so challenging.</p>
+</div>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>7. The Complete Link Budget Equation</h2>
+
+<p>Now we assemble every piece into the complete carrier-to-noise ratio:</p>
+
+<div class="formula">
+C/N = EIRP - FSPL - L<sub>atmo</sub> - L<sub>rain</sub> - L<sub>pol</sub> + G/T - k<sub>B</sub> - 10&middot;log<sub>10</sub>(BW)
+</div>
+
+<p>Where <code>k<sub>B</sub></code> = Boltzmann's constant = -228.6 dBW/K/Hz, and <code>BW</code> is the noise bandwidth in Hz.</p>
+
+<div class="example">
+<h3>Worked Example: Starlink Downlink at 45-degree Elevation (Clear Sky)</h3>
+<table>
+<tr><th>Parameter</th><th>Value</th><th>Running Total</th></tr>
+<tr><td>EIRP (P<sub>tx</sub> + G<sub>tx</sub> - L<sub>feed</sub>)</td><td>+47.0 dBW</td><td class="accent">+47.0</td></tr>
+<tr><td>Free Space Path Loss</td><td>-172.0 dB</td><td>-125.0</td></tr>
+<tr><td>Atmospheric attenuation</td><td>-0.42 dB</td><td>-125.4</td></tr>
+<tr><td>Rain loss (clear sky)</td><td>-0.0 dB</td><td>-125.4</td></tr>
+<tr><td>Polarization loss</td><td>-0.4 dB</td><td>-125.8</td></tr>
+<tr><td>Receiver G/T</td><td>+11.5 dB/K</td><td>-114.3</td></tr>
+<tr><td>Boltzmann's constant</td><td>+228.6 dBW/K/Hz</td><td>+114.3</td></tr>
+<tr><td>Bandwidth (240 MHz)</td><td>-83.8 dB-Hz</td><td class="accent">+30.5</td></tr>
+</table>
+
+<p><strong>Result: C/N = 30.5 dB</strong> -- this is a very healthy link. It supports high-order modulation (64QAM) with plenty of margin.</p>
+</div>
+
+<div class="example">
+<h3>Same Pass, 10-degree Elevation</h3>
+<table>
+<tr><th>Parameter</th><th>Change from 45 deg</th><th>Value</th></tr>
+<tr><td>EIRP</td><td>-3 dB (scan loss)</td><td>+44.0 dBW</td></tr>
+<tr><td>FSPL</td><td>-6 dB (more distance)</td><td>-178.0 dB</td></tr>
+<tr><td>Atmospheric</td><td>-1.3 dB more</td><td>-1.73 dB</td></tr>
+<tr><td>Polarization</td><td>-0.3 dB more</td><td>-0.7 dB</td></tr>
+<tr><td>G/T</td><td>-8 dB worse</td><td>+3.5 dB/K</td></tr>
+</table>
+<p><strong>Result: C/N ~ 12.7 dB</strong> -- dropped by <span class="warn">17.8 dB</span> from the 45-degree case. Now only QPSK with low code rate is viable.</p>
+</div>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>8. SNR Penalties</h2>
+
+<p>The theoretical C/N is not the whole story. Real implementations suffer additional losses that degrade the effective SNR:</p>
+
+<table>
+<tr><th>Penalty</th><th>Typical Value</th><th>Cause</th></tr>
+<tr><td>EVM Penalty</td><td>0.5 - 1.5 dB</td><td>Error Vector Magnitude: DAC/ADC quantization, IQ imbalance, phase noise in the oscillator</td></tr>
+<tr><td>Doppler Tracking Penalty</td><td>0.2 - 0.8 dB</td><td>Residual frequency error from tracking loop lag. Worse near horizon where Doppler rate is highest.</td></tr>
+<tr><td>Implementation Loss</td><td>1.0 - 2.0 dB</td><td>Catch-all: channel estimation errors, timing recovery, interleaver depth limits</td></tr>
+</table>
+
+<div class="formula">
+effective_SNR = C/N - penalty_evm - penalty_doppler - penalty_impl
+</div>
+
+<p>For our 45-degree example: effective_SNR = 30.5 - 0.8 - 0.3 - 1.5 = <span class="accent">27.9 dB</span></p>
+<p>For the 10-degree case: effective_SNR = 12.7 - 1.2 - 0.7 - 1.5 = <span class="warn">9.3 dB</span></p>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>9. Link Margin</h2>
+
+<p>The link margin is the difference between what you have and what you need:</p>
+
+<div class="formula">
+margin = effective_SNR - required_SNR
+</div>
+
+<p>The <code>required_SNR</code> comes from the chosen modulation and coding scheme (ModCod). For example:</p>
+<ul>
+  <li>QPSK 1/2: requires ~3.5 dB</li>
+  <li>QPSK 3/4: requires ~6.5 dB</li>
+  <li>16QAM 3/4: requires ~13.5 dB</li>
+  <li>64QAM 3/4: requires ~19.5 dB</li>
+</ul>
+
+<p><strong>Positive margin = link works.</strong> The bigger the margin, the more resilient the link is to unexpected impairments (rain, interference, degraded hardware).</p>
+
+<p><strong>At 0 dB margin:</strong> The link is right at the edge. A puff of cloud, a slight temperature increase in the LNA, or a momentary pointing error will cause errors. Adaptive modulation systems will drop to a lower ModCod to regain margin.</p>
+
+<p><strong>Negative margin:</strong> The link fails. Bit errors exceed the FEC correction capability. Packets are lost.</p>
+
+<div class="example">
+<h3>Example Margins</h3>
+<p>At 45 degrees (effective_SNR = 27.9 dB, using 64QAM 3/4, required 19.5 dB):</p>
+<pre><code>margin = 27.9 - 19.5 = +8.4 dB  -- Healthy margin</code></pre>
+<p>At 10 degrees (effective_SNR = 9.3 dB, using QPSK 3/4, required 6.5 dB):</p>
+<pre><code>margin = 9.3 - 6.5 = +2.8 dB  -- Tight but workable</code></pre>
+<p>At 10 degrees in rain (effective_SNR = 5.3 dB, still QPSK 3/4):</p>
+<pre><code>margin = 5.3 - 6.5 = -1.2 dB  -- LINK FAILS, must drop to QPSK 1/2</code></pre>
+</div>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>10. Waterfall Chart</h2>
+
+<p>A waterfall chart visualizes the link budget as a cascade. You start with EIRP and watch the signal level rise with gains and fall with losses until you reach the final C/N.</p>
+
+<div class="svg-container">
+<svg viewBox="0 0 750 400" xmlns="http://www.w3.org/2000/svg">
+  <text x="375" y="22" text-anchor="middle" fill="#d8dfe888" font-size="13" font-family="system-ui">Link Budget Waterfall -- Starlink Downlink at 45 deg Elevation</text>
+
+  <!-- Y axis -->
+  <line x1="70" y1="40" x2="70" y2="370" stroke="#d8dfe833" stroke-width="1"/>
+  <text x="15" y="210" text-anchor="middle" fill="#d8dfe866" font-size="11" font-family="system-ui" transform="rotate(-90,15,210)">dB relative</text>
+
+  <!-- Y axis scale (mapping: 47 dBW maps to y=60, each 10 dB = 30 px down) -->
+  <!-- EIRP +47 => y=60, FSPL brings to -125 => y=60+(172*1.7)=352... let's use compressed scale -->
+  <!-- Use normalized: start at top, show relative changes -->
+
+  <!-- Bars - using relative scale. Bar widths=70, gaps=12 -->
+  <!-- EIRP: starts at baseline 320, goes UP to 47*3=141 px from 320 => top at 179 -->
+
+  <!-- Bar 1: EIRP = +47 dBW (gain, goes up) -->
+  <rect x="85" y="86" width="65" height="234" rx="3" fill="#00e5ff33" stroke="#00e5ff" stroke-width="1.5"/>
+  <text x="117" y="78" text-anchor="middle" fill="#00e5ff" font-size="10" font-weight="bold" font-family="monospace">+47.0</text>
+  <text x="117" y="340" text-anchor="middle" fill="#d8dfe8" font-size="9" font-family="system-ui">EIRP</text>
+
+  <!-- Connecting line from top of EIRP to next bar -->
+  <line x1="150" y1="86" x2="162" y2="86" stroke="#d8dfe844" stroke-width="1" stroke-dasharray="3,2"/>
+
+  <!-- Bar 2: FSPL = -172.0 dB (loss, goes down) -->
+  <rect x="162" y="86" width="65" height="258" rx="3" fill="#f59e0b22" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="194" y="220" text-anchor="middle" fill="#f59e0b" font-size="10" font-weight="bold" font-family="monospace">-172.0</text>
+  <text x="194" y="360" text-anchor="middle" fill="#d8dfe8" font-size="9" font-family="system-ui">FSPL</text>
+
+  <!-- Running level at bottom of FSPL: 47-172 = -125 => y=344 -->
+  <line x1="227" y1="344" x2="239" y2="344" stroke="#d8dfe844" stroke-width="1" stroke-dasharray="3,2"/>
+
+  <!-- Bar 3: L_atmo = -0.42 dB -->
+  <rect x="239" y="344" width="52" height="6" rx="2" fill="#f59e0b22" stroke="#f59e0b" stroke-width="1"/>
+  <text x="265" y="338" text-anchor="middle" fill="#f59e0b" font-size="9" font-family="monospace">-0.4</text>
+  <text x="265" y="365" text-anchor="middle" fill="#d8dfe8" font-size="8" font-family="system-ui">Atmo</text>
+
+  <line x1="291" y1="350" x2="303" y2="350" stroke="#d8dfe844" stroke-width="1" stroke-dasharray="3,2"/>
+
+  <!-- Bar 4: L_pol = -0.4 dB -->
+  <rect x="303" y="350" width="52" height="5" rx="2" fill="#f59e0b22" stroke="#f59e0b" stroke-width="1"/>
+  <text x="329" y="344" text-anchor="middle" fill="#f59e0b" font-size="9" font-family="monospace">-0.4</text>
+  <text x="329" y="372" text-anchor="middle" fill="#d8dfe8" font-size="8" font-family="system-ui">Pol</text>
+
+  <line x1="355" y1="355" x2="367" y2="355" stroke="#d8dfe844" stroke-width="1" stroke-dasharray="3,2"/>
+
+  <!-- Bar 5: G/T = +11.5 (gain, goes up) -->
+  <rect x="367" y="337" width="60" height="18" rx="3" fill="#00e5ff33" stroke="#00e5ff" stroke-width="1.5"/>
+  <text x="397" y="332" text-anchor="middle" fill="#00e5ff" font-size="10" font-family="monospace">+11.5</text>
+  <text x="397" y="372" text-anchor="middle" fill="#d8dfe8" font-size="8" font-family="system-ui">G/T</text>
+
+  <line x1="427" y1="337" x2="439" y2="337" stroke="#d8dfe844" stroke-width="1" stroke-dasharray="3,2"/>
+
+  <!-- Bar 6: kB = +228.6 (gain, goes up) -->
+  <rect x="439" y="84" width="60" height="253" rx="3" fill="#00e5ff22" stroke="#00e5ff" stroke-width="1.5"/>
+  <text x="469" y="215" text-anchor="middle" fill="#00e5ff" font-size="10" font-family="monospace">+228.6</text>
+  <text x="469" y="360" text-anchor="middle" fill="#d8dfe8" font-size="8" font-family="system-ui">-k_B</text>
+
+  <line x1="499" y1="84" x2="511" y2="84" stroke="#d8dfe844" stroke-width="1" stroke-dasharray="3,2"/>
+
+  <!-- Bar 7: BW = -83.8 (loss) -->
+  <rect x="511" y="84" width="60" height="130" rx="3" fill="#f59e0b22" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="541" y="155" text-anchor="middle" fill="#f59e0b" font-size="10" font-family="monospace">-83.8</text>
+  <text x="541" y="230" text-anchor="middle" fill="#d8dfe8" font-size="8" font-family="system-ui">BW</text>
+
+  <line x1="571" y1="214" x2="583" y2="214" stroke="#d8dfe844" stroke-width="1" stroke-dasharray="3,2"/>
+
+  <!-- Final result bar -->
+  <rect x="590" y="214" width="70" height="106" rx="3" fill="#00e5ff44" stroke="#00e5ff" stroke-width="2"/>
+  <text x="625" y="270" text-anchor="middle" fill="#00e5ff" font-size="13" font-weight="bold" font-family="monospace">C/N</text>
+  <text x="625" y="290" text-anchor="middle" fill="#00e5ff" font-size="12" font-weight="bold" font-family="monospace">30.5 dB</text>
+  <text x="625" y="340" text-anchor="middle" fill="#d8dfe8" font-size="9" font-family="system-ui">Result</text>
+
+  <!-- Baseline reference -->
+  <line x1="70" y1="320" x2="750" y2="320" stroke="#d8dfe811" stroke-width="1" stroke-dasharray="6,4"/>
+  <text x="738" y="316" text-anchor="end" fill="#d8dfe833" font-size="9" font-family="monospace">0 dB ref</text>
+
+  <!-- Legend -->
+  <rect x="85" y="380" width="12" height="12" rx="2" fill="#00e5ff33" stroke="#00e5ff" stroke-width="1"/>
+  <text x="102" y="391" fill="#d8dfe8" font-size="10" font-family="system-ui">Gains</text>
+  <rect x="155" y="380" width="12" height="12" rx="2" fill="#f59e0b22" stroke="#f59e0b" stroke-width="1"/>
+  <text x="172" y="391" fill="#d8dfe8" font-size="10" font-family="system-ui">Losses</text>
+</svg>
+</div>
+
+<p>The waterfall chart immediately reveals the dominant terms: FSPL is the overwhelming loss, and the Boltzmann constant term (which converts from power to noise-referenced units) is the corresponding large gain. The smaller losses (atmospheric, polarization) are almost invisible at this scale -- but they matter at low elevation where every dB counts.</p>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>11. Code Connection</h2>
+
+<p>The link budget calculation lives in the simulator at:</p>
+
+<ul>
+  <li><code>src/simulation/link-budget/link-budget.ts</code> -- The main link budget computation. Computes EIRP, FSPL, atmospheric losses, and assembles C/N. Called every simulation tick with the current satellite state.</li>
+  <li><code>src/simulation/link-budget/doppler.ts</code> -- Doppler shift and Doppler rate calculations. Feeds the tracking loop penalty into the SNR computation.</li>
+  <li><code>src/simulation/link-budget/tracking-loop.ts</code> -- Models the PLL/FLL tracking loop that compensates for Doppler. Outputs residual frequency error that becomes the Doppler tracking penalty.</li>
+</ul>
+
+<p>Key relationships to trace in the code:</p>
+<pre><code>// link-budget.ts computes:
+// 1. eirp_dBW = tx_power_dBW + antenna_gain_dBi - feed_loss_dB
+// 2. fspl_dB  = 20 * Math.log10(4 * Math.PI * dist_m * freq_hz / C)
+// 3. cn0_dB   = eirp - fspl - atmo_loss - rain_loss - pol_loss
+//              + g_over_t + 228.6   (Boltzmann)
+// 4. cn_dB    = cn0 - 10*Math.log10(bandwidth_hz)
+// 5. eff_snr  = cn - penalties</code></pre>
+</div>
+
+<!-- ============================================================ -->
+<div class="refs">
+<h2>References</h2>
+<ul>
+  <li><strong>ITU-R P.676</strong> -- Attenuation by Atmospheric Gases and Related Effects</li>
+  <li><strong>ITU-R P.618</strong> -- Propagation Data and Prediction Methods for Earth-Space Telecommunications (Rain Attenuation)</li>
+  <li>Maral, G. & Bousquet, M. -- <em>Satellite Communications Systems: Systems, Techniques and Technology</em>, 6th ed., Wiley</li>
+  <li>Ippolito, L. J. -- <em>Satellite Communications Systems Engineering</em>, 2nd ed., Wiley</li>
+  <li>Roddy, D. -- <em>Satellite Communications</em>, 4th ed., McGraw-Hill (Chapter 12: Link Budget)</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<div class="questions">
+<h2>Questions</h2>
+<ol>
+  <li>
+    <strong>FSPL variation.</strong> A Starlink satellite passes from 25-degree elevation to 90-degree elevation. The slant range decreases from 1100 km to 550 km. How many dB does the FSPL decrease? Show your calculation using the FSPL formula.
+  </li>
+  <li>
+    <strong>Atmospheric path length.</strong> If the zenith atmospheric loss is 0.3 dB at 12 GHz, what is the atmospheric loss at 15-degree elevation? At what elevation does the atmospheric loss exceed 1 dB?
+  </li>
+  <li>
+    <strong>G/T degradation.</strong> A ground terminal has G<sub>rx</sub> = 35 dBi at boresight and T<sub>sys</sub> = 130 K when pointing at zenith. At 10-degree elevation, scan loss reduces G<sub>rx</sub> to 28 dBi and ground noise increases T<sub>sys</sub> to 290 K. Calculate G/T at both angles and the total degradation.
+  </li>
+  <li>
+    <strong>Rain fade impact.</strong> A link has C/N = 18 dB in clear sky using 16QAM 3/4 (requires 13.5 dB). How much rain fade (in dB) can the link tolerate before it must fall back to QPSK 3/4 (requires 6.5 dB)?
+  </li>
+  <li>
+    <strong>Penalty stacking.</strong> An implementation has EVM penalty = 1.2 dB, Doppler tracking penalty = 0.5 dB, and implementation loss = 1.8 dB. If the raw C/N is 15 dB and the required SNR is 13.5 dB (16QAM 3/4), does the link close? What is the margin?
+  </li>
+  <li>
+    <strong>Full link budget exercise.</strong> Compute the end-to-end C/N for a Starlink downlink with these parameters:
+    <br>P<sub>tx</sub> = 12 dBW, G<sub>tx</sub> = 36 dBi, L<sub>feed</sub> = 0.8 dB, f = 11.7 GHz, d = 800 km, L<sub>atmo</sub> = 0.6 dB, L<sub>rain</sub> = 2 dB, L<sub>pol</sub> = 0.5 dB, G<sub>rx</sub> = 31 dBi, T<sub>sys</sub> = 180 K, BW = 240 MHz.
+    <br>Then apply penalties (EVM=1.0, Doppler=0.4, Impl=1.5) and determine which ModCod should be selected.
+  </li>
+</ol>
+</div>
+
+<nav class="bottom">
+  <a href="index.html">&larr; Course Index</a>
+  <a href="unit-6-modulation-protocol.html">Unit 6: Modulation & Protocol &rarr;</a>
+</nav>
+
+</div>
+</body>
+</html>

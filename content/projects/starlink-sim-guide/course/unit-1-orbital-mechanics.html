@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unit 1: Orbital Mechanics &amp; Satellite Passes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #060a14;
+  --surface: #0f1520;
+  --text: #d8e0ec;
+  --dim: #6a7a90;
+  --accent: #00e5ff;
+  --accent-dim: rgba(0,229,255,0.08);
+  --green: #22c55e;
+  --amber: #f59e0b;
+  --red: #ef4444;
+  --purple: #a78bfa;
+  --border: rgba(0,229,255,0.08);
+  --border-bright: rgba(0,229,255,0.18);
+  --code-bg: #111827;
+  --radius: 8px;
+  --font-body: 'Chakra Petch', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:var(--font-body);line-height:1.72;font-size:16px;
+  -webkit-font-smoothing:antialiased;
+}
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:-1;
+  background:radial-gradient(ellipse 60% 40% at 50% 0%,rgba(0,229,255,0.03),transparent 70%);
+}
+.wrap{max-width:900px;margin:0 auto;padding:2rem 1.5rem 4rem;}
+
+/* ── Navigation ── */
+nav.top{display:flex;justify-content:space-between;align-items:center;padding:1rem 0;border-bottom:1px solid var(--border);margin-bottom:2rem;font-size:0.9rem;flex-wrap:wrap;gap:0.5rem;}
+nav.bottom{display:flex;justify-content:space-between;margin-top:3rem;padding-top:1.2rem;border-top:1px solid var(--border);font-size:0.92rem;flex-wrap:wrap;gap:0.5rem;}
+nav a{color:var(--accent);text-decoration:none;font-weight:500;}
+nav a:hover{text-decoration:underline;color:#5ef5ff;}
+.nav-label{color:var(--dim);}
+
+/* ── Header ── */
+.unit-badge{
+  display:inline-block;background:linear-gradient(135deg,rgba(0,229,255,0.12),rgba(0,80,110,0.25));
+  color:var(--accent);font-size:0.75rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:0.1em;padding:0.3em 0.8em;border-radius:4px;margin-bottom:0.75rem;
+  font-family:var(--font-mono);
+}
+h1{font-family:var(--font-body);font-size:2.2rem;font-weight:700;color:#fff;letter-spacing:-0.02em;margin-bottom:0.5rem;line-height:1.2;}
+.subtitle{font-size:1.05rem;color:var(--dim);margin-bottom:2rem;font-weight:300;}
+
+h2{font-family:var(--font-body);font-size:1.5rem;font-weight:700;color:#fff;margin:3rem 0 1rem;padding-bottom:0.5rem;border-bottom:2px solid var(--border);}
+h2 .badge{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:28px;height:28px;border-radius:6px;font-family:var(--font-mono);
+  font-size:0.82rem;font-weight:600;color:var(--accent);
+  background:var(--accent-dim);border:1px solid var(--border-bright);
+  margin-right:0.4em;vertical-align:middle;
+}
+h3{font-family:var(--font-body);font-size:1.15rem;font-weight:600;color:var(--accent);margin:1.8rem 0 0.6rem;}
+p{margin-bottom:1rem;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{text-decoration:underline;}
+
+/* ── Objectives ── */
+.objectives{
+  background:linear-gradient(135deg,#0c1a2e,#0f1f35);border:1px solid #1e3a5f;
+  border-left:4px solid var(--accent);border-radius:var(--radius);
+  padding:1.5rem 1.5rem 1rem;margin:1.5rem 0 2rem;
+}
+.objectives h3{margin-top:0;color:var(--accent);font-size:1rem;text-transform:uppercase;letter-spacing:0.08em;}
+.objectives ul{list-style:none;padding:0;}
+.objectives li{padding:0.3em 0 0.3em 1.5em;position:relative;}
+.objectives li::before{content:'\2713';position:absolute;left:0;color:var(--green);font-weight:700;}
+
+/* ── Code ── */
+pre{background:var(--code-bg);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:1.2rem 1.5rem;overflow-x:auto;margin:1rem 0 1.5rem;font-size:0.88rem;line-height:1.6;}
+code{font-family:var(--font-mono);font-size:0.88em;}
+pre code{color:var(--text);}
+.kw{color:var(--accent);}.str{color:var(--green);}.num{color:var(--amber);}.cmt{color:var(--dim);font-style:italic;}.fn{color:var(--purple);}.type{color:#f472b6;}
+p code,li code,td code{background:var(--code-bg);border:1px solid rgba(255,255,255,0.06);padding:0.15em 0.4em;border-radius:4px;font-size:0.88em;color:var(--accent);}
+
+/* ── Tables ── */
+table{width:100%;border-collapse:collapse;margin:1rem 0 1.5rem;font-size:0.92rem;}
+th{background:var(--code-bg);color:var(--accent);font-weight:600;text-align:left;padding:0.7em 1em;border-bottom:2px solid rgba(255,255,255,0.06);}
+td{padding:0.6em 1em;border-bottom:1px solid rgba(255,255,255,0.04);vertical-align:top;}
+tr:hover td{background:rgba(0,229,255,0.03);}
+
+/* ── SVG ── */
+.diagram-wrapper{display:flex;justify-content:center;margin:1.5rem 0;}
+.diagram-wrapper svg{max-width:100%;height:auto;}
+.diagram-caption{text-align:center;font-size:0.85rem;color:var(--dim);margin-top:-0.5rem;margin-bottom:1.5rem;font-style:italic;}
+
+/* ── Boxes ── */
+.info-box{background:rgba(0,229,255,0.06);border:1px solid rgba(0,229,255,0.2);border-radius:var(--radius);padding:1rem 1.2rem;margin:1rem 0 1.5rem;font-size:0.93rem;}
+.info-box strong{color:var(--accent);}
+.warn-box{background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:var(--radius);padding:1rem 1.2rem;margin:1rem 0 1.5rem;font-size:0.93rem;}
+.warn-box strong{color:var(--amber);}
+.danger-box{background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:var(--radius);padding:1rem 1.2rem;margin:1rem 0 1.5rem;font-size:0.93rem;}
+.danger-box strong{color:var(--red);}
+
+/* ── Math ── */
+.math-block{background:var(--code-bg);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:1rem 1.5rem;margin:1rem 0 1.5rem;font-family:var(--font-mono);font-size:0.95rem;text-align:center;color:var(--amber);letter-spacing:0.02em;line-height:1.8;}
+
+/* ── TLE annotated ── */
+.tle-box{background:var(--code-bg);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:1.5rem;margin:1rem 0 1.5rem;font-family:var(--font-mono);font-size:0.8rem;line-height:2.0;overflow-x:auto;}
+.tle-line{white-space:pre;margin-bottom:0.3rem;letter-spacing:0.04em;}
+.tle-field{position:relative;cursor:help;border-radius:3px;padding:1px 3px;}
+.f-cat{background:rgba(0,229,255,0.15);color:var(--accent);}
+.f-norad{background:rgba(245,158,11,0.15);color:var(--amber);}
+.f-epoch{background:rgba(34,197,94,0.15);color:var(--green);}
+.f-drag{background:rgba(239,68,68,0.15);color:var(--red);}
+.f-inc{background:rgba(167,139,250,0.15);color:var(--purple);}
+.f-raan{background:rgba(0,229,255,0.15);color:var(--accent);}
+.f-ecc{background:rgba(245,158,11,0.15);color:var(--amber);}
+.f-aop{background:rgba(34,197,94,0.15);color:var(--green);}
+.f-ma{background:rgba(239,68,68,0.15);color:var(--red);}
+.f-mm{background:rgba(167,139,250,0.15);color:var(--purple);}
+.tle-legend{display:flex;flex-wrap:wrap;gap:0.5rem 1.2rem;margin-top:1rem;font-size:0.8rem;}
+.tle-legend span{display:flex;align-items:center;gap:0.3rem;}
+.tle-legend .swatch{display:inline-block;width:12px;height:12px;border-radius:3px;}
+
+/* ── Questions ── */
+.question-block{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.3rem;margin:0.6rem 0;}
+.question-block summary{cursor:pointer;font-weight:600;color:var(--accent);font-size:0.95rem;}
+.question-block summary:hover{color:#5ef5ff;}
+.question-block p{margin-top:0.5rem;font-size:0.93rem;}
+
+/* ── References ── */
+.ref-list{font-size:0.9rem;}
+.ref-list li{margin-bottom:0.35rem;color:var(--dim);}
+.ref-list a{color:var(--accent);}
+
+ul,ol{padding-left:1.4rem;margin-bottom:1rem;}
+li{margin-bottom:0.4rem;}
+svg text{font-family:var(--font-body),system-ui,sans-serif;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ═══ NAV ═══ -->
+<nav class="top">
+  <a href="index.html">Course Index</a>
+  <span class="nav-label">Unit 1 of 7</span>
+  <a href="unit-2-phased-array.html">Unit 2: Phased Arrays &rarr;</a>
+</nav>
+
+<!-- ═══ HEADER ═══ -->
+<div class="unit-badge">Unit 01</div>
+<h1>Orbital Mechanics &amp; Satellite Passes</h1>
+<p class="subtitle">How satellites orbit Earth, what TLEs encode, how SGP4 propagation works, and why LEO passes last only minutes. The foundation for every downstream subsystem in the simulator.</p>
+
+<!-- ═══ LEARNING OBJECTIVES ═══ -->
+<div class="objectives">
+  <h3>Learning Objectives</h3>
+  <ul>
+    <li>Read and decode every field in a Two-Line Element (TLE) set</li>
+    <li>Explain what SGP4 propagation does and why it accounts for J2 and atmospheric drag</li>
+    <li>Define elevation, azimuth, and slant range in the context of a ground pass</li>
+    <li>Derive the Doppler shift formula and predict frequency behavior through a pass</li>
+    <li>Distinguish AOS, TCA, and LOS and explain how the simulator computes each</li>
+    <li>Estimate the duration of a LEO pass from orbital velocity and visible arc geometry</li>
+  </ul>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- SECTION 1: Two-Line Elements -->
+<!-- ════════════════════════════════════════════════════════ -->
+<h2><span class="badge">1</span> What Is a TLE?</h2>
+
+<p>A Two-Line Element set is a compact, standardized format for describing a satellite's orbit. NORAD (North American Aerospace Defense Command) assigns every tracked object a catalog number and publishes updated TLEs through sources like CelesTrak. The format was designed in the 1960s for punch-card era computing and has persisted because it pairs directly with the SGP4 propagation algorithm.</p>
+
+<p>A TLE encodes six Keplerian orbital elements plus perturbation terms. It is <em>not</em> a snapshot of position and velocity; it is a set of mean orbital elements that, when fed into SGP4, produce position and velocity at any future time.</p>
+
+<h3>The STARLINK-1008 TLE</h3>
+
+<p>This is the real TLE used in the simulator, fetched from CelesTrak (NORAD ID 44714). Hover over each field to see what it encodes.</p>
+
+<div class="tle-box">
+  <div class="tle-line">STARLINK-1008</div>
+  <div class="tle-line"><span class="tle-field f-cat" title="Line number">1</span> <span class="tle-field f-norad" title="NORAD Catalog Number">44714</span><span class="tle-field f-cat" title="Classification (U=Unclassified)">U</span> <span class="tle-field f-epoch" title="International Designator: 2019 launch 74, piece B">19074B</span>   <span class="tle-field f-epoch" title="Epoch: Year 26, Day 101.18331139">26101.18331139</span>  <span class="tle-field f-drag" title="First derivative of mean motion (rev/day^2)"> .00044052</span>  <span class="tle-field f-drag" title="Second derivative (usually 0)">00000+0</span>  <span class="tle-field f-drag" title="B* drag term: 0.01302">13020-2</span> 0  9992</div>
+  <div class="tle-line"><span class="tle-field f-cat" title="Line number">2</span> <span class="tle-field f-norad" title="NORAD Catalog Number">44714</span>  <span class="tle-field f-inc" title="Inclination: 53.1549 degrees">53.1549</span>  <span class="tle-field f-raan" title="Right Ascension of Ascending Node: 27.2699 degrees"> 27.2699</span> <span class="tle-field f-ecc" title="Eccentricity: 0.0003259 (leading decimal assumed)">0003259</span> <span class="tle-field f-aop" title="Argument of Perigee: 140.0923 degrees">140.0923</span> <span class="tle-field f-ma" title="Mean Anomaly: 220.0320 degrees">220.0320</span> <span class="tle-field f-mm" title="Mean Motion: 15.34524170 rev/day">15.34524170</span>353857</div>
+  <div class="tle-legend">
+    <span><span class="swatch" style="background:rgba(0,229,255,0.3);"></span> Catalog / Line</span>
+    <span><span class="swatch" style="background:rgba(245,158,11,0.3);"></span> NORAD ID / Eccentricity</span>
+    <span><span class="swatch" style="background:rgba(34,197,94,0.3);"></span> Epoch / Arg. Perigee</span>
+    <span><span class="swatch" style="background:rgba(239,68,68,0.3);"></span> Drag / Mean Anomaly</span>
+    <span><span class="swatch" style="background:rgba(167,139,250,0.3);"></span> Inclination / Mean Motion</span>
+  </div>
+</div>
+
+<h3>Field-by-Field Breakdown</h3>
+
+<table>
+  <tr><th>Field</th><th>Value</th><th>Meaning</th></tr>
+  <tr><td>NORAD ID</td><td><code>44714</code></td><td>Unique catalog number assigned by the 18th Space Defense Squadron</td></tr>
+  <tr><td>Epoch</td><td><code>26101.18331139</code></td><td>Year 2026, day 101.183... (April 11, ~04:24 UTC). The reference time for all elements.</td></tr>
+  <tr><td>B* drag</td><td><code>13020-2</code> = 0.01302</td><td>Atmospheric drag coefficient for SGP4. Higher B* means faster orbital decay.</td></tr>
+  <tr><td>Inclination</td><td><code>53.1549</code> deg</td><td>Angle between the orbital plane and the equator. 53 degrees is the standard Starlink shell.</td></tr>
+  <tr><td>RAAN</td><td><code>27.2699</code> deg</td><td>Right Ascension of Ascending Node. Where the orbit crosses the equator northbound, measured from the vernal equinox.</td></tr>
+  <tr><td>Eccentricity</td><td><code>0.0003259</code></td><td>Nearly circular (0 = circle, 1 = parabola). Starlink orbits are very close to circular.</td></tr>
+  <tr><td>Arg. of Perigee</td><td><code>140.0923</code> deg</td><td>Angular position of the closest approach point within the orbital plane.</td></tr>
+  <tr><td>Mean Anomaly</td><td><code>220.0320</code> deg</td><td>Where the satellite was in its orbit at epoch (0 = perigee).</td></tr>
+  <tr><td>Mean Motion</td><td><code>15.34524170</code> rev/day</td><td>The satellite completes ~15.35 orbits per day. Period = 1440/15.345 = ~93.8 minutes.</td></tr>
+</table>
+
+<div class="info-box">
+  <strong>Key insight:</strong> The eccentricity of 0.0003259 means the orbit is essentially circular. The difference between perigee and apogee is only about 2 km. This is typical for LEO communication satellites, which need a consistent altitude for uniform coverage.
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- SECTION 2: SGP4 Propagation -->
+<!-- ════════════════════════════════════════════════════════ -->
+<h2><span class="badge">2</span> SGP4 Propagation</h2>
+
+<p>A TLE by itself only tells you the orbit at one instant (the epoch). To predict where a satellite will be at any future time, you need a <em>propagator</em> -- an algorithm that integrates the equations of motion forward (or backward) in time. SGP4 (Simplified General Perturbations, version 4) is the standard propagator designed to work with TLE data.</p>
+
+<h3>What SGP4 Actually Does</h3>
+
+<p>At its core, SGP4 starts with the six mean orbital elements from the TLE and applies a series of analytical corrections to account for perturbations that cause the real orbit to deviate from a pure Keplerian ellipse. The output at any requested time is a position vector (x, y, z) and velocity vector (vx, vy, vz) in the Earth-Centered Inertial (ECI) coordinate frame.</p>
+
+<p>The key perturbations SGP4 models are:</p>
+
+<table>
+  <tr><th>Perturbation</th><th>Cause</th><th>Effect</th></tr>
+  <tr><td><strong>J2 oblateness</strong></td><td>Earth is not a perfect sphere; it bulges at the equator</td><td>Causes RAAN to precess (~7 deg/day for LEO), argument of perigee to rotate, and mean motion to shift. This is by far the dominant perturbation.</td></tr>
+  <tr><td><strong>J3, J4 harmonics</strong></td><td>Higher-order gravitational asymmetries (pear shape, etc.)</td><td>Small corrections to the J2 effects. Important for precision but secondary.</td></tr>
+  <tr><td><strong>Atmospheric drag</strong></td><td>Residual atmosphere at LEO altitudes (even at 550 km)</td><td>Removes energy from the orbit, lowering altitude over time. Encoded in the B* term. More significant during solar maximum when the thermosphere expands.</td></tr>
+  <tr><td><strong>Solar/lunar gravity</strong></td><td>Gravitational pull from Sun and Moon</td><td>Causes long-period oscillations in orbital elements. More important for higher orbits (GEO, etc.).</td></tr>
+</table>
+
+<div class="warn-box">
+  <strong>Why TLEs go stale:</strong> SGP4 is an <em>analytical</em> approximation, not a numerical integration. It uses simplified perturbation models that accumulate error over time. A typical LEO TLE is accurate to ~1 km within a few days of epoch, but can be off by tens of kilometers after a week. NORAD publishes fresh TLEs every few hours to compensate. In the simulator, we use a recently fetched TLE and propagate only over a single pass (~10 minutes), so the error is negligible.
+</div>
+
+<h3>The J2 Perturbation in Detail</h3>
+
+<p>The J2 zonal harmonic is the single most important perturbation for LEO satellites. Earth's equatorial radius is about 21 km larger than its polar radius. This mass distribution creates a gravitational potential that is not purely 1/r, and the extra term causes three observable effects:</p>
+
+<div class="math-block">
+  Nodal precession rate: dOmega/dt = -(3/2) n J2 (R_E / a)^2 cos(i) / (1-e^2)^2
+</div>
+
+<p>For STARLINK-1008 at 53 degrees inclination: the RAAN (ascending node) drifts about -5.1 degrees per day westward. This is not a defect -- it is a <em>design feature</em>. By choosing the right inclination, satellite constellation designers can arrange for the orbital planes to precess at a rate that maintains even coverage.</p>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- SECTION 3: Pass Geometry -->
+<!-- ════════════════════════════════════════════════════════ -->
+<h2><span class="badge">3</span> Pass Geometry</h2>
+
+<p>When a LEO satellite comes within line-of-sight of a ground station, we call this a <em>pass</em>. The geometry of a pass is described by three angles and one distance, all measured from the ground station's perspective.</p>
+
+<h3>Elevation, Azimuth, and Slant Range</h3>
+
+<p><strong>Elevation</strong> is the angle above the local horizon, measured in degrees. 0 degrees is on the horizon; 90 degrees is straight overhead (zenith). The minimum usable elevation for satellite communications is typically 25 degrees (the elevation mask) because at lower angles, path loss increases dramatically, atmospheric attenuation is worse, and terrain/buildings block the signal.</p>
+
+<p><strong>Azimuth</strong> is the compass bearing to the satellite, measured clockwise from true north. 0/360 degrees = north, 90 degrees = east, 180 degrees = south, 270 degrees = west. The azimuth changes continuously as the satellite moves across the sky.</p>
+
+<p><strong>Slant range</strong> is the straight-line distance from the ground station to the satellite, in kilometers. It is shortest at the point of closest approach (near TCA) and longest at AOS and LOS when the satellite is near the horizon.</p>
+
+<!-- SVG: Pass Geometry Diagram -->
+<div class="diagram-wrapper">
+  <svg width="500" height="380" viewBox="0 0 500 380" xmlns="http://www.w3.org/2000/svg">
+    <!-- Background -->
+    <rect width="500" height="380" fill="#0a0f1c" rx="8"/>
+
+    <!-- Earth curvature -->
+    <path d="M 0 320 Q 250 280 500 320" fill="none" stroke="#1e3a5f" stroke-width="2"/>
+    <path d="M 0 320 Q 250 280 500 320 L 500 380 L 0 380 Z" fill="#0c1520" opacity="0.6"/>
+
+    <!-- Horizon line -->
+    <line x1="60" y1="260" x2="440" y2="260" stroke="#6a7a90" stroke-width="1" stroke-dasharray="6,4"/>
+    <text x="445" y="264" fill="#6a7a90" font-size="11">Horizon</text>
+
+    <!-- Ground station -->
+    <circle cx="200" cy="290" r="6" fill="#22c55e"/>
+    <text x="200" y="310" fill="#22c55e" font-size="12" text-anchor="middle" font-weight="600">Ground Station</text>
+    <line x1="200" y1="260" x2="200" y2="284" stroke="#22c55e" stroke-width="1" stroke-dasharray="3,3"/>
+
+    <!-- Satellite -->
+    <rect x="355" y="68" width="30" height="14" rx="3" fill="#00e5ff" opacity="0.9"/>
+    <line x1="350" y1="75" x2="345" y2="75" stroke="#00e5ff" stroke-width="2"/>
+    <line x1="390" y1="75" x2="395" y2="75" stroke="#00e5ff" stroke-width="2"/>
+    <text x="370" y="58" fill="#00e5ff" font-size="12" text-anchor="middle" font-weight="600">Satellite</text>
+
+    <!-- Slant range line -->
+    <line x1="200" y1="284" x2="370" y2="75" stroke="#f59e0b" stroke-width="2" stroke-dasharray="8,4"/>
+    <text x="310" y="160" fill="#f59e0b" font-size="12" text-anchor="middle" transform="rotate(-48,310,160)">Slant Range (km)</text>
+
+    <!-- Elevation angle arc -->
+    <path d="M 240 260 A 40 40 0 0 0 226 225" fill="none" stroke="#00e5ff" stroke-width="2"/>
+    <text x="255" y="240" fill="#00e5ff" font-size="12" font-weight="600">el</text>
+
+    <!-- Zenith line -->
+    <line x1="200" y1="260" x2="200" y2="50" stroke="#6a7a90" stroke-width="1" stroke-dasharray="3,3"/>
+    <text x="195" y="45" fill="#6a7a90" font-size="10" text-anchor="end">Zenith</text>
+
+    <!-- Altitude annotation -->
+    <line x1="430" y1="75" x2="430" y2="290" stroke="#a78bfa" stroke-width="1" stroke-dasharray="4,4"/>
+    <text x="435" y="185" fill="#a78bfa" font-size="11" transform="rotate(90,435,185)">Altitude ~550 km</text>
+
+    <!-- Nadir point -->
+    <circle cx="370" cy="290" r="3" fill="#a78bfa" opacity="0.6"/>
+    <text x="370" y="305" fill="#a78bfa" font-size="10" text-anchor="middle">Sub-sat point</text>
+    <line x1="370" y1="75" x2="370" y2="287" stroke="#a78bfa" stroke-width="1" stroke-dasharray="3,3" opacity="0.4"/>
+  </svg>
+</div>
+<p class="diagram-caption">Figure 1: Pass geometry showing elevation angle, slant range, and the relationship between ground station and satellite positions.</p>
+
+<h3>Computing Slant Range from Elevation</h3>
+
+<p>Given the satellite altitude h and the elevation angle el, the slant range can be computed using the law of cosines on the triangle formed by the Earth's center, the ground station, and the satellite:</p>
+
+<div class="math-block">
+  d = R_E [ sqrt( (h/R_E + 1)^2 - cos^2(el) ) - sin(el) ]
+</div>
+
+<p>where R_E = 6371 km is Earth's radius. At zenith (el = 90 degrees), d equals h = 550 km. At the elevation mask (el = 25 degrees), d grows to about 1100 km. This factor-of-two range difference has direct consequences for the link budget -- free-space path loss increases as d^2.</p>
+
+<table>
+  <tr><th>Elevation (deg)</th><th>Slant Range (km)</th><th>Relative Path Loss (dB)</th></tr>
+  <tr><td>90 (zenith)</td><td>550</td><td>0.0 (reference)</td></tr>
+  <tr><td>60</td><td>620</td><td>+1.0</td></tr>
+  <tr><td>45</td><td>750</td><td>+2.7</td></tr>
+  <tr><td>30</td><td>980</td><td>+5.0</td></tr>
+  <tr><td>25 (mask)</td><td>1100</td><td>+6.0</td></tr>
+</table>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- SECTION 4: AOS / TCA / LOS -->
+<!-- ════════════════════════════════════════════════════════ -->
+<h2><span class="badge">4</span> AOS, TCA, and LOS</h2>
+
+<p>Every satellite pass is characterized by three critical moments:</p>
+
+<p><strong>AOS (Acquisition of Signal):</strong> The instant when the satellite's elevation first rises above the elevation mask (25 degrees in our simulator). This is when the link can first be established. In the simulator, this is found by a coarse scan at 30-second intervals followed by refinement to 1-second precision.</p>
+
+<p><strong>TCA (Time of Closest Approach):</strong> The moment when the satellite reaches its maximum elevation. This is not necessarily directly overhead -- for most passes, the maximum elevation is well below 90 degrees. TCA is the best moment for communications because slant range is minimized and atmospheric path length is shortest.</p>
+
+<p><strong>LOS (Loss of Signal):</strong> The instant when the satellite's elevation drops back below the elevation mask. The link is terminated and the pass is complete.</p>
+
+<!-- SVG: Elevation Curve with AOS/TCA/LOS -->
+<div class="diagram-wrapper">
+  <svg width="500" height="300" viewBox="0 0 500 300" xmlns="http://www.w3.org/2000/svg">
+    <rect width="500" height="300" fill="#0a0f1c" rx="8"/>
+
+    <!-- Grid -->
+    <line x1="60" y1="30" x2="60" y2="250" stroke="#1e293b" stroke-width="1"/>
+    <line x1="60" y1="250" x2="470" y2="250" stroke="#1e293b" stroke-width="1"/>
+    <!-- Horizontal grid lines -->
+    <line x1="60" y1="206" x2="470" y2="206" stroke="#1e293b" stroke-width="0.5" stroke-dasharray="4,4"/>
+    <line x1="60" y1="162" x2="470" y2="162" stroke="#1e293b" stroke-width="0.5" stroke-dasharray="4,4"/>
+    <line x1="60" y1="118" x2="470" y2="118" stroke="#1e293b" stroke-width="0.5" stroke-dasharray="4,4"/>
+    <line x1="60" y1="74" x2="470" y2="74" stroke="#1e293b" stroke-width="0.5" stroke-dasharray="4,4"/>
+
+    <!-- Y-axis labels -->
+    <text x="50" y="254" fill="#6a7a90" font-size="11" text-anchor="end">0</text>
+    <text x="50" y="210" fill="#6a7a90" font-size="11" text-anchor="end">20</text>
+    <text x="50" y="166" fill="#6a7a90" font-size="11" text-anchor="end">40</text>
+    <text x="50" y="122" fill="#6a7a90" font-size="11" text-anchor="end">60</text>
+    <text x="50" y="78" fill="#6a7a90" font-size="11" text-anchor="end">80</text>
+    <text x="25" y="145" fill="#6a7a90" font-size="11" text-anchor="middle" transform="rotate(-90,25,145)">Elevation (deg)</text>
+
+    <!-- Elevation mask line -->
+    <line x1="60" y1="195" x2="470" y2="195" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="6,4"/>
+    <text x="475" y="199" fill="#ef4444" font-size="10">25 deg mask</text>
+
+    <!-- Elevation curve (bell shape, peak at ~78 deg) -->
+    <path d="M 60 250 Q 90 248 120 240 Q 150 220 180 195 Q 210 150 240 100 Q 255 72 270 62 Q 285 72 300 100 Q 330 150 360 195 Q 390 220 420 240 Q 450 248 470 250" fill="none" stroke="#00e5ff" stroke-width="2.5"/>
+
+    <!-- Fill under curve above mask -->
+    <path d="M 180 195 Q 210 150 240 100 Q 255 72 270 62 Q 285 72 300 100 Q 330 150 360 195 Z" fill="rgba(0,229,255,0.08)"/>
+
+    <!-- AOS marker -->
+    <line x1="180" y1="195" x2="180" y2="270" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="4,3"/>
+    <circle cx="180" cy="195" r="5" fill="#22c55e"/>
+    <text x="180" y="282" fill="#22c55e" font-size="12" text-anchor="middle" font-weight="600">AOS</text>
+
+    <!-- TCA marker -->
+    <line x1="270" y1="62" x2="270" y2="270" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,3"/>
+    <circle cx="270" cy="62" r="5" fill="#f59e0b"/>
+    <text x="270" y="282" fill="#f59e0b" font-size="12" text-anchor="middle" font-weight="600">TCA</text>
+    <text x="270" y="52" fill="#f59e0b" font-size="11" text-anchor="middle">78 deg</text>
+
+    <!-- LOS marker -->
+    <line x1="360" y1="195" x2="360" y2="270" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4,3"/>
+    <circle cx="360" cy="195" r="5" fill="#ef4444"/>
+    <text x="360" y="282" fill="#ef4444" font-size="12" text-anchor="middle" font-weight="600">LOS</text>
+
+    <!-- Duration bracket -->
+    <line x1="180" y1="36" x2="360" y2="36" stroke="#a78bfa" stroke-width="1.5"/>
+    <line x1="180" y1="30" x2="180" y2="42" stroke="#a78bfa" stroke-width="1.5"/>
+    <line x1="360" y1="30" x2="360" y2="42" stroke="#a78bfa" stroke-width="1.5"/>
+    <text x="270" y="30" fill="#a78bfa" font-size="11" text-anchor="middle">Pass duration ~480s</text>
+
+    <!-- X-axis label -->
+    <text x="265" y="298" fill="#6a7a90" font-size="11" text-anchor="middle">Time (seconds into pass)</text>
+  </svg>
+</div>
+<p class="diagram-caption">Figure 2: Elevation curve through a high-elevation pass showing AOS, TCA, and LOS. The shaded region is the usable pass window above the 25 degree elevation mask.</p>
+
+<h3>How the Simulator Finds a Pass</h3>
+
+<p>The pass-finding algorithm in <code>pass-finder.ts</code> uses a two-phase approach:</p>
+
+<ol>
+  <li><strong>Coarse scan:</strong> Propagate the satellite position at 30-second intervals over three orbital periods (~285 minutes). At each step, compute the elevation angle. When the elevation first crosses above the mask, mark a candidate AOS. When it drops below, mark a candidate LOS.</li>
+  <li><strong>Refinement:</strong> Go back to the neighborhood of the coarse AOS and LOS, and scan at 1-second intervals to find the precise crossing times. Then generate second-by-second geometry for the entire pass.</li>
+</ol>
+
+<p>The <code>findBestPass()</code> function extends this by searching up to 48 hours of orbital data and returning the pass with the highest maximum elevation, which gives the best link quality.</p>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- SECTION 5: Doppler Effect -->
+<!-- ════════════════════════════════════════════════════════ -->
+<h2><span class="badge">5</span> The Doppler Effect</h2>
+
+<p>As a satellite approaches a ground station, the received frequency is higher than the transmitted frequency. As it recedes, the frequency is lower. This is the Doppler effect, and for a 12 GHz Ku-band signal with a satellite moving at 7.5 km/s, the shift can be significant.</p>
+
+<h3>The Doppler Formula</h3>
+
+<div class="math-block">
+  f_received = f_carrier * (1 - v_radial / c)
+</div>
+<div class="math-block">
+  delta_f = -f_carrier * v_radial / c
+</div>
+
+<p>where <code>v_radial</code> is the <em>radial component</em> of the satellite's velocity (the component along the line of sight from the ground station to the satellite). The sign convention: v_radial is negative when the satellite is approaching (range decreasing) and positive when receding (range increasing).</p>
+
+<p>At 12 GHz with a maximum radial velocity of ~7.0 km/s (near AOS/LOS when the satellite is nearly tangent to the horizon):</p>
+
+<div class="math-block">
+  delta_f_max = 12e9 * 7000 / 3e8 = 280 kHz
+</div>
+
+<p>So the Doppler shift swings from approximately +280 kHz (approaching) through zero at TCA, to -280 kHz (receding). The ground station receiver must track this shift, typically using a frequency-locked loop.</p>
+
+<!-- SVG: Doppler Curve -->
+<div class="diagram-wrapper">
+  <svg width="480" height="280" viewBox="0 0 480 280" xmlns="http://www.w3.org/2000/svg">
+    <rect width="480" height="280" fill="#0a0f1c" rx="8"/>
+
+    <!-- Axes -->
+    <line x1="60" y1="30" x2="60" y2="240" stroke="#1e293b" stroke-width="1"/>
+    <line x1="60" y1="140" x2="440" y2="140" stroke="#1e293b" stroke-width="1"/>
+    <line x1="60" y1="240" x2="440" y2="240" stroke="#1e293b" stroke-width="0.5" stroke-dasharray="4,4"/>
+
+    <!-- Y-axis labels -->
+    <text x="50" y="50" fill="#6a7a90" font-size="10" text-anchor="end">+280</text>
+    <text x="50" y="144" fill="#6a7a90" font-size="10" text-anchor="end">0</text>
+    <text x="50" y="234" fill="#6a7a90" font-size="10" text-anchor="end">-280</text>
+    <text x="15" y="140" fill="#6a7a90" font-size="10" text-anchor="middle" transform="rotate(-90,15,140)">Doppler (kHz)</text>
+
+    <!-- Zero line -->
+    <line x1="60" y1="140" x2="440" y2="140" stroke="#6a7a90" stroke-width="0.5" stroke-dasharray="4,4"/>
+
+    <!-- Doppler curve (S-shape: positive approach, zero at TCA, negative receding) -->
+    <path d="M 80 50 Q 120 55 160 70 Q 200 95 240 140 Q 280 185 320 210 Q 380 230 420 234" fill="none" stroke="#f59e0b" stroke-width="2.5"/>
+
+    <!-- Approaching region -->
+    <text x="140" y="55" fill="#22c55e" font-size="11" font-weight="600">Approaching</text>
+    <text x="140" y="68" fill="#22c55e" font-size="10">(f_received > f_carrier)</text>
+
+    <!-- Receding region -->
+    <text x="320" y="220" fill="#ef4444" font-size="11" font-weight="600">Receding</text>
+    <text x="320" y="233" fill="#ef4444" font-size="10">(f_received < f_carrier)</text>
+
+    <!-- TCA marker -->
+    <line x1="240" y1="140" x2="240" y2="260" stroke="#f59e0b" stroke-width="1" stroke-dasharray="4,3"/>
+    <circle cx="240" cy="140" r="4" fill="#f59e0b"/>
+    <text x="240" y="270" fill="#f59e0b" font-size="11" text-anchor="middle" font-weight="600">TCA</text>
+
+    <!-- AOS / LOS -->
+    <text x="80" y="270" fill="#22c55e" font-size="11" text-anchor="middle">AOS</text>
+    <text x="420" y="270" fill="#ef4444" font-size="11" text-anchor="middle">LOS</text>
+
+    <!-- X-axis label -->
+    <text x="250" y="265" fill="#6a7a90" font-size="11" text-anchor="middle">Time through pass</text>
+  </svg>
+</div>
+<p class="diagram-caption">Figure 3: Doppler shift vs. time through a pass. The frequency offset is positive (blue-shifted) while approaching, zero at TCA, and negative (red-shifted) while receding.</p>
+
+<div class="info-box">
+  <strong>Doppler rate:</strong> The rate of change of the Doppler shift (d(delta_f)/dt) is highest at TCA, not at AOS or LOS. This is because the radial velocity changes most rapidly when the satellite passes closest overhead. The ground station's tracking loop must be fast enough to follow this maximum Doppler rate, which can reach ~4 kHz/s for a high-elevation pass.
+</div>
+
+<h3>Range Rate in the Simulator</h3>
+
+<p>The simulator computes range rate directly from the ECI velocity vector. In <code>ground-station.ts</code>, the relative velocity between the satellite and the ground station is projected onto the unit vector along the line of sight:</p>
+
+<pre><code><span class="cmt">// Range rate = dot(relativeVelocity, unitRangeVector)</span>
+<span class="kw">const</span> rangeRate = relVel.x * unitR.x + relVel.y * unitR.y + relVel.z * unitR.z;</code></pre>
+
+<p>Note that the ground station itself has velocity because Earth rotates (~0.46 km/s at the equator). The code accounts for this by subtracting the observer's rotational velocity from the satellite's ECI velocity before computing the dot product.</p>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- SECTION 6: Why LEO Passes Are Short -->
+<!-- ════════════════════════════════════════════════════════ -->
+<h2><span class="badge">6</span> Why LEO Passes Are Short</h2>
+
+<p>A Starlink satellite at 550 km altitude has an orbital velocity of about 7.6 km/s. Earth's radius is 6371 km. The satellite is visible from a ground station only when it is above the elevation mask -- a relatively small angular window. Let us work through the geometry.</p>
+
+<h3>Worked Example: Pass Duration</h3>
+
+<p><strong>Step 1: Orbital velocity.</strong> From the vis-viva equation for a circular orbit:</p>
+
+<div class="math-block">
+  v = sqrt(mu / r) = sqrt(398600 / 6921) = 7.59 km/s
+</div>
+
+<p><strong>Step 2: Angular velocity about Earth's center.</strong></p>
+
+<div class="math-block">
+  omega = v / r = 7.59 / 6921 = 0.001097 rad/s = 0.0628 deg/s
+</div>
+
+<p><strong>Step 3: Visible arc.</strong> For a satellite at altitude h = 550 km, the half-angle of the visible cone (from Earth's center) at elevation mask el = 25 degrees is:</p>
+
+<div class="math-block">
+  cos(lambda) = (R_E / (R_E + h)) * cos(el) = (6371 / 6921) * cos(25) = 0.834
+  <br>lambda = 33.5 degrees
+</div>
+
+<p>The total visible arc is 2 * lambda = 67 degrees, but the satellite does not necessarily pass through the center of this arc.</p>
+
+<p><strong>Step 4: Maximum pass duration.</strong> For an overhead pass (best case):</p>
+
+<div class="math-block">
+  t_max = 2 * lambda / omega = 67 / 0.0628 = ~1067 seconds = ~17.8 minutes
+</div>
+
+<p>But this is the theoretical maximum for a directly overhead pass at 0 degrees elevation mask. With the 25-degree mask, the arc shrinks. A typical high-elevation pass (max el = 78 degrees) in the simulator lasts about 480 seconds (8 minutes). Low-elevation passes may last only 2-3 minutes.</p>
+
+<div class="warn-box">
+  <strong>Practical constraint:</strong> The short pass duration means that every second counts. The antenna must acquire the beam quickly, the frequency tracker must lock to the Doppler-shifted signal, and the adaptive modulation must converge to the optimal coding scheme -- all while the geometry is continuously changing. This is why the simulator models every subsystem at 1-second resolution.
+</div>
+
+<h3>The Earth's Rotation Effect</h3>
+
+<p>Earth rotates at about 0.0042 deg/s at the equator. Compared to the satellite's orbital angular velocity of 0.0628 deg/s, Earth's rotation is only about 7% as fast. This means the ground track of the satellite shifts westward by about 22.5 degrees per orbit (1440 minutes / 15.35 revolutions * 0.0042 deg/s * 60 s/min). This is why you do not see the same satellite at the same time every day -- the ground track pattern repeats only after many orbits.</p>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- SECTION 7: Code Connection -->
+<!-- ════════════════════════════════════════════════════════ -->
+<h2><span class="badge">7</span> Code Connection</h2>
+
+<p>The orbital mechanics subsystem is implemented in three source files under <code>src/simulation/orbit/</code>:</p>
+
+<h3>tle.ts -- TLE Parsing and Propagation</h3>
+
+<p>This file provides two core functions. <code>parseTLE()</code> takes the raw TLE lines and returns a <code>SatelliteRecord</code> containing the satellite.js satrec object, NORAD ID, and epoch. <code>propagate()</code> wraps satellite.js to produce ECI position and velocity at any requested time.</p>
+
+<pre><code><span class="kw">export function</span> <span class="fn">parseTLE</span>(line1: <span class="type">string</span>, line2: <span class="type">string</span>, name = <span class="str">'STARLINK'</span>): <span class="type">SatelliteRecord</span> {
+  <span class="kw">const</span> satrec = satellite.<span class="fn">twoline2satrec</span>(line1, line2);
+  <span class="kw">if</span> (satrec.error !== <span class="num">0</span>) {
+    <span class="kw">throw new</span> <span class="type">Error</span>(<span class="str">`TLE parse error: code ${satrec.error}`</span>);
+  }
+  <span class="kw">const</span> noradId = line1.<span class="fn">substring</span>(<span class="num">2</span>, <span class="num">7</span>).<span class="fn">trim</span>();
+  <span class="kw">const</span> epoch = <span class="fn">parseTleEpoch</span>(line1);
+  <span class="kw">return</span> { satrec, name, noradId, epoch };
+}</code></pre>
+
+<p>The heavy lifting (SGP4 propagation itself) is handled by the <code>satellite.js</code> library. Our code is a thin wrapper that converts the raw TLE text into the internal <code>satrec</code> data structure.</p>
+
+<h3>pass-finder.ts -- Finding the Best Pass</h3>
+
+<p>The <code>findNextPass()</code> function implements the coarse-scan / fine-refine algorithm described in Section 4. The <code>findBestPass()</code> function searches up to 48 hours to find the highest-elevation pass, then extends the geometry 300 seconds before and after TCA to include the orbital approach and departure phases (for the 3D globe visualization).</p>
+
+<pre><code><span class="cmt">// Phase 1: Coarse scan to find when satellite is above elevation mask</span>
+<span class="kw">for</span> (<span class="kw">let</span> t = <span class="num">0</span>; t < searchDurationMs; t += coarseStepMs) {
+  <span class="kw">const</span> elev = <span class="fn">getElevation</span>(satrec, gs, date);
+  <span class="kw">if</span> (elev > elevationMask && !wasAboveMask) {
+    passStart = t;      <span class="cmt">// Candidate AOS</span>
+    wasAboveMask = <span class="kw">true</span>;
+  }
+}</code></pre>
+
+<h3>ground-station.ts -- Look Angles and Range Rate</h3>
+
+<p>The <code>computeLookAngles()</code> function takes ECI position and velocity, converts the satellite position to ECEF, then uses <code>satellite.ecfToLookAngles()</code> to get elevation, azimuth, and range. It also computes range rate via the dot product of relative velocity and unit range vector, accounting for Earth's rotation.</p>
+
+<pre><code><span class="cmt">// Earth rotation velocity of the observer</span>
+<span class="kw">const</span> earthRotRate = <span class="num">7.2921159e-5</span>; <span class="cmt">// rad/s</span>
+<span class="kw">const</span> obsVelEci = {
+  x: -earthRotRate * observerEci.y,
+  y:  earthRotRate * observerEci.x,
+  z: <span class="num">0</span>,
+};
+<span class="cmt">// Range rate = dot(relative velocity, unit LOS vector)</span>
+<span class="kw">const</span> rangeRate = relVel.x * unitR.x + relVel.y * unitR.y + relVel.z * unitR.z;</code></pre>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- SECTION 8: External References -->
+<!-- ════════════════════════════════════════════════════════ -->
+<h2><span class="badge">8</span> External References</h2>
+
+<ul class="ref-list">
+  <li><a href="https://celestrak.org/NORAD/documentation/tle-fmt.php" target="_blank">CelesTrak -- TLE Format Documentation</a> -- The authoritative reference for TLE field definitions.</li>
+  <li><a href="https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle" target="_blank">CelesTrak -- Starlink TLE Data</a> -- Live TLE data for all tracked Starlink satellites.</li>
+  <li><a href="https://github.com/shashwatak/satellite-js" target="_blank">satellite.js on GitHub</a> -- The JavaScript SGP4 implementation used by the simulator.</li>
+  <li>Vallado, D. A. (2013). <em>Fundamentals of Astrodynamics and Applications</em>, 4th ed. Microcosm Press. -- The standard graduate-level reference for orbital mechanics and SGP4 derivation (Chapter 8).</li>
+  <li>Hoots, F. R., &amp; Roehrich, R. L. (1980). <em>Spacetrack Report No. 3: Models for Propagation of NORAD Element Sets</em>. -- The original SGP4 technical report.</li>
+  <li><a href="https://en.wikipedia.org/wiki/Two-line_element_set" target="_blank">Wikipedia -- Two-Line Element Set</a> -- Accessible overview with field descriptions and history.</li>
+</ul>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- SECTION 9: Self-Assessment -->
+<!-- ════════════════════════════════════════════════════════ -->
+<h2><span class="badge">9</span> Self-Assessment Questions</h2>
+
+<details class="question-block">
+  <summary>Q1: A Starlink TLE shows mean motion = 15.34524170 rev/day. What is the orbital period in minutes, and what approximate altitude does this correspond to?</summary>
+  <p>Period = 1440 min/day / 15.345 rev/day = <strong>93.8 minutes</strong>. Using the relationship between period and semi-major axis (Kepler's third law), T = 2*pi*sqrt(a^3/mu), we get a = 6921 km, which gives an altitude of a - R_E = 6921 - 6371 = <strong>~550 km</strong>. This is the standard Starlink v1 orbital shell.</p>
+</details>
+
+<details class="question-block">
+  <summary>Q2: The TLE's eccentricity is 0.0003259. What is the difference between perigee altitude and apogee altitude?</summary>
+  <p>For a nearly circular orbit with semi-major axis a = 6921 km and eccentricity e = 0.0003259: perigee = a(1-e) - R_E = 6921 * 0.9997 - 6371 = <strong>547.7 km</strong>, apogee = a(1+e) - R_E = 6921 * 1.0003 - 6371 = <strong>552.3 km</strong>. The difference is only <strong>4.5 km</strong>, confirming the orbit is essentially circular. This tiny eccentricity is maintained by periodic station-keeping maneuvers.</p>
+</details>
+
+<details class="question-block">
+  <summary>Q3: Why does SGP4 use "mean" orbital elements rather than "osculating" (instantaneous) elements? Why would feeding osculating elements into SGP4 give wrong results?</summary>
+  <p>SGP4 is designed as a pair: the TLE generator removes short-period oscillations (caused by J2, etc.) to produce mean elements, and the SGP4 propagator adds those oscillations back analytically. If you fed osculating elements (which already contain the oscillations) into SGP4, it would add the perturbation corrections a second time, producing <strong>double-counting errors</strong> in the predicted position. This is why you cannot mix TLE data with a different propagator (like a numerical integrator) without first converting the element type. The TLE format is inseparable from the SGP4 algorithm.</p>
+</details>
+
+<details class="question-block">
+  <summary>Q4: A satellite pass has maximum elevation of 45 degrees. Estimate the slant range at TCA and at AOS (elevation = 25 degrees). How much does the free-space path loss differ between these two moments?</summary>
+  <p>Using d = R_E [sqrt((h/R_E + 1)^2 - cos^2(el)) - sin(el)] with R_E = 6371, h = 550: At TCA (el=45): d = 6371 * [sqrt(1.0864^2 - cos^2(45)) - sin(45)] = 6371 * [sqrt(1.180 - 0.500) - 0.707] = 6371 * [0.824 - 0.707] = <strong>~750 km</strong>. At AOS (el=25): d = <strong>~1100 km</strong>. The path loss difference = 20*log10(1100/750) = 20*log10(1.467) = <strong>~3.3 dB</strong>. This means the link at AOS has 3.3 dB less margin than at TCA, just from geometry alone -- before accounting for atmospheric losses and scan angle effects.</p>
+</details>
+
+<details class="question-block">
+  <summary>Q5: At what point during a pass is the Doppler shift zero, and at what point is the Doppler RATE (d/dt of frequency) highest? Why?</summary>
+  <p>The Doppler shift is zero at <strong>TCA</strong> (time of closest approach), because at that moment the satellite's velocity is perpendicular to the line of sight, so the radial velocity component is zero. The Doppler rate (rate of change of the Doppler shift) is <strong>highest at TCA</strong>, not at AOS or LOS. This is because the radial velocity swings through zero most rapidly when the geometry changes fastest -- which happens when the satellite is closest. At AOS and LOS, the satellite is far away and the angle changes slowly, so the Doppler rate is actually lower. This maximum Doppler rate at TCA is the hardest moment for the ground station's frequency tracking loop.</p>
+</details>
+
+<details class="question-block">
+  <summary>Q6: The simulator's pass-finder uses a coarse scan at 30-second intervals. Could this miss a valid pass? Under what conditions?</summary>
+  <p>Yes, it could miss a very short, low-elevation pass. If the satellite barely rises above the 25-degree mask for less than 30 seconds, the coarse scan might step over the entire above-mask window without detecting it. This would happen for passes where the maximum elevation is only slightly above 25 degrees (say, 26-28 degrees). However, these passes are not useful for communications anyway because the link quality would be marginal. The <code>findBestPass()</code> function also rejects passes shorter than 10 seconds and with maximum elevation below 15 degrees, so the practical impact is negligible. A more robust approach would be to use a variable step size that decreases near the horizon.</p>
+</details>
+
+<!-- ═══ BOTTOM NAV ═══ -->
+<nav class="bottom">
+  <a href="index.html">&larr; Course Index</a>
+  <a href="unit-2-phased-array.html">Unit 2: Phased Array Antennas &rarr;</a>
+</nav>
+
+</div>
+</body>
+</html>

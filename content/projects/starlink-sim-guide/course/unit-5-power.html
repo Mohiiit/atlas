@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unit 6: Satellite Power Systems</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#060a14;--surface:#0f1520;--text:#d8e0ec;--dim:#6a7a90;
+  --accent:#00e5ff;--accent-dim:rgba(0,229,255,0.08);
+  --border:rgba(0,229,255,0.08);--border-bright:rgba(0,229,255,0.18);
+  --amber:#f59e0b;--green:#22c55e;--red:#ef4444;--purple:#a78bfa;
+  --code-bg:#111827;--font-head:'Chakra Petch',system-ui,sans-serif;
+  --font-mono:'JetBrains Mono','SF Mono',Consolas,monospace;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font-head);line-height:1.7;font-size:16px;-webkit-font-smoothing:antialiased;padding:2rem 1rem}
+.container{max-width:900px;margin:0 auto}
+h1{font-family:var(--font-head);font-size:2rem;color:var(--accent);margin-bottom:.5rem;border-bottom:2px solid rgba(0,229,255,0.2);padding-bottom:.5rem}
+h2{font-family:var(--font-head);font-size:1.5rem;color:var(--accent);margin-top:2.5rem;margin-bottom:.75rem}
+h3{font-family:var(--font-head);font-size:1.2rem;color:rgba(0,229,255,0.75);margin-top:1.5rem;margin-bottom:.5rem}
+p{margin-bottom:1rem}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+ul,ol{padding-left:1.5rem;margin-bottom:1rem}
+li{margin-bottom:.35rem}
+nav.top{display:flex;justify-content:space-between;align-items:center;padding:.75rem 0;border-bottom:1px solid #1e293b;margin-bottom:2rem;font-size:.9rem}
+nav.bottom{display:flex;justify-content:space-between;padding-top:1.5rem;border-top:1px solid #1e293b;margin-top:3rem;font-size:.9rem}
+nav.bottom a{padding:.5rem 1rem;border:1px solid rgba(0,229,255,0.25);border-radius:6px}
+nav.bottom a:hover{background:rgba(0,229,255,0.06)}
+.objectives{background:rgba(0,229,255,0.04);border:1px solid rgba(0,229,255,0.12);border-radius:8px;padding:1.25rem 1.5rem;margin:1.5rem 0}
+.objectives h2{margin-top:0}
+.objectives ul{padding-left:1.5rem}
+.objectives li{margin-bottom:.35rem}
+code{font-family:var(--font-mono);background:var(--code-bg);padding:.15em .4em;border-radius:4px;font-size:.9em;color:var(--accent)}
+pre{background:var(--code-bg);border:1px solid #1e293b;border-radius:8px;padding:1.25rem;overflow-x:auto;margin:1rem 0;font-size:.85rem;line-height:1.6}
+pre code{background:none;padding:0;color:var(--text)}
+.formula{background:var(--code-bg);border-left:3px solid var(--accent);padding:1rem 1.25rem;margin:1rem 0;border-radius:0 8px 8px 0;font-family:var(--font-mono);font-size:.95rem}
+.warn{color:var(--amber)}
+.accent{color:var(--accent)}
+.example{background:rgba(245,158,11,0.03);border:1px solid rgba(245,158,11,0.12);border-radius:8px;padding:1.25rem;margin:1rem 0}
+.example h3{color:var(--amber);margin-top:0}
+.note{background:rgba(0,229,255,0.03);border-left:3px solid var(--accent);padding:.8rem 1rem;border-radius:0 6px 6px 0;margin:1rem 0}
+table{width:100%;border-collapse:collapse;margin:1rem 0}
+th,td{text-align:left;padding:.6rem .8rem;border-bottom:1px solid #1e293b;font-size:.9rem}
+th{color:var(--accent);font-weight:600;border-bottom:2px solid rgba(0,229,255,0.2)}
+tr:hover{background:rgba(255,255,255,0.02)}
+svg{display:block;margin:1.5rem auto;max-width:100%}
+.svg-container{background:var(--code-bg);border-radius:8px;padding:1rem;margin:1.5rem 0}
+.section{margin-bottom:2.5rem}
+.questions{background:var(--bg);border:2px solid rgba(245,158,11,0.2);border-radius:8px;padding:1.5rem;margin:2rem 0}
+.questions h2{color:var(--amber);margin-top:0}
+.questions ol{padding-left:1.5rem}
+.questions li{margin-bottom:1rem}
+.refs{font-size:.85rem;color:rgba(216,224,236,0.5);margin-top:2rem}
+.refs h2{color:rgba(216,224,236,0.65)}
+.refs ul{padding-left:1.5rem}
+.refs li{margin-bottom:.3rem}
+.unit-num{font-size:.85rem;color:rgba(216,224,236,0.4);text-transform:uppercase;letter-spacing:.1em;font-family:var(--font-mono)}
+svg text{font-family:var(--font-head),system-ui,sans-serif}
+</style>
+</head>
+<body>
+<div class="container">
+
+<nav class="top">
+  <a href="index.html">Home</a>
+  <span class="accent">Unit 6 of 8</span>
+  <span><a href="unit-5-link-budget.html">&larr; Unit 5</a> | <a href="unit-7-modulation.html">Unit 7 &rarr;</a></span>
+</nav>
+
+<div class="unit-num">Unit 6</div>
+<h1>Satellite Power Systems</h1>
+<p>Power is the lifeblood of a spacecraft. Every subsystem -- from the phased array antenna to the onboard processor -- draws from a finite electrical budget. In LEO, that budget swings dramatically between sunlit and eclipse portions of each 90-minute orbit. This unit covers how a satellite generates, stores, and distributes power, and how power constraints directly limit communication throughput.</p>
+
+<!-- ============================================================ -->
+<div class="objectives">
+<h2>Learning Objectives</h2>
+<ul>
+  <li>Calculate solar panel output as a function of cell efficiency, panel area, solar flux, and sun angle</li>
+  <li>Explain why a LEO satellite experiences ~15 eclipse cycles per day and size the battery accordingly</li>
+  <li>Model battery state-of-charge dynamics including charge, discharge, and capacity fade</li>
+  <li>Draw the power bus architecture from solar array to load</li>
+  <li>Enumerate spacecraft loads and explain how total power demand is distributed</li>
+  <li>Describe the four power modes and how they constrain the transmitter</li>
+  <li>Trace how power limitations propagate through to PA output, SNR, and throughput</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>1. Solar Power Generation</h2>
+
+<p>LEO satellites generate electrical power from sunlight using photovoltaic solar panels. The dominant technology is the <strong>gallium arsenide (GaAs) triple-junction cell</strong>, which stacks three semiconductor layers optimized for different portions of the solar spectrum.</p>
+
+<h3>Triple-Junction Cell Physics</h3>
+<p>Each junction absorbs a different wavelength band:</p>
+<ul>
+  <li><strong>Top junction (GaInP)</strong>: Absorbs high-energy UV/blue photons (~1.9 eV bandgap)</li>
+  <li><strong>Middle junction (GaAs)</strong>: Absorbs visible-spectrum photons (~1.4 eV bandgap)</li>
+  <li><strong>Bottom junction (Ge)</strong>: Absorbs low-energy infrared photons (~0.67 eV bandgap)</li>
+</ul>
+<p>By capturing photons at three different energy levels, the cell extracts significantly more energy than a single-junction silicon cell. Typical beginning-of-life (BOL) efficiency is <strong>~30%</strong>, compared to ~20% for terrestrial silicon panels.</p>
+
+<h3>Power Output Formula</h3>
+<div class="formula">
+P<sub>solar</sub> = &eta; &times; A &times; S &times; cos(&theta;<sub>sun</sub>)
+</div>
+
+<p>Where:</p>
+<ul>
+  <li><code>&eta;</code> = cell efficiency (~0.30 for GaAs triple-junction)</li>
+  <li><code>A</code> = total panel area (m&sup2;) -- typically 10-15 m&sup2; for a LEO comms satellite</li>
+  <li><code>S</code> = solar irradiance at 1 AU = 1361 W/m&sup2; (the "solar constant")</li>
+  <li><code>&theta;<sub>sun</sub></code> = angle between the panel normal and the sun vector</li>
+</ul>
+
+<div class="example">
+<h3>Worked Example</h3>
+<p>A satellite has 12 m&sup2; of GaAs panels at 30% efficiency, with the sun at 20 degrees off-normal:</p>
+<pre><code>P_solar = 0.30 * 12 * 1361 * cos(20deg)
+        = 0.30 * 12 * 1361 * 0.9397
+        = 4598 * 0.9397
+        = 4321 W</code></pre>
+<p>At &theta;=0 (perfect alignment): P = 4898 W. At &theta;=60: P = 2449 W. The cosine factor matters enormously -- a 60-degree misalignment halves the power output.</p>
+</div>
+
+<h3>Why cos(&theta;) Matters</h3>
+<p>The cosine term accounts for the effective cross-sectional area of the panel as seen from the sun direction. When the panel tilts away from the sun, less solar flux is intercepted per unit of panel area. Think of holding a piece of paper flat toward a light vs. tilting it: the shadow it casts shrinks.</p>
+
+<div class="svg-container">
+<svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg">
+  <text x="360" y="22" text-anchor="middle" fill="rgba(216,224,236,0.5)" font-size="13">Solar Panel Angle vs. Effective Area</text>
+
+  <!-- Sun rays -->
+  <defs>
+    <marker id="sun-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#f59e0b"/>
+    </marker>
+  </defs>
+
+  <!-- LEFT: Panel face-on (theta=0) -->
+  <text x="180" y="55" text-anchor="middle" fill="var(--text)" font-size="12" font-weight="600">&theta; = 0 (face-on)</text>
+
+  <!-- Sun rays coming from left -->
+  <line x1="40" y1="100" x2="130" y2="100" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#sun-arrow)"/>
+  <line x1="40" y1="130" x2="130" y2="130" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#sun-arrow)"/>
+  <line x1="40" y1="160" x2="130" y2="160" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#sun-arrow)"/>
+  <line x1="40" y1="190" x2="130" y2="190" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#sun-arrow)"/>
+  <line x1="40" y1="220" x2="130" y2="220" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#sun-arrow)"/>
+
+  <!-- Panel vertical (face-on) -->
+  <rect x="140" y="85" width="8" height="150" rx="2" fill="#00e5ff44" stroke="#00e5ff" stroke-width="2"/>
+
+  <!-- Effective area bracket -->
+  <line x1="160" y1="85" x2="160" y2="235" stroke="#22c55e" stroke-width="1.5"/>
+  <line x1="155" y1="85" x2="165" y2="85" stroke="#22c55e" stroke-width="1.5"/>
+  <line x1="155" y1="235" x2="165" y2="235" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="178" y="165" fill="#22c55e" font-size="11" font-family="var(--font-mono)">A<tspan font-size="8" dy="3">eff</tspan><tspan dy="-3"> = A</tspan></text>
+
+  <text x="180" y="265" text-anchor="middle" fill="#00e5ff" font-size="12" font-family="var(--font-mono)">P = &eta;AS</text>
+
+  <!-- RIGHT: Panel tilted (theta=60) -->
+  <text x="520" y="55" text-anchor="middle" fill="var(--text)" font-size="12" font-weight="600">&theta; = 60 (tilted)</text>
+
+  <!-- Sun rays -->
+  <line x1="380" y1="100" x2="470" y2="100" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#sun-arrow)"/>
+  <line x1="380" y1="130" x2="470" y2="130" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#sun-arrow)"/>
+  <line x1="380" y1="160" x2="470" y2="160" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#sun-arrow)"/>
+  <line x1="380" y1="190" x2="470" y2="190" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#sun-arrow)"/>
+  <line x1="380" y1="220" x2="470" y2="220" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#sun-arrow)"/>
+
+  <!-- Panel tilted at 60 degrees -->
+  <line x1="480" y1="80" x2="520" y2="245" stroke="#00e5ff" stroke-width="8" stroke-linecap="round" opacity="0.3"/>
+  <line x1="480" y1="80" x2="520" y2="245" stroke="#00e5ff" stroke-width="2"/>
+
+  <!-- Effective area (shorter projection) -->
+  <line x1="540" y1="123" x2="540" y2="200" stroke="#22c55e" stroke-width="1.5"/>
+  <line x1="535" y1="123" x2="545" y2="123" stroke="#22c55e" stroke-width="1.5"/>
+  <line x1="535" y1="200" x2="545" y2="200" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="558" y="165" fill="#22c55e" font-size="11" font-family="var(--font-mono)">A<tspan font-size="8" dy="3">eff</tspan><tspan dy="-3"> = A/2</tspan></text>
+
+  <!-- Angle arc -->
+  <path d="M 500 82 A 25 25 0 0 1 508 106" fill="none" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="518" y="98" fill="#f59e0b" font-size="10">60&deg;</text>
+
+  <!-- Rays passing through (missed) -->
+  <line x1="470" y1="100" x2="600" y2="100" stroke="#f59e0b33" stroke-width="1" stroke-dasharray="4,3"/>
+  <line x1="470" y1="220" x2="600" y2="220" stroke="#f59e0b33" stroke-width="1" stroke-dasharray="4,3"/>
+
+  <text x="520" y="265" text-anchor="middle" fill="#f59e0b" font-size="12" font-family="var(--font-mono)">P = &eta;AS &times; 0.5</text>
+
+  <!-- Sun label -->
+  <circle cx="20" cy="160" r="12" fill="#f59e0b33" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="20" y="164" text-anchor="middle" fill="#f59e0b" font-size="8" font-weight="bold">SUN</text>
+</svg>
+</div>
+
+<h3>Degradation Over Lifetime</h3>
+<p>Solar cells degrade in the space environment due to radiation damage (proton and electron bombardment in the Van Allen belts), thermal cycling stress, and micrometeorite impacts. Typical degradation is <strong>2-3% per year</strong>. After 5 years, a panel at 30% BOL efficiency may deliver only ~26% effective efficiency -- a ~13% power reduction.</p>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>2. Eclipse Cycles</h2>
+
+<p>A LEO satellite at 550 km altitude completes one orbit every ~95 minutes. During each orbit, the satellite passes through Earth's shadow for approximately <strong>35 minutes</strong>. Since the satellite completes ~15 orbits per day, it experiences <strong>~15 eclipse transitions per day</strong>.</p>
+
+<h3>Why Eclipse Duration Varies</h3>
+<p>The shadow fraction depends on orbital altitude and the angle between the orbital plane and the sun vector (the "beta angle", &beta;). When &beta; is near zero, the orbit cuts directly through the widest part of Earth's shadow. When |&beta;| exceeds a critical angle (~71 degrees for 550 km), the satellite never enters eclipse at all -- it is in permanent sunlight.</p>
+
+<div class="formula">
+Eclipse fraction &asymp; (1/&pi;) &times; arccos(&radic;(h&sup2; + 2Rh) / ((R + h) &times; cos(&beta;)))
+</div>
+
+<p>Where R = Earth radius (6371 km) and h = orbital altitude (550 km). For &beta;=0 at 550 km, the eclipse fraction is about 37% of each orbit, which gives roughly 35 minutes of darkness per 95-minute orbit.</p>
+
+<h3>The Power Challenge</h3>
+<p>During eclipse, solar power drops to <strong>zero</strong>. All spacecraft loads must be sustained entirely by the battery for the full 35-minute shadow period. This is the fundamental sizing constraint for the battery: it must store enough energy to power all essential loads through the longest expected eclipse.</p>
+
+<div class="example">
+<h3>Eclipse Energy Budget</h3>
+<p>If total spacecraft load is 200 W and eclipse lasts 35 minutes:</p>
+<pre><code>E_eclipse = 200 W * 35 min * (1 hr / 60 min) = 116.7 Wh
+
+With 80% depth-of-discharge limit:
+E_battery_min = 116.7 / 0.80 = 145.8 Wh
+
+Actual battery: 2500 Wh (provides large margin for
+aging, load spikes, and reduced power modes)</code></pre>
+</div>
+
+<div class="svg-container">
+<svg viewBox="0 0 720 260" xmlns="http://www.w3.org/2000/svg">
+  <text x="360" y="22" text-anchor="middle" fill="rgba(216,224,236,0.5)" font-size="13">One LEO Orbit: Sunlit vs Eclipse</text>
+
+  <!-- Orbit timeline bar -->
+  <rect x="60" y="70" width="600" height="40" rx="6" fill="#0f1520" stroke="#1e293b" stroke-width="1"/>
+
+  <!-- Sunlit portion (0-60 min) -->
+  <rect x="60" y="70" width="379" height="40" rx="6" fill="rgba(245,158,11,0.15)" stroke="none"/>
+  <text x="250" y="95" text-anchor="middle" fill="#f59e0b" font-size="13" font-weight="600">SUNLIT (~60 min)</text>
+
+  <!-- Eclipse portion (60-95 min) -->
+  <rect x="439" y="70" width="221" height="40" rx="0 6 6 0" fill="rgba(99,102,241,0.2)" stroke="none"/>
+  <text x="550" y="95" text-anchor="middle" fill="#a78bfa" font-size="13" font-weight="600">ECLIPSE (~35 min)</text>
+
+  <!-- Divider -->
+  <line x1="439" y1="65" x2="439" y2="115" stroke="#a78bfa" stroke-width="2" stroke-dasharray="4,3"/>
+
+  <!-- Time labels -->
+  <text x="60" y="130" text-anchor="middle" fill="var(--dim)" font-size="10" font-family="var(--font-mono)">0 min</text>
+  <text x="439" y="130" text-anchor="middle" fill="var(--dim)" font-size="10" font-family="var(--font-mono)">60 min</text>
+  <text x="660" y="130" text-anchor="middle" fill="var(--dim)" font-size="10" font-family="var(--font-mono)">95 min</text>
+
+  <!-- Power source indicators -->
+  <text x="250" y="155" text-anchor="middle" fill="#f59e0b" font-size="11">Solar panels active</text>
+  <text x="250" y="170" text-anchor="middle" fill="var(--dim)" font-size="10">Battery charging</text>
+
+  <text x="550" y="155" text-anchor="middle" fill="#a78bfa" font-size="11">Solar power = 0 W</text>
+  <text x="550" y="170" text-anchor="middle" fill="var(--dim)" font-size="10">Battery discharging</text>
+
+  <!-- SoC curve -->
+  <text x="360" y="200" text-anchor="middle" fill="rgba(216,224,236,0.4)" font-size="11">Battery State of Charge</text>
+
+  <!-- SoC line rising in sun, falling in eclipse -->
+  <polyline points="60,240 150,230 250,222 350,218 439,215 500,225 560,235 620,242 660,248"
+    fill="none" stroke="#22c55e" stroke-width="2.5"/>
+
+  <!-- SoC labels -->
+  <text x="50" y="244" text-anchor="end" fill="#22c55e" font-size="10" font-family="var(--font-mono)">85%</text>
+  <text x="435" y="210" text-anchor="end" fill="#22c55e" font-size="10" font-family="var(--font-mono)">100%</text>
+  <text x="668" y="252" fill="#22c55e" font-size="10" font-family="var(--font-mono)">88%</text>
+</svg>
+</div>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>3. Battery System</h2>
+
+<p>The onboard battery is a <strong>lithium-ion (Li-ion)</strong> pack with a capacity of approximately <strong>2500 Wh</strong>. Li-ion is the standard chemistry for modern LEO spacecraft because of its high specific energy (~150-200 Wh/kg), long cycle life, and well-understood behavior.</p>
+
+<h3>State of Charge Dynamics</h3>
+<p>The battery's State of Charge (SoC) changes each simulation tick based on the net power flow:</p>
+
+<div class="formula">
+&Delta;SoC = (P<sub>net</sub> &times; &Delta;t) / E<sub>capacity</sub>
+</div>
+
+<p>Where:</p>
+<ul>
+  <li><code>P<sub>net</sub></code> = P<sub>solar</sub> - P<sub>load</sub> (positive when charging, negative when discharging)</li>
+  <li><code>&Delta;t</code> = time step (1 second in the simulator, expressed in hours for Wh units)</li>
+  <li><code>E<sub>capacity</sub></code> = battery capacity in Wh (2500 Wh)</li>
+</ul>
+
+<div class="example">
+<h3>SoC Example</h3>
+<p>During sunlight with full solar power:</p>
+<pre><code>P_solar = 4500 W, P_load = 200 W
+P_net = 4500 - 200 = +4300 W (charging)
+dSoC per second = 4300 * (1/3600) / 2500 = 0.000478
+                = 0.048% per second
+                = 2.87% per minute
+
+During eclipse:
+P_solar = 0 W, P_load = 200 W
+P_net = -200 W (discharging)
+dSoC per second = -200 * (1/3600) / 2500 = -0.0000222
+                = -0.00222% per second
+                = -0.133% per minute
+                = -4.67% over 35-minute eclipse</code></pre>
+</div>
+
+<h3>Discharge Rate Limits</h3>
+<p>Li-ion batteries have maximum safe discharge rates, typically expressed as a C-rate. A 2500 Wh battery at 1C can deliver 2500 W continuously. At the typical 200 W load, the satellite operates at only ~0.08C -- well within safe limits. However, transient peak loads (e.g., attitude control thruster firing) can spike demand briefly, and the power management unit must ensure C-rate limits are never exceeded.</p>
+
+<h3>Capacity Fade and Aging</h3>
+<p>Every charge-discharge cycle degrades the battery slightly. With ~15 cycles per day, a LEO satellite battery experiences <strong>~5500 cycles per year</strong>. Over a 5-year mission lifetime, this totals ~27,500 cycles. Li-ion capacity fade follows an approximately square-root-of-cycles relationship:</p>
+
+<div class="formula">
+E<sub>actual</sub>(n) = E<sub>BOL</sub> &times; (1 - k &times; &radic;n)
+</div>
+
+<p>Where k is a degradation constant (~0.0005 for space-grade cells) and n is cycle count. After 27,500 cycles: capacity retention ~96%, or ~2400 Wh. Mission planners design for end-of-life (EOL) capacity, ensuring the battery can still sustain eclipse loads even after years of cycling.</p>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>4. Power Bus Architecture</h2>
+
+<p>The power bus is the central electrical backbone of the spacecraft. It regulates voltage, routes power from sources to loads, and manages transitions between solar and battery power. The architecture follows a <strong>regulated bus</strong> topology.</p>
+
+<div class="svg-container">
+<svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg">
+  <text x="360" y="22" text-anchor="middle" fill="rgba(216,224,236,0.5)" font-size="13">Power Bus Block Diagram</text>
+
+  <!-- Solar Array -->
+  <rect x="20" y="60" width="130" height="55" rx="6" fill="rgba(245,158,11,0.1)" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="85" y="82" text-anchor="middle" fill="#f59e0b" font-size="12" font-weight="600">Solar Array</text>
+  <text x="85" y="100" text-anchor="middle" fill="var(--dim)" font-size="10">GaAs 12 m&sup2;</text>
+
+  <!-- MPPT -->
+  <rect x="185" y="60" width="120" height="55" rx="6" fill="rgba(0,229,255,0.06)" stroke="var(--accent)" stroke-width="1.5"/>
+  <text x="245" y="82" text-anchor="middle" fill="var(--accent)" font-size="11" font-weight="600">MPPT / Power</text>
+  <text x="245" y="100" text-anchor="middle" fill="var(--dim)" font-size="10">Conditioning</text>
+
+  <!-- Arrow solar to MPPT -->
+  <line x1="150" y1="87" x2="185" y2="87" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#pwr-arrow)"/>
+  <defs><marker id="pwr-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="var(--accent)"/></marker></defs>
+
+  <!-- Main Bus Bar -->
+  <rect x="340" y="45" width="12" height="300" rx="3" fill="rgba(0,229,255,0.12)" stroke="var(--accent)" stroke-width="2"/>
+  <text x="346" y="38" text-anchor="middle" fill="var(--accent)" font-size="11" font-weight="700">BUS</text>
+  <text x="346" y="360" text-anchor="middle" fill="var(--dim)" font-size="9">28V Regulated</text>
+
+  <!-- Arrow MPPT to bus -->
+  <line x1="305" y1="87" x2="340" y2="87" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#pwr-arrow)"/>
+
+  <!-- Battery -->
+  <rect x="185" y="160" width="120" height="55" rx="6" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="245" y="182" text-anchor="middle" fill="#22c55e" font-size="11" font-weight="600">Battery Pack</text>
+  <text x="245" y="200" text-anchor="middle" fill="var(--dim)" font-size="10">Li-ion 2500 Wh</text>
+
+  <!-- Battery charge controller -->
+  <rect x="185" y="240" width="120" height="40" rx="6" fill="rgba(34,197,94,0.05)" stroke="#22c55e88" stroke-width="1"/>
+  <text x="245" y="265" text-anchor="middle" fill="var(--dim)" font-size="10">Charge Controller</text>
+
+  <!-- Arrow bus to battery (bidirectional) -->
+  <line x1="340" y1="187" x2="305" y2="187" stroke="#22c55e" stroke-width="1.5" marker-end="url(#bat-arrow)"/>
+  <line x1="305" y1="177" x2="340" y2="177" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#bat-arrow2)"/>
+  <defs>
+    <marker id="bat-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#22c55e"/></marker>
+    <marker id="bat-arrow2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#22c55e"/></marker>
+  </defs>
+  <line x1="245" y1="215" x2="245" y2="240" stroke="#22c55e88" stroke-width="1"/>
+
+  <!-- Loads on the right side -->
+  <!-- PA -->
+  <rect x="400" y="50" width="140" height="35" rx="5" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1"/>
+  <text x="470" y="72" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="500">Power Amplifier (6-15W)</text>
+  <line x1="352" y1="67" x2="400" y2="67" stroke="#ef444488" stroke-width="1"/>
+
+  <!-- Array Electronics -->
+  <rect x="400" y="95" width="140" height="35" rx="5" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1"/>
+  <text x="470" y="117" text-anchor="middle" fill="#a78bfa" font-size="10" font-weight="500">Array Electronics (30W)</text>
+  <line x1="352" y1="112" x2="400" y2="112" stroke="#a78bfa88" stroke-width="1"/>
+
+  <!-- Digital Processing -->
+  <rect x="400" y="140" width="140" height="35" rx="5" fill="rgba(0,229,255,0.08)" stroke="var(--accent)" stroke-width="1"/>
+  <text x="470" y="162" text-anchor="middle" fill="var(--accent)" font-size="10" font-weight="500">Digital Processing (60W)</text>
+  <line x1="352" y1="157" x2="400" y2="157" stroke="rgba(0,229,255,0.4)" stroke-width="1"/>
+
+  <!-- Attitude Control -->
+  <rect x="400" y="185" width="140" height="35" rx="5" fill="rgba(245,158,11,0.08)" stroke="#f59e0b" stroke-width="1"/>
+  <text x="470" y="207" text-anchor="middle" fill="#f59e0b" font-size="10" font-weight="500">Attitude Control (25W)</text>
+  <line x1="352" y1="202" x2="400" y2="202" stroke="#f59e0b88" stroke-width="1"/>
+
+  <!-- Thermal -->
+  <rect x="400" y="230" width="140" height="35" rx="5" fill="rgba(244,114,182,0.08)" stroke="#f472b6" stroke-width="1"/>
+  <text x="470" y="252" text-anchor="middle" fill="#f472b6" font-size="10" font-weight="500">Thermal Mgmt (15W)</text>
+  <line x1="352" y1="247" x2="400" y2="247" stroke="#f472b688" stroke-width="1"/>
+
+  <!-- Housekeeping -->
+  <rect x="400" y="275" width="140" height="35" rx="5" fill="rgba(216,224,236,0.05)" stroke="var(--dim)" stroke-width="1"/>
+  <text x="470" y="297" text-anchor="middle" fill="var(--dim)" font-size="10" font-weight="500">Housekeeping (10W)</text>
+  <line x1="352" y1="292" x2="400" y2="292" stroke="rgba(106,122,144,0.4)" stroke-width="1"/>
+
+  <!-- ISL -->
+  <rect x="560" y="140" width="140" height="35" rx="5" fill="rgba(99,102,241,0.08)" stroke="#818cf8" stroke-width="1"/>
+  <text x="630" y="162" text-anchor="middle" fill="#818cf8" font-size="10" font-weight="500">Inter-Sat Link (40W)</text>
+  <line x1="540" y1="157" x2="560" y2="157" stroke="#818cf888" stroke-width="1"/>
+
+  <!-- Total label -->
+  <rect x="560" y="230" width="140" height="40" rx="6" fill="rgba(0,229,255,0.06)" stroke="var(--accent)" stroke-width="2"/>
+  <text x="630" y="248" text-anchor="middle" fill="var(--accent)" font-size="12" font-weight="700">Total ~200W</text>
+  <text x="630" y="262" text-anchor="middle" fill="var(--dim)" font-size="9">All loads nominal</text>
+</svg>
+</div>
+
+<h3>Power Conditioning</h3>
+<p>The Maximum Power Point Tracker (MPPT) extracts optimal power from the solar array by continuously adjusting the operating voltage. Solar cells have a characteristic I-V curve with a single maximum power point that shifts with temperature and illumination. The MPPT locks onto this point and feeds regulated DC to the bus.</p>
+
+<p>The bus voltage is typically regulated at <strong>28V</strong> (a common spacecraft standard). Each load subsystem has its own DC-DC converter to step down (or up) to its required voltage. This architecture isolates load transients from the bus and prevents one failing subsystem from bringing down others.</p>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>5. Spacecraft Load Table</h2>
+
+<p>The following table lists the major power consumers on the spacecraft. These values represent nominal draw in power mode 0 (all systems operational).</p>
+
+<table>
+<tr><th>Subsystem</th><th>Power (W)</th><th>Fraction</th><th>Notes</th></tr>
+<tr><td>Digital Processing</td><td>60</td><td>30%</td><td>Onboard computer, routing, signal processing</td></tr>
+<tr><td>Inter-Satellite Link (ISL)</td><td>40</td><td>20%</td><td>Laser or Ka-band crosslinks to adjacent satellites</td></tr>
+<tr><td>Array Electronics</td><td>30</td><td>15%</td><td>Beamforming, phase shifters, T/R module control</td></tr>
+<tr><td>Attitude Control (ADCS)</td><td>25</td><td>12.5%</td><td>Reaction wheels, magnetorquers, star trackers</td></tr>
+<tr><td>Thermal Management</td><td>15</td><td>7.5%</td><td>Heaters for cold components, heat pipe pumps</td></tr>
+<tr><td>Power Amplifier (PA)</td><td>6-15</td><td>3-7.5%</td><td>Variable: depends on backoff and power mode</td></tr>
+<tr><td>Housekeeping</td><td>10</td><td>5%</td><td>Telemetry, command, onboard monitoring</td></tr>
+<tr style="background:rgba(0,229,255,0.04)"><td><strong>Total (nominal)</strong></td><td><strong>~200</strong></td><td><strong>100%</strong></td><td>Mode 0 operation</td></tr>
+</table>
+
+<p>A critical insight: the PA consumes only 3-7.5% of total power. Yet it is the first subsystem to be throttled in low-power modes because reducing PA power has the most direct impact on the link budget. Every watt removed from the PA reduces EIRP, degrades SNR, and forces modulation downshift.</p>
+
+<div class="note">
+<strong>Why is digital processing the largest load?</strong> The onboard processor handles packet routing for thousands of simultaneous users, beamforming calculations for the phased array, and inter-satellite link management. Modern LEO communication satellites are essentially flying routers with antennas attached.
+</div>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>6. Power Modes</h2>
+
+<p>The power management system defines four operating modes based on battery State of Charge. As SoC drops, loads are progressively shed to protect the battery from deep discharge, which accelerates aging and risks permanent damage.</p>
+
+<table>
+<tr><th>Mode</th><th>SoC Range</th><th>Name</th><th>Actions</th></tr>
+<tr><td style="color:#22c55e;font-weight:600">0</td><td>&gt; 40%</td><td>Nominal</td><td>All subsystems at full power. PA allowed 6-15W.</td></tr>
+<tr><td style="color:#f59e0b;font-weight:600">1</td><td>30 - 40%</td><td>Reduced</td><td>ISL power halved, compute reduced 30%. PA unchanged.</td></tr>
+<tr><td style="color:#ef4444;font-weight:600">2</td><td>20 - 30%</td><td>Low Power</td><td>PA power capped at 8W. Non-essential processing off.</td></tr>
+<tr><td style="color:#a78bfa;font-weight:600">3</td><td>&lt; 20%</td><td>Survival</td><td>PA <strong>OFF</strong>. Only ADCS + housekeeping + thermal active.</td></tr>
+</table>
+
+<h3>State Machine</h3>
+
+<div class="svg-container">
+<svg viewBox="0 0 720 340" xmlns="http://www.w3.org/2000/svg">
+  <text x="360" y="22" text-anchor="middle" fill="rgba(216,224,236,0.5)" font-size="13">Power Mode State Machine</text>
+
+  <!-- Mode 0 -->
+  <rect x="40" y="60" width="130" height="70" rx="10" fill="rgba(34,197,94,0.1)" stroke="#22c55e" stroke-width="2"/>
+  <text x="105" y="88" text-anchor="middle" fill="#22c55e" font-size="14" font-weight="700">MODE 0</text>
+  <text x="105" y="108" text-anchor="middle" fill="var(--dim)" font-size="10">Nominal</text>
+  <text x="105" y="122" text-anchor="middle" fill="var(--dim)" font-size="9">SoC &gt; 40%</text>
+
+  <!-- Mode 1 -->
+  <rect x="230" y="60" width="130" height="70" rx="10" fill="rgba(245,158,11,0.1)" stroke="#f59e0b" stroke-width="2"/>
+  <text x="295" y="88" text-anchor="middle" fill="#f59e0b" font-size="14" font-weight="700">MODE 1</text>
+  <text x="295" y="108" text-anchor="middle" fill="var(--dim)" font-size="10">Reduced</text>
+  <text x="295" y="122" text-anchor="middle" fill="var(--dim)" font-size="9">SoC 30-40%</text>
+
+  <!-- Mode 2 -->
+  <rect x="420" y="60" width="130" height="70" rx="10" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="2"/>
+  <text x="485" y="88" text-anchor="middle" fill="#ef4444" font-size="14" font-weight="700">MODE 2</text>
+  <text x="485" y="108" text-anchor="middle" fill="var(--dim)" font-size="10">Low Power</text>
+  <text x="485" y="122" text-anchor="middle" fill="var(--dim)" font-size="9">SoC 20-30%</text>
+
+  <!-- Mode 3 -->
+  <rect x="610" y="60" width="90" height="70" rx="10" fill="rgba(167,139,250,0.1)" stroke="#a78bfa" stroke-width="2"/>
+  <text x="655" y="88" text-anchor="middle" fill="#a78bfa" font-size="14" font-weight="700">MODE 3</text>
+  <text x="655" y="108" text-anchor="middle" fill="var(--dim)" font-size="10">Survival</text>
+  <text x="655" y="122" text-anchor="middle" fill="var(--dim)" font-size="9">SoC &lt; 20%</text>
+
+  <!-- Forward transitions (SoC dropping) -->
+  <defs>
+    <marker id="sm-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#ef4444"/>
+    </marker>
+    <marker id="sm-arrow-up" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#22c55e"/>
+    </marker>
+  </defs>
+
+  <!-- 0 -> 1 -->
+  <line x1="170" y1="82" x2="230" y2="82" stroke="#ef4444" stroke-width="1.5" marker-end="url(#sm-arrow)"/>
+  <text x="200" y="75" text-anchor="middle" fill="#ef4444" font-size="9">SoC&lt;40%</text>
+
+  <!-- 1 -> 2 -->
+  <line x1="360" y1="82" x2="420" y2="82" stroke="#ef4444" stroke-width="1.5" marker-end="url(#sm-arrow)"/>
+  <text x="390" y="75" text-anchor="middle" fill="#ef4444" font-size="9">SoC&lt;30%</text>
+
+  <!-- 2 -> 3 -->
+  <line x1="550" y1="82" x2="610" y2="82" stroke="#ef4444" stroke-width="1.5" marker-end="url(#sm-arrow)"/>
+  <text x="580" y="75" text-anchor="middle" fill="#ef4444" font-size="9">SoC&lt;20%</text>
+
+  <!-- Recovery transitions (SoC rising) -->
+  <!-- 1 -> 0 -->
+  <path d="M 230 115 C 210 150 180 150 170 115" fill="none" stroke="#22c55e" stroke-width="1.5" marker-end="url(#sm-arrow-up)"/>
+  <text x="200" y="160" text-anchor="middle" fill="#22c55e" font-size="9">SoC&gt;45%</text>
+
+  <!-- 2 -> 1 -->
+  <path d="M 420 115 C 400 150 370 150 360 115" fill="none" stroke="#22c55e" stroke-width="1.5" marker-end="url(#sm-arrow-up)"/>
+  <text x="390" y="160" text-anchor="middle" fill="#22c55e" font-size="9">SoC&gt;35%</text>
+
+  <!-- 3 -> 2 -->
+  <path d="M 610 115 C 590 150 560 150 550 115" fill="none" stroke="#22c55e" stroke-width="1.5" marker-end="url(#sm-arrow-up)"/>
+  <text x="580" y="160" text-anchor="middle" fill="#22c55e" font-size="9">SoC&gt;25%</text>
+
+  <!-- Hysteresis note -->
+  <rect x="120" y="190" width="480" height="55" rx="8" fill="rgba(0,229,255,0.03)" stroke="var(--border-bright)" stroke-width="1"/>
+  <text x="360" y="210" text-anchor="middle" fill="var(--accent)" font-size="12" font-weight="600">Hysteresis: 5% gap between enter and exit thresholds</text>
+  <text x="360" y="228" text-anchor="middle" fill="var(--dim)" font-size="11">Enter Mode 1 at SoC &lt; 40%. Exit back to Mode 0 only when SoC &gt; 45%.</text>
+  <text x="360" y="240" text-anchor="middle" fill="var(--dim)" font-size="10">Prevents rapid oscillation between modes near thresholds.</text>
+
+  <!-- PA power bar below -->
+  <text x="360" y="278" text-anchor="middle" fill="rgba(216,224,236,0.4)" font-size="11">PA Allowed Power by Mode</text>
+  <rect x="100" y="290" width="200" height="20" rx="4" fill="rgba(34,197,94,0.2)" stroke="#22c55e88" stroke-width="1"/>
+  <text x="200" y="304" text-anchor="middle" fill="#22c55e" font-size="10">Mode 0: 6-15W</text>
+
+  <rect x="300" y="290" width="100" height="20" rx="4" fill="rgba(245,158,11,0.2)" stroke="#f59e0b88" stroke-width="1"/>
+  <text x="350" y="304" text-anchor="middle" fill="#f59e0b" font-size="10">M1: 6-15W</text>
+
+  <rect x="400" y="290" width="80" height="20" rx="4" fill="rgba(239,68,68,0.2)" stroke="#ef444488" stroke-width="1"/>
+  <text x="440" y="304" text-anchor="middle" fill="#ef4444" font-size="10">M2: max 8W</text>
+
+  <rect x="480" y="290" width="80" height="20" rx="4" fill="rgba(167,139,250,0.2)" stroke="#a78bfa88" stroke-width="1"/>
+  <text x="520" y="304" text-anchor="middle" fill="#a78bfa" font-size="10">M3: 0W</text>
+</svg>
+</div>
+
+<h3>Hysteresis Logic</h3>
+<p>The 5% hysteresis gap is critical. Without it, a satellite hovering at exactly 40% SoC would oscillate rapidly between Mode 0 and Mode 1 every tick, causing load flapping, thermal transients, and modulation instability. The gap ensures that once a lower power mode is entered, the battery must recover significantly before the system returns to higher power.</p>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>7. How Power Constrains the PA</h2>
+
+<p>This is where power management directly impacts communication performance. The power management unit sets a <code>paAllowedPower_W</code> limit based on the current power mode. The PA must operate within this budget.</p>
+
+<h3>The Cascade</h3>
+<ol>
+  <li><strong>Power mode limits PA input power.</strong> In Mode 2, the PA is capped at 8W instead of the nominal 15W maximum.</li>
+  <li><strong>Less PA power means more backoff.</strong> If the PA was operating at 12W and the budget drops to 8W, the amplifier must increase its output backoff (OBO) to reduce output.</li>
+  <li><strong>More backoff reduces EIRP.</strong> The satellite's effective radiated power drops by the amount of additional backoff applied.</li>
+  <li><strong>Lower EIRP degrades SNR.</strong> The link budget equation directly includes EIRP. Losing 2 dB of PA power means losing 2 dB of SNR at the receiver.</li>
+  <li><strong>Lower SNR forces modulation downshift.</strong> If SNR drops below the threshold for 16QAM, the adaptive modulation system shifts to QPSK, cutting spectral efficiency in half.</li>
+  <li><strong>Lower spectral efficiency reduces throughput.</strong> The data rate drops proportionally.</li>
+</ol>
+
+<div class="example">
+<h3>Numeric Example: Power Mode Cascade</h3>
+<pre><code>Mode 0 (nominal):
+  PA power: 12W  ->  EIRP: 47 dBW  ->  SNR: 18 dB
+  ModCod: 16QAM 3/4 (requires 13.5 dB)  ->  Throughput: 750 Mbps
+
+Mode 2 (SoC=25%):
+  PA power: 8W   ->  EIRP: 45.2 dBW  ->  SNR: 16.2 dB
+  ModCod: 16QAM 2/3 (requires 12 dB)   ->  Throughput: 667 Mbps
+  Loss: ~11%
+
+Mode 3 (SoC=18%):
+  PA power: 0W   ->  No transmission  ->  Throughput: 0 Mbps
+  LINK DOWN -- satellite in survival mode</code></pre>
+</div>
+
+<p>This cascade is a central theme of the simulator: <strong>power is not just a spacecraft subsystem -- it is a throughput-limiting constraint</strong>. A satellite entering eclipse with a partially depleted battery may be forced into Mode 1 or Mode 2 mid-pass, causing a visible throughput drop that has nothing to do with orbital geometry or atmospheric conditions.</p>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>8. Power Dynamics During a Pass</h2>
+
+<p>To see all the pieces working together, consider a typical pass scenario:</p>
+
+<ol>
+  <li><strong>Pre-pass (sunlit):</strong> Battery at 95% SoC. Solar panels producing 4500 W. Battery charging at ~4300 W. Mode 0.</li>
+  <li><strong>Pass begins (eclipse entry):</strong> Satellite enters Earth's shadow 2 minutes before the ground station pass. Solar power drops to zero. Battery begins discharging at 200 W.</li>
+  <li><strong>Mid-pass (eclipse):</strong> Battery at 92% SoC. Still well within Mode 0. PA runs at full power. Throughput limited only by geometry and atmospheric conditions.</li>
+  <li><strong>Post-pass (still in eclipse):</strong> Pass ends after 8 minutes. Battery at ~91% SoC. Satellite continues in eclipse for another 25 minutes. SoC drops to ~86%.</li>
+  <li><strong>Eclipse exit:</strong> Solar panels illuminate. Charging resumes. SoC recovery begins.</li>
+</ol>
+
+<p>This is the healthy scenario. Now consider a degraded one: the battery starts the pass at 42% SoC (perhaps after extended power anomaly or multiple consecutive eclipses with reduced solar input). During the pass, SoC drops below 40% and the satellite enters Mode 1. ISL and compute are reduced. If the pass is long enough and load stays high, SoC could approach 30%, triggering Mode 2 and PA capping -- mid-pass. The ground user would see throughput degrade over the course of the pass for reasons entirely internal to the spacecraft.</p>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>9. Code Connection</h2>
+
+<p>The power system simulation lives in:</p>
+
+<ul>
+  <li><code>src/simulation/power/power-bus.ts</code> -- The main power simulation module. Contains two key functions:
+    <ul>
+      <li><code>createInitialPowerState()</code> -- Initializes the power state with default SoC, panel efficiency, battery capacity, and mode thresholds.</li>
+      <li><code>stepPower(state, dt, inSunlight, sunAngle)</code> -- Called each simulation tick. Computes solar power generation, net power flow, SoC update, mode transitions (with hysteresis), and the resulting PA power limit.</li>
+    </ul>
+  </li>
+</ul>
+
+<p>Key logic in <code>stepPower</code>:</p>
+<pre><code>// 1. Compute solar power
+const solarPower = inSunlight
+  ? efficiency * area * SOLAR_CONSTANT * Math.cos(sunAngle)
+  : 0;
+
+// 2. Compute net power
+const netPower = solarPower - totalLoad;
+
+// 3. Update SoC
+state.soc += (netPower * dt_hours) / state.batteryCapacity;
+state.soc = Math.max(0, Math.min(1, state.soc));
+
+// 4. Determine power mode (with hysteresis)
+if (state.soc < 0.20) state.mode = 3;
+else if (state.soc < 0.30 && state.mode >= 2) state.mode = 2;
+else if (state.soc < 0.40 && state.mode >= 1) state.mode = 1;
+// Recovery thresholds are 5% higher
+else if (state.soc > 0.45 && state.mode === 1) state.mode = 0;
+else if (state.soc > 0.35 && state.mode === 2) state.mode = 1;
+else if (state.soc > 0.25 && state.mode === 3) state.mode = 2;
+
+// 5. Set PA power limit
+const paLimits = [15, 15, 8, 0]; // Watts per mode
+state.paAllowedPower = paLimits[state.mode];</code></pre>
+
+<p>The output <code>paAllowedPower</code> feeds directly into the RF chain model, which adjusts PA backoff and recomputes EIRP. From there, the link budget, modulation selection, and packet simulation all see the downstream effects.</p>
+</div>
+
+<!-- ============================================================ -->
+<div class="refs">
+<h2>References</h2>
+<ul>
+  <li>Patel, M. R. -- <em>Spacecraft Power Systems</em>, CRC Press. The definitive reference on all aspects of spacecraft power design.</li>
+  <li><strong>ECSS-E-ST-20C</strong> -- European Cooperation for Space Standardization: Space Engineering -- Electrical and Electronic. Defines design requirements for spacecraft power subsystems.</li>
+  <li>Wertz, J. R., Everett, D. F. & Puschell, J. J. -- <em>Space Mission Engineering: The New SMAD</em>, Microcosm Press. Chapter 11 covers power system sizing and trade studies.</li>
+  <li>Rauschenbach, H. S. -- <em>Solar Cell Array Design Handbook</em>, Van Nostrand Reinhold. Classic reference for photovoltaic array design in space.</li>
+  <li>Linden, D. & Reddy, T. B. -- <em>Handbook of Batteries</em>, 4th ed., McGraw-Hill. Comprehensive reference on Li-ion cell performance, aging, and modeling.</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<div class="questions">
+<h2>Questions</h2>
+<ol>
+  <li>
+    <strong>Solar panel sizing.</strong> A satellite requires 200 W continuous load and must sustain a 35-minute eclipse entirely on battery. If the battery should not discharge below 60% SoC, and the battery capacity is 2500 Wh, what is the SoC drop over one eclipse? Is the 60% limit respected if the eclipse starts at 95% SoC?
+  </li>
+  <li>
+    <strong>Sun angle impact.</strong> A satellite's solar panels are fixed (body-mounted) and the sun angle varies from 0 to 75 degrees over one orbit. If the panel produces 4900 W at &theta;=0, what is the output at &theta;=45 and &theta;=75? At what angle does generation drop below the 200 W load?
+  </li>
+  <li>
+    <strong>Power mode transitions.</strong> A satellite begins a pass at SoC=38% in Mode 1. During the pass, SoC drops to 28% and then solar illumination resumes. At what SoC does the satellite enter Mode 2? At what SoC does it recover back to Mode 1? Back to Mode 0? Draw the SoC-vs-time trajectory and label each mode transition.
+  </li>
+  <li>
+    <strong>PA cascade.</strong> In Mode 0, the PA runs at 12W and the link achieves SNR=17 dB using 16QAM 3/4 (requires 13.5 dB). The satellite enters Mode 2 and the PA is capped at 8W. How many dB of EIRP are lost? What is the new SNR? If 8PSK 3/4 requires 10.5 dB, which ModCod is selected?
+  </li>
+  <li>
+    <strong>Battery aging.</strong> Using the capacity fade formula E(n) = E_BOL * (1 - 0.0005 * sqrt(n)), calculate the remaining battery capacity after 3 years of operation (assuming 15 cycles/day). What percentage of BOL capacity remains? How does this affect the SoC thresholds for power modes?
+  </li>
+  <li>
+    <strong>Eclipse energy budget.</strong> Design a power system for a satellite with 250 W total load. The maximum eclipse duration is 37 minutes. The battery must never go below 30% SoC. If the battery starts eclipse at 90% SoC, what minimum battery capacity (in Wh) is required? Add a 15% margin for aging.
+  </li>
+</ol>
+</div>
+
+<nav class="bottom">
+  <a href="unit-5-link-budget.html">&larr; Unit 5: Link Budget</a>
+  <a href="unit-7-modulation.html">Unit 7: Modulation &rarr;</a>
+</nav>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unit 6: Digital Modulation &amp; the Protocol Stack</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0e1a;color:#d8dfe8;font-family:system-ui,-apple-system,sans-serif;line-height:1.7;padding:2rem 1rem}
+.container{max-width:900px;margin:0 auto}
+h1{font-size:2rem;color:#00e5ff;margin-bottom:.5rem;border-bottom:2px solid #00e5ff33;padding-bottom:.5rem}
+h2{font-size:1.5rem;color:#00e5ff;margin-top:2.5rem;margin-bottom:.75rem}
+h3{font-size:1.2rem;color:#00e5ffc0;margin-top:1.5rem;margin-bottom:.5rem}
+p{margin-bottom:1rem}
+a{color:#00e5ff;text-decoration:none}
+a:hover{text-decoration:underline}
+nav.top{display:flex;justify-content:space-between;align-items:center;padding:.75rem 0;border-bottom:1px solid #1e293b;margin-bottom:2rem;font-size:.9rem}
+nav.bottom{display:flex;justify-content:space-between;padding-top:1.5rem;border-top:1px solid #1e293b;margin-top:3rem;font-size:.9rem}
+nav.bottom a{padding:.5rem 1rem;border:1px solid #00e5ff44;border-radius:6px}
+nav.bottom a:hover{background:#00e5ff11}
+.objectives{background:#00e5ff0a;border:1px solid #00e5ff22;border-radius:8px;padding:1.25rem 1.5rem;margin:1.5rem 0}
+.objectives h2{margin-top:0}
+.objectives ul{padding-left:1.5rem}
+.objectives li{margin-bottom:.35rem}
+code{font-family:'SF Mono',Consolas,'Liberation Mono',Menlo,monospace;background:#111827;padding:.15em .4em;border-radius:4px;font-size:.9em;color:#00e5ff}
+pre{background:#111827;border:1px solid #1e293b;border-radius:8px;padding:1.25rem;overflow-x:auto;margin:1rem 0;font-size:.85rem;line-height:1.6}
+pre code{background:none;padding:0;color:#d8dfe8}
+.warn{color:#f59e0b}
+.accent{color:#00e5ff}
+.formula{background:#111827;border-left:3px solid #00e5ff;padding:1rem 1.25rem;margin:1rem 0;border-radius:0 8px 8px 0;font-family:'SF Mono',Consolas,monospace;font-size:.95rem}
+.example{background:#f59e0b08;border:1px solid #f59e0b22;border-radius:8px;padding:1.25rem;margin:1rem 0}
+.example h3{color:#f59e0b;margin-top:0}
+table{width:100%;border-collapse:collapse;margin:1rem 0}
+th,td{text-align:left;padding:.6rem .8rem;border-bottom:1px solid #1e293b;font-size:.9rem}
+th{color:#00e5ff;font-weight:600;border-bottom:2px solid #00e5ff33}
+tr:hover{background:#ffffff05}
+svg{display:block;margin:1.5rem auto;max-width:100%}
+.svg-container{background:#111827;border-radius:8px;padding:1rem;margin:1.5rem 0}
+.section{margin-bottom:2.5rem}
+.questions{background:#0a0e1a;border:2px solid #f59e0b33;border-radius:8px;padding:1.5rem;margin:2rem 0}
+.questions h2{color:#f59e0b;margin-top:0}
+.questions ol{padding-left:1.5rem}
+.questions li{margin-bottom:1rem}
+.refs{font-size:.85rem;color:#d8dfe888;margin-top:2rem}
+.refs h2{color:#d8dfe8aa}
+.refs ul{padding-left:1.5rem}
+.refs li{margin-bottom:.3rem}
+.unit-num{font-size:.85rem;color:#d8dfe866;text-transform:uppercase;letter-spacing:.1em}
+ul{margin-bottom:1rem;padding-left:1.5rem}
+li{margin-bottom:.3rem}
+</style>
+</head>
+<body>
+<div class="container">
+
+<nav class="top">
+  <a href="unit-5-link-budget.html">&larr; Unit 5</a>
+  <span class="accent">Unit 6 of 7</span>
+  <a href="unit-7-faults-causality.html">Unit 7 &rarr;</a>
+</nav>
+
+<div class="unit-num">Unit 6</div>
+<h1>Digital Modulation &amp; the Protocol Stack</h1>
+<p>The link budget from Unit 5 gives us a signal-to-noise ratio. This unit answers: what do we <em>do</em> with that SNR? We encode bits onto carrier waves, protect them with error correction, adapt the scheme to channel conditions, and push packets through a protocol stack that converts raw bits into useful throughput.</p>
+
+<div class="objectives">
+<h2>Learning Objectives</h2>
+<ul>
+  <li>Explain how QPSK, 8PSK, 16QAM, and 64QAM map bits to symbols</li>
+  <li>Read a constellation diagram and understand why higher-order modulation needs more SNR</li>
+  <li>Calculate BER from Eb/N0 using the erfc function and interpret BER curves</li>
+  <li>Describe how FEC (LDPC codes) creates a coding gain waterfall</li>
+  <li>Explain Adaptive Coding and Modulation (ACM) and hysteresis</li>
+  <li>Compute PER from BER and understand the packet cliff effect</li>
+  <li>Trace the path from raw bit rate to goodput through overhead and retransmissions</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>1. Why Digital Modulation?</h2>
+
+<p>A satellite downlink transmits a carrier wave -- a sinusoid at 12 GHz. To carry information, we must vary some property of that wave. Digital modulation encodes discrete bit patterns by changing the carrier's:</p>
+
+<ul>
+  <li><strong>Amplitude</strong> (ASK) -- vary the height of the wave</li>
+  <li><strong>Phase</strong> (PSK) -- rotate the wave's starting angle</li>
+  <li><strong>Both</strong> (QAM) -- combine amplitude and phase changes</li>
+</ul>
+
+<p>Each distinct combination of amplitude and phase is a <strong>symbol</strong>. With M symbols, each symbol carries log<sub>2</sub>(M) bits. The fundamental tradeoff: more symbols = more bits per symbol = higher data rate, but the symbols are closer together and more vulnerable to noise.</p>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>2. QPSK -- Quadrature Phase Shift Keying</h2>
+
+<p>QPSK uses 4 symbols, each separated by 90 degrees in phase. Each symbol carries <strong>2 bits</strong>. It is the workhorse of satellite communications because of its robustness to noise.</p>
+
+<div class="svg-container">
+<svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+  <text x="200" y="25" text-anchor="middle" fill="#d8dfe888" font-size="13" font-family="system-ui">QPSK Constellation (4 symbols, 2 bits/symbol)</text>
+
+  <!-- Axes -->
+  <line x1="200" y1="50" x2="200" y2="370" stroke="#d8dfe822" stroke-width="1"/>
+  <line x1="40" y1="210" x2="360" y2="210" stroke="#d8dfe822" stroke-width="1"/>
+  <text x="365" y="215" fill="#d8dfe866" font-size="11" font-family="system-ui">I</text>
+  <text x="204" y="46" fill="#d8dfe866" font-size="11" font-family="system-ui">Q</text>
+
+  <!-- Grid circle -->
+  <circle cx="200" cy="210" r="120" fill="none" stroke="#d8dfe811" stroke-width="1" stroke-dasharray="4,4"/>
+
+  <!-- Symbol points -->
+  <!-- 00 = 45 deg -->
+  <circle cx="285" cy="125" r="14" fill="#00e5ff33" stroke="#00e5ff" stroke-width="2"/>
+  <text x="285" y="130" text-anchor="middle" fill="#00e5ff" font-size="12" font-weight="bold" font-family="monospace">00</text>
+  <!-- 01 = 135 deg -->
+  <circle cx="115" cy="125" r="14" fill="#00e5ff33" stroke="#00e5ff" stroke-width="2"/>
+  <text x="115" y="130" text-anchor="middle" fill="#00e5ff" font-size="12" font-weight="bold" font-family="monospace">01</text>
+  <!-- 11 = 225 deg -->
+  <circle cx="115" cy="295" r="14" fill="#00e5ff33" stroke="#00e5ff" stroke-width="2"/>
+  <text x="115" y="300" text-anchor="middle" fill="#00e5ff" font-size="12" font-weight="bold" font-family="monospace">11</text>
+  <!-- 10 = 315 deg -->
+  <circle cx="285" cy="295" r="14" fill="#00e5ff33" stroke="#00e5ff" stroke-width="2"/>
+  <text x="285" y="300" text-anchor="middle" fill="#00e5ff" font-size="12" font-weight="bold" font-family="monospace">10</text>
+
+  <!-- Distance annotation -->
+  <line x1="285" y1="135" x2="285" y2="285" stroke="#f59e0b44" stroke-width="1" stroke-dasharray="4,4"/>
+  <text x="305" y="210" fill="#f59e0b" font-size="10" font-family="system-ui">large</text>
+  <text x="305" y="222" fill="#f59e0b" font-size="10" font-family="system-ui">distance</text>
+
+  <!-- Note -->
+  <text x="200" y="385" text-anchor="middle" fill="#d8dfe866" font-size="11" font-family="system-ui">All symbols equidistant -- maximum noise tolerance</text>
+</svg>
+</div>
+
+<p>Why is QPSK so robust? The symbols are maximally separated. Noise must push a received symbol more than 70% of the way to a neighbor before an error occurs. At the same power, QPSK has the same BER performance as BPSK (because they have the same minimum distance per bit of energy).</p>
+
+<p>At a symbol rate of 240 Msym/s, QPSK delivers: 240 &times; 2 = <span class="accent">480 Mbps raw</span>.</p>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>3. Higher-Order Modulation</h2>
+
+<p>To increase data rate without more bandwidth, we pack more bits per symbol. But the symbols crowd together, requiring higher SNR to distinguish them.</p>
+
+<div class="svg-container">
+<svg viewBox="0 0 750 360" xmlns="http://www.w3.org/2000/svg">
+  <text x="375" y="20" text-anchor="middle" fill="#d8dfe888" font-size="13" font-family="system-ui">Constellation Comparison</text>
+
+  <!-- 8PSK -->
+  <text x="125" y="50" text-anchor="middle" fill="#00e5ff" font-size="12" font-weight="bold" font-family="system-ui">8PSK (3 bits)</text>
+  <circle cx="125" cy="190" r="80" fill="none" stroke="#d8dfe811" stroke-width="1" stroke-dasharray="3,3"/>
+  <line x1="125" y1="100" x2="125" y2="280" stroke="#d8dfe811" stroke-width="1"/>
+  <line x1="35" y1="190" x2="215" y2="190" stroke="#d8dfe811" stroke-width="1"/>
+  <!-- 8 points around circle -->
+  <circle cx="205" cy="190" r="8" fill="#00e5ff44" stroke="#00e5ff" stroke-width="1.5"/>
+  <circle cx="182" cy="133" r="8" fill="#00e5ff44" stroke="#00e5ff" stroke-width="1.5"/>
+  <circle cx="125" cy="110" r="8" fill="#00e5ff44" stroke="#00e5ff" stroke-width="1.5"/>
+  <circle cx="68" cy="133" r="8" fill="#00e5ff44" stroke="#00e5ff" stroke-width="1.5"/>
+  <circle cx="45" cy="190" r="8" fill="#00e5ff44" stroke="#00e5ff" stroke-width="1.5"/>
+  <circle cx="68" cy="247" r="8" fill="#00e5ff44" stroke="#00e5ff" stroke-width="1.5"/>
+  <circle cx="125" cy="270" r="8" fill="#00e5ff44" stroke="#00e5ff" stroke-width="1.5"/>
+  <circle cx="182" cy="247" r="8" fill="#00e5ff44" stroke="#00e5ff" stroke-width="1.5"/>
+  <text x="125" y="310" text-anchor="middle" fill="#d8dfe866" font-size="10" font-family="monospace">720 Mbps</text>
+  <text x="125" y="325" text-anchor="middle" fill="#d8dfe866" font-size="10" font-family="system-ui">~10 dB Eb/N0</text>
+
+  <!-- 16QAM -->
+  <text x="375" y="50" text-anchor="middle" fill="#00e5ff" font-size="12" font-weight="bold" font-family="system-ui">16QAM (4 bits)</text>
+  <line x1="375" y1="100" x2="375" y2="280" stroke="#d8dfe811" stroke-width="1"/>
+  <line x1="285" y1="190" x2="465" y2="190" stroke="#d8dfe811" stroke-width="1"/>
+  <!-- 4x4 grid of points -->
+  <circle cx="315" cy="130" r="6" fill="#00e5ff44" stroke="#00e5ff" stroke-width="1.5"/>
+  <circle cx="355" cy="130" r="6" fill="#00e5ff44" stroke="#00e5ff" stroke-width="1.5"/>
+  <circle cx="395" cy="130" r="6" fill="#00e5ff44" stroke="#00e5ff" stroke-width="1.5"/>
+  <circle cx="435" cy="130" r="6" fill="#00e5ff44" stroke="#00e5ff" stroke-width="1.5"/>
+  <circle cx="315" cy="170" r="6" fill="#00e5ff44" stroke="#00e5ff" stroke-width="1.5"/>
+  <circle cx="355" cy="170" r="6" fill="#00e5ff44" stroke="#00e5ff" stroke-width="1.5"/>
+  <circle cx="395" cy="170" r="6" fill="#00e5ff44" stroke="#00e5ff" stroke-width="1.5"/>
+  <circle cx="435" cy="170" r="6" fill="#00e5ff44" stroke="#00e5ff" stroke-width="1.5"/>
+  <circle cx="315" cy="210" r="6" fill="#00e5ff44" stroke="#00e5ff" stroke-width="1.5"/>
+  <circle cx="355" cy="210" r="6" fill="#00e5ff44" stroke="#00e5ff" stroke-width="1.5"/>
+  <circle cx="395" cy="210" r="6" fill="#00e5ff44" stroke="#00e5ff" stroke-width="1.5"/>
+  <circle cx="435" cy="210" r="6" fill="#00e5ff44" stroke="#00e5ff" stroke-width="1.5"/>
+  <circle cx="315" cy="250" r="6" fill="#00e5ff44" stroke="#00e5ff" stroke-width="1.5"/>
+  <circle cx="355" cy="250" r="6" fill="#00e5ff44" stroke="#00e5ff" stroke-width="1.5"/>
+  <circle cx="395" cy="250" r="6" fill="#00e5ff44" stroke="#00e5ff" stroke-width="1.5"/>
+  <circle cx="435" cy="250" r="6" fill="#00e5ff44" stroke="#00e5ff" stroke-width="1.5"/>
+  <!-- Distance annotation -->
+  <line x1="315" y1="136" x2="355" y2="136" stroke="#f59e0b66" stroke-width="1"/>
+  <text x="335" y="122" text-anchor="middle" fill="#f59e0b" font-size="8" font-family="system-ui">smaller d</text>
+  <text x="375" y="310" text-anchor="middle" fill="#d8dfe866" font-size="10" font-family="monospace">960 Mbps</text>
+  <text x="375" y="325" text-anchor="middle" fill="#d8dfe866" font-size="10" font-family="system-ui">~15 dB Eb/N0</text>
+
+  <!-- 64QAM -->
+  <text x="625" y="50" text-anchor="middle" fill="#00e5ff" font-size="12" font-weight="bold" font-family="system-ui">64QAM (6 bits)</text>
+  <line x1="625" y1="100" x2="625" y2="280" stroke="#d8dfe811" stroke-width="1"/>
+  <line x1="535" y1="190" x2="715" y2="190" stroke="#d8dfe811" stroke-width="1"/>
+  <!-- 8x8 grid (show subset for clarity) -->
+  <g fill="#00e5ff44" stroke="#00e5ff" stroke-width="1">
+    <!-- Row 1 -->
+    <circle cx="558" cy="113" r="4"/><circle cx="577" cy="113" r="4"/><circle cx="596" cy="113" r="4"/><circle cx="615" cy="113" r="4"/>
+    <circle cx="634" cy="113" r="4"/><circle cx="653" cy="113" r="4"/><circle cx="672" cy="113" r="4"/><circle cx="691" cy="113" r="4"/>
+    <!-- Row 2 -->
+    <circle cx="558" cy="135" r="4"/><circle cx="577" cy="135" r="4"/><circle cx="596" cy="135" r="4"/><circle cx="615" cy="135" r="4"/>
+    <circle cx="634" cy="135" r="4"/><circle cx="653" cy="135" r="4"/><circle cx="672" cy="135" r="4"/><circle cx="691" cy="135" r="4"/>
+    <!-- Row 3 -->
+    <circle cx="558" cy="157" r="4"/><circle cx="577" cy="157" r="4"/><circle cx="596" cy="157" r="4"/><circle cx="615" cy="157" r="4"/>
+    <circle cx="634" cy="157" r="4"/><circle cx="653" cy="157" r="4"/><circle cx="672" cy="157" r="4"/><circle cx="691" cy="157" r="4"/>
+    <!-- Row 4 -->
+    <circle cx="558" cy="179" r="4"/><circle cx="577" cy="179" r="4"/><circle cx="596" cy="179" r="4"/><circle cx="615" cy="179" r="4"/>
+    <circle cx="634" cy="179" r="4"/><circle cx="653" cy="179" r="4"/><circle cx="672" cy="179" r="4"/><circle cx="691" cy="179" r="4"/>
+    <!-- Row 5 -->
+    <circle cx="558" cy="201" r="4"/><circle cx="577" cy="201" r="4"/><circle cx="596" cy="201" r="4"/><circle cx="615" cy="201" r="4"/>
+    <circle cx="634" cy="201" r="4"/><circle cx="653" cy="201" r="4"/><circle cx="672" cy="201" r="4"/><circle cx="691" cy="201" r="4"/>
+    <!-- Row 6 -->
+    <circle cx="558" cy="223" r="4"/><circle cx="577" cy="223" r="4"/><circle cx="596" cy="223" r="4"/><circle cx="615" cy="223" r="4"/>
+    <circle cx="634" cy="223" r="4"/><circle cx="653" cy="223" r="4"/><circle cx="672" cy="223" r="4"/><circle cx="691" cy="223" r="4"/>
+    <!-- Row 7 -->
+    <circle cx="558" cy="245" r="4"/><circle cx="577" cy="245" r="4"/><circle cx="596" cy="245" r="4"/><circle cx="615" cy="245" r="4"/>
+    <circle cx="634" cy="245" r="4"/><circle cx="653" cy="245" r="4"/><circle cx="672" cy="245" r="4"/><circle cx="691" cy="245" r="4"/>
+    <!-- Row 8 -->
+    <circle cx="558" cy="267" r="4"/><circle cx="577" cy="267" r="4"/><circle cx="596" cy="267" r="4"/><circle cx="615" cy="267" r="4"/>
+    <circle cx="634" cy="267" r="4"/><circle cx="653" cy="267" r="4"/><circle cx="672" cy="267" r="4"/><circle cx="691" cy="267" r="4"/>
+  </g>
+  <text x="625" y="310" text-anchor="middle" fill="#d8dfe866" font-size="10" font-family="monospace">1440 Mbps</text>
+  <text x="625" y="325" text-anchor="middle" fill="#f59e0b" font-size="10" font-family="system-ui">~21 dB Eb/N0</text>
+
+  <!-- Bottom summary -->
+  <text x="375" y="352" text-anchor="middle" fill="#d8dfe8" font-size="11" font-family="system-ui">More symbols = more bits/symbol = higher rate, but needs more SNR to avoid errors</text>
+</svg>
+</div>
+
+<table>
+<tr><th>Modulation</th><th>Symbols</th><th>Bits/Symbol</th><th>Rate at 240 Msym/s</th><th>Required Eb/N0 (BER 10<sup>-6</sup>)</th></tr>
+<tr><td>QPSK</td><td>4</td><td>2</td><td>480 Mbps</td><td>~10.5 dB</td></tr>
+<tr><td>8PSK</td><td>8</td><td>3</td><td>720 Mbps</td><td>~14 dB</td></tr>
+<tr><td>16QAM</td><td>16</td><td>4</td><td>960 Mbps</td><td>~15 dB</td></tr>
+<tr><td>64QAM</td><td>64</td><td>6</td><td>1440 Mbps</td><td>~21 dB</td></tr>
+</table>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>4. BER and the erfc Function</h2>
+
+<p>The Bit Error Rate (BER) is the probability that a received bit is wrong. For QPSK and M-QAM, BER is computed from <code>Eb/N0</code> (energy per bit to noise spectral density ratio) using the complementary error function:</p>
+
+<div class="formula">
+BER<sub>QPSK</sub> = 0.5 &middot; erfc( sqrt(E<sub>b</sub>/N<sub>0</sub>) )
+<br><br>
+BER<sub>M-QAM</sub> &asymp; (2/log<sub>2</sub>M) &middot; (1 - 1/sqrt(M)) &middot; erfc( sqrt( 3&middot;log<sub>2</sub>M / (2(M-1)) &middot; E<sub>b</sub>/N<sub>0</sub> ) )
+</div>
+
+<p><strong>What is Eb/N0?</strong> It is the SNR normalized per bit. If C/N is the total SNR in the bandwidth:</p>
+<div class="formula">
+E<sub>b</sub>/N<sub>0</sub> = C/N + 10&middot;log<sub>10</sub>(BW / R<sub>bit</sub>) &nbsp; [dB]
+</div>
+<p>Where BW is noise bandwidth and R<sub>bit</sub> is the bit rate. Higher modulation orders require more Eb/N0 to achieve the same BER.</p>
+
+<div class="svg-container">
+<svg viewBox="0 0 700 420" xmlns="http://www.w3.org/2000/svg">
+  <text x="350" y="22" text-anchor="middle" fill="#d8dfe888" font-size="13" font-family="system-ui">BER vs Eb/N0 (uncoded)</text>
+
+  <!-- Axes -->
+  <line x1="80" y1="380" x2="650" y2="380" stroke="#d8dfe844" stroke-width="1"/>
+  <line x1="80" y1="40" x2="80" y2="380" stroke="#d8dfe844" stroke-width="1"/>
+  <text x="365" y="410" text-anchor="middle" fill="#d8dfe888" font-size="11" font-family="system-ui">Eb/N0 (dB)</text>
+  <text x="25" y="210" text-anchor="middle" fill="#d8dfe888" font-size="11" font-family="system-ui" transform="rotate(-90,25,210)">Bit Error Rate</text>
+
+  <!-- Y axis labels (log scale) -->
+  <text x="72" y="383" text-anchor="end" fill="#d8dfe866" font-size="10" font-family="monospace">10^-1</text>
+  <text x="72" y="315" text-anchor="end" fill="#d8dfe866" font-size="10" font-family="monospace">10^-2</text>
+  <text x="72" y="247" text-anchor="end" fill="#d8dfe866" font-size="10" font-family="monospace">10^-3</text>
+  <text x="72" y="179" text-anchor="end" fill="#d8dfe866" font-size="10" font-family="monospace">10^-4</text>
+  <text x="72" y="111" text-anchor="end" fill="#d8dfe866" font-size="10" font-family="monospace">10^-5</text>
+  <text x="72" y="55" text-anchor="end" fill="#d8dfe866" font-size="10" font-family="monospace">10^-6</text>
+
+  <!-- X axis labels (0 to 24 dB) -->
+  <text x="80" y="398" text-anchor="middle" fill="#d8dfe866" font-size="10" font-family="monospace">0</text>
+  <text x="175" y="398" text-anchor="middle" fill="#d8dfe866" font-size="10" font-family="monospace">4</text>
+  <text x="270" y="398" text-anchor="middle" fill="#d8dfe866" font-size="10" font-family="monospace">8</text>
+  <text x="365" y="398" text-anchor="middle" fill="#d8dfe866" font-size="10" font-family="monospace">12</text>
+  <text x="460" y="398" text-anchor="middle" fill="#d8dfe866" font-size="10" font-family="monospace">16</text>
+  <text x="555" y="398" text-anchor="middle" fill="#d8dfe866" font-size="10" font-family="monospace">20</text>
+  <text x="650" y="398" text-anchor="middle" fill="#d8dfe866" font-size="10" font-family="monospace">24</text>
+
+  <!-- Grid lines -->
+  <line x1="80" y1="315" x2="650" y2="315" stroke="#d8dfe808" stroke-width="1"/>
+  <line x1="80" y1="247" x2="650" y2="247" stroke="#d8dfe808" stroke-width="1"/>
+  <line x1="80" y1="179" x2="650" y2="179" stroke="#d8dfe808" stroke-width="1"/>
+  <line x1="80" y1="111" x2="650" y2="111" stroke="#d8dfe808" stroke-width="1"/>
+
+  <!-- QPSK curve (steep, leftmost) -->
+  <polyline points="80,360 128,355 175,340 200,318 223,290 245,255 270,210 295,165 318,120 340,80 365,55 390,45" fill="none" stroke="#00e5ff" stroke-width="2.5"/>
+  <text x="395" y="42" fill="#00e5ff" font-size="11" font-weight="bold" font-family="system-ui">QPSK</text>
+
+  <!-- 16QAM curve (shifted right ~4 dB) -->
+  <polyline points="80,345 128,340 175,335 223,322 270,295 295,270 318,238 340,200 365,160 390,120 413,85 436,60 460,48" fill="none" stroke="#f59e0b" stroke-width="2.5"/>
+  <text x="468" y="45" fill="#f59e0b" font-size="11" font-weight="bold" font-family="system-ui">16QAM</text>
+
+  <!-- 64QAM curve (shifted right ~8 dB more) -->
+  <polyline points="175,350 223,340 270,328 318,310 340,295 365,270 390,238 413,200 436,160 460,125 483,90 506,65 530,52" fill="none" stroke="#ff6b6b" stroke-width="2.5"/>
+  <text x="538" y="48" fill="#ff6b6b" font-size="11" font-weight="bold" font-family="system-ui">64QAM</text>
+
+  <!-- BER threshold line -->
+  <line x1="80" y1="55" x2="650" y2="55" stroke="#d8dfe833" stroke-width="1" stroke-dasharray="6,4"/>
+  <text x="655" y="52" fill="#d8dfe866" font-size="9" font-family="system-ui">target</text>
+
+  <!-- Annotation -->
+  <rect x="450" y="340" width="190" height="35" rx="6" fill="#111827" stroke="#d8dfe833" stroke-width="1"/>
+  <text x="545" y="355" text-anchor="middle" fill="#d8dfe8" font-size="10" font-family="system-ui">~6 dB gap between</text>
+  <text x="545" y="370" text-anchor="middle" fill="#d8dfe8" font-size="10" font-family="system-ui">QPSK and 16QAM</text>
+</svg>
+</div>
+
+<p>Key observation: the BER curves are <em>steep</em>. A 1-2 dB change in Eb/N0 can shift BER by an order of magnitude. This is why the link budget must be accurate -- small errors in the loss calculation have dramatic effects on error rate.</p>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>5. Forward Error Correction (FEC)</h2>
+
+<p>Forward Error Correction adds redundant bits that let the receiver detect and correct errors without retransmission. The DVB-S2X standard used by Starlink employs <strong>LDPC</strong> (Low-Density Parity-Check) codes.</p>
+
+<h3>How FEC Helps</h3>
+<p>A code rate of <code>r = 3/4</code> means 3 out of every 4 transmitted bits carry information; 1 in 4 is redundancy. The receiver uses this redundancy to correct errors.</p>
+
+<p>The <strong>coding gain</strong> is the reduction in required Eb/N0 to achieve a target BER. Modern LDPC codes achieve 1-2 dB from the Shannon limit:</p>
+
+<table>
+<tr><th>Code Rate</th><th>Redundancy</th><th>Coding Gain (approx)</th><th>Throughput Penalty</th></tr>
+<tr><td>1/4</td><td>75%</td><td>~9 dB</td><td>4x overhead</td></tr>
+<tr><td>1/2</td><td>50%</td><td>~7 dB</td><td>2x overhead</td></tr>
+<tr><td>2/3</td><td>33%</td><td>~5 dB</td><td>1.5x overhead</td></tr>
+<tr><td>3/4</td><td>25%</td><td>~4 dB</td><td>1.33x overhead</td></tr>
+</table>
+
+<p>The FEC "waterfall" effect: below a threshold Eb/N0, virtually every block has errors. Above that threshold, errors drop precipitously -- a cliff from BER ~ 10<sup>-2</sup> to 10<sup>-10</sup> in just 1-2 dB. This is the hallmark of modern iterative codes.</p>
+
+<h3>DVB-S2X Code Rates</h3>
+<p>DVB-S2X defines code rates from 1/4 to 9/10. In LEO satellite systems like Starlink, the typical operating range is 1/4 to 3/4. Higher code rates (5/6, 9/10) are rarely used because the channel conditions change too fast -- by the time you adapt, the channel has moved.</p>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>6. Adaptive Modulation and Coding (ACM)</h2>
+
+<p>ACM dynamically selects the modulation and code rate (the "ModCod") based on the current SNR. When the link is strong (satellite overhead), use 64QAM 3/4 for maximum throughput. When the link weakens (satellite near horizon), fall back to QPSK 1/4 for robustness.</p>
+
+<h3>The ModCod Table</h3>
+<table>
+<tr><th>ModCod</th><th>Bits/Symbol</th><th>Code Rate</th><th>Spectral Eff.</th><th>Required SNR</th></tr>
+<tr><td>QPSK 1/4</td><td>2</td><td>0.25</td><td>0.50</td><td>-0.5 dB</td></tr>
+<tr><td>QPSK 1/2</td><td>2</td><td>0.50</td><td>1.00</td><td>3.5 dB</td></tr>
+<tr><td>QPSK 3/4</td><td>2</td><td>0.75</td><td>1.50</td><td>6.5 dB</td></tr>
+<tr><td>8PSK 2/3</td><td>3</td><td>0.67</td><td>2.00</td><td>10.0 dB</td></tr>
+<tr><td>16QAM 1/2</td><td>4</td><td>0.50</td><td>2.00</td><td>10.5 dB</td></tr>
+<tr><td>16QAM 3/4</td><td>4</td><td>0.75</td><td>3.00</td><td>13.5 dB</td></tr>
+<tr><td>64QAM 2/3</td><td>6</td><td>0.67</td><td>4.00</td><td>17.5 dB</td></tr>
+<tr><td>64QAM 3/4</td><td>6</td><td>0.75</td><td>4.50</td><td>19.5 dB</td></tr>
+</table>
+
+<h3>Hysteresis</h3>
+<p>Without hysteresis, the system would oscillate between ModCods when the SNR is near a threshold. Hysteresis adds an asymmetric dead band: step <em>up</em> requires SNR > threshold + 1 dB, step <em>down</em> triggers at SNR < threshold - 0.5 dB. This prevents rapid toggling.</p>
+
+<div class="svg-container">
+<svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg">
+  <text x="350" y="20" text-anchor="middle" fill="#d8dfe888" font-size="13" font-family="system-ui">Modulation Switching During a Satellite Pass</text>
+
+  <!-- Axes -->
+  <line x1="70" y1="270" x2="660" y2="270" stroke="#d8dfe844" stroke-width="1"/>
+  <line x1="70" y1="40" x2="70" y2="270" stroke="#d8dfe844" stroke-width="1"/>
+  <text x="365" y="295" text-anchor="middle" fill="#d8dfe888" font-size="11" font-family="system-ui">Time during pass (minutes)</text>
+  <text x="20" y="155" text-anchor="middle" fill="#d8dfe888" font-size="11" font-family="system-ui" transform="rotate(-90,20,155)">SNR (dB)</text>
+
+  <!-- Time labels -->
+  <text x="70" y="285" text-anchor="middle" fill="#d8dfe866" font-size="10" font-family="monospace">0</text>
+  <text x="188" y="285" text-anchor="middle" fill="#d8dfe866" font-size="10" font-family="monospace">2</text>
+  <text x="306" y="285" text-anchor="middle" fill="#d8dfe866" font-size="10" font-family="monospace">4</text>
+  <text x="424" y="285" text-anchor="middle" fill="#d8dfe866" font-size="10" font-family="monospace">6</text>
+  <text x="542" y="285" text-anchor="middle" fill="#d8dfe866" font-size="10" font-family="monospace">8</text>
+  <text x="660" y="285" text-anchor="middle" fill="#d8dfe866" font-size="10" font-family="monospace">10</text>
+
+  <!-- SNR labels -->
+  <text x="62" y="260" text-anchor="end" fill="#d8dfe866" font-size="9" font-family="monospace">5</text>
+  <text x="62" y="222" text-anchor="end" fill="#d8dfe866" font-size="9" font-family="monospace">10</text>
+  <text x="62" y="184" text-anchor="end" fill="#d8dfe866" font-size="9" font-family="monospace">15</text>
+  <text x="62" y="146" text-anchor="end" fill="#d8dfe866" font-size="9" font-family="monospace">20</text>
+  <text x="62" y="108" text-anchor="end" fill="#d8dfe866" font-size="9" font-family="monospace">25</text>
+  <text x="62" y="70" text-anchor="end" fill="#d8dfe866" font-size="9" font-family="monospace">30</text>
+
+  <!-- Threshold lines -->
+  <line x1="70" y1="250" x2="660" y2="250" stroke="#d8dfe811" stroke-width="1" stroke-dasharray="4,4"/>
+  <text x="665" y="253" fill="#d8dfe844" font-size="8" font-family="monospace">QPSK 1/2</text>
+  <line x1="70" y1="222" x2="660" y2="222" stroke="#d8dfe811" stroke-width="1" stroke-dasharray="4,4"/>
+  <text x="665" y="225" fill="#d8dfe844" font-size="8" font-family="monospace">QPSK 3/4</text>
+  <line x1="70" y1="175" x2="660" y2="175" stroke="#d8dfe811" stroke-width="1" stroke-dasharray="4,4"/>
+  <text x="665" y="178" fill="#d8dfe844" font-size="8" font-family="monospace">16QAM 3/4</text>
+  <line x1="70" y1="120" x2="660" y2="120" stroke="#d8dfe811" stroke-width="1" stroke-dasharray="4,4"/>
+  <text x="665" y="123" fill="#d8dfe844" font-size="8" font-family="monospace">64QAM 3/4</text>
+
+  <!-- SNR curve (bell shape: low -> high -> low) -->
+  <polyline points="70,258 100,248 130,235 160,218 188,195 218,170 250,148 280,118 306,95 335,78 365,70 395,78 424,95 453,118 480,148 506,170 530,195 554,218 578,235 602,248 630,255 660,260" fill="none" stroke="#d8dfe8" stroke-width="2"/>
+
+  <!-- Modulation band coloring -->
+  <!-- QPSK 1/2 region (low SNR) -->
+  <rect x="70" y="38" width="65" height="232" fill="#f59e0b06"/>
+  <rect x="620" y="38" width="40" height="232" fill="#f59e0b06"/>
+  <!-- QPSK 3/4 -->
+  <rect x="135" y="38" width="45" height="232" fill="#00e5ff06"/>
+  <rect x="570" y="38" width="50" height="232" fill="#00e5ff06"/>
+  <!-- 16QAM -->
+  <rect x="180" y="38" width="60" height="232" fill="#00e5ff0c"/>
+  <rect x="490" y="38" width="80" height="232" fill="#00e5ff0c"/>
+  <!-- 64QAM -->
+  <rect x="240" y="38" width="250" height="232" fill="#00e5ff14"/>
+
+  <!-- ModCod labels at top -->
+  <text x="100" y="50" text-anchor="middle" fill="#f59e0b88" font-size="9" font-family="monospace">QPSK</text>
+  <text x="100" y="60" text-anchor="middle" fill="#f59e0b88" font-size="9" font-family="monospace">1/2</text>
+  <text x="158" y="50" text-anchor="middle" fill="#00e5ff88" font-size="9" font-family="monospace">QPSK</text>
+  <text x="158" y="60" text-anchor="middle" fill="#00e5ff88" font-size="9" font-family="monospace">3/4</text>
+  <text x="210" y="50" text-anchor="middle" fill="#00e5ffaa" font-size="9" font-family="monospace">16QAM</text>
+  <text x="365" y="50" text-anchor="middle" fill="#00e5ff" font-size="10" font-weight="bold" font-family="monospace">64QAM 3/4</text>
+  <text x="540" y="50" text-anchor="middle" fill="#00e5ffaa" font-size="9" font-family="monospace">16QAM</text>
+  <text x="640" y="50" text-anchor="middle" fill="#f59e0b88" font-size="9" font-family="monospace">QPSK</text>
+</svg>
+</div>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>7. Packet Layer</h2>
+
+<p>The physical layer delivers bits. The packet layer organizes them into 1500-byte (12,000-bit) packets (standard MTU). Even a tiny BER creates a significant Packet Error Rate (PER):</p>
+
+<div class="formula">
+PER = 1 - (1 - BER)<sup>12000</sup>
+</div>
+
+<p>This is the "packet cliff" effect: once BER exceeds a threshold, PER shoots to nearly 100%.</p>
+
+<table>
+<tr><th>BER</th><th>PER</th><th>Meaning</th></tr>
+<tr><td>10<sup>-8</sup></td><td>0.0012%</td><td>Essentially error-free</td></tr>
+<tr><td>10<sup>-6</sup></td><td>1.2%</td><td>Occasional packet loss</td></tr>
+<tr><td>10<sup>-5</sup></td><td>11.3%</td><td class="warn">Noticeable degradation</td></tr>
+<tr><td>10<sup>-4</sup></td><td>69.9%</td><td class="warn">Severe -- most packets corrupt</td></tr>
+<tr><td>10<sup>-3</sup></td><td>99.99%</td><td>Link effectively down</td></tr>
+</table>
+
+<p>Notice the sharp transition between 10<sup>-6</sup> and 10<sup>-4</sup>: the link goes from "mostly works" to "mostly broken" in just 20 dB of BER change, which corresponds to only about 3-4 dB of Eb/N0 change. This is why the FEC waterfall and ACM thresholds are so critical.</p>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>8. ARQ Retransmissions</h2>
+
+<p>Automatic Repeat Request (ARQ) handles the packets that FEC cannot correct. When a packet fails its CRC check, the receiver requests retransmission.</p>
+
+<ul>
+  <li><strong>Maximum retries:</strong> 4 (configurable in the simulator)</li>
+  <li><strong>Drop probability:</strong> The probability of losing a packet after all retries = PER<sup>5</sup> (original + 4 retries)</li>
+</ul>
+
+<div class="example">
+<h3>Example</h3>
+<p>At PER = 5%:</p>
+<pre><code>P(drop) = 0.05^5 = 3.125e-7  -- virtually no drops
+Avg retransmissions = PER/(1-PER) = 0.053
+Effective throughput = raw_rate * (1 - overhead) / (1 + avg_retx)</code></pre>
+<p>At PER = 30%:</p>
+<pre><code>P(drop) = 0.30^5 = 0.00243  -- 1 in 411 packets dropped
+Avg retransmissions = 0.30/0.70 = 0.43
+Throughput reduced by ~30% from retransmissions alone</code></pre>
+</div>
+
+<p>Each retransmission adds latency: one round-trip time to the satellite (~4 ms for LEO). A packet needing 3 retries adds 12 ms of delay, which feeds into jitter.</p>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>9. Goodput vs Throughput</h2>
+
+<p>Three distinct measures of data rate:</p>
+
+<ul>
+  <li><strong>Raw bit rate:</strong> symbol_rate &times; bits_per_symbol = what the modulator outputs</li>
+  <li><strong>Throughput:</strong> raw_rate &times; code_rate &times; (1 - frame_overhead) = useful bits after FEC overhead</li>
+  <li><strong>Goodput:</strong> throughput &times; 1/(1 + avg_retransmissions) &times; (1 - P<sub>drop</sub>) = actual useful data delivered to the application</li>
+</ul>
+
+<div class="svg-container">
+<svg viewBox="0 0 700 240" xmlns="http://www.w3.org/2000/svg">
+  <text x="350" y="22" text-anchor="middle" fill="#d8dfe888" font-size="13" font-family="system-ui">From Raw Rate to Goodput</text>
+
+  <!-- Raw rate bar -->
+  <rect x="50" y="50" width="600" height="40" rx="6" fill="#00e5ff11" stroke="#00e5ff" stroke-width="1.5"/>
+  <text x="350" y="75" text-anchor="middle" fill="#00e5ff" font-size="13" font-weight="bold" font-family="system-ui">Raw Bit Rate = 1440 Mbps (64QAM, 240 Msym/s)</text>
+
+  <!-- FEC overhead -->
+  <rect x="50" y="100" width="450" height="40" rx="6" fill="#00e5ff22" stroke="#00e5ff" stroke-width="1.5"/>
+  <rect x="500" y="100" width="150" height="40" rx="6" fill="#f59e0b11" stroke="#f59e0b" stroke-width="1"/>
+  <text x="275" y="125" text-anchor="middle" fill="#00e5ff" font-size="12" font-weight="bold" font-family="system-ui">After FEC (rate 3/4) = 1080 Mbps</text>
+  <text x="575" y="125" text-anchor="middle" fill="#f59e0b" font-size="10" font-family="system-ui">FEC overhead</text>
+
+  <!-- Frame overhead -->
+  <rect x="50" y="150" width="410" height="40" rx="6" fill="#00e5ff33" stroke="#00e5ff" stroke-width="1.5"/>
+  <rect x="460" y="150" width="40" height="40" rx="6" fill="#f59e0b11" stroke="#f59e0b" stroke-width="1"/>
+  <text x="255" y="175" text-anchor="middle" fill="#00e5ff" font-size="12" font-weight="bold" font-family="system-ui">After framing (~5%) = 1026 Mbps</text>
+  <text x="480" y="175" text-anchor="middle" fill="#f59e0b" font-size="9" font-family="system-ui">hdr</text>
+
+  <!-- Retransmission + drop -->
+  <rect x="50" y="200" width="385" height="40" rx="6" fill="#00e5ff44" stroke="#00e5ff" stroke-width="2"/>
+  <rect x="435" y="200" width="25" height="40" rx="6" fill="#f59e0b11" stroke="#f59e0b" stroke-width="1"/>
+  <text x="243" y="225" text-anchor="middle" fill="#00e5ff" font-size="13" font-weight="bold" font-family="system-ui">Goodput = ~990 Mbps</text>
+  <text x="448" y="225" text-anchor="middle" fill="#f59e0b" font-size="8" font-family="system-ui">rtx</text>
+
+  <!-- Percentage labels -->
+  <text x="665" y="75" fill="#d8dfe866" font-size="10" font-family="monospace">100%</text>
+  <text x="665" y="125" fill="#d8dfe866" font-size="10" font-family="monospace">75%</text>
+  <text x="665" y="175" fill="#d8dfe866" font-size="10" font-family="monospace">71%</text>
+  <text x="665" y="225" fill="#d8dfe866" font-size="10" font-family="monospace">69%</text>
+</svg>
+</div>
+
+<p>At high SNR, the overhead is dominated by FEC (25% at rate 3/4). At low SNR, retransmissions dominate and goodput can drop below 50% of raw rate. The simulator tracks all three metrics separately so you can see where the losses occur.</p>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>10. Jitter Sources</h2>
+
+<p>Jitter is variation in packet delivery time. In a LEO satellite link, four sources contribute:</p>
+
+<table>
+<tr><th>Source</th><th>Magnitude</th><th>Cause</th></tr>
+<tr><td>Retransmission delay</td><td>4-16 ms</td><td>Each retry adds one RTT (~4 ms). Up to 4 retries.</td></tr>
+<tr><td>Compute scheduling</td><td>0.5-2 ms</td><td>Onboard processor contention. Worse under compute overload faults.</td></tr>
+<tr><td>Doppler rate changes</td><td>0.1-0.5 ms</td><td>Tracking loop adjustments cause momentary phase transients.</td></tr>
+<tr><td>ACM switching</td><td>1-3 ms</td><td>ModCod transitions cause brief buffer accumulation as rates change.</td></tr>
+</table>
+
+<p>Total jitter budget: typically 5-20 ms during a healthy pass. Under fault conditions (compute overload + high retransmission rate), jitter can spike to 50+ ms, causing problems for real-time applications like VoIP and gaming.</p>
+</div>
+
+<!-- ============================================================ -->
+<div class="section">
+<h2>11. Code Connection</h2>
+
+<p>The modulation and protocol computations live in:</p>
+
+<ul>
+  <li><code>src/simulation/modulation/modcod.ts</code> -- The ModCod table and ACM selection logic. Contains the SNR thresholds, hysteresis parameters, and spectral efficiency lookup. Called every tick to select the current ModCod based on effective SNR.</li>
+  <li><code>src/simulation/modulation/ber.ts</code> -- BER calculation from Eb/N0 using the erfc approximation. Implements the BER formulas for QPSK, 8PSK, 16QAM, and 64QAM. Also computes PER from BER.</li>
+  <li><code>src/simulation/protocol/packet-layer.ts</code> -- The ARQ retransmission model, drop probability calculation, goodput computation, and jitter accumulation. Converts BER/PER into application-level metrics.</li>
+</ul>
+
+<p>Data flow through the code:</p>
+<pre><code>// 1. modcod.ts: select ModCod
+const modcod = selectModCod(effectiveSNR, currentModCod); // with hysteresis
+
+// 2. ber.ts: compute error rates
+const ber = computeBER(ebN0, modcod.modulation);
+const per = 1 - Math.pow(1 - ber, PACKET_BITS);
+
+// 3. packet-layer.ts: compute goodput
+const dropProb = Math.pow(per, MAX_RETRIES + 1);
+const avgRetx = per / (1 - per);
+const goodput = throughput / (1 + avgRetx) * (1 - dropProb);</code></pre>
+</div>
+
+<!-- ============================================================ -->
+<div class="refs">
+<h2>References</h2>
+<ul>
+  <li><strong>ETSI EN 302 307-2</strong> -- DVB-S2X: Digital Video Broadcasting - Second Generation (Extensions)</li>
+  <li>Proakis, J. G. & Salehi, M. -- <em>Digital Communications</em>, 5th ed., McGraw-Hill</li>
+  <li>Haykin, S. -- <em>Communication Systems</em>, 5th ed., Wiley</li>
+  <li>Sklar, B. -- <em>Digital Communications: Fundamentals and Applications</em>, 2nd ed., Prentice Hall</li>
+  <li>Richardson, T. & Urbanke, R. -- <em>Modern Coding Theory</em>, Cambridge University Press (for LDPC deep-dive)</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<div class="questions">
+<h2>Questions</h2>
+<ol>
+  <li>
+    <strong>Modulation comparison.</strong> At a symbol rate of 240 Msym/s, what is the raw bit rate for QPSK, 16QAM, and 64QAM? If you apply code rate 3/4 FEC, what is the information bit rate for each?
+  </li>
+  <li>
+    <strong>BER threshold.</strong> A link operates at Eb/N0 = 12 dB. Using the approximate QPSK BER formula (BER = 0.5 * erfc(sqrt(Eb/N0))), what is the BER? Given that erfc(4) ~ 1.5e-8, is this link viable for a 1500-byte packet with target PER < 1%?
+  </li>
+  <li>
+    <strong>Packet cliff.</strong> Plot (or compute) PER for BER values of 10<sup>-7</sup>, 10<sup>-6</sup>, 10<sup>-5</sup>, 10<sup>-4</sup>, and 10<sup>-3</sup> for a 1500-byte packet. At which BER does PER cross 50%? What Eb/N0 change does that correspond to for QPSK?
+  </li>
+  <li>
+    <strong>ACM hysteresis.</strong> A satellite pass starts at 8 dB SNR (QPSK 3/4 threshold = 6.5 dB, 16QAM 3/4 threshold = 13.5 dB). The SNR rises to 14 dB, then drops to 13 dB, then rises again to 15 dB. With +1 dB up-hysteresis and -0.5 dB down-hysteresis, trace the ModCod selections through this sequence.
+  </li>
+  <li>
+    <strong>Retransmission cost.</strong> A link has PER = 15%. With max 4 retries: (a) What is the probability a packet is dropped? (b) What is the average number of transmissions per packet? (c) If the raw throughput is 500 Mbps, what is the goodput?
+  </li>
+  <li>
+    <strong>End-to-end exercise.</strong> Given effective_SNR = 18 dB, symbol rate 240 Msym/s, and the ModCod table above: which ModCod is selected? What is the raw bit rate, information bit rate (after FEC), and estimated goodput assuming PER = 2% and 4 retries?
+  </li>
+</ol>
+</div>
+
+<nav class="bottom">
+  <a href="unit-5-link-budget.html">&larr; Unit 5: Link Budget</a>
+  <a href="unit-7-faults-causality.html">Unit 7: Faults &amp; Causality &rarr;</a>
+</nav>
+
+</div>
+</body>
+</html>

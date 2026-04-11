@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unit 3: RF Transmit Chain &mdash; PA, Oscillator &amp; Signal Quality</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0a0e1a; color: #d8dfe8; font-family: system-ui, -apple-system, sans-serif;
+    line-height: 1.72; padding: 2rem 1rem;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 2rem; color: #00e5ff; margin-bottom: .3rem; }
+  h2 { font-size: 1.45rem; color: #00e5ff; margin-top: 2.8rem; margin-bottom: .6rem; border-bottom: 1px solid #1e293b; padding-bottom: .35rem; }
+  h3 { font-size: 1.15rem; color: #7dd3fc; margin-top: 1.6rem; margin-bottom: .4rem; }
+  p, li { margin-bottom: .65rem; }
+  ul, ol { padding-left: 1.4rem; }
+  a { color: #00e5ff; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code { font-family: 'SF Mono', 'Fira Code', monospace; background: #111827; padding: .15rem .4rem; border-radius: 4px; font-size: .92em; color: #7dd3fc; }
+  pre { background: #111827; padding: 1.1rem 1.3rem; border-radius: 8px; overflow-x: auto; margin: 1rem 0; line-height: 1.55; }
+  pre code { background: none; padding: 0; font-size: .88em; color: #d8dfe8; }
+  .note { background: #0c1a2e; border-left: 3px solid #00e5ff; padding: .8rem 1rem; border-radius: 0 6px 6px 0; margin: 1rem 0; }
+  .warn { background: #1a1708; border-left: 3px solid #f59e0b; padding: .8rem 1rem; border-radius: 0 6px 6px 0; margin: 1rem 0; }
+  .danger { background: #1a0a0a; border-left: 3px solid #ef4444; padding: .8rem 1rem; border-radius: 0 6px 6px 0; margin: 1rem 0; }
+  .formula { background: #111827; padding: .9rem 1.2rem; border-radius: 6px; margin: 1rem 0; font-family: 'SF Mono', monospace; font-size: .95em; overflow-x: auto; color: #7dd3fc; }
+  nav.top { display: flex; gap: 1.2rem; margin-bottom: 1.8rem; font-size: .9rem; flex-wrap: wrap; }
+  nav.bottom { display: flex; justify-content: space-between; margin-top: 3rem; padding-top: 1.2rem; border-top: 1px solid #1e293b; font-size: .92rem; flex-wrap: wrap; gap: .5rem; }
+  .obj-list { background: #0c1a2e; border-radius: 8px; padding: 1rem 1.3rem; margin: 1rem 0; }
+  .obj-list li { margin-bottom: .4rem; }
+  .ref-list { font-size: .9rem; }
+  .ref-list li { margin-bottom: .35rem; color: #94a3b8; }
+  .question-block { background: #0c1a2e; border-radius: 8px; padding: 1rem 1.3rem; margin: .6rem 0; }
+  .question-block summary { cursor: pointer; font-weight: 600; color: #7dd3fc; }
+  .question-block p { margin-top: .5rem; }
+  svg text { font-family: system-ui, sans-serif; }
+  .subtitle { color: #94a3b8; font-size: 1rem; margin-bottom: 1.8rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav class="top">
+  <a href="index.html">Index</a>
+  <a href="unit-2-antenna-gain.html">&larr; Unit 2: Antenna &amp; Gain</a>
+  <a href="unit-4-thermal-power.html">Unit 4: Thermal &amp; Power &rarr;</a>
+</nav>
+
+<h1>Unit 3: RF Transmit Chain</h1>
+<p class="subtitle">Power Amplifier, Oscillator &amp; Signal Quality</p>
+
+<!-- ===== Learning Objectives ===== -->
+<h2>Learning Objectives</h2>
+<ol class="obj-list">
+  <li>Trace the signal path from DAC through the mixer and PA to the antenna.</li>
+  <li>Explain why the power amplifier is the most challenging component in the chain.</li>
+  <li>Apply the Rapp model to predict AM/AM compression and identify the 1&thinsp;dB compression point.</li>
+  <li>Quantify the tradeoff between output backoff, power efficiency, and signal distortion.</li>
+  <li>Describe AM/PM distortion and its effect on modulated signals.</li>
+  <li>Calculate EVM from PA, oscillator, and quantization contributions.</li>
+  <li>Predict PA derating under thermal stress.</li>
+  <li>Explain oscillator phase noise, TCXO stability, and PLL tracking limits.</li>
+</ol>
+
+<!-- ===== 1. RF Chain Overview ===== -->
+<h2>1. RF Chain Overview</h2>
+<p>The RF transmit chain converts a digital baseband signal into a high-power radio signal radiated toward the ground station. Every component introduces some impairment&mdash;the engineering challenge is keeping the total degradation within the link budget.</p>
+
+<svg viewBox="0 0 860 170" xmlns="http://www.w3.org/2000/svg" style="width:100%;margin:1.2rem 0;">
+  <defs>
+    <marker id="arr3" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6Z" fill="#00e5ff"/></marker>
+  </defs>
+  <rect x="0" y="0" width="860" height="170" rx="8" fill="#111827"/>
+  <!-- DAC -->
+  <rect x="30" y="50" width="120" height="60" rx="6" fill="#162032" stroke="#00e5ff" stroke-width="1.5"/>
+  <text x="90" y="76" fill="#d8dfe8" text-anchor="middle" font-size="14" font-weight="600">DAC</text>
+  <text x="90" y="96" fill="#94a3b8" text-anchor="middle" font-size="11">Digital &rarr; Analog</text>
+  <!-- Arrow -->
+  <line x1="155" y1="80" x2="205" y2="80" stroke="#00e5ff" stroke-width="1.5" marker-end="url(#arr3)"/>
+  <text x="180" y="72" fill="#94a3b8" font-size="10" text-anchor="middle">Baseband</text>
+  <!-- Mixer -->
+  <rect x="210" y="50" width="120" height="60" rx="6" fill="#162032" stroke="#00e5ff" stroke-width="1.5"/>
+  <text x="270" y="76" fill="#d8dfe8" text-anchor="middle" font-size="14" font-weight="600">Mixer</text>
+  <text x="270" y="96" fill="#94a3b8" text-anchor="middle" font-size="11">Up-convert</text>
+  <!-- LO label -->
+  <line x1="270" y1="115" x2="270" y2="145" stroke="#f59e0b" stroke-width="1.2" stroke-dasharray="4"/>
+  <text x="270" y="160" fill="#f59e0b" text-anchor="middle" font-size="10">LO (Oscillator)</text>
+  <!-- Arrow -->
+  <line x1="335" y1="80" x2="395" y2="80" stroke="#00e5ff" stroke-width="1.5" marker-end="url(#arr3)"/>
+  <text x="365" y="72" fill="#94a3b8" font-size="10" text-anchor="middle">RF</text>
+  <!-- PA -->
+  <rect x="400" y="50" width="140" height="60" rx="6" fill="#1a1020" stroke="#f59e0b" stroke-width="2"/>
+  <text x="470" y="76" fill="#f59e0b" text-anchor="middle" font-size="14" font-weight="700">PA</text>
+  <text x="470" y="96" fill="#94a3b8" text-anchor="middle" font-size="11">Power Amplifier</text>
+  <!-- Arrow -->
+  <line x1="545" y1="80" x2="605" y2="80" stroke="#00e5ff" stroke-width="1.5" marker-end="url(#arr3)"/>
+  <text x="575" y="72" fill="#94a3b8" font-size="10" text-anchor="middle">High-power</text>
+  <!-- Filter -->
+  <rect x="610" y="50" width="100" height="60" rx="6" fill="#162032" stroke="#00e5ff" stroke-width="1.5"/>
+  <text x="660" y="76" fill="#d8dfe8" text-anchor="middle" font-size="14" font-weight="600">Filter</text>
+  <text x="660" y="96" fill="#94a3b8" text-anchor="middle" font-size="11">BPF</text>
+  <!-- Arrow -->
+  <line x1="715" y1="80" x2="755" y2="80" stroke="#00e5ff" stroke-width="1.5" marker-end="url(#arr3)"/>
+  <!-- Antenna -->
+  <polygon points="770,50 830,80 770,110" fill="none" stroke="#00e5ff" stroke-width="1.8"/>
+  <text x="790" y="84" fill="#d8dfe8" font-size="13" font-weight="600">Ant</text>
+  <!-- Top label -->
+  <text x="430" y="28" fill="#00e5ff" text-anchor="middle" font-size="15" font-weight="700">RF Transmit Chain</text>
+</svg>
+
+<p>The PA (highlighted in amber) dominates the chain's power consumption, nonlinear distortion, and thermal load. It is the component most likely to limit overall link performance.</p>
+
+<!-- ===== 2. Power Amplifier Fundamentals ===== -->
+<h2>2. Power Amplifier Fundamentals</h2>
+<p>A power amplifier boosts the low-power RF signal (typically milliwatts) to the watts-level power needed to close the satellite-to-ground link. In the Starlink Ku-band downlink, each beam's PA must deliver roughly 2&ndash;5&thinsp;W.</p>
+
+<h3>Why the PA is the hardest component</h3>
+<ul>
+  <li><strong>Efficiency vs. linearity</strong> &mdash; An ideal amplifier would be perfectly linear (output = G &times; input) and 100% efficient. Real PAs force a tradeoff: operating closer to saturation improves efficiency but introduces nonlinear distortion.</li>
+  <li><strong>Thermal load</strong> &mdash; Even a "good" GaN PA is only ~40% efficient. A 4&thinsp;W PA dissipates ~6&thinsp;W as heat in a vacuum with no convective cooling.</li>
+  <li><strong>Bandwidth</strong> &mdash; Maintaining flat gain across hundreds of MHz of instantaneous bandwidth is difficult as the PA saturates.</li>
+</ul>
+
+<h3>Linear vs. Saturated Operation</h3>
+<div class="note">
+  <strong>Linear region:</strong> Output power tracks input power with constant gain G. The signal is faithfully amplified.<br>
+  <strong>Compression region:</strong> Gain begins to drop. The output grows more slowly than the input.<br>
+  <strong>Saturation (P<sub>sat</sub>):</strong> Output power plateaus regardless of how hard you drive the input. Severe distortion.
+</div>
+
+<!-- ===== 3. The Rapp Model ===== -->
+<h2>3. The Rapp Model</h2>
+<p>The Rapp model (1991) is the standard behavioral model for solid-state PAs (GaAs, GaN). It captures the smooth compression characteristic with a single "smoothness" parameter <code>p</code>.</p>
+
+<div class="formula">
+P<sub>out</sub> = (G &middot; P<sub>in</sub>) / [ 1 + (G &middot; P<sub>in</sub> / P<sub>sat</sub>)<sup>2p</sup> ]<sup>1/(2p)</sup>
+</div>
+
+<ul>
+  <li><code>G</code> &mdash; small-signal gain (linear)</li>
+  <li><code>P<sub>sat</sub></code> &mdash; saturation output power</li>
+  <li><code>p</code> &mdash; smoothness factor. Higher p = sharper knee. Typical: <strong>p = 2</strong> for GaN, p = 1 for softer devices.</li>
+</ul>
+
+<p>At low drive levels (G&middot;P<sub>in</sub> &laquo; P<sub>sat</sub>), the denominator &rarr; 1 and P<sub>out</sub> &asymp; G&middot;P<sub>in</sub> (linear). As drive approaches P<sub>sat</sub>, the denominator grows and compresses the output.</p>
+
+<h3>AM/AM Compression Curve</h3>
+<svg viewBox="0 0 580 380" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:580px;margin:1.2rem auto;display:block;">
+  <rect x="0" y="0" width="580" height="380" rx="8" fill="#111827"/>
+  <!-- Axes -->
+  <line x1="70" y1="320" x2="540" y2="320" stroke="#334155" stroke-width="1.2"/>
+  <line x1="70" y1="320" x2="70" y2="30" stroke="#334155" stroke-width="1.2"/>
+  <text x="310" y="365" fill="#94a3b8" text-anchor="middle" font-size="13">Input Power (dBm)</text>
+  <text x="22" y="180" fill="#94a3b8" text-anchor="middle" font-size="13" transform="rotate(-90,22,180)">Output Power (dBm)</text>
+  <!-- Grid -->
+  <line x1="70" y1="240" x2="540" y2="240" stroke="#1e293b" stroke-width=".7"/>
+  <line x1="70" y1="160" x2="540" y2="160" stroke="#1e293b" stroke-width=".7"/>
+  <line x1="70" y1="80" x2="540" y2="80" stroke="#1e293b" stroke-width=".7"/>
+  <!-- Ideal linear line -->
+  <line x1="90" y1="300" x2="480" y2="50" stroke="#334155" stroke-width="1" stroke-dasharray="6"/>
+  <text x="490" y="55" fill="#475569" font-size="11">Ideal linear</text>
+  <!-- Rapp curve (p=2) -->
+  <path d="M90,300 Q180,210 250,160 Q320,115 380,95 Q430,82 470,78 L520,76" fill="none" stroke="#00e5ff" stroke-width="2.5"/>
+  <text x="525" y="72" fill="#00e5ff" font-size="11">Rapp p=2</text>
+  <!-- P_sat line -->
+  <line x1="70" y1="76" x2="540" y2="76" stroke="#f59e0b" stroke-width="1" stroke-dasharray="4"/>
+  <text x="545" y="80" fill="#f59e0b" font-size="11" text-anchor="start">P<tspan font-size="9" dy="3">sat</tspan></text>
+  <!-- 1dB compression -->
+  <circle cx="345" cy="103" r="5" fill="none" stroke="#ef4444" stroke-width="2"/>
+  <line x1="345" y1="108" x2="345" y2="320" stroke="#ef4444" stroke-width=".8" stroke-dasharray="3"/>
+  <line x1="70" y1="103" x2="345" y2="103" stroke="#ef4444" stroke-width=".8" stroke-dasharray="3"/>
+  <text x="355" y="140" fill="#ef4444" font-size="12" font-weight="600">P<tspan font-size="9" dy="2">1dB</tspan></text>
+  <!-- Linear region label -->
+  <rect x="105" y="235" width="100" height="24" rx="4" fill="#0c1a2e"/>
+  <text x="155" y="252" fill="#7dd3fc" text-anchor="middle" font-size="11">Linear region</text>
+  <!-- Compression region label -->
+  <rect x="290" y="125" width="130" height="24" rx="4" fill="#1a1708"/>
+  <text x="355" y="142" fill="#f59e0b" text-anchor="middle" font-size="11">Compression</text>
+  <!-- Title -->
+  <text x="310" y="22" fill="#00e5ff" text-anchor="middle" font-size="14" font-weight="700">AM/AM Characteristic (Rapp Model, p = 2)</text>
+</svg>
+
+<div class="note">
+  <strong>1&thinsp;dB Compression Point (P<sub>1dB</sub>):</strong> The output power level at which the actual gain is 1&thinsp;dB below the ideal linear gain. This is the practical upper boundary of linear operation. For p=2, P<sub>1dB</sub> &asymp; 0.89 &middot; P<sub>sat</sub> (in linear units).
+</div>
+
+<!-- ===== 4. Output Backoff ===== -->
+<h2>4. Output Backoff (OBO)</h2>
+<p>To keep distortion manageable, PAs are deliberately operated below P<sub>sat</sub>. The <strong>output backoff</strong> is the difference (in dB) between P<sub>sat</sub> and the actual operating point:</p>
+
+<div class="formula">OBO = P<sub>sat</sub>(dBm) - P<sub>operating</sub>(dBm)</div>
+
+<svg viewBox="0 0 580 340" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:580px;margin:1.2rem auto;display:block;">
+  <rect x="0" y="0" width="580" height="340" rx="8" fill="#111827"/>
+  <!-- Axes -->
+  <line x1="70" y1="290" x2="540" y2="290" stroke="#334155" stroke-width="1.2"/>
+  <line x1="70" y1="290" x2="70" y2="30" stroke="#334155" stroke-width="1.2"/>
+  <text x="310" y="330" fill="#94a3b8" text-anchor="middle" font-size="13">Input Power</text>
+  <text x="22" y="160" fill="#94a3b8" text-anchor="middle" font-size="13" transform="rotate(-90,22,160)">Output Power</text>
+  <!-- Rapp curve -->
+  <path d="M90,270 Q200,180 280,130 Q350,95 420,78 Q470,68 520,65" fill="none" stroke="#00e5ff" stroke-width="2.2"/>
+  <!-- P_sat -->
+  <line x1="70" y1="65" x2="540" y2="65" stroke="#f59e0b" stroke-width="1" stroke-dasharray="4"/>
+  <text x="545" y="69" fill="#f59e0b" font-size="11">P<tspan font-size="9" dy="2">sat</tspan></text>
+  <!-- Operating point -->
+  <circle cx="310" cy="115" r="7" fill="#00e5ff" stroke="#0a0e1a" stroke-width="2"/>
+  <text x="325" y="112" fill="#00e5ff" font-size="12" font-weight="600">Operating point</text>
+  <!-- OBO arrow -->
+  <line x1="55" y1="65" x2="55" y2="115" stroke="#ef4444" stroke-width="2"/>
+  <line x1="50" y1="65" x2="60" y2="65" stroke="#ef4444" stroke-width="2"/>
+  <line x1="50" y1="115" x2="60" y2="115" stroke="#ef4444" stroke-width="2"/>
+  <text x="42" y="94" fill="#ef4444" font-size="12" font-weight="700" text-anchor="end">OBO</text>
+  <!-- Annotations -->
+  <rect x="310" y="170" width="210" height="80" rx="6" fill="#0c1a2e" stroke="#1e293b"/>
+  <text x="320" y="192" fill="#7dd3fc" font-size="12" font-weight="600">Typical OBO values:</text>
+  <text x="320" y="212" fill="#d8dfe8" font-size="11">QPSK: 1 - 2 dB</text>
+  <text x="320" y="230" fill="#d8dfe8" font-size="11">16-QAM: 3 - 5 dB</text>
+  <text x="320" y="248" fill="#d8dfe8" font-size="11">64-QAM: 6 - 8 dB</text>
+  <text x="290" y="22" fill="#00e5ff" text-anchor="middle" font-size="14" font-weight="700">Output Backoff on the Compression Curve</text>
+</svg>
+
+<div class="warn">
+  <strong>The core tradeoff:</strong> More backoff means less distortion (cleaner signal, lower EVM) but also less output power and lower DC-to-RF efficiency. For every 1&thinsp;dB of additional OBO, you lose 1&thinsp;dB of EIRP&mdash;which may need to be compensated by a larger antenna or lower data rate.
+</div>
+
+<p>In the simulator, the PA model dynamically adjusts OBO based on the selected modulation order. Higher-order modulations (16-QAM, 64-QAM) demand cleaner signals and thus more backoff.</p>
+
+<!-- ===== 5. AM/PM Distortion ===== -->
+<h2>5. AM/PM Distortion</h2>
+<p>In addition to compressing the amplitude (AM/AM), a real PA also rotates the phase of the output signal as a function of input drive level. This is <strong>AM/PM conversion</strong>&mdash;amplitude-dependent phase shift.</p>
+
+<div class="formula">
+&Phi;(P<sub>in</sub>) = &alpha; &middot; (G &middot; P<sub>in</sub> / P<sub>sat</sub>)<sup>2</sup> &nbsp;&nbsp; [degrees]
+</div>
+
+<p>Where &alpha; is the maximum phase rotation (typically 30&ndash;60 degrees for GaN at saturation). The phase is essentially constant at low drive and increases rapidly near P<sub>sat</sub>.</p>
+
+<svg viewBox="0 0 520 300" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:520px;margin:1.2rem auto;display:block;">
+  <rect x="0" y="0" width="520" height="300" rx="8" fill="#111827"/>
+  <line x1="70" y1="250" x2="480" y2="250" stroke="#334155" stroke-width="1.2"/>
+  <line x1="70" y1="250" x2="70" y2="30" stroke="#334155" stroke-width="1.2"/>
+  <text x="280" y="290" fill="#94a3b8" text-anchor="middle" font-size="12">Normalised Input Power (P_in / P_sat)</text>
+  <text x="22" y="140" fill="#94a3b8" text-anchor="middle" font-size="12" transform="rotate(-90,22,140)">Phase Shift (degrees)</text>
+  <!-- AM/PM curve -->
+  <path d="M90,245 Q180,242 260,230 Q340,205 400,150 Q440,110 470,60" fill="none" stroke="#f59e0b" stroke-width="2.2"/>
+  <!-- Labels -->
+  <text x="150" y="238" fill="#7dd3fc" font-size="11">~0 deg (linear region)</text>
+  <text x="420" y="55" fill="#f59e0b" font-size="12" font-weight="600">~45 deg</text>
+  <line x1="70" y1="60" x2="468" y2="60" stroke="#ef4444" stroke-width=".7" stroke-dasharray="3"/>
+  <text x="475" y="65" fill="#ef4444" font-size="10">&alpha;<sub>max</sub></text>
+  <text x="270" y="22" fill="#00e5ff" text-anchor="middle" font-size="14" font-weight="700">AM/PM Conversion</text>
+</svg>
+
+<p>AM/PM distortion is especially harmful to phase-modulated signals (PSK, QAM) because it directly corrupts the information-bearing phase. In the simulator, AM/PM adds an SNR penalty that compounds with AM/AM distortion.</p>
+
+<!-- ===== 6. EVM ===== -->
+<h2>6. EVM (Error Vector Magnitude)</h2>
+<p>EVM quantifies how far the actual transmitted symbol lands from its ideal position in the constellation. It is the RMS magnitude of the error vector, normalised to the reference signal amplitude.</p>
+
+<div class="formula">
+EVM (%) = ( RMS |error vector| / RMS |reference vector| ) &times; 100
+</div>
+
+<h3>How PA Distortion Causes EVM</h3>
+<p>AM/AM compression shrinks the outer constellation points inward. AM/PM rotates them. Together they create a cloud of actual symbol positions around each ideal point.</p>
+
+<svg viewBox="0 0 460 380" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:460px;margin:1.2rem auto;display:block;">
+  <rect x="0" y="0" width="460" height="380" rx="8" fill="#111827"/>
+  <text x="230" y="25" fill="#00e5ff" text-anchor="middle" font-size="14" font-weight="700">EVM on a QPSK Constellation</text>
+  <!-- Axes -->
+  <line x1="230" y1="50" x2="230" y2="350" stroke="#1e293b" stroke-width="1"/>
+  <line x1="40" y1="200" x2="420" y2="200" stroke="#1e293b" stroke-width="1"/>
+  <text x="430" y="204" fill="#94a3b8" font-size="11">I</text>
+  <text x="234" y="46" fill="#94a3b8" font-size="11">Q</text>
+  <!-- Ideal symbols (QPSK) -->
+  <circle cx="330" cy="100" r="8" fill="#00e5ff" opacity=".3"/>
+  <circle cx="130" cy="100" r="8" fill="#00e5ff" opacity=".3"/>
+  <circle cx="130" cy="300" r="8" fill="#00e5ff" opacity=".3"/>
+  <circle cx="330" cy="300" r="8" fill="#00e5ff" opacity=".3"/>
+  <text x="342" y="95" fill="#00e5ff" font-size="10">Ideal</text>
+  <!-- Actual symbols (scattered) -->
+  <circle cx="315" cy="112" r="4" fill="#ef4444"/>
+  <circle cx="322" cy="106" r="4" fill="#ef4444"/>
+  <circle cx="310" cy="98" r="4" fill="#ef4444"/>
+  <circle cx="318" cy="118" r="4" fill="#ef4444"/>
+  <circle cx="308" cy="108" r="4" fill="#ef4444"/>
+  <!-- Error vector -->
+  <line x1="330" y1="100" x2="312" y2="110" stroke="#f59e0b" stroke-width="1.8"/>
+  <circle cx="312" cy="110" r="3.5" fill="#f59e0b"/>
+  <text x="285" y="130" fill="#f59e0b" font-size="12" font-weight="600">Error vector</text>
+  <!-- Reference vector -->
+  <line x1="230" y1="200" x2="330" y2="100" stroke="#334155" stroke-width="1" stroke-dasharray="4"/>
+  <text x="300" y="165" fill="#475569" font-size="10">Reference</text>
+  <!-- More scattered points for other quadrants -->
+  <circle cx="118" cy="108" r="3.5" fill="#ef4444"/>
+  <circle cx="125" cy="95" r="3.5" fill="#ef4444"/>
+  <circle cx="135" cy="110" r="3.5" fill="#ef4444"/>
+  <circle cx="122" cy="290" r="3.5" fill="#ef4444"/>
+  <circle cx="135" cy="305" r="3.5" fill="#ef4444"/>
+  <circle cx="128" cy="295" r="3.5" fill="#ef4444"/>
+  <circle cx="320" cy="308" r="3.5" fill="#ef4444"/>
+  <circle cx="335" cy="295" r="3.5" fill="#ef4444"/>
+  <circle cx="325" cy="303" r="3.5" fill="#ef4444"/>
+  <!-- Legend -->
+  <rect x="30" y="340" width="400" height="30" rx="4" fill="#0c1a2e"/>
+  <circle cx="55" cy="355" r="5" fill="#00e5ff" opacity=".4"/>
+  <text x="68" y="359" fill="#94a3b8" font-size="11">Ideal position</text>
+  <circle cx="185" cy="355" r="4" fill="#ef4444"/>
+  <text x="196" y="359" fill="#94a3b8" font-size="11">Actual (distorted)</text>
+  <line x1="315" y1="355" x2="340" y2="355" stroke="#f59e0b" stroke-width="1.8"/>
+  <text x="348" y="359" fill="#94a3b8" font-size="11">Error vector</text>
+</svg>
+
+<div class="note">
+  <strong>EVM to SNR:</strong> EVM directly degrades the effective SNR. The SNR penalty is approximately:<br>
+  <code>SNR_penalty (dB) &asymp; -20 &middot; log10(EVM/100)</code><br>
+  For example, 8% EVM imposes roughly -20 &middot; log10(0.08) &asymp; 22&thinsp;dB of effective SNR, meaning any additive noise must be well below this floor.
+</div>
+
+<!-- ===== 7. Thermal Derating ===== -->
+<h2>7. Thermal Derating</h2>
+<p>PA performance degrades as junction temperature rises. Two key effects:</p>
+
+<div class="formula">
+P<sub>1dB</sub>(T) = P<sub>1dB,ref</sub> - 0.02 dB/&deg;C &times; (T - T<sub>ref</sub>)
+<br>
+Gain(T) = Gain<sub>ref</sub> - 0.015 dB/&deg;C &times; (T - T<sub>ref</sub>)
+</div>
+
+<ul>
+  <li><strong>-0.02&thinsp;dB/&deg;C for P<sub>1dB</sub></strong> &mdash; At T<sub>ref</sub>&thinsp;=&thinsp;25&deg;C, a PA rated for +36&thinsp;dBm will drop to ~+34.5&thinsp;dBm at 100&deg;C. That is a 28% power reduction.</li>
+  <li><strong>-0.015&thinsp;dB/&deg;C for gain</strong> &mdash; Lower gain means the PA must be driven harder for the same output, pushing it further into compression.</li>
+</ul>
+
+<div class="danger">
+  <strong>Thermal runaway risk:</strong> More distortion at high temperature means higher EVM, which may force the link to fall back to a lower modulation order, reducing throughput. Meanwhile, the PA is still dissipating nearly the same DC power, keeping it hot. In extreme cases, the thermal controller must shed PA power entirely.
+</div>
+
+<!-- ===== 8. Oscillator & Phase Noise ===== -->
+<h2>8. Oscillator &amp; Phase Noise</h2>
+<p>The local oscillator (LO) generates the carrier frequency for up-conversion. Starlink uses a <strong>temperature-compensated crystal oscillator (TCXO)</strong> as the frequency reference.</p>
+
+<h3>Phase Noise Mask</h3>
+<p>Phase noise is the spectral density of random phase fluctuations around the carrier, measured in dBc/Hz at various offset frequencies:</p>
+
+<pre><code>Offset      Phase Noise
+  1 kHz     -80 dBc/Hz
+ 10 kHz     -100 dBc/Hz
+100 kHz     -120 dBc/Hz
+  1 MHz     -140 dBc/Hz</code></pre>
+
+<svg viewBox="0 0 560 320" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:560px;margin:1.2rem auto;display:block;">
+  <rect x="0" y="0" width="560" height="320" rx="8" fill="#111827"/>
+  <text x="280" y="22" fill="#00e5ff" text-anchor="middle" font-size="14" font-weight="700">Phase Noise Spectrum</text>
+  <!-- Axes -->
+  <line x1="80" y1="270" x2="520" y2="270" stroke="#334155" stroke-width="1.2"/>
+  <line x1="80" y1="270" x2="80" y2="40" stroke="#334155" stroke-width="1.2"/>
+  <text x="300" y="305" fill="#94a3b8" text-anchor="middle" font-size="12">Offset Frequency (log scale)</text>
+  <text x="25" y="155" fill="#94a3b8" text-anchor="middle" font-size="12" transform="rotate(-90,25,155)">dBc/Hz</text>
+  <!-- Tick labels x-axis -->
+  <text x="130" y="286" fill="#94a3b8" font-size="10" text-anchor="middle">1 kHz</text>
+  <text x="240" y="286" fill="#94a3b8" font-size="10" text-anchor="middle">10 kHz</text>
+  <text x="350" y="286" fill="#94a3b8" font-size="10" text-anchor="middle">100 kHz</text>
+  <text x="460" y="286" fill="#94a3b8" font-size="10" text-anchor="middle">1 MHz</text>
+  <!-- Tick labels y-axis -->
+  <text x="72" y="78" fill="#94a3b8" font-size="10" text-anchor="end">-80</text>
+  <text x="72" y="128" fill="#94a3b8" font-size="10" text-anchor="end">-100</text>
+  <text x="72" y="178" fill="#94a3b8" font-size="10" text-anchor="end">-120</text>
+  <text x="72" y="228" fill="#94a3b8" font-size="10" text-anchor="end">-140</text>
+  <!-- Grid -->
+  <line x1="80" y1="75" x2="520" y2="75" stroke="#1e293b" stroke-width=".5"/>
+  <line x1="80" y1="125" x2="520" y2="125" stroke="#1e293b" stroke-width=".5"/>
+  <line x1="80" y1="175" x2="520" y2="175" stroke="#1e293b" stroke-width=".5"/>
+  <line x1="80" y1="225" x2="520" y2="225" stroke="#1e293b" stroke-width=".5"/>
+  <!-- Phase noise curve -->
+  <path d="M100,60 L130,75 L240,125 L350,175 L460,225 L510,245" fill="none" stroke="#f59e0b" stroke-width="2.5"/>
+  <circle cx="130" cy="75" r="4" fill="#f59e0b"/>
+  <circle cx="240" cy="125" r="4" fill="#f59e0b"/>
+  <circle cx="350" cy="175" r="4" fill="#f59e0b"/>
+  <circle cx="460" cy="225" r="4" fill="#f59e0b"/>
+  <!-- Carrier spike -->
+  <line x1="92" y1="270" x2="92" y2="45" stroke="#00e5ff" stroke-width="2.5"/>
+  <text x="92" y="40" fill="#00e5ff" text-anchor="middle" font-size="10" font-weight="600">Carrier</text>
+</svg>
+
+<h3>Frequency Drift with Temperature</h3>
+<div class="formula">
+&Delta;f = f<sub>0</sub> &times; &alpha; &times; &Delta;T &nbsp;&nbsp;&nbsp; where &alpha; = 0.5 ppm/&deg;C
+</div>
+<p>For a 12&thinsp;GHz carrier, a 40&deg;C temperature swing causes a drift of 12&times;10<sup>9</sup> &times; 0.5&times;10<sup>-6</sup> &times; 40 = <strong>240&thinsp;kHz</strong>. The ground station's PLL must track this drift.</p>
+
+<!-- ===== 9. PLL Tracking ===== -->
+<h2>9. PLL Tracking</h2>
+<p>The ground station receiver uses a <strong>phase-locked loop (PLL)</strong> to lock onto the satellite's carrier and track frequency/phase variations in real time.</p>
+
+<h3>Lock and Unlock Conditions</h3>
+<ul>
+  <li><strong>Lock bandwidth:</strong> Typically 1&ndash;10&thinsp;kHz. The PLL can track drift rates within this bandwidth.</li>
+  <li><strong>Lock condition:</strong> The frequency error between the received carrier and the PLL's VCO must be within the pull-in range, and the loop SNR must exceed a threshold (~10&thinsp;dB).</li>
+  <li><strong>Unlock triggers:</strong>
+    <ul>
+      <li>Rapid temperature transients (eclipse entry/exit) causing drift rates exceeding the loop bandwidth.</li>
+      <li>Low CNR conditions reducing loop SNR below threshold.</li>
+      <li>Phase noise spurs from oscillator instability.</li>
+    </ul>
+  </li>
+</ul>
+
+<div class="warn">
+  <strong>Temperature extremes:</strong> At eclipse boundaries, the satellite's oscillator experiences rapid temperature changes (5&ndash;10&deg;C/min). If the frequency slew rate exceeds the PLL's tracking capability, the loop unlocks and data is lost until re-acquisition completes (typically 50&ndash;200&thinsp;ms).
+</div>
+
+<!-- ===== 10. Combined Signal Quality ===== -->
+<h2>10. Combined Signal Quality</h2>
+<p>The total EVM budget includes contributions from multiple independent sources. Since they are uncorrelated, they add in RSS (root-sum-square):</p>
+
+<div class="formula">
+EVM<sub>total</sub> = &radic;( EVM<sub>PA</sub>&sup2; + EVM<sub>osc</sub>&sup2; + EVM<sub>quant</sub>&sup2; )
+</div>
+
+<p>Each term:</p>
+<ul>
+  <li><strong>EVM<sub>PA</sub></strong> &mdash; from AM/AM compression and AM/PM conversion. Dominates at low OBO. Typical: 3&ndash;8%.</li>
+  <li><strong>EVM<sub>osc</sub></strong> &mdash; from oscillator phase noise integrated over the signal bandwidth. Typical: 1&ndash;3%.</li>
+  <li><strong>EVM<sub>quant</sub></strong> &mdash; from DAC quantization noise. Depends on DAC resolution. Typical: 0.5&ndash;2%.</li>
+</ul>
+
+<p>This total EVM translates directly to an effective SNR penalty on the link:</p>
+<div class="formula">
+SNR<sub>effective</sub> = -20 &middot; log<sub>10</sub>(EVM<sub>total</sub> / 100) &nbsp;&nbsp; [dB]
+</div>
+
+<div class="note">
+  <strong>Example:</strong> EVM<sub>PA</sub>=5%, EVM<sub>osc</sub>=2%, EVM<sub>quant</sub>=1%.<br>
+  EVM<sub>total</sub> = &radic;(25 + 4 + 1) = &radic;30 &asymp; 5.5%.<br>
+  SNR floor = -20 &middot; log<sub>10</sub>(0.055) &asymp; 25.2&thinsp;dB.<br>
+  Any modulation requiring SNR above 25.2&thinsp;dB cannot be used regardless of the link's thermal noise.
+</div>
+
+<!-- ===== 11. Code Connection ===== -->
+<h2>11. Code Connection</h2>
+<p>The concepts in this unit map directly to the simulator's RF chain implementation:</p>
+
+<pre><code><span style="color:#94a3b8">// Power Amplifier (Rapp model, thermal derating, OBO)</span>
+src/simulation/rf-chain/power-amplifier.ts
+
+<span style="color:#94a3b8">// TCXO model, phase noise, frequency drift</span>
+src/simulation/rf-chain/oscillator.ts
+
+<span style="color:#94a3b8">// EVM budget, combined signal quality metrics</span>
+src/simulation/rf-chain/signal-quality.ts</code></pre>
+
+<ul>
+  <li><code>power-amplifier.ts</code> implements the Rapp model with configurable <code>p</code>, applies thermal derating via junction temperature, and computes AM/AM + AM/PM distortion per sample.</li>
+  <li><code>oscillator.ts</code> models the TCXO's frequency drift and generates phase noise according to the mask. The PLL tracking state machine (lock/unlock/reacquire) lives here.</li>
+  <li><code>signal-quality.ts</code> collects EVM contributions from the PA, oscillator, and DAC, computes EVM<sub>total</sub>, and reports the effective SNR penalty to the link budget calculator.</li>
+</ul>
+
+<!-- ===== References ===== -->
+<h2>References</h2>
+<ol class="ref-list">
+  <li>C. Rapp, "Effects of HPA-Nonlinearity on a 4-DPSK/OFDM-Signal for a Digital Sound Broadcasting System," in <em>Proc. 2nd European Conf. on Satellite Communications</em>, Liege, 1991, pp. 179&ndash;184.</li>
+  <li>B. Razavi, <em>RF Microelectronics</em>, 2nd ed. Pearson, 2011.</li>
+  <li>S. C. Cripps, <em>RF Power Amplifiers for Wireless Communications</em>, 2nd ed. Artech House, 2006.</li>
+  <li>3GPP TS 38.104, "NR Base Station radio transmission and reception" &mdash; EVM requirements.</li>
+</ol>
+
+<!-- ===== Questions ===== -->
+<h2>Questions</h2>
+
+<details class="question-block">
+  <summary>Q1: A GaN PA has P<sub>sat</sub> = 37 dBm and p = 2 in the Rapp model. At what approximate input drive level (relative to P<sub>sat</sub>) does the 1 dB compression point occur?</summary>
+  <p>For p=2 in the Rapp model, P<sub>1dB</sub> occurs at approximately 0.89 &times; P<sub>sat</sub> in linear power units, or about 0.5 dB below P<sub>sat</sub> in dBm. Solving the Rapp equation for 1 dB gain compression: the input power that produces an output 1 dB below the linear extrapolation is P<sub>in,1dB</sub> such that P<sub>out</sub> = G &middot; P<sub>in,1dB</sub> - 1 dB. For p=2, this works out to P<sub>out,1dB</sub> &asymp; 36.5 dBm.</p>
+</details>
+
+<details class="question-block">
+  <summary>Q2: You are using 16-QAM modulation which requires an EVM below 12.5%. Your PA contributes 8% EVM and the oscillator contributes 3%. What is the maximum allowable DAC quantization EVM to stay within spec?</summary>
+  <p>EVM<sub>total</sub> = &radic;(EVM<sub>PA</sub>&sup2; + EVM<sub>osc</sub>&sup2; + EVM<sub>quant</sub>&sup2;) &le; 12.5%.<br>
+  EVM<sub>quant</sub> &le; &radic;(12.5&sup2; - 8&sup2; - 3&sup2;) = &radic;(156.25 - 64 - 9) = &radic;83.25 &asymp; 9.1%.<br>
+  So the DAC quantization EVM can be up to about 9.1%. In practice, DAC EVM is typically well below this, so the PA is the binding constraint.</p>
+</details>
+
+<details class="question-block">
+  <summary>Q3: A PA operates at 25&deg;C with P<sub>1dB</sub> = 36 dBm. The junction temperature rises to 95&deg;C. What is the new P<sub>1dB</sub>, and how much EIRP have you lost?</summary>
+  <p>&Delta;T = 95 - 25 = 70&deg;C. P<sub>1dB</sub> derating: 0.02 dB/&deg;C &times; 70 = 1.4 dB.<br>
+  New P<sub>1dB</sub> = 36 - 1.4 = 34.6 dBm. You have lost 1.4 dB of EIRP from thermal derating alone. Additionally, the gain drops by 0.015 &times; 70 = 1.05 dB, so the PA is driven further from its optimal operating point.</p>
+</details>
+
+<details class="question-block">
+  <summary>Q4: Your TCXO has &alpha; = 0.5 ppm/&deg;C and the carrier is 12 GHz. During eclipse entry, the oscillator cools by 30&deg;C in 2 minutes. What is the total frequency drift and the average drift rate? Will a 5 kHz loop bandwidth PLL stay locked?</summary>
+  <p>&Delta;f = 12 &times; 10<sup>9</sup> &times; 0.5 &times; 10<sup>-6</sup> &times; 30 = 180 kHz total drift.<br>
+  Average drift rate = 180 kHz / 120 s = 1.5 kHz/s.<br>
+  A 5 kHz PLL bandwidth can track drift rates up to roughly the square of its bandwidth divided by the natural frequency, typically a few kHz/s. A 1.5 kHz/s rate is within range for a well-designed 5 kHz loop, so the PLL should remain locked, though margin is thin. Faster transients could cause unlock.</p>
+</details>
+
+<details class="question-block">
+  <summary>Q5: Explain why operating a PA at 6 dB OBO vs. 2 dB OBO changes the system design. What compensates for the lost power?</summary>
+  <p>At 6 dB OBO, the PA outputs 6 dB below P<sub>sat</sub>&mdash;only 25% of its rated power. Compared to 2 dB OBO (63% of rated power), you lose 4 dB of EIRP. This 4 dB must be recovered elsewhere in the link budget: a higher-gain antenna (+4 dB requires roughly doubling the aperture area), a larger PA (more mass, power, heat), lower noise figure receiver, or accepting a lower data rate. The benefit is much lower EVM (cleaner signal), enabling higher-order modulations that can partly offset the throughput loss. The system trade is always: PA linearity vs. antenna size/complexity vs. achievable modulation order.</p>
+</details>
+
+<details class="question-block">
+  <summary>Q6: Phase noise at 10 kHz offset is -100 dBc/Hz. If the signal bandwidth is 20 MHz, estimate the integrated phase noise contribution to EVM. Why does wider bandwidth make oscillator EVM worse?</summary>
+  <p>Integrated phase noise power &asymp; L(f) &times; BW (simplified, assuming flat over the band). Integrating from the phase noise mask: roughly -100 dBc/Hz over 20 MHz = -100 + 10&middot;log<sub>10</sub>(20&times;10<sup>6</sup>) = -100 + 73 = -27 dBc. This corresponds to an RMS phase error of about &radic;(10<sup>-2.7</sup>) &asymp; 0.045 rad &asymp; 2.6&deg;.<br>
+  EVM from phase error &asymp; sin(2.6&deg;) &asymp; 4.5%.<br>
+  Wider bandwidth integrates phase noise over more spectrum, capturing more noise power. This is why narrowband signals are less sensitive to oscillator quality&mdash;they only "see" the phase noise close to the carrier.</p>
+</details>
+
+<!-- ===== Navigation ===== -->
+<nav class="bottom">
+  <a href="unit-2-antenna-gain.html">&larr; Unit 2: Antenna &amp; Gain</a>
+  <a href="index.html">Index</a>
+  <a href="unit-4-thermal-power.html">Unit 4: Thermal &amp; Power &rarr;</a>
+</nav>
+
+</div>
+</body>
+</html>

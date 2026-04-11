@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unit 9: Oscillators, Phase Noise &amp; Frequency Tracking</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:         #060a14;
+    --surface:    #0f1520;
+    --bg-code:    #111827;
+    --text:       #d8e0ec;
+    --text-dim:   #6a7a90;
+    --accent:     #00e5ff;
+    --accent-dim: rgba(0,229,255,0.08);
+    --secondary:  #f59e0b;
+    --success:    #34d399;
+    --error:      #f87171;
+    --purple:     #a78bfa;
+    --pink:       #f472b6;
+    --border:     #1e293b;
+    --radius:     8px;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Chakra Petch', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+  }
+
+  /* -- Navigation -------------------------------- */
+  nav.top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2rem;
+    font-size: 0.9rem;
+  }
+  nav.top a {
+    color: var(--accent);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  nav.top a:hover { color: #5ef5ff; }
+
+  nav.bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.9rem;
+  }
+  nav.bottom a {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--accent);
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    transition: background 0.2s, border-color 0.2s;
+  }
+  nav.bottom a:hover {
+    background: rgba(0,229,255,0.06);
+    border-color: var(--accent);
+  }
+
+  /* -- Header ------------------------------------ */
+  .unit-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #004d5e, #00333e);
+    color: var(--accent);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 0.3em 0.8em;
+    border-radius: 4px;
+    margin-bottom: 0.75rem;
+  }
+
+  h1 {
+    font-family: 'Chakra Petch', system-ui, sans-serif;
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.5rem;
+    line-height: 1.2;
+  }
+  .subtitle {
+    font-size: 1.05rem;
+    color: var(--text-dim);
+    margin-bottom: 2rem;
+    font-weight: 300;
+  }
+
+  h2 {
+    font-family: 'Chakra Petch', system-ui, sans-serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #fff;
+    margin: 3rem 0 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--border);
+  }
+  h2 .sn { color: var(--accent); margin-right: 0.3em; font-family: 'JetBrains Mono', monospace; }
+
+  h3 {
+    font-family: 'Chakra Petch', system-ui, sans-serif;
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--accent);
+    margin: 1.8rem 0 0.6rem;
+  }
+
+  p { margin-bottom: 1rem; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  strong { color: #fff; }
+  em { color: var(--text-dim); }
+
+  ul, ol { padding-left: 1.5em; margin-bottom: 1rem; }
+  li { margin-bottom: 0.5rem; }
+
+  /* -- Objectives -------------------------------- */
+  .objectives {
+    background: linear-gradient(135deg, #0c1a2e, #0f1f35);
+    border: 1px solid #1e3a5f;
+    border-left: 4px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 1.5rem 1.5rem 1rem;
+    margin: 1.5rem 0 2rem;
+  }
+  .objectives h3 {
+    margin-top: 0;
+    color: var(--accent);
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .objectives ul { list-style: none; padding: 0; }
+  .objectives li {
+    padding: 0.3em 0 0.3em 1.5em;
+    position: relative;
+  }
+  .objectives li::before {
+    content: '\2713';
+    position: absolute;
+    left: 0;
+    color: var(--success);
+    font-weight: 700;
+  }
+
+  /* -- Code blocks ------------------------------- */
+  pre {
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.2rem 1.5rem;
+    overflow-x: auto;
+    margin: 1rem 0 1.5rem;
+    font-size: 0.88rem;
+    line-height: 1.6;
+  }
+  code {
+    font-family: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+    font-size: 0.88em;
+  }
+  pre code { color: var(--text); background: none; padding: 0; }
+  p code, li code, td code {
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+    font-size: 0.88em;
+    color: var(--accent);
+  }
+  .kw   { color: var(--accent); }
+  .str  { color: var(--success); }
+  .num  { color: var(--secondary); }
+  .cmt  { color: var(--text-dim); font-style: italic; }
+  .fn   { color: var(--purple); }
+  .type { color: var(--pink); }
+
+  /* -- Math / formula blocks --------------------- */
+  .math-block {
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem 1.5rem;
+    margin: 1rem 0 1.5rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.95rem;
+    text-align: center;
+    color: var(--secondary);
+    letter-spacing: 0.02em;
+    line-height: 1.8;
+  }
+
+  /* -- Info / warning boxes ---------------------- */
+  .info-box {
+    background: rgba(0,229,255,0.06);
+    border: 1px solid rgba(0,229,255,0.2);
+    border-radius: var(--radius);
+    padding: 1rem 1.2rem;
+    margin: 1rem 0 1.5rem;
+    font-size: 0.93rem;
+  }
+  .info-box strong { color: var(--accent); }
+
+  .warn-box {
+    background: rgba(245,158,11,0.08);
+    border: 1px solid rgba(245,158,11,0.25);
+    border-radius: var(--radius);
+    padding: 1rem 1.2rem;
+    margin: 1rem 0 1.5rem;
+    font-size: 0.93rem;
+  }
+  .warn-box strong { color: var(--secondary); }
+
+  .danger-box {
+    background: rgba(239,68,68,0.08);
+    border: 1px solid rgba(239,68,68,0.25);
+    border-radius: var(--radius);
+    padding: 1rem 1.2rem;
+    margin: 1rem 0 1.5rem;
+    font-size: 0.93rem;
+  }
+  .danger-box strong { color: var(--error); }
+
+  /* -- Tables ------------------------------------ */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0 1.5rem;
+    font-size: 0.92rem;
+  }
+  th {
+    background: var(--bg-code);
+    color: var(--accent);
+    font-weight: 600;
+    text-align: left;
+    padding: 0.7em 1em;
+    border-bottom: 2px solid var(--border);
+  }
+  td {
+    padding: 0.6em 1em;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tr:hover td { background: rgba(0,229,255,0.03); }
+
+  /* -- SVG diagrams ------------------------------ */
+  .diagram-wrapper {
+    display: flex;
+    justify-content: center;
+    margin: 1.5rem 0;
+  }
+  .diagram-wrapper svg { max-width: 100%; height: auto; }
+  .diagram-caption {
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    margin-top: -0.5rem;
+    margin-bottom: 1.5rem;
+    font-style: italic;
+  }
+
+  /* -- Questions --------------------------------- */
+  .questions {
+    counter-reset: question;
+    list-style: none;
+    padding: 0;
+  }
+  .questions li {
+    counter-increment: question;
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem 1.2rem;
+    margin-bottom: 0.75rem;
+    position: relative;
+    padding-left: 3.5rem;
+  }
+  .questions li::before {
+    content: 'Q' counter(question);
+    position: absolute;
+    left: 1rem;
+    top: 1rem;
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 0.85rem;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* -- References -------------------------------- */
+  .ref-list {
+    list-style: none;
+    padding: 0;
+  }
+  .ref-list li {
+    padding: 0.5em 0 0.5em 1.5em;
+    position: relative;
+    font-size: 0.93rem;
+  }
+  .ref-list li::before {
+    content: '\25B8';
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+  }
+
+  /* -- Responsive -------------------------------- */
+  @media (max-width: 640px) {
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.25rem; }
+    pre { font-size: 0.8rem; padding: 1rem; }
+    .container { padding: 1rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- ============ TOP NAV ============ -->
+<nav class="top">
+  <a href="index.html">Home</a>
+  <span style="color:var(--text-dim)">Unit 9 of 11</span>
+  <a href="unit-10-faults.html">Unit 10 &rarr;</a>
+</nav>
+
+<div class="unit-badge">Unit 9</div>
+<h1>Oscillators, Phase Noise &amp; Frequency Tracking</h1>
+<p class="subtitle">How the satellite's frequency reference works and why drift causes problems.</p>
+
+<!-- ============ LEARNING OBJECTIVES ============ -->
+<div class="objectives">
+  <h3>Learning Objectives</h3>
+  <ul>
+    <li>Explain the role of the oscillator as the frequency reference for all transmitted signals</li>
+    <li>Model frequency drift as a function of temperature using the polynomial drift equation</li>
+    <li>Interpret a phase noise spectrum and identify the key mask points in dBc/Hz</li>
+    <li>Derive how integrated phase noise translates into EVM and SNR penalty</li>
+    <li>Draw and explain the Phase-Locked Loop (PLL) block diagram and its lock conditions</li>
+    <li>Trace the thermal-electrical feedback loop from PA heating through oscillator drift to tracking degradation</li>
+  </ul>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 1: What an Oscillator Does -->
+<!-- ============================================================ -->
+<h2><span class="sn">9.1</span> What an Oscillator Does</h2>
+
+<p>
+Every radio system begins with a single, deceptively simple question: <strong>what frequency are we transmitting on?</strong>
+The answer comes from the oscillator -- a circuit that generates a periodic signal at a precise frequency. In Ku-band satellite communications, this means generating (or synthesizing from) a carrier near <strong>12 GHz</strong>, which is 12 billion cycles per second.
+</p>
+
+<p>
+The oscillator is the frequency reference for the entire transmit chain. The digital-to-analog converter (DAC) produces a baseband signal containing the modulated data (QPSK, 16QAM, etc.). The mixer multiplies this baseband signal by the oscillator's output to shift it up to the carrier frequency. Every modulation symbol -- every phase and amplitude point on the constellation diagram -- is defined <em>relative to the oscillator's output</em>.
+</p>
+
+<div class="info-box">
+  <strong>Key insight:</strong> If the oscillator drifts by even a small fraction of its frequency, the entire transmitted signal shifts. The receiver must track this shift or it cannot demodulate the data. The oscillator is the metronome of the radio; if the metronome speeds up or slows down, the whole orchestra drifts.
+</div>
+
+<p>
+In the simulator's RF chain, the oscillator sits between the DAC and the power amplifier. Its output feeds the mixer's local oscillator (LO) port. The quality of this signal -- its frequency accuracy and its spectral purity -- directly determines the quality of the transmitted signal.
+</p>
+
+<!-- SVG: Signal chain showing oscillator position -->
+<div class="diagram-wrapper">
+<svg viewBox="0 0 800 160" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="800" height="160" fill="#111827" rx="8"/>
+
+  <!-- DAC block -->
+  <rect x="30" y="50" width="100" height="50" rx="6" fill="#0f1520" stroke="#6a7a90" stroke-width="1.5"/>
+  <text x="80" y="80" fill="#d8e0ec" font-size="14" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">DAC</text>
+  <text x="80" y="120" fill="#6a7a90" font-size="10" text-anchor="middle">Baseband</text>
+
+  <!-- Arrow -->
+  <line x1="130" y1="75" x2="175" y2="75" stroke="#6a7a90" stroke-width="1.5" marker-end="url(#arr9)"/>
+
+  <!-- Mixer (circle with X) -->
+  <circle cx="200" cy="75" r="22" fill="#0f1520" stroke="#00e5ff" stroke-width="1.5"/>
+  <line x1="188" y1="63" x2="212" y2="87" stroke="#00e5ff" stroke-width="1.5"/>
+  <line x1="212" y1="63" x2="188" y2="87" stroke="#00e5ff" stroke-width="1.5"/>
+  <text x="200" y="120" fill="#6a7a90" font-size="10" text-anchor="middle">Mixer</text>
+
+  <!-- Oscillator block (below mixer) -->
+  <rect x="250" y="105" width="120" height="40" rx="6" fill="rgba(0,229,255,0.08)" stroke="#00e5ff" stroke-width="1.5"/>
+  <text x="310" y="129" fill="#00e5ff" font-size="13" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">Oscillator</text>
+  <text x="310" y="28" fill="#00e5ff" font-size="11" text-anchor="middle">f = 12 GHz</text>
+  <!-- Arrow from oscillator to mixer -->
+  <line x1="260" y1="105" x2="210" y2="97" stroke="#00e5ff" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arr9c)"/>
+
+  <!-- Arrow to PA -->
+  <line x1="222" y1="75" x2="380" y2="75" stroke="#6a7a90" stroke-width="1.5" marker-end="url(#arr9)"/>
+
+  <!-- PA block -->
+  <rect x="380" y="50" width="120" height="50" rx="6" fill="#0f1520" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="440" y="80" fill="#f59e0b" font-size="14" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">Power Amp</text>
+  <text x="440" y="120" fill="#6a7a90" font-size="10" text-anchor="middle">Amplification</text>
+
+  <!-- Arrow to antenna -->
+  <line x1="500" y1="75" x2="560" y2="75" stroke="#6a7a90" stroke-width="1.5" marker-end="url(#arr9)"/>
+
+  <!-- Antenna symbol -->
+  <polygon points="590,45 610,45 620,30 580,30" fill="none" stroke="#34d399" stroke-width="1.5"/>
+  <line x1="600" y1="45" x2="600" y2="75" stroke="#34d399" stroke-width="1.5"/>
+  <line x1="560" y1="75" x2="600" y2="75" stroke="#6a7a90" stroke-width="1.5"/>
+  <text x="600" y="120" fill="#6a7a90" font-size="10" text-anchor="middle">Antenna</text>
+
+  <!-- RF out label -->
+  <line x1="620" y1="38" x2="680" y2="38" stroke="#34d399" stroke-width="1" stroke-dasharray="3,3"/>
+  <text x="740" y="42" fill="#34d399" font-size="12" font-family="JetBrains Mono, monospace" text-anchor="middle">12 GHz RF</text>
+
+  <defs>
+    <marker id="arr9" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="8" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,3 L0,6" fill="#6a7a90"/>
+    </marker>
+    <marker id="arr9c" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="8" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,3 L0,6" fill="#00e5ff"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<div class="diagram-caption">Figure 9.1 -- The oscillator provides the local oscillator (LO) signal to the mixer, upconverting baseband data to the 12 GHz carrier.</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 2: Crystal Oscillators and TCXO -->
+<!-- ============================================================ -->
+<h2><span class="sn">9.2</span> Crystal Oscillators &amp; TCXO</h2>
+
+<p>
+Satellites use <strong>crystal oscillators</strong> as their frequency reference. A quartz crystal is cut to vibrate at a precise frequency when an electric field is applied (the piezoelectric effect). The mechanical resonance of the crystal determines the output frequency, and quartz is chosen because its resonant frequency is extremely stable and predictable.
+</p>
+
+<p>
+However, "extremely stable" is relative. A bare crystal oscillator's frequency varies with temperature, typically by <strong>several parts per million (ppm) per degree Celsius</strong>. For a 12 GHz carrier, 1 ppm equals 12 kHz -- a shift that is large enough to affect demodulation.
+</p>
+
+<h3>Temperature-Compensated Crystal Oscillator (TCXO)</h3>
+
+<p>
+A TCXO adds a temperature-compensation network around the bare crystal. A thermistor measures the crystal's temperature, and a correction voltage is applied to a varactor diode that fine-tunes the oscillation frequency. The goal: cancel the crystal's inherent temperature coefficient.
+</p>
+
+<p>
+Typical TCXO stability is <strong>~0.5 ppm/&#176;C</strong>. This is 10-20x better than an uncompensated crystal, but still nonzero. Over the temperature swings a satellite experiences (the PA can heat the local environment by 30-50&#176;C during a pass), even a TCXO accumulates meaningful drift.
+</p>
+
+<table>
+  <thead>
+    <tr><th>Parameter</th><th>Bare Crystal</th><th>TCXO</th><th>OCXO (Oven)</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Stability (ppm/&#176;C)</td><td>5 -- 10</td><td>0.5 -- 1.0</td><td>0.001 -- 0.01</td></tr>
+    <tr><td>At 12 GHz, 1 ppm =</td><td colspan="3">12 kHz frequency offset</td></tr>
+    <tr><td>Power consumption</td><td>Low</td><td>Low</td><td>High (heater)</td></tr>
+    <tr><td>Mass</td><td>~1 g</td><td>~5 g</td><td>~50 g</td></tr>
+    <tr><td>Satellite suitability</td><td>Poor</td><td>Good</td><td>Excellent but heavy</td></tr>
+  </tbody>
+</table>
+
+<div class="info-box">
+  <strong>Why not OCXO?</strong> An oven-controlled crystal oscillator (OCXO) holds the crystal at a constant temperature in a miniature oven, achieving 100x better stability. But it consumes 1-3 W continuously and adds mass. On a mass-constrained LEO satellite carrying thousands of antenna elements, a TCXO is the pragmatic choice -- and the ground station's PLL compensates for its drift.
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 3: Frequency Drift Model -->
+<!-- ============================================================ -->
+<h2><span class="sn">9.3</span> Frequency Drift Model</h2>
+
+<p>
+The simulator models frequency drift as a polynomial function of temperature deviation from a reference point (25&#176;C). The model captures both the linear and quadratic components of crystal behavior:
+</p>
+
+<div class="math-block">
+  &Delta;f = f<sub>nominal</sub> &times; (&alpha; &times; &Delta;T + &beta; &times; &Delta;T&sup2;) &times; 10<sup>-6</sup>
+</div>
+
+<p>Where:</p>
+<ul>
+  <li><code>f_nominal</code> = 12 GHz (the target carrier frequency)</li>
+  <li><code>&Delta;T</code> = T<sub>current</sub> &minus; T<sub>ref</sub> (temperature deviation from 25&#176;C)</li>
+  <li><code>&alpha;</code> = 0.5 ppm/&#176;C (linear coefficient -- dominates for small &Delta;T)</li>
+  <li><code>&beta;</code> = 0.01 ppm/&#176;C&sup2; (quadratic coefficient -- becomes significant for large swings)</li>
+</ul>
+
+<h3>Worked Example</h3>
+
+<p>
+Suppose the oscillator temperature rises from 25&#176;C to 55&#176;C (a &Delta;T of 30&#176;C), which is realistic when the PA is operating at full power mid-pass:
+</p>
+
+<div class="math-block">
+  &Delta;f = 12 &times; 10<sup>9</sup> &times; (0.5 &times; 30 + 0.01 &times; 30&sup2;) &times; 10<sup>-6</sup><br>
+  &Delta;f = 12 &times; 10<sup>9</sup> &times; (15 + 9) &times; 10<sup>-6</sup><br>
+  &Delta;f = 12 &times; 10<sup>9</sup> &times; 24 &times; 10<sup>-6</sup><br>
+  <strong>&Delta;f = 288 kHz</strong>
+</div>
+
+<p>
+A 288 kHz offset at 12 GHz. The receiver's PLL must track this shift continuously or lose lock. Note how the quadratic term (9 kHz contribution from &beta;) is already 37.5% of the linear term (15 kHz from &alpha;) at &Delta;T = 30. At larger swings, the quadratic dominates.
+</p>
+
+<!-- SVG: Frequency offset vs temperature -->
+<div class="diagram-wrapper">
+<svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg">
+  <rect width="700" height="400" fill="#111827" rx="8"/>
+
+  <!-- Title -->
+  <text x="350" y="30" fill="#d8e0ec" font-size="14" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">Frequency Offset vs. Temperature Deviation</text>
+
+  <!-- Axes -->
+  <line x1="80" y1="350" x2="650" y2="350" stroke="#6a7a90" stroke-width="1"/>
+  <line x1="80" y1="50" x2="80" y2="350" stroke="#6a7a90" stroke-width="1"/>
+
+  <!-- X axis labels -->
+  <text x="80" y="375" fill="#6a7a90" font-size="11" font-family="JetBrains Mono, monospace" text-anchor="middle">0</text>
+  <text x="194" y="375" fill="#6a7a90" font-size="11" font-family="JetBrains Mono, monospace" text-anchor="middle">10</text>
+  <text x="308" y="375" fill="#6a7a90" font-size="11" font-family="JetBrains Mono, monospace" text-anchor="middle">20</text>
+  <text x="422" y="375" fill="#6a7a90" font-size="11" font-family="JetBrains Mono, monospace" text-anchor="middle">30</text>
+  <text x="536" y="375" fill="#6a7a90" font-size="11" font-family="JetBrains Mono, monospace" text-anchor="middle">40</text>
+  <text x="650" y="375" fill="#6a7a90" font-size="11" font-family="JetBrains Mono, monospace" text-anchor="middle">50</text>
+  <text x="365" y="395" fill="#6a7a90" font-size="12" font-family="Chakra Petch, sans-serif" text-anchor="middle">&Delta;T (&#176;C)</text>
+
+  <!-- Y axis labels (kHz) -->
+  <text x="72" y="354" fill="#6a7a90" font-size="11" font-family="JetBrains Mono, monospace" text-anchor="end">0</text>
+  <text x="72" y="290" fill="#6a7a90" font-size="11" font-family="JetBrains Mono, monospace" text-anchor="end">100</text>
+  <text x="72" y="230" fill="#6a7a90" font-size="11" font-family="JetBrains Mono, monospace" text-anchor="end">200</text>
+  <text x="72" y="170" fill="#6a7a90" font-size="11" font-family="JetBrains Mono, monospace" text-anchor="end">300</text>
+  <text x="72" y="110" fill="#6a7a90" font-size="11" font-family="JetBrains Mono, monospace" text-anchor="end">400</text>
+  <text x="72" y="60" fill="#6a7a90" font-size="11" font-family="JetBrains Mono, monospace" text-anchor="end">500</text>
+  <text x="30" y="200" fill="#6a7a90" font-size="12" font-family="Chakra Petch, sans-serif" text-anchor="middle" transform="rotate(-90, 30, 200)">&Delta;f (kHz)</text>
+
+  <!-- Grid lines -->
+  <line x1="80" y1="290" x2="650" y2="290" stroke="#1e293b" stroke-width="0.5"/>
+  <line x1="80" y1="230" x2="650" y2="230" stroke="#1e293b" stroke-width="0.5"/>
+  <line x1="80" y1="170" x2="650" y2="170" stroke="#1e293b" stroke-width="0.5"/>
+  <line x1="80" y1="110" x2="650" y2="110" stroke="#1e293b" stroke-width="0.5"/>
+
+  <!-- Linear-only curve (alpha only): Df = 12e9 * alpha * DT * 1e-6 = 6*DT kHz -->
+  <!-- At DT=50: 300 kHz. Scale: 500kHz = 300px, so 1kHz = 0.6px -->
+  <polyline fill="none" stroke="#6a7a90" stroke-width="1.5" stroke-dasharray="6,4"
+    points="80,350 194,314 308,278 422,242 536,206 650,170"/>
+  <text x="660" y="175" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace">Linear only</text>
+
+  <!-- Full model curve (alpha + beta): Df = 12e9 * (0.5*DT + 0.01*DT^2) * 1e-6 kHz -->
+  <!-- DT=0: 0, DT=10: 72, DT=20: 168, DT=30: 288, DT=40: 432, DT=50: 600 (capped at chart) -->
+  <!-- Scale: 0->350, 72->306.8, 168->249.2, 288->177.2, 432->91.2, 600->-10 (clip to 50) -->
+  <polyline fill="none" stroke="#00e5ff" stroke-width="2.5"
+    points="80,350 194,307 308,249 422,177 536,91 650,50"/>
+  <text x="660" y="55" fill="#00e5ff" font-size="10" font-family="JetBrains Mono, monospace">Full model</text>
+
+  <!-- Annotation at DT=30 -->
+  <circle cx="422" cy="177" r="5" fill="#00e5ff" opacity="0.8"/>
+  <line x1="422" y1="177" x2="480" y2="140" stroke="#00e5ff" stroke-width="1" stroke-dasharray="3,3"/>
+  <text x="485" y="135" fill="#00e5ff" font-size="11" font-family="JetBrains Mono, monospace">288 kHz</text>
+  <text x="485" y="149" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace">@ &Delta;T = 30&#176;C</text>
+
+  <!-- Shaded region between curves to show quadratic contribution -->
+  <polygon fill="rgba(0,229,255,0.06)"
+    points="80,350 194,307 308,249 422,177 536,91 650,50 650,170 536,206 422,242 308,278 194,314 80,350"/>
+
+  <!-- Legend -->
+  <rect x="130" y="58" width="200" height="55" rx="6" fill="#0f1520" stroke="#1e293b" stroke-width="1"/>
+  <line x1="145" y1="78" x2="175" y2="78" stroke="#00e5ff" stroke-width="2.5"/>
+  <text x="182" y="82" fill="#d8e0ec" font-size="11" font-family="Chakra Petch, sans-serif">&alpha;&Delta;T + &beta;&Delta;T&sup2; (full model)</text>
+  <line x1="145" y1="98" x2="175" y2="98" stroke="#6a7a90" stroke-width="1.5" stroke-dasharray="6,4"/>
+  <text x="182" y="102" fill="#6a7a90" font-size="11" font-family="Chakra Petch, sans-serif">&alpha;&Delta;T only (linear)</text>
+</svg>
+</div>
+<div class="diagram-caption">Figure 9.2 -- Frequency offset vs. temperature deviation. The shaded region shows the quadratic contribution growing with temperature.</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 4: Phase Noise -->
+<!-- ============================================================ -->
+<h2><span class="sn">9.4</span> Phase Noise</h2>
+
+<p>
+Even if the oscillator's <em>average</em> frequency is perfect, its output is never a pure sine wave. Random fluctuations in the oscillator's phase -- caused by thermal noise in the crystal, amplifier noise, and power supply variations -- spread the oscillator's energy across a range of frequencies around the carrier. This is <strong>phase noise</strong>.
+</p>
+
+<p>
+Phase noise is measured as <code>L(f_offset)</code> in <strong>dBc/Hz</strong> -- the noise power in a 1 Hz bandwidth at a given offset from the carrier, relative to the carrier power. Lower (more negative) values are better.
+</p>
+
+<h3>The Phase Noise Mask</h3>
+
+<p>
+A phase noise mask specifies the maximum allowed noise at specific offset frequencies. The simulator uses this mask for the satellite's oscillator:
+</p>
+
+<table>
+  <thead>
+    <tr><th>Offset Frequency</th><th>Phase Noise (dBc/Hz)</th><th>Meaning</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>1 kHz</td><td>&minus;80</td><td>Close-in noise; hardest to filter</td></tr>
+    <tr><td>10 kHz</td><td>&minus;100</td><td>Mid-range; within typical PLL bandwidth</td></tr>
+    <tr><td>100 kHz</td><td>&minus;115</td><td>Approaching the noise floor</td></tr>
+    <tr><td>1 MHz</td><td>&minus;130</td><td>Far-out; mostly thermal floor</td></tr>
+  </tbody>
+</table>
+
+<p>
+The phase noise rolls off roughly as 1/f&sup2; (20 dB/decade) for a well-designed oscillator -- this is the characteristic of white frequency noise passing through the oscillator's transfer function.
+</p>
+
+<!-- SVG: Phase noise spectrum -->
+<div class="diagram-wrapper">
+<svg viewBox="0 0 700 380" xmlns="http://www.w3.org/2000/svg">
+  <rect width="700" height="380" fill="#111827" rx="8"/>
+
+  <text x="350" y="28" fill="#d8e0ec" font-size="14" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">Phase Noise Spectrum L(f<tspan font-size="10" dy="3">offset</tspan><tspan dy="-3">)</tspan></text>
+
+  <!-- Axes -->
+  <line x1="100" y1="330" x2="640" y2="330" stroke="#6a7a90" stroke-width="1"/>
+  <line x1="100" y1="50" x2="100" y2="330" stroke="#6a7a90" stroke-width="1"/>
+
+  <!-- X axis: log scale from 100 Hz to 10 MHz -->
+  <!-- 100Hz, 1kHz, 10kHz, 100kHz, 1MHz, 10MHz => 6 decades, 540px => 90px/decade -->
+  <text x="100" y="348" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">100 Hz</text>
+  <text x="190" y="348" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">1 kHz</text>
+  <text x="280" y="348" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">10 kHz</text>
+  <text x="370" y="348" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">100 kHz</text>
+  <text x="460" y="348" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">1 MHz</text>
+  <text x="550" y="348" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">10 MHz</text>
+  <text x="370" y="372" fill="#6a7a90" font-size="12" font-family="Chakra Petch, sans-serif" text-anchor="middle">Offset Frequency</text>
+
+  <!-- Y axis: -60 to -150 dBc/Hz (90 dB range, 280px => ~3.1px/dB) -->
+  <text x="92" y="54" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="end">-60</text>
+  <text x="92" y="117" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="end">-80</text>
+  <text x="92" y="179" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="end">-100</text>
+  <text x="92" y="241" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="end">-120</text>
+  <text x="92" y="303" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="end">-140</text>
+  <text x="40" y="190" fill="#6a7a90" font-size="12" font-family="Chakra Petch, sans-serif" text-anchor="middle" transform="rotate(-90, 40, 190)">L(f) dBc/Hz</text>
+
+  <!-- Grid -->
+  <line x1="100" y1="117" x2="640" y2="117" stroke="#1e293b" stroke-width="0.5"/>
+  <line x1="100" y1="179" x2="640" y2="179" stroke="#1e293b" stroke-width="0.5"/>
+  <line x1="100" y1="241" x2="640" y2="241" stroke="#1e293b" stroke-width="0.5"/>
+  <line x1="100" y1="303" x2="640" y2="303" stroke="#1e293b" stroke-width="0.5"/>
+  <line x1="190" y1="50" x2="190" y2="330" stroke="#1e293b" stroke-width="0.5"/>
+  <line x1="280" y1="50" x2="280" y2="330" stroke="#1e293b" stroke-width="0.5"/>
+  <line x1="370" y1="50" x2="370" y2="330" stroke="#1e293b" stroke-width="0.5"/>
+  <line x1="460" y1="50" x2="460" y2="330" stroke="#1e293b" stroke-width="0.5"/>
+  <line x1="550" y1="50" x2="550" y2="330" stroke="#1e293b" stroke-width="0.5"/>
+
+  <!-- Phase noise mask line (the spec) -->
+  <!-- 1kHz=-80 => x=190, y=117 ; 10kHz=-100 => x=280, y=179 ; 100kHz=-115 => x=370, y=226 ; 1MHz=-130 => x=460, y=272 -->
+  <polyline fill="none" stroke="#f59e0b" stroke-width="2" stroke-dasharray="8,4"
+    points="100,86 190,117 280,179 370,226 460,272 550,303"/>
+
+  <!-- Actual phase noise (slightly better than mask, with realistic shape) -->
+  <polyline fill="none" stroke="#00e5ff" stroke-width="2.5"
+    points="100,75 130,92 160,107 190,120 220,140 250,158 280,173 310,188 340,203 370,218 400,232 430,248 460,265 490,278 520,289 550,298 580,303 640,308"/>
+
+  <!-- Fill under actual curve -->
+  <polygon fill="rgba(0,229,255,0.06)"
+    points="100,75 130,92 160,107 190,120 220,140 250,158 280,173 310,188 340,203 370,218 400,232 430,248 460,265 490,278 520,289 550,298 580,303 640,308 640,330 100,330"/>
+
+  <!-- Mask points (dots) -->
+  <circle cx="190" cy="117" r="5" fill="#f59e0b"/>
+  <circle cx="280" cy="179" r="5" fill="#f59e0b"/>
+  <circle cx="370" cy="226" r="5" fill="#f59e0b"/>
+  <circle cx="460" cy="272" r="5" fill="#f59e0b"/>
+
+  <!-- Labels on mask points -->
+  <text x="195" y="108" fill="#f59e0b" font-size="10" font-family="JetBrains Mono, monospace">-80</text>
+  <text x="285" y="173" fill="#f59e0b" font-size="10" font-family="JetBrains Mono, monospace">-100</text>
+  <text x="375" y="220" fill="#f59e0b" font-size="10" font-family="JetBrains Mono, monospace">-115</text>
+  <text x="465" y="266" fill="#f59e0b" font-size="10" font-family="JetBrains Mono, monospace">-130</text>
+
+  <!-- Legend -->
+  <rect x="490" y="60" width="140" height="55" rx="6" fill="#0f1520" stroke="#1e293b" stroke-width="1"/>
+  <line x1="500" y1="78" x2="530" y2="78" stroke="#00e5ff" stroke-width="2.5"/>
+  <text x="535" y="82" fill="#d8e0ec" font-size="10" font-family="Chakra Petch, sans-serif">Actual noise</text>
+  <line x1="500" y1="98" x2="530" y2="98" stroke="#f59e0b" stroke-width="2" stroke-dasharray="8,4"/>
+  <text x="535" y="102" fill="#d8e0ec" font-size="10" font-family="Chakra Petch, sans-serif">Mask (spec)</text>
+</svg>
+</div>
+<div class="diagram-caption">Figure 9.3 -- Phase noise spectrum. The cyan curve shows the actual oscillator noise; the dashed amber line is the specification mask with its four defined points.</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 5: Phase Noise to EVM -->
+<!-- ============================================================ -->
+<h2><span class="sn">9.5</span> How Phase Noise Becomes EVM</h2>
+
+<p>
+Phase noise matters because it directly corrupts the modulated signal. Here is the mechanism, step by step:
+</p>
+
+<ol>
+  <li><strong>Phase uncertainty:</strong> The oscillator's phase jitters randomly. When the mixer upconverts the signal, this jitter is imprinted on every transmitted symbol.</li>
+  <li><strong>Symbol rotation:</strong> Each constellation point (QPSK, 16QAM, 64QAM) is defined by a precise phase and amplitude. Phase noise <em>rotates</em> each symbol by a random angle around its ideal position.</li>
+  <li><strong>Error vector:</strong> The distance between the ideal symbol position and the actual (rotated) position is the error vector. The RMS of all error vectors, normalized to the signal amplitude, is the <strong>Error Vector Magnitude (EVM)</strong>.</li>
+  <li><strong>SNR penalty:</strong> EVM acts as an additional noise source. Higher EVM means the effective SNR is lower, regardless of how good the link budget is.</li>
+</ol>
+
+<h3>The Integration Formula</h3>
+
+<p>
+To convert phase noise into EVM, we integrate the phase noise power spectral density across the signal bandwidth:
+</p>
+
+<div class="math-block">
+  &sigma;&sup2;<sub>&phi;</sub> = 2 &times; &int;<sub>f<sub>low</sub></sub><sup>f<sub>high</sub></sup> L(f) df &nbsp;&nbsp;&nbsp;(integrated phase noise power, radians&sup2;)<br><br>
+  EVM<sub>phase</sub> = &sigma;<sub>&phi;</sub> &nbsp;&nbsp;&nbsp;(for small angles, sin(&phi;) &asymp; &phi;)<br><br>
+  EVM<sub>dB</sub> = 20 &times; log<sub>10</sub>(&sigma;<sub>&phi;</sub>)
+</div>
+
+<p>
+The factor of 2 accounts for both sidebands. The integration limits are typically from 1 kHz (below which the PLL tracks out the noise) to half the symbol rate (the signal bandwidth). For a 240 MHz wide channel, f<sub>high</sub> = 120 MHz.
+</p>
+
+<h3>Worked Example</h3>
+
+<p>
+Using the phase noise mask as a worst case, and approximating the integral piecewise between mask points:
+</p>
+
+<div class="math-block">
+  Segment 1 kHz--10 kHz: L &asymp; &minus;90 dBc/Hz (average), BW = 9 kHz<br>
+  &rarr; 10<sup>-9</sup> &times; 9000 = 9 &times; 10<sup>-6</sup><br><br>
+  Segment 10 kHz--100 kHz: L &asymp; &minus;107.5 dBc/Hz, BW = 90 kHz<br>
+  &rarr; 1.78 &times; 10<sup>-11</sup> &times; 90000 = 1.6 &times; 10<sup>-6</sup><br><br>
+  Segment 100 kHz--1 MHz: L &asymp; &minus;122.5 dBc/Hz, BW = 900 kHz<br>
+  &rarr; 5.6 &times; 10<sup>-13</sup> &times; 900000 = 5 &times; 10<sup>-7</sup><br><br>
+  Total &sigma;&sup2;<sub>&phi;</sub> &asymp; 2 &times; 11.1 &times; 10<sup>-6</sup> = 22.2 &times; 10<sup>-6</sup> rad&sup2;<br>
+  &sigma;<sub>&phi;</sub> &asymp; 0.0047 rad &asymp; <strong>0.27&deg;</strong><br>
+  EVM<sub>phase</sub> &asymp; 0.47% (&minus;46.5 dB)
+</div>
+
+<p>
+This is comfortably below the EVM limits for QPSK (~17%) and 16QAM (~12.5%). But under stress -- when phase noise degrades by +10 or +20 dB due to PLL unlock or thermal effects -- EVM can spike to levels that force modulation downgrade.
+</p>
+
+<div class="warn-box">
+  <strong>Higher-order modulations are more sensitive.</strong> 64QAM requires EVM &lt; 8%, meaning the allowed phase noise budget is ~4x tighter than for QPSK. This is why the simulator automatically drops to lower modulation orders when oscillator quality degrades.
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 6: Phase-Locked Loop (PLL) -->
+<!-- ============================================================ -->
+<h2><span class="sn">9.6</span> Phase-Locked Loop (PLL)</h2>
+
+<p>
+The ground station cannot simply assume the satellite is transmitting at exactly 12 GHz. Due to oscillator drift, Doppler shift, and initial frequency uncertainty, the received signal could be offset by hundreds of kHz. The <strong>Phase-Locked Loop (PLL)</strong> is the circuit that tracks the satellite's actual frequency and keeps the receiver locked to it.
+</p>
+
+<h3>PLL Block Diagram</h3>
+
+<!-- SVG: PLL block diagram -->
+<div class="diagram-wrapper">
+<svg viewBox="0 0 750 320" xmlns="http://www.w3.org/2000/svg">
+  <rect width="750" height="320" fill="#111827" rx="8"/>
+
+  <!-- Title -->
+  <text x="375" y="28" fill="#d8e0ec" font-size="14" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">Phase-Locked Loop (PLL) Block Diagram</text>
+
+  <!-- Input signal -->
+  <text x="30" y="128" fill="#00e5ff" font-size="12" font-family="JetBrains Mono, monospace">f_in</text>
+  <line x1="65" y1="123" x2="110" y2="123" stroke="#00e5ff" stroke-width="1.5" marker-end="url(#arr9c)"/>
+
+  <!-- Phase Detector -->
+  <rect x="110" y="95" width="140" height="55" rx="8" fill="rgba(0,229,255,0.08)" stroke="#00e5ff" stroke-width="1.5"/>
+  <text x="180" y="118" fill="#00e5ff" font-size="13" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">Phase</text>
+  <text x="180" y="136" fill="#00e5ff" font-size="13" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">Detector</text>
+  <text x="180" y="168" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">e(t) = &phi;_in - &phi;_vco</text>
+
+  <!-- Arrow to Loop Filter -->
+  <line x1="250" y1="123" x2="310" y2="123" stroke="#6a7a90" stroke-width="1.5" marker-end="url(#arr9)"/>
+  <text x="280" y="113" fill="#f59e0b" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">e(t)</text>
+
+  <!-- Loop Filter -->
+  <rect x="310" y="95" width="140" height="55" rx="8" fill="rgba(245,158,11,0.08)" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="380" y="118" fill="#f59e0b" font-size="13" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">Loop</text>
+  <text x="380" y="136" fill="#f59e0b" font-size="13" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">Filter</text>
+  <text x="380" y="168" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">H(s) = (1 + s/&omega;z) / s</text>
+
+  <!-- Arrow to VCO -->
+  <line x1="450" y1="123" x2="510" y2="123" stroke="#6a7a90" stroke-width="1.5" marker-end="url(#arr9)"/>
+  <text x="480" y="113" fill="#34d399" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">v(t)</text>
+
+  <!-- VCO -->
+  <rect x="510" y="95" width="140" height="55" rx="8" fill="rgba(52,211,153,0.08)" stroke="#34d399" stroke-width="1.5"/>
+  <text x="580" y="118" fill="#34d399" font-size="13" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">VCO</text>
+  <text x="580" y="136" fill="#34d399" font-size="11" font-family="Chakra Petch, sans-serif" text-anchor="middle">(Voltage-Controlled</text>
+  <text x="580" y="150" fill="#34d399" font-size="11" font-family="Chakra Petch, sans-serif" text-anchor="middle">Oscillator)</text>
+
+  <!-- Output -->
+  <line x1="650" y1="123" x2="720" y2="123" stroke="#34d399" stroke-width="1.5" marker-end="url(#arr9g)"/>
+  <text x="720" y="113" fill="#34d399" font-size="12" font-family="JetBrains Mono, monospace" text-anchor="end">f_out</text>
+
+  <!-- Feedback path -->
+  <line x1="580" y1="150" x2="580" y2="240" stroke="#a78bfa" stroke-width="1.5"/>
+  <line x1="580" y1="240" x2="180" y2="240" stroke="#a78bfa" stroke-width="1.5"/>
+  <line x1="180" y1="240" x2="180" y2="150" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arr9p)"/>
+
+  <!-- Feedback label -->
+  <rect x="310" y="225" width="150" height="30" rx="6" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1"/>
+  <text x="385" y="245" fill="#a78bfa" font-size="12" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="500">Feedback (&phi;_vco)</text>
+
+  <!-- Annotations -->
+  <text x="180" y="280" fill="#6a7a90" font-size="10" font-family="Chakra Petch, sans-serif" text-anchor="middle">Compares input &amp;</text>
+  <text x="180" y="293" fill="#6a7a90" font-size="10" font-family="Chakra Petch, sans-serif" text-anchor="middle">VCO phases</text>
+  <text x="380" y="280" fill="#6a7a90" font-size="10" font-family="Chakra Petch, sans-serif" text-anchor="middle">Sets loop bandwidth</text>
+  <text x="380" y="293" fill="#6a7a90" font-size="10" font-family="Chakra Petch, sans-serif" text-anchor="middle">&amp; damping</text>
+  <text x="580" y="280" fill="#6a7a90" font-size="10" font-family="Chakra Petch, sans-serif" text-anchor="middle">Generates output at</text>
+  <text x="580" y="293" fill="#6a7a90" font-size="10" font-family="Chakra Petch, sans-serif" text-anchor="middle">controlled frequency</text>
+
+  <defs>
+    <marker id="arr9g" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="8" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,3 L0,6" fill="#34d399"/>
+    </marker>
+    <marker id="arr9p" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="8" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,3 L0,6" fill="#a78bfa"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<div class="diagram-caption">Figure 9.4 -- PLL block diagram. The phase detector compares the input signal to the VCO output; the loop filter determines tracking dynamics; the VCO generates the output frequency steered by the error signal.</div>
+
+<h3>How the PLL Works</h3>
+
+<ol>
+  <li><strong>Phase Detector</strong> computes the phase error e(t) between the incoming signal and the VCO output. When locked, this error is near zero.</li>
+  <li><strong>Loop Filter</strong> smooths the error signal and determines the PLL's dynamic behavior. Its bandwidth B<sub>L</sub> determines how fast the PLL can track frequency changes. A typical value for satellite receivers is B<sub>L</sub> = 10-50 kHz.</li>
+  <li><strong>VCO</strong> adjusts its output frequency proportional to the control voltage v(t). When the error signal says "the input is higher than my output," the VCO speeds up.</li>
+  <li><strong>Feedback</strong> closes the loop: the VCO's output feeds back to the phase detector, so the loop continuously minimizes the phase error.</li>
+</ol>
+
+<h3>Loop Parameters</h3>
+
+<table>
+  <thead>
+    <tr><th>Parameter</th><th>Typical Value</th><th>Effect</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Loop bandwidth (B<sub>L</sub>)</td><td>10 -- 50 kHz</td><td>Higher = faster tracking, more noise passed through</td></tr>
+    <tr><td>Damping ratio (&zeta;)</td><td>0.707</td><td>Critically damped -- fastest settle without overshoot</td></tr>
+    <tr><td>Loop gain (K)</td><td>K<sub>d</sub> &times; K<sub>f</sub> &times; K<sub>v</sub></td><td>Product of detector, filter, and VCO gains</td></tr>
+    <tr><td>Pull-in range</td><td>&plusmn;2 &times; B<sub>L</sub></td><td>Max frequency error from which PLL can acquire lock</td></tr>
+    <tr><td>Lock time</td><td>~5 / B<sub>L</sub></td><td>Time to settle within 1% of final frequency</td></tr>
+  </tbody>
+</table>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 7: PLL Unlock -->
+<!-- ============================================================ -->
+<h2><span class="sn">9.7</span> PLL Unlock</h2>
+
+<p>
+The PLL can only track frequency changes that fall within its loop bandwidth. When the frequency error exceeds the <strong>pull-in range</strong> (approximately &plusmn;2 &times; B<sub>L</sub>), the phase detector's output becomes incoherent -- the error signal wraps around, and the VCO cannot converge on the correct frequency.
+</p>
+
+<p>This is <strong>PLL unlock</strong> -- a catastrophic (but temporary) event with several immediate consequences:</p>
+
+<ul>
+  <li><strong>Phase noise spikes +20 dB:</strong> Without coherent tracking, the receiver's local oscillator is essentially free-running. All the noise that the PLL normally suppresses pours through.</li>
+  <li><strong>EVM explodes:</strong> The phase uncertainty can reach tens of degrees. No modulation scheme above QPSK survives.</li>
+  <li><strong>Reacquisition required:</strong> The receiver must perform a frequency sweep to find the signal again. This takes hundreds of milliseconds -- an eternity at 100+ Mbps where every millisecond represents ~12,500 packets.</li>
+</ul>
+
+<div class="danger-box">
+  <strong>Cascade effect:</strong> During PLL unlock, the simulator models the received signal quality as effectively zero. ModCod drops to the lowest rate (QPSK 1/4 or nothing), and the protocol layer reports massive packet loss. A 500 ms unlock event during peak throughput can cause a 60 Mbps goodput drop.
+</div>
+
+<h3>What Causes Unlock?</h3>
+
+<ul>
+  <li><strong>Rapid temperature change:</strong> If the PA suddenly increases power (or a thermal fault occurs), the oscillator temperature can jump faster than the PLL can track.</li>
+  <li><strong>Doppler rate at low elevation:</strong> Near AOS/LOS, the satellite's radial velocity changes rapidly. Combined with oscillator drift, the total frequency change rate can exceed the PLL's slew rate.</li>
+  <li><strong>Mechanical shock:</strong> Micrometeorite impact or thruster firing can cause crystal frequency jumps. These step changes are the hardest for a PLL to handle.</li>
+  <li><strong>Power glitch:</strong> If the power bus voltage drops momentarily (eclipse transition, battery switchover), the oscillator frequency can jump.</li>
+</ul>
+
+<p>
+In the simulator, PLL unlock is modeled as a discrete fault event with <code>triggerTime</code>, <code>duration</code>, and <code>severity</code>. Severity determines the phase noise penalty (+10 to +30 dB) and the reacquisition time.
+</p>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 8: Temperature Coupling -->
+<!-- ============================================================ -->
+<h2><span class="sn">9.8</span> The Thermal-Electrical Feedback Loop</h2>
+
+<p>
+This is where oscillator physics meets thermal physics in a closed loop that the simulator models tick by tick. The coupling chain:
+</p>
+
+<ol>
+  <li><strong>PA dissipates heat.</strong> The power amplifier converts DC power to RF power at 15-25% efficiency. The rest is heat. At 10 W RF output and 20% efficiency, the PA dissipates 40 W as heat.</li>
+  <li><strong>Oscillator warms.</strong> The PA and oscillator share the satellite's thermal bus. As the PA heats up, the oscillator's temperature rises -- not instantly, but with a thermal time constant of tens of seconds.</li>
+  <li><strong>Frequency drifts.</strong> The warmer oscillator shifts frequency per the drift model (&alpha;&Delta;T + &beta;&Delta;T&sup2;).</li>
+  <li><strong>Tracking degrades.</strong> The ground station's PLL must track the changing frequency. If the drift rate approaches the loop bandwidth, tracking error increases.</li>
+  <li><strong>EVM rises.</strong> Increased tracking error plus elevated phase noise (phase noise worsens with temperature) both contribute to higher EVM.</li>
+  <li><strong>SNR penalty increases.</strong> Higher EVM means the effective SNR is lower than the link budget predicts.</li>
+  <li><strong>ModCod drops.</strong> The adaptive modulation system responds to lower SNR by selecting a more robust (but slower) modulation scheme.</li>
+  <li><strong>Goodput falls.</strong> Lower ModCod = fewer bits per symbol = lower throughput.</li>
+</ol>
+
+<!-- SVG: Thermal-electrical feedback loop -->
+<div class="diagram-wrapper">
+<svg viewBox="0 0 700 450" xmlns="http://www.w3.org/2000/svg">
+  <rect width="700" height="450" fill="#111827" rx="8"/>
+
+  <text x="350" y="28" fill="#d8e0ec" font-size="14" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">Thermal-Electrical Feedback Loop</text>
+
+  <!-- PA Heat -->
+  <rect x="260" y="50" width="180" height="40" rx="6" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5"/>
+  <text x="350" y="75" fill="#ef4444" font-size="13" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">PA Dissipates Heat</text>
+
+  <line x1="350" y1="90" x2="350" y2="115" stroke="#6a7a90" stroke-width="1.5" marker-end="url(#arr9)"/>
+
+  <!-- Oscillator Temp -->
+  <rect x="245" y="115" width="210" height="40" rx="6" fill="rgba(245,158,11,0.1)" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="350" y="140" fill="#f59e0b" font-size="13" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">Oscillator Temperature Rises</text>
+
+  <line x1="350" y1="155" x2="350" y2="180" stroke="#6a7a90" stroke-width="1.5" marker-end="url(#arr9)"/>
+
+  <!-- Frequency Drift -->
+  <rect x="255" y="180" width="190" height="40" rx="6" fill="rgba(0,229,255,0.08)" stroke="#00e5ff" stroke-width="1.5"/>
+  <text x="350" y="205" fill="#00e5ff" font-size="13" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">Frequency Drifts</text>
+
+  <line x1="350" y1="220" x2="350" y2="245" stroke="#6a7a90" stroke-width="1.5" marker-end="url(#arr9)"/>
+
+  <!-- Tracking Error -->
+  <rect x="240" y="245" width="220" height="40" rx="6" fill="rgba(167,139,250,0.1)" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="350" y="270" fill="#a78bfa" font-size="13" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">PLL Tracking Error Grows</text>
+
+  <line x1="350" y1="285" x2="350" y2="310" stroke="#6a7a90" stroke-width="1.5" marker-end="url(#arr9)"/>
+
+  <!-- EVM -->
+  <rect x="268" y="310" width="165" height="40" rx="6" fill="rgba(244,114,182,0.1)" stroke="#f472b6" stroke-width="1.5"/>
+  <text x="350" y="335" fill="#f472b6" font-size="13" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">EVM Increases</text>
+
+  <line x1="350" y1="350" x2="350" y2="375" stroke="#6a7a90" stroke-width="1.5" marker-end="url(#arr9)"/>
+
+  <!-- Goodput Falls -->
+  <rect x="230" y="375" width="240" height="40" rx="6" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5"/>
+  <text x="350" y="400" fill="#ef4444" font-size="13" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">ModCod Drops, Goodput Falls</text>
+
+  <!-- Feedback arrow (right side): goodput drop -> PA might change power -->
+  <path d="M 470 395 Q 560 395 560 240 Q 560 70 440 70" fill="none" stroke="rgba(239,68,68,0.4)" stroke-width="1.5" stroke-dasharray="6,4" marker-end="url(#arr9r)"/>
+  <text x="585" y="240" fill="rgba(239,68,68,0.5)" font-size="10" font-family="Chakra Petch, sans-serif" text-anchor="start" transform="rotate(-90, 585, 240)">Thermal inertia delays recovery</text>
+
+  <!-- Time annotations on left -->
+  <text x="140" y="75" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="end">t = 0</text>
+  <text x="140" y="140" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="end">t + 10s</text>
+  <text x="140" y="205" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="end">t + 15s</text>
+  <text x="140" y="270" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="end">t + 20s</text>
+  <text x="140" y="335" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="end">t + 25s</text>
+  <text x="140" y="400" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="end">t + 30s</text>
+  <line x1="145" y1="60" x2="145" y2="410" stroke="#1e293b" stroke-width="1" stroke-dasharray="3,3"/>
+
+  <defs>
+    <marker id="arr9r" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="8" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,3 L0,6" fill="rgba(239,68,68,0.4)"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<div class="diagram-caption">Figure 9.5 -- The thermal-electrical feedback loop. PA heat propagates through the oscillator to degrade tracking and throughput over ~30 seconds. Thermal inertia means recovery is slow even after the root cause is addressed.</div>
+
+<div class="info-box">
+  <strong>The vicious cycle:</strong> In extreme cases, the PA's thermal throttling reduces output power to cool down, which reduces the link margin, which might cause the ground station to request lower ModCod, which in turn means longer transmission times for the same data -- keeping the PA hot longer. The simulator captures this interaction because the thermal model and the RF chain run at the same 1-second tick rate.
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 9: Code Connection -->
+<!-- ============================================================ -->
+<h2><span class="sn">9.9</span> Code Connection</h2>
+
+<p>
+The oscillator model is implemented across two key files in the simulator:
+</p>
+
+<h3>src/simulation/rf-chain/oscillator.ts</h3>
+
+<p>
+This file contains the core oscillator model. The key function computes the frequency offset and phase noise for each simulation tick:
+</p>
+
+<pre><code><span class="cmt">// Frequency drift as function of temperature</span>
+<span class="kw">function</span> <span class="fn">computeFrequencyOffset</span>(
+  <span class="type">fNominal</span>: <span class="type">number</span>,     <span class="cmt">// 12e9 Hz</span>
+  <span class="type">temperature</span>: <span class="type">number</span>,  <span class="cmt">// current oscillator temp (°C)</span>
+  <span class="type">tRef</span>: <span class="type">number</span>          <span class="cmt">// reference temp (25°C)</span>
+): <span class="type">number</span> {
+  <span class="kw">const</span> deltaT = temperature - tRef;
+  <span class="kw">const</span> alpha = <span class="num">0.5</span>;   <span class="cmt">// ppm/°C linear</span>
+  <span class="kw">const</span> beta  = <span class="num">0.01</span>;  <span class="cmt">// ppm/°C² quadratic</span>
+  <span class="kw">const</span> ppmShift = alpha * deltaT + beta * deltaT * deltaT;
+  <span class="kw">return</span> fNominal * ppmShift * <span class="num">1e-6</span>;
+}
+
+<span class="cmt">// Phase noise with temperature degradation</span>
+<span class="kw">function</span> <span class="fn">getPhaseNoise</span>(
+  <span class="type">offsetHz</span>: <span class="type">number</span>,
+  <span class="type">tempDegradation</span>: <span class="type">number</span>,  <span class="cmt">// dB penalty from temp</span>
+  <span class="type">pllLocked</span>: <span class="type">boolean</span>
+): <span class="type">number</span> {
+  <span class="cmt">// Base phase noise from mask (interpolated)</span>
+  <span class="kw">const</span> basePn = <span class="fn">interpolateMask</span>(offsetHz);
+
+  <span class="cmt">// Unlock adds +20 dB of phase noise</span>
+  <span class="kw">const</span> unlockPenalty = pllLocked ? <span class="num">0</span> : <span class="num">20</span>;
+
+  <span class="kw">return</span> basePn + tempDegradation + unlockPenalty;
+}</code></pre>
+
+<h3>src/simulation/rf-chain/signal-quality.ts</h3>
+
+<p>
+This file integrates the oscillator output into the overall signal quality calculation:
+</p>
+
+<pre><code><span class="cmt">// Convert integrated phase noise to EVM contribution</span>
+<span class="kw">function</span> <span class="fn">phaseNoiseToEvm</span>(
+  <span class="type">integratedNoiseRad2</span>: <span class="type">number</span>
+): <span class="type">number</span> {
+  <span class="cmt">// sigma_phi = sqrt(integrated noise power)</span>
+  <span class="kw">const</span> sigmaPhi = Math.<span class="fn">sqrt</span>(integratedNoiseRad2);
+
+  <span class="cmt">// For small angles, EVM ≈ sigma_phi (radians)</span>
+  <span class="cmt">// Convert to percentage</span>
+  <span class="kw">return</span> sigmaPhi * <span class="num">100</span>;
+}
+
+<span class="cmt">// Total EVM from all sources</span>
+<span class="kw">function</span> <span class="fn">computeTotalEvm</span>(
+  <span class="type">paEvm</span>: <span class="type">number</span>,        <span class="cmt">// from PA compression</span>
+  <span class="type">phaseEvm</span>: <span class="type">number</span>,     <span class="cmt">// from oscillator noise</span>
+  <span class="type">quantizationEvm</span>: <span class="type">number</span>
+): <span class="type">number</span> {
+  <span class="cmt">// EVM contributions add in power (RSS)</span>
+  <span class="kw">return</span> Math.<span class="fn">sqrt</span>(
+    paEvm ** <span class="num">2</span> + phaseEvm ** <span class="num">2</span> + quantizationEvm ** <span class="num">2</span>
+  );
+}</code></pre>
+
+<div class="info-box">
+  <strong>Root-sum-square (RSS):</strong> EVM contributions from different sources add in power, not linearly. This means the worst single contributor dominates. If PA EVM is 5% and phase EVM is 1%, total EVM is ~5.1% -- the phase noise barely matters. But if phase EVM jumps to 8% (PLL stress), total becomes ~9.4% and may exceed the modulation threshold.
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 10: References -->
+<!-- ============================================================ -->
+<h2><span class="sn">9.10</span> References</h2>
+
+<ul class="ref-list">
+  <li><strong>Razavi, B.</strong> -- <em>RF Microelectronics</em>, 2nd Edition (Pearson, 2011). Chapter 8 covers oscillator fundamentals, phase noise models, and Leeson's equation. The standard graduate-level reference.</li>
+  <li><strong>Egan, W. F.</strong> -- <em>Phase-Lock Basics</em>, 2nd Edition (Wiley-IEEE, 2007). Comprehensive treatment of PLL design, loop filter topologies, lock acquisition, and noise analysis.</li>
+  <li><strong>Leeson, D. B.</strong> -- "A Simple Model of Feedback Oscillator Noise Spectrum," <em>Proceedings of the IEEE</em>, Vol. 54, No. 2, 1966. The foundational paper on oscillator phase noise modeling.</li>
+  <li><strong>DVB-S2X Standard</strong> -- ETSI EN 302 307-2. Section 5 specifies EVM limits for each ModCod, which determine the phase noise budget.</li>
+  <li><strong>Humphreys, T. et al.</strong> -- "Measured LEO Satellite Timing," arXiv:2501.05302 (2025). Measured timing and frequency characteristics of operational LEO broadband satellites, providing empirical validation of oscillator drift models.</li>
+</ul>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 11: Self-Assessment Questions -->
+<!-- ============================================================ -->
+<h2><span class="sn">9.11</span> Self-Assessment Questions</h2>
+
+<ul class="questions">
+  <li>
+    A TCXO has a stability of 0.5 ppm/&#176;C. The satellite's oscillator operates at 12 GHz and its temperature increases by 40&#176;C above the reference. Using only the linear term, calculate the frequency offset in kHz. Then recalculate including the quadratic term (&beta; = 0.01 ppm/&#176;C&sup2;). How much does the quadratic term add as a percentage of the linear-only result?
+  </li>
+  <li>
+    The PLL has a loop bandwidth of 25 kHz. The satellite's oscillator is drifting at a rate of 3 kHz/s due to thermal effects. Is the PLL in danger of losing lock? What if a Doppler rate of 40 kHz/s is added on top? Explain your reasoning using the relationship between drift rate and loop bandwidth.
+  </li>
+  <li>
+    Explain in your own words why higher-order modulation schemes (like 64QAM) are more sensitive to phase noise than lower-order schemes (like QPSK). Draw a constellation diagram for each and show how a given phase rotation affects symbol detection differently.
+  </li>
+  <li>
+    A phase noise measurement shows L(10 kHz) = &minus;95 dBc/Hz instead of the specified &minus;100 dBc/Hz. The oscillator is 5 dB worse than spec at this offset. Qualitatively, what downstream effects would you expect? Would this likely cause a ModCod change, and for which modulation orders?
+  </li>
+  <li>
+    Describe the thermal-electrical feedback loop in 5 steps, starting from "PA output power increases." For each step, state the physical mechanism and the approximate time scale. Why does this loop make the system behave differently from a simple independent-parameter model?
+  </li>
+  <li>
+    In the code, EVM contributions from the PA and the oscillator are combined using root-sum-square (RSS). Why is RSS the correct method rather than simple addition? Under what condition would the oscillator's contribution dominate the total EVM? Give a numerical scenario.
+  </li>
+</ul>
+
+<!-- ============ BOTTOM NAV ============ -->
+<nav class="bottom">
+  <a href="index.html">&larr; Course Home</a>
+  <a href="unit-10-faults.html">Unit 10: Fault Injection &rarr;</a>
+</nav>
+
+</div><!-- .container -->
+</body>
+</html>

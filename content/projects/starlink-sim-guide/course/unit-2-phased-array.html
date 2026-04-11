@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unit 2: Phased Array Antennas</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:         #0a0e1a;
+    --bg-card:    #111827;
+    --bg-code:    #111827;
+    --text:       #d8dfe8;
+    --text-dim:   #8891a0;
+    --accent:     #00e5ff;
+    --accent-dim: #007a8a;
+    --secondary:  #f59e0b;
+    --success:    #34d399;
+    --error:      #f87171;
+    --border:     #1e293b;
+    --radius:     8px;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+  }
+
+  /* ── Navigation ───────────────────────────── */
+  nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2rem;
+    font-size: 0.9rem;
+  }
+  nav a {
+    color: var(--accent);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  nav a:hover { color: #5ef5ff; }
+  .nav-label { color: var(--text-dim); }
+
+  /* ── Header ───────────────────────────────── */
+  .unit-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--accent-dim), #004d5e);
+    color: var(--accent);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 0.3em 0.8em;
+    border-radius: 4px;
+    margin-bottom: 0.75rem;
+  }
+
+  h1 {
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.5rem;
+    line-height: 1.2;
+  }
+  .subtitle {
+    font-size: 1.1rem;
+    color: var(--text-dim);
+    margin-bottom: 2rem;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #fff;
+    margin: 3rem 0 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--border);
+  }
+  h2 .section-number {
+    color: var(--accent);
+    margin-right: 0.3em;
+  }
+
+  h3 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--accent);
+    margin: 1.8rem 0 0.6rem;
+  }
+
+  p { margin-bottom: 1rem; }
+
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* ── Objectives box ───────────────────────── */
+  .objectives {
+    background: linear-gradient(135deg, #0c1a2e, #0f1f35);
+    border: 1px solid #1e3a5f;
+    border-left: 4px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 1.5rem 1.5rem 1rem;
+    margin: 1.5rem 0 2rem;
+  }
+  .objectives h3 {
+    margin-top: 0;
+    color: var(--accent);
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .objectives ul {
+    list-style: none;
+    padding: 0;
+  }
+  .objectives li {
+    padding: 0.3em 0 0.3em 1.5em;
+    position: relative;
+  }
+  .objectives li::before {
+    content: '\2713';
+    position: absolute;
+    left: 0;
+    color: var(--success);
+    font-weight: 700;
+  }
+
+  /* ── Code blocks ──────────────────────────── */
+  pre {
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.2rem 1.5rem;
+    overflow-x: auto;
+    margin: 1rem 0 1.5rem;
+    font-size: 0.88rem;
+    line-height: 1.6;
+  }
+  code {
+    font-family: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+    font-size: 0.88em;
+  }
+  pre code { color: var(--text); }
+  .kw   { color: var(--accent); }
+  .str  { color: var(--success); }
+  .num  { color: var(--secondary); }
+  .cmt  { color: var(--text-dim); font-style: italic; }
+  .fn   { color: #a78bfa; }
+  .type { color: #f472b6; }
+
+  p code, li code, td code {
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+    font-size: 0.88em;
+    color: var(--accent);
+  }
+
+  /* ── Tables ───────────────────────────────── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0 1.5rem;
+    font-size: 0.92rem;
+  }
+  th {
+    background: var(--bg-code);
+    color: var(--accent);
+    font-weight: 600;
+    text-align: left;
+    padding: 0.7em 1em;
+    border-bottom: 2px solid var(--border);
+  }
+  td {
+    padding: 0.6em 1em;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tr:hover td { background: rgba(0,229,255,0.03); }
+
+  /* ── SVG diagrams ─────────────────────────── */
+  .diagram-wrapper {
+    display: flex;
+    justify-content: center;
+    margin: 1.5rem 0;
+  }
+  .diagram-wrapper svg {
+    max-width: 100%;
+    height: auto;
+  }
+  .diagram-caption {
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    margin-top: -0.5rem;
+    margin-bottom: 1.5rem;
+    font-style: italic;
+  }
+
+  /* ── Info / warning boxes ─────────────────── */
+  .info-box {
+    background: rgba(0,229,255,0.06);
+    border: 1px solid rgba(0,229,255,0.2);
+    border-radius: var(--radius);
+    padding: 1rem 1.2rem;
+    margin: 1rem 0 1.5rem;
+    font-size: 0.93rem;
+  }
+  .info-box strong { color: var(--accent); }
+
+  .warn-box {
+    background: rgba(245,158,11,0.08);
+    border: 1px solid rgba(245,158,11,0.25);
+    border-radius: var(--radius);
+    padding: 1rem 1.2rem;
+    margin: 1rem 0 1.5rem;
+    font-size: 0.93rem;
+  }
+  .warn-box strong { color: var(--secondary); }
+
+  /* ── Math blocks ──────────────────────────── */
+  .math-block {
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem 1.5rem;
+    margin: 1rem 0 1.5rem;
+    font-family: 'SF Mono', Consolas, monospace;
+    font-size: 0.95rem;
+    text-align: center;
+    color: var(--secondary);
+    letter-spacing: 0.02em;
+    line-height: 1.8;
+  }
+
+  /* ── Questions ─────────────────────────────── */
+  .questions {
+    counter-reset: question;
+    list-style: none;
+    padding: 0;
+  }
+  .questions li {
+    counter-increment: question;
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem 1.2rem;
+    margin-bottom: 0.75rem;
+    position: relative;
+    padding-left: 3.5rem;
+  }
+  .questions li::before {
+    content: 'Q' counter(question);
+    position: absolute;
+    left: 1rem;
+    top: 1rem;
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 0.85rem;
+    font-family: monospace;
+  }
+
+  /* ── References ────────────────────────────── */
+  .ref-list {
+    list-style: none;
+    padding: 0;
+  }
+  .ref-list li {
+    padding: 0.5em 0 0.5em 1.5em;
+    position: relative;
+    font-size: 0.93rem;
+  }
+  .ref-list li::before {
+    content: '\25B8';
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+  }
+
+  /* ── Bottom nav ────────────────────────────── */
+  .bottom-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.9rem;
+  }
+  .bottom-nav a {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--accent);
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .bottom-nav a:hover {
+    background: rgba(0,229,255,0.06);
+    border-color: var(--accent);
+  }
+
+  ol { padding-left: 1.5em; margin-bottom: 1rem; }
+  ol li { margin-bottom: 0.5rem; }
+  ul:not(.objectives ul):not(.ref-list):not(.questions) {
+    padding-left: 1.5em;
+    margin-bottom: 1rem;
+  }
+  ul:not(.objectives ul):not(.ref-list):not(.questions) li {
+    margin-bottom: 0.4rem;
+  }
+
+  /* ── Responsive ────────────────────────────── */
+  @media (max-width: 640px) {
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.25rem; }
+    pre { font-size: 0.8rem; padding: 1rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- ═══════════════════════════════════════════════
+     NAVIGATION
+     ═══════════════════════════════════════════════ -->
+<nav>
+  <a href="unit-1-orbital-mechanics.html">&larr; Unit 1: Orbital Mechanics</a>
+  <span class="nav-label">Unit 2 of 2</span>
+  <a href="index.html">Course Index &rarr;</a>
+</nav>
+
+<!-- ═══════════════════════════════════════════════
+     HEADER
+     ═══════════════════════════════════════════════ -->
+<div class="unit-badge">Unit 2</div>
+<h1>Phased Array Antennas</h1>
+<p class="subtitle">How Starlink steers its beam electronically, and how the simulator models element patterns, scan loss, and effective gain.</p>
+
+<!-- ═══════════════════════════════════════════════
+     LEARNING OBJECTIVES
+     ═══════════════════════════════════════════════ -->
+<div class="objectives">
+  <h3>Learning Objectives</h3>
+  <ul>
+    <li>Explain why LEO satellites require phased arrays instead of mechanical dishes</li>
+    <li>Describe how phase shifts between elements steer a beam without moving parts</li>
+    <li>Define the element radiation pattern and interpret the cos<sup>q</sup>(&theta;) model</li>
+    <li>Calculate array gain from element count, element gain, and taper efficiency</li>
+    <li>Quantify scan loss from projected aperture and impedance mismatch</li>
+    <li>Predict beamwidth broadening with scan angle</li>
+    <li>Estimate the gain impact of element failures</li>
+    <li>Trace how the simulator codebase implements these antenna models</li>
+  </ul>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     SECTION 1 — MECHANICAL vs PHASED
+     ═══════════════════════════════════════════════ -->
+<h2><span class="section-number">1</span>Mechanical vs. Phased Array Antennas</h2>
+
+<p>A traditional parabolic dish antenna achieves high gain by focusing energy with a curved reflector. To track a moving satellite, the dish must physically rotate on a gimbal. This works fine for geostationary satellites (which appear fixed in the sky), but for LEO satellites like Starlink it creates two fatal problems:</p>
+
+<ul>
+  <li><strong>On the satellite:</strong> A satellite serving thousands of users simultaneously would need to mechanically point different beams at different ground terminals. At 7.5 km/s orbital velocity, the geometry changes every second. Mechanical actuators cannot slew fast enough.</li>
+  <li><strong>On the ground:</strong> The user terminal needs to track a satellite that crosses the sky in 10 minutes, then hand off to the next satellite. A motorized dish is expensive, bulky, and has moving parts that wear out.</li>
+</ul>
+
+<p>Starlink solved this with <strong>flat-panel phased arrays</strong> on both the satellite and the user terminal. A phased array has no moving parts. It steers the beam electronically by adjusting the phase of the signal fed to each element, at microsecond timescales.</p>
+
+<!-- SVG: Mechanical vs Phased Array -->
+<div class="diagram-wrapper">
+<svg viewBox="0 0 420 200" width="420" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="0" width="420" height="200" rx="8" fill="#111827" stroke="#1e293b"/>
+
+  <!-- Left: Mechanical dish -->
+  <text x="105" y="22" text-anchor="middle" fill="#f87171" font-size="11" font-weight="700">Mechanical Dish</text>
+
+  <!-- Dish base -->
+  <rect x="95" y="155" width="20" height="25" rx="2" fill="#1e293b" stroke="#8891a0" stroke-width="1"/>
+  <!-- Dish arm -->
+  <line x1="105" y1="155" x2="105" y2="100" stroke="#8891a0" stroke-width="2"/>
+  <!-- Dish reflector -->
+  <path d="M 60,95 Q 105,60 150,95" fill="none" stroke="#f87171" stroke-width="2.5"/>
+  <!-- Feed -->
+  <circle cx="105" cy="80" r="3" fill="#f87171"/>
+  <!-- Beam -->
+  <path d="M 105,80 L 55,35 M 105,80 L 75,30 M 105,80 L 95,28 M 105,80 L 115,28 M 105,80 L 135,30 M 105,80 L 155,35"
+        stroke="#f87171" stroke-width="0.8" opacity="0.5"/>
+  <!-- Rotation arrow -->
+  <path d="M 68,130 A 40,40 0 0,1 142,130" fill="none" stroke="#f87171" stroke-width="1.2" stroke-dasharray="4,3"/>
+  <text x="105" y="145" text-anchor="middle" fill="#f87171" font-size="8">Must rotate</text>
+  <!-- X mark -->
+  <text x="105" y="195" text-anchor="middle" fill="#f87171" font-size="9">Slow, bulky, wear-prone</text>
+
+  <!-- Divider -->
+  <line x1="210" y1="15" x2="210" y2="190" stroke="#1e293b" stroke-width="1" stroke-dasharray="6,4"/>
+
+  <!-- Right: Phased Array -->
+  <text x="315" y="22" text-anchor="middle" fill="#34d399" font-size="11" font-weight="700">Phased Array</text>
+
+  <!-- Flat panel -->
+  <rect x="265" y="100" width="100" height="12" rx="3" fill="#0a0e1a" stroke="#34d399" stroke-width="1.5"/>
+
+  <!-- Elements -->
+  <circle cx="275" cy="106" r="2.5" fill="#34d399"/>
+  <circle cx="287" cy="106" r="2.5" fill="#34d399"/>
+  <circle cx="299" cy="106" r="2.5" fill="#34d399"/>
+  <circle cx="311" cy="106" r="2.5" fill="#34d399"/>
+  <circle cx="323" cy="106" r="2.5" fill="#34d399"/>
+  <circle cx="335" cy="106" r="2.5" fill="#34d399"/>
+  <circle cx="347" cy="106" r="2.5" fill="#34d399"/>
+  <circle cx="359" cy="106" r="2.5" fill="#34d399"/>
+
+  <!-- Phase shift labels -->
+  <text x="275" y="130" text-anchor="middle" fill="#8891a0" font-size="7">&phi;1</text>
+  <text x="287" y="130" text-anchor="middle" fill="#8891a0" font-size="7">&phi;2</text>
+  <text x="299" y="130" text-anchor="middle" fill="#8891a0" font-size="7">&phi;3</text>
+  <text x="311" y="130" text-anchor="middle" fill="#8891a0" font-size="7">&phi;4</text>
+  <text x="323" y="130" text-anchor="middle" fill="#8891a0" font-size="7">&phi;5</text>
+  <text x="335" y="130" text-anchor="middle" fill="#8891a0" font-size="7">&phi;6</text>
+  <text x="347" y="130" text-anchor="middle" fill="#8891a0" font-size="7">&phi;7</text>
+  <text x="359" y="130" text-anchor="middle" fill="#8891a0" font-size="7">&phi;8</text>
+
+  <!-- Steered beam (tilted wavefronts) -->
+  <line x1="275" y1="100" x2="250" y2="42" stroke="#34d399" stroke-width="0.8" opacity="0.4"/>
+  <line x1="287" y1="100" x2="262" y2="42" stroke="#34d399" stroke-width="0.8" opacity="0.4"/>
+  <line x1="299" y1="100" x2="274" y2="42" stroke="#34d399" stroke-width="0.8" opacity="0.4"/>
+  <line x1="311" y1="100" x2="286" y2="42" stroke="#34d399" stroke-width="0.8" opacity="0.4"/>
+  <line x1="323" y1="100" x2="298" y2="42" stroke="#34d399" stroke-width="0.8" opacity="0.4"/>
+  <line x1="335" y1="100" x2="310" y2="42" stroke="#34d399" stroke-width="0.8" opacity="0.4"/>
+  <line x1="347" y1="100" x2="322" y2="42" stroke="#34d399" stroke-width="0.8" opacity="0.4"/>
+  <line x1="359" y1="100" x2="334" y2="42" stroke="#34d399" stroke-width="0.8" opacity="0.4"/>
+
+  <!-- Wavefront lines (tilted) -->
+  <line x1="258" y1="60" x2="328" y2="48" stroke="#34d399" stroke-width="1.2"/>
+  <line x1="254" y1="72" x2="324" y2="60" stroke="#34d399" stroke-width="1.2"/>
+
+  <!-- Beam direction arrow -->
+  <line x1="315" y1="90" x2="280" y2="38" stroke="#00e5ff" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <text x="262" y="35" fill="#00e5ff" font-size="9" font-weight="600">&theta;</text>
+
+  <!-- No moving parts label -->
+  <text x="315" y="155" text-anchor="middle" fill="#34d399" font-size="9">Phase shifts steer beam</text>
+  <text x="315" y="170" text-anchor="middle" fill="#34d399" font-size="9">No moving parts</text>
+
+  <!-- Support -->
+  <rect x="305" y="115" width="20" height="30" rx="2" fill="#1e293b" stroke="#8891a0" stroke-width="1"/>
+  <rect x="295" y="145" width="40" height="8" rx="2" fill="#1e293b" stroke="#8891a0" stroke-width="1"/>
+
+  <text x="315" y="195" text-anchor="middle" fill="#34d399" font-size="9">Fast, flat, no wear</text>
+</svg>
+</div>
+<p class="diagram-caption">Figure 2.1 &mdash; A mechanical dish must physically rotate to change beam direction. A phased array adjusts element phases electronically and can steer in microseconds.</p>
+
+
+<!-- ═══════════════════════════════════════════════
+     SECTION 2 — HOW PHASED ARRAYS WORK
+     ═══════════════════════════════════════════════ -->
+<h2><span class="section-number">2</span>How Phased Arrays Work</h2>
+
+<p>A phased array is a collection of <strong>antenna elements</strong> (typically microstrip patches at Ku-band) arranged in a regular grid. Each element radiates the same signal, but with a programmable phase delay. By controlling the phase difference between adjacent elements, the array creates constructive interference in a desired direction and destructive interference elsewhere.</p>
+
+<h3>The Physics of Beam Steering</h3>
+
+<p>Consider a linear array of elements spaced <em>d</em> apart. To steer the beam to angle &theta; from boresight (the direction perpendicular to the array surface), adjacent elements need a phase difference of:</p>
+
+<div class="math-block">
+  &Delta;&phi; = (2&pi; / &lambda;) &times; d &times; sin(&theta;)
+</div>
+
+<p>where &lambda; is the wavelength. When this phase progression is applied, the electromagnetic waves from all elements arrive in phase at angle &theta;, producing <strong>constructive interference</strong> (the main beam). At other angles the waves arrive out of phase and cancel, producing <strong>destructive interference</strong> (nulls and sidelobes).</p>
+
+<!-- SVG: Phase array beam steering -->
+<div class="diagram-wrapper">
+<svg viewBox="0 0 400 300" width="400" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arr-a" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+      <path d="M0,0 L7,2.5 L0,5" fill="none" stroke="#00e5ff" stroke-width="1"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="400" height="300" rx="8" fill="#111827" stroke="#1e293b"/>
+
+  <!-- Array face -->
+  <rect x="50" y="220" width="300" height="14" rx="4" fill="#0a0e1a" stroke="#34d399" stroke-width="1.5"/>
+
+  <!-- Elements with phase annotations -->
+  <g>
+    <!-- Element 1 -->
+    <circle cx="80" cy="227" r="5" fill="#34d399" opacity="0.9"/>
+    <text x="80" y="252" text-anchor="middle" fill="#34d399" font-size="8">0&deg;</text>
+    <!-- Element 2 -->
+    <circle cx="130" cy="227" r="5" fill="#34d399" opacity="0.9"/>
+    <text x="130" y="252" text-anchor="middle" fill="#34d399" font-size="8">45&deg;</text>
+    <!-- Element 3 -->
+    <circle cx="180" cy="227" r="5" fill="#34d399" opacity="0.9"/>
+    <text x="180" y="252" text-anchor="middle" fill="#34d399" font-size="8">90&deg;</text>
+    <!-- Element 4 -->
+    <circle cx="230" cy="227" r="5" fill="#34d399" opacity="0.9"/>
+    <text x="230" y="252" text-anchor="middle" fill="#34d399" font-size="8">135&deg;</text>
+    <!-- Element 5 -->
+    <circle cx="280" cy="227" r="5" fill="#34d399" opacity="0.9"/>
+    <text x="280" y="252" text-anchor="middle" fill="#34d399" font-size="8">180&deg;</text>
+    <!-- Element 6 -->
+    <circle cx="330" cy="227" r="5" fill="#34d399" opacity="0.9"/>
+    <text x="330" y="252" text-anchor="middle" fill="#34d399" font-size="8">225&deg;</text>
+  </g>
+
+  <!-- Wavefronts (tilted lines) showing the steered beam -->
+  <line x1="55" y1="180" x2="310" y2="148" stroke="#00e5ff" stroke-width="1.2" opacity="0.6"/>
+  <line x1="60" y1="155" x2="315" y2="123" stroke="#00e5ff" stroke-width="1.2" opacity="0.5"/>
+  <line x1="65" y1="130" x2="320" y2="98" stroke="#00e5ff" stroke-width="1.2" opacity="0.4"/>
+  <line x1="70" y1="105" x2="325" y2="73" stroke="#00e5ff" stroke-width="1.2" opacity="0.3"/>
+
+  <!-- Wavefront label -->
+  <text x="340" y="100" fill="#00e5ff" font-size="9">Phase fronts</text>
+  <text x="340" y="112" fill="#8891a0" font-size="8">(tilted by &Delta;&phi;)</text>
+
+  <!-- Beam direction -->
+  <line x1="200" y1="218" x2="140" y2="48" stroke="#f59e0b" stroke-width="2" marker-end="url(#arr-a)"/>
+  <text x="128" y="42" fill="#f59e0b" font-size="10" font-weight="700">Main Beam</text>
+
+  <!-- Boresight reference -->
+  <line x1="200" y1="218" x2="200" y2="35" stroke="#8891a0" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="208" y="35" fill="#8891a0" font-size="9">Boresight</text>
+
+  <!-- Angle arc -->
+  <path d="M 200,170 A 50,50 0 0,0 178,173" fill="none" stroke="#f59e0b" stroke-width="1.2"/>
+  <text x="182" y="162" fill="#f59e0b" font-size="10">&theta;</text>
+
+  <!-- Constructive interference annotation -->
+  <text x="50" y="275" fill="#34d399" font-size="9">Progressive phase shift &Delta;&phi; = 45&deg; per element</text>
+  <text x="50" y="290" fill="#8891a0" font-size="9">Waves add constructively in direction &theta;</text>
+
+  <!-- d spacing -->
+  <line x1="80" y1="209" x2="130" y2="209" stroke="#8891a0" stroke-width="1"/>
+  <path d="M 80,206 L 80,212" stroke="#8891a0" stroke-width="1"/>
+  <path d="M 130,206 L 130,212" stroke="#8891a0" stroke-width="1"/>
+  <text x="105" y="205" text-anchor="middle" fill="#8891a0" font-size="8">d = &lambda;/2</text>
+</svg>
+</div>
+<p class="diagram-caption">Figure 2.2 &mdash; A linear array of elements with progressive phase shifts. The phase fronts are tilted, steering the main beam to angle &theta; from boresight.</p>
+
+<div class="info-box">
+  <strong>Grating lobes:</strong> The element spacing <em>d</em> must be &le; &lambda;/2 to avoid grating lobes (spurious beams at other angles). For Ku-band at 12 GHz, &lambda; = 25 mm, so &lambda;/2 = 12.5 mm. This is the spacing used in the Starlink array model.
+</div>
+
+
+<!-- ═══════════════════════════════════════════════
+     SECTION 3 — ELEMENT RADIATION PATTERN
+     ═══════════════════════════════════════════════ -->
+<h2><span class="section-number">3</span>Element Radiation Pattern</h2>
+
+<p>Each element in the array is a microstrip patch antenna. Its individual radiation pattern is well-approximated by a <strong>cos<sup>q</sup>(&theta;)</strong> envelope, where &theta; is the angle from boresight and <em>q</em> is a shaping exponent.</p>
+
+<h3>The cos<sup>q</sup> Model</h3>
+
+<div class="math-block">
+  G<sub>element</sub>(&theta;) = G<sub>max</sub> &times; cos<sup>q</sup>(&theta;)
+</div>
+
+<p>In decibels:</p>
+
+<div class="math-block">
+  G<sub>element,dBi</sub>(&theta;) = G<sub>max,dBi</sub> + q &times; 10 log<sub>10</sub>(cos &theta;)
+</div>
+
+<h3>What <em>q</em> Means Physically</h3>
+
+<ul>
+  <li><strong>q = 1:</strong> The radiation pattern equals the projected aperture factor. This is the theoretical minimum rolloff for a planar element.</li>
+  <li><strong>q = 1.35</strong> (used in the simulator): Accounts for additional rolloff from the patch's finite ground plane and substrate effects. This is a typical measured value for Ku-band patches with moderate substrate permittivity (&epsilon;<sub>r</sub> ~ 3).</li>
+  <li><strong>q = 2:</strong> A broader rolloff typical of elements with more directive substrate modes.</li>
+</ul>
+
+<p>The simulator uses <code>ELEMENT_MAX_GAIN_DBI = 5.0</code> and <code>ELEMENT_PATTERN_EXPONENT = 1.35</code>.</p>
+
+<!-- SVG: Element radiation pattern -->
+<div class="diagram-wrapper">
+<svg viewBox="0 0 360 280" width="360" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="0" width="360" height="280" rx="8" fill="#111827" stroke="#1e293b"/>
+
+  <!-- Polar grid -->
+  <g transform="translate(180,170)">
+    <!-- Grid circles (gain levels) -->
+    <circle cx="0" cy="0" r="120" fill="none" stroke="#1e293b" stroke-width="0.8"/>
+    <circle cx="0" cy="0" r="90" fill="none" stroke="#1e293b" stroke-width="0.8"/>
+    <circle cx="0" cy="0" r="60" fill="none" stroke="#1e293b" stroke-width="0.8"/>
+    <circle cx="0" cy="0" r="30" fill="none" stroke="#1e293b" stroke-width="0.8"/>
+
+    <!-- Gain labels -->
+    <text x="4" y="-122" fill="#8891a0" font-size="8">5 dBi</text>
+    <text x="4" y="-92" fill="#8891a0" font-size="8">0 dBi</text>
+    <text x="4" y="-62" fill="#8891a0" font-size="8">-5 dBi</text>
+    <text x="4" y="-32" fill="#8891a0" font-size="8">-10 dBi</text>
+
+    <!-- Angle lines -->
+    <line x1="-130" y1="0" x2="130" y2="0" stroke="#1e293b" stroke-width="0.8"/>
+    <line x1="0" y1="-130" x2="0" y2="10" stroke="#1e293b" stroke-width="0.8"/>
+
+    <!-- Angle labels -->
+    <text x="-136" y="4" fill="#8891a0" font-size="8" text-anchor="end">-90&deg;</text>
+    <text x="136" y="4" fill="#8891a0" font-size="8">90&deg;</text>
+    <text x="0" y="-135" text-anchor="middle" fill="#8891a0" font-size="8">0&deg; (boresight)</text>
+
+    <!-- Intermediate angles -->
+    <line x1="-65" y1="-113" x2="0" y2="0" stroke="#1e293b" stroke-width="0.5" stroke-dasharray="3,4"/>
+    <line x1="65" y1="-113" x2="0" y2="0" stroke="#1e293b" stroke-width="0.5" stroke-dasharray="3,4"/>
+    <line x1="-113" y1="-65" x2="0" y2="0" stroke="#1e293b" stroke-width="0.5" stroke-dasharray="3,4"/>
+    <line x1="113" y1="-65" x2="0" y2="0" stroke="#1e293b" stroke-width="0.5" stroke-dasharray="3,4"/>
+    <text x="-68" y="-118" fill="#8891a0" font-size="7">-30&deg;</text>
+    <text x="60" y="-118" fill="#8891a0" font-size="7">30&deg;</text>
+    <text x="-125" y="-68" fill="#8891a0" font-size="7">-60&deg;</text>
+    <text x="118" y="-68" fill="#8891a0" font-size="7">60&deg;</text>
+
+    <!-- cos^1.35 pattern (plotted in upper hemisphere) -->
+    <!-- r = 120 * cos^1.35(theta) + small offset to keep shape above 0 -->
+    <!-- Plotting from -90 to +90 degrees -->
+    <path d="M -120,0
+             C -118,-10 -115,-25 -108,-42
+             C -100,-60 -90,-78 -78,-93
+             C -65,-105 -50,-114 -35,-119
+             C -20,-122 -10,-123 0,-124
+             C 10,-123 20,-122 35,-119
+             C 50,-114 65,-105 78,-93
+             C 90,-78 100,-60 108,-42
+             C 115,-25 118,-10 120,0"
+          fill="rgba(0,229,255,0.1)" stroke="#00e5ff" stroke-width="2"/>
+
+    <!-- cos^1 pattern (for comparison) -->
+    <path d="M -120,0
+             C -116,-15 -110,-32 -100,-50
+             C -88,-68 -74,-83 -60,-96
+             C -44,-106 -28,-113 -14,-118
+             C -5,-120 5,-120 14,-118
+             C 28,-113 44,-106 60,-96
+             C 74,-83 88,-68 100,-50
+             C 110,-32 116,-15 120,0"
+          fill="none" stroke="#8891a0" stroke-width="1" stroke-dasharray="4,3"/>
+
+    <!-- -3dB points on the q=1.35 pattern -->
+    <circle cx="-52" cy="-107" r="3" fill="#f59e0b"/>
+    <circle cx="52" cy="-107" r="3" fill="#f59e0b"/>
+    <text x="62" y="-108" fill="#f59e0b" font-size="8">-3 dB</text>
+
+    <!-- Element symbol at origin -->
+    <rect x="-6" y="-3" width="12" height="6" rx="2" fill="#34d399"/>
+  </g>
+
+  <!-- Legend -->
+  <line x1="30" y1="24" x2="55" y2="24" stroke="#00e5ff" stroke-width="2"/>
+  <text x="60" y="28" fill="#00e5ff" font-size="9">cos<tspan baseline-shift="super" font-size="7">1.35</tspan>(&theta;) &mdash; q = 1.35 (simulator)</text>
+  <line x1="30" y1="40" x2="55" y2="40" stroke="#8891a0" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="60" y="44" fill="#8891a0" font-size="9">cos(&theta;) &mdash; q = 1 (projected aperture only)</text>
+</svg>
+</div>
+<p class="diagram-caption">Figure 2.3 &mdash; Element radiation pattern. The solid curve shows cos<sup>1.35</sup>(&theta;) used in the simulator. The dashed curve shows cos(&theta;) for reference. Yellow dots mark the -3 dB points.</p>
+
+<h3>In the Codebase</h3>
+
+<p>From <code>src/simulation/antenna/element-pattern.ts</code>:</p>
+
+<pre><code><span class="kw">export function</span> <span class="fn">elementGain_dBi</span>(theta_deg: <span class="type">number</span>): <span class="type">number</span> {
+  <span class="kw">if</span> (absTheta >= <span class="num">90</span>) <span class="kw">return</span> <span class="num">-50</span>; <span class="cmt">// back-hemisphere floor</span>
+
+  <span class="kw">const</span> theta_rad = (absTheta * Math.PI) / <span class="num">180</span>;
+  <span class="kw">const</span> cosTheta = Math.cos(theta_rad);
+
+  <span class="cmt">// G_element_dBi = G_max_dBi + q * 10*log10(cos(theta))</span>
+  <span class="kw">return</span> ELEMENT_MAX_GAIN_DBI
+    + ELEMENT_PATTERN_EXPONENT * <span class="num">10</span> * Math.log10(cosTheta);
+}</code></pre>
+
+
+<!-- ═══════════════════════════════════════════════
+     SECTION 4 — ARRAY FACTOR
+     ═══════════════════════════════════════════════ -->
+<h2><span class="section-number">4</span>Array Factor &amp; Total Array Gain</h2>
+
+<p>When N identical elements are coherently combined (all fed with the correct phase), the array gain is the product of the element gain and the array factor. In decibels:</p>
+
+<div class="math-block">
+  G<sub>array</sub> = 10 log<sub>10</sub>(N) + G<sub>element</sub>(&theta;) + 10 log<sub>10</sub>(&eta;<sub>taper</sub>)
+</div>
+
+<h3>Breaking Down the Terms</h3>
+
+<table>
+  <tr><th>Term</th><th>Value</th><th>Explanation</th></tr>
+  <tr>
+    <td><strong>10 log<sub>10</sub>(N)</strong></td>
+    <td>30.8 dB (for N=1200)</td>
+    <td>The array factor. N elements coherently combined give N times the power of a single element. This is the fundamental advantage of a phased array.</td>
+  </tr>
+  <tr>
+    <td><strong>G<sub>element</sub></strong></td>
+    <td>5.0 dBi at boresight</td>
+    <td>Each individual patch element contributes its own gain (cos<sup>q</sup> pattern).</td>
+  </tr>
+  <tr>
+    <td><strong>&eta;<sub>taper</sub></strong></td>
+    <td>0.85 (-0.71 dB)</td>
+    <td>Amplitude taper efficiency. Applying a Taylor window across elements reduces sidelobes but costs ~0.7 dB of directivity. The simulator uses <code>TAPER_EFFICIENCY = 0.85</code>.</td>
+  </tr>
+</table>
+
+<p><strong>Total at boresight:</strong> 30.8 + 5.0 - 0.7 = <strong>35.1 dBi</strong></p>
+
+<div class="info-box">
+  <strong>Comparison with the FCC filing:</strong> SpaceX's FCC earth-station filing reports Starlink receive antenna gain of approximately 33.2 dBi. The simulator's 35.1 dBi at boresight is in reasonable agreement, with the difference accounted for by losses not included in the ideal array gain (ohmic losses, feed network losses, etc.).
+</div>
+
+<h3>Why 1200 Elements at &lambda;/2 Spacing?</h3>
+
+<p>The Starlink user terminal uses approximately 1200 elements (this is a published estimate from teardown analyses). At &lambda;/2 spacing for 12 GHz:</p>
+
+<ul>
+  <li><strong>Wavelength:</strong> &lambda; = c/f = 299,792,458 / 12&times;10<sup>9</sup> = 0.025 m = 25 mm</li>
+  <li><strong>Element spacing:</strong> d = &lambda;/2 = 12.5 mm</li>
+  <li><strong>Array area:</strong> For a roughly square array of 1200 elements (~35 &times; 35), the aperture is about 35 &times; 12.5 mm = 437 mm &asymp; 44 cm on a side</li>
+</ul>
+
+<p>This matches the observed size of the Starlink Dishy McFlatface user terminal (a ~50 cm circular panel, with some dead area around the edges).</p>
+
+
+<!-- ═══════════════════════════════════════════════
+     SECTION 5 — SCAN LOSS
+     ═══════════════════════════════════════════════ -->
+<h2><span class="section-number">5</span>Scan Loss</h2>
+
+<p>Scan loss is the <strong>single most important degradation</strong> in a phased array. As the beam steers away from boresight, gain drops due to three physical mechanisms:</p>
+
+<h3>Three Components of Scan Loss</h3>
+
+<table>
+  <tr><th>Component</th><th>Cause</th><th>Magnitude at 60&deg;</th></tr>
+  <tr>
+    <td><strong>Projected aperture</strong></td>
+    <td>The effective area of the array as seen from angle &theta; is A<sub>eff</sub> = A<sub>0</sub> cos(&theta;). At 60&deg;, the array presents half its area to the signal.</td>
+    <td>-3.0 dB</td>
+  </tr>
+  <tr>
+    <td><strong>Active reflection coefficient</strong></td>
+    <td>Scanning changes the mutual coupling between elements, shifting the active impedance away from the matched condition. Power is reflected back into the feed network.</td>
+    <td>-0.5 to -1.5 dB (geometry-dependent)</td>
+  </tr>
+  <tr>
+    <td><strong>Mutual coupling degradation</strong></td>
+    <td>Surface waves and higher-order modes between elements reduce radiation efficiency at scan. This is included in the impedance mismatch model.</td>
+    <td>(included above)</td>
+  </tr>
+</table>
+
+<h3>Combined Scan Loss Formula</h3>
+
+<div class="math-block">
+  &eta;<sub>scan</sub>(&theta;) = cos(&theta;) &times; (1 - |&Gamma;<sub>active</sub>(&theta;)|&sup2;)
+</div>
+
+<p>where &Gamma;<sub>active</sub> is the active reflection coefficient. In dB:</p>
+
+<div class="math-block">
+  Scan Loss (dB) = 10 log<sub>10</sub>(&eta;<sub>scan</sub>)
+</div>
+
+<!-- SVG: Boresight vs 60 deg scan -->
+<div class="diagram-wrapper">
+<svg viewBox="0 0 420 220" width="420" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="0" width="420" height="220" rx="8" fill="#111827" stroke="#1e293b"/>
+
+  <!-- Left: Boresight -->
+  <text x="105" y="20" text-anchor="middle" fill="#34d399" font-size="11" font-weight="700">Boresight (0&deg;)</text>
+
+  <!-- Array -->
+  <rect x="40" y="140" width="130" height="10" rx="3" fill="#0a0e1a" stroke="#34d399" stroke-width="1.5"/>
+  <!-- Elements -->
+  <circle cx="55" cy="145" r="3" fill="#34d399"/>
+  <circle cx="75" cy="145" r="3" fill="#34d399"/>
+  <circle cx="95" cy="145" r="3" fill="#34d399"/>
+  <circle cx="115" cy="145" r="3" fill="#34d399"/>
+  <circle cx="135" cy="145" r="3" fill="#34d399"/>
+  <circle cx="155" cy="145" r="3" fill="#34d399"/>
+
+  <!-- Beam straight up -->
+  <polygon points="105,135 75,45 135,45" fill="rgba(52,211,153,0.1)" stroke="none"/>
+  <line x1="105" y1="135" x2="105" y2="40" stroke="#34d399" stroke-width="1.5"/>
+  <text x="130" y="60" fill="#34d399" font-size="9">Full aperture</text>
+  <text x="130" y="72" fill="#34d399" font-size="9">A = A<tspan baseline-shift="sub" font-size="7">0</tspan></text>
+
+  <!-- Effective area bracket -->
+  <line x1="40" y1="165" x2="170" y2="165" stroke="#f59e0b" stroke-width="1.5"/>
+  <path d="M 40,162 L 40,168" stroke="#f59e0b" stroke-width="1.5"/>
+  <path d="M 170,162 L 170,168" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="105" y="182" text-anchor="middle" fill="#f59e0b" font-size="9">A<tspan baseline-shift="sub" font-size="7">eff</tspan> = A<tspan baseline-shift="sub" font-size="7">0</tspan> (100%)</text>
+  <text x="105" y="196" text-anchor="middle" fill="#34d399" font-size="10" font-weight="600">Scan Loss: 0 dB</text>
+
+  <!-- Divider -->
+  <line x1="210" y1="15" x2="210" y2="205" stroke="#1e293b" stroke-width="1" stroke-dasharray="6,4"/>
+
+  <!-- Right: 60 degree scan -->
+  <text x="315" y="20" text-anchor="middle" fill="#f87171" font-size="11" font-weight="700">Scanned to 60&deg;</text>
+
+  <!-- Array -->
+  <rect x="250" y="140" width="130" height="10" rx="3" fill="#0a0e1a" stroke="#34d399" stroke-width="1.5"/>
+  <circle cx="265" cy="145" r="3" fill="#34d399"/>
+  <circle cx="285" cy="145" r="3" fill="#34d399"/>
+  <circle cx="305" cy="145" r="3" fill="#34d399"/>
+  <circle cx="325" cy="145" r="3" fill="#34d399"/>
+  <circle cx="345" cy="145" r="3" fill="#34d399"/>
+  <circle cx="365" cy="145" r="3" fill="#34d399"/>
+
+  <!-- Beam at 60 degrees -->
+  <polygon points="315,135 245,40 285,40" fill="rgba(248,113,113,0.08)" stroke="none"/>
+  <line x1="315" y1="135" x2="258" y2="38" stroke="#f87171" stroke-width="1.5"/>
+
+  <!-- Boresight reference -->
+  <line x1="315" y1="135" x2="315" y2="35" stroke="#8891a0" stroke-width="0.8" stroke-dasharray="4,3"/>
+
+  <!-- Angle arc -->
+  <path d="M 315,100 A 38,38 0 0,0 296,105" fill="none" stroke="#f59e0b" stroke-width="1.2"/>
+  <text x="294" y="95" fill="#f59e0b" font-size="10">60&deg;</text>
+
+  <!-- Projected aperture (shorter bracket) -->
+  <line x1="250" y1="165" x2="380" y2="165" stroke="#8891a0" stroke-width="0.8" stroke-dasharray="3,3"/>
+  <line x1="283" y1="165" x2="348" y2="165" stroke="#f59e0b" stroke-width="1.5"/>
+  <path d="M 283,162 L 283,168" stroke="#f59e0b" stroke-width="1.5"/>
+  <path d="M 348,162 L 348,168" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="315" y="182" text-anchor="middle" fill="#f59e0b" font-size="9">A<tspan baseline-shift="sub" font-size="7">eff</tspan> = A<tspan baseline-shift="sub" font-size="7">0</tspan> cos(60&deg;) = 50%</text>
+  <text x="315" y="196" text-anchor="middle" fill="#f87171" font-size="10" font-weight="600">Scan Loss: ~4.2 dB</text>
+</svg>
+</div>
+<p class="diagram-caption">Figure 2.4 &mdash; At boresight (left), the full aperture intercepts the signal. At 60&deg; scan (right), the projected aperture is halved, contributing ~3 dB of loss. Impedance mismatch adds another ~1 dB.</p>
+
+<h3>Scan Loss Across the Pass</h3>
+
+<p>During a satellite pass, the steering angle equals approximately (90&deg; &minus; elevation). At low elevation (25&deg; mask), the steering angle is ~65&deg; with scan loss of ~4-5 dB. At TCA (82&deg; elevation), the steering angle is only ~8&deg; with negligible scan loss. This is a major reason why the link is weakest at AOS/LOS.</p>
+
+<table>
+  <tr><th>Steering Angle</th><th>Projected Aperture Loss</th><th>Impedance Mismatch</th><th>Total Scan Loss</th></tr>
+  <tr><td>0&deg; (boresight)</td><td>0 dB</td><td>0 dB</td><td><strong>0 dB</strong></td></tr>
+  <tr><td>15&deg;</td><td>-0.3 dB</td><td>-0.1 dB</td><td><strong>-0.4 dB</strong></td></tr>
+  <tr><td>30&deg;</td><td>-1.2 dB</td><td>-0.2 dB</td><td><strong>-1.5 dB</strong></td></tr>
+  <tr><td>45&deg;</td><td>-2.5 dB</td><td>-0.5 dB</td><td><strong>-3.0 dB</strong></td></tr>
+  <tr><td>60&deg;</td><td>-3.0 dB</td><td>-1.2 dB</td><td><strong>-4.2 dB</strong></td></tr>
+  <tr><td>70&deg; (max scan)</td><td>-4.7 dB</td><td>-2.0 dB</td><td><strong>-6.7 dB</strong></td></tr>
+</table>
+
+<h3>In the Codebase</h3>
+
+<p>From <code>src/simulation/antenna/scan-loss.ts</code>:</p>
+
+<pre><code><span class="kw">export function</span> <span class="fn">scanLoss_dB</span>(theta_deg: <span class="type">number</span>): <span class="type">number</span> {
+  <span class="cmt">// 1. Projected aperture loss</span>
+  <span class="kw">const</span> projectedAperture = Math.cos(theta_rad);
+
+  <span class="cmt">// 2. Active reflection coefficient from impedance mismatch</span>
+  <span class="kw">const</span> gamma = <span class="fn">activeReflectionCoefficient</span>(clampedTheta);
+  <span class="kw">const</span> mismatchFactor = <span class="num">1</span> - gamma * gamma;
+
+  <span class="cmt">// Combined scan efficiency</span>
+  <span class="kw">const</span> etaScan = projectedAperture * mismatchFactor;
+  <span class="kw">return</span> <span class="num">10</span> * Math.log10(etaScan);
+}</code></pre>
+
+<p>The <code>activeReflectionCoefficient()</code> function models the impedance shift using a nearest-neighbor mutual coupling model with normalized self-impedance and coupling impedance terms.</p>
+
+
+<!-- ═══════════════════════════════════════════════
+     SECTION 6 — BEAMWIDTH
+     ═══════════════════════════════════════════════ -->
+<h2><span class="section-number">6</span>Beamwidth</h2>
+
+<p>The 3 dB beamwidth of the array broadens as the beam is steered off boresight. This is because the <em>projected aperture</em> shrinks, and a smaller effective aperture produces a wider beam (antenna reciprocity).</p>
+
+<div class="math-block">
+  BW(&theta;) = BW<sub>0</sub> / cos(&theta;)
+</div>
+
+<p>where BW<sub>0</sub> is the boresight beamwidth. For the ~1200-element Starlink array at Ku-band:</p>
+
+<table>
+  <tr><th>Steering Angle</th><th>cos(&theta;)</th><th>Beamwidth</th></tr>
+  <tr><td>0&deg; (boresight)</td><td>1.00</td><td>2.5&deg;</td></tr>
+  <tr><td>30&deg;</td><td>0.87</td><td>2.9&deg;</td></tr>
+  <tr><td>45&deg;</td><td>0.71</td><td>3.5&deg;</td></tr>
+  <tr><td>60&deg;</td><td>0.50</td><td>5.0&deg;</td></tr>
+  <tr><td>70&deg;</td><td>0.34</td><td>7.3&deg;</td></tr>
+</table>
+
+<h3>Why This Matters: Pointing Loss</h3>
+
+<p>Wider beams are actually <em>more forgiving</em> of pointing errors. The pointing loss follows a Gaussian beam approximation:</p>
+
+<div class="math-block">
+  L<sub>pointing</sub> = 12 &times; (&delta; / BW)<sup>2</sup> &nbsp;dB
+</div>
+
+<p>where &delta; is the pointing error. With a typical 0.1&deg; RMS jitter:</p>
+<ul>
+  <li>At boresight (BW = 2.5&deg;): L = 12 &times; (0.1/2.5)&sup2; = 0.02 dB (negligible)</li>
+  <li>At 60&deg; scan (BW = 5.0&deg;): L = 12 &times; (0.1/5.0)&sup2; = 0.005 dB (even smaller)</li>
+</ul>
+
+<p>Pointing loss becomes significant only during attitude disturbances or fault conditions, when jitter may spike to 0.5-1.0&deg;.</p>
+
+
+<!-- ═══════════════════════════════════════════════
+     SECTION 7 — ELEMENT FAILURES
+     ═══════════════════════════════════════════════ -->
+<h2><span class="section-number">7</span>Element Failures &amp; Graceful Degradation</h2>
+
+<p>A key advantage of phased arrays over dishes is <strong>graceful degradation</strong>. If a dish feed fails, the antenna is dead. If elements in a phased array fail, the remaining elements still form a beam, just with slightly less gain and slightly higher sidelobes.</p>
+
+<h3>Gain Impact of Element Loss</h3>
+
+<p>If N<sub>active</sub> elements remain out of N<sub>total</sub>, the gain loss from the array factor alone is:</p>
+
+<div class="math-block">
+  &Delta;G = 10 log<sub>10</sub>(N<sub>active</sub> / N<sub>total</sub>)
+</div>
+
+<p>For the simulator's four scenarios:</p>
+
+<table>
+  <tr><th>Scenario</th><th>Element Degradation</th><th>Active Elements</th><th>Array Gain Loss</th></tr>
+  <tr><td>Clean</td><td>0%</td><td>1200</td><td>0 dB</td></tr>
+  <tr><td>Degraded</td><td>5%</td><td>1140</td><td>-0.22 dB</td></tr>
+  <tr><td>Stressed</td><td>12%</td><td>1056</td><td>-0.56 dB</td></tr>
+  <tr><td>Failing</td><td>18%</td><td>984</td><td>-0.86 dB</td></tr>
+</table>
+
+<div class="info-box">
+  <strong>Rule of thumb:</strong> Losing 10% of elements costs about 0.46 dB of gain. This is because 10 log<sub>10</sub>(0.9) = -0.46 dB. A phased array can tolerate significant element loss before the link budget is seriously affected. The sidelobe degradation (not modeled in detail here) is usually more concerning than the gain loss.
+</div>
+
+<h3>Beyond Simple Element Loss: Coherence</h3>
+
+<p>In reality, element "degradation" is not always binary (working vs. failed). Elements can have reduced gain, shifted phase, or intermittent behavior. The simulator models this through a <strong>subarray health field</strong> and computes a <strong>coherence loss</strong> that captures the penalty when elements are not perfectly phase-aligned:</p>
+
+<pre><code><span class="kw">function</span> <span class="fn">coherenceLoss_dB</span>(subarrayHealth?: <span class="type">number</span>[]): <span class="type">number</span> {
+  <span class="cmt">// Each subarray health value is 0..1 (0 = dead, 1 = perfect)</span>
+  <span class="kw">const</span> amplitudes = subarrayHealth.map(h => Math.sqrt(h));
+  <span class="kw">const</span> ampSum = amplitudes.reduce((s, a) => s + a, <span class="num">0</span>);
+  <span class="kw">const</span> powerSum = amplitudes.reduce((s, a) => s + a*a, <span class="num">0</span>);
+  <span class="kw">const</span> efficiency = (ampSum * ampSum) / (N * powerSum);
+  <span class="kw">return</span> -<span class="num">10</span> * Math.log10(efficiency);
+}</code></pre>
+
+<p>This captures the fact that a non-uniform amplitude distribution across subarrays reduces the coherent combining gain below the ideal 10 log<sub>10</sub>(N).</p>
+
+
+<!-- ═══════════════════════════════════════════════
+     SECTION 8 — STARLINK'S ARRAY
+     ═══════════════════════════════════════════════ -->
+<h2><span class="section-number">8</span>Starlink's Phased Array</h2>
+
+<p>The Starlink user terminal (commonly called "Dishy McFlatface") is one of the most mass-produced phased arrays in history. Key parameters used in the simulator:</p>
+
+<table>
+  <tr><th>Parameter</th><th>Value</th><th>Constant in Code</th></tr>
+  <tr><td>Number of elements</td><td>~1200</td><td><code>TOTAL_ELEMENTS = 1200</code></td></tr>
+  <tr><td>Operating frequency</td><td>12 GHz (Ku-band)</td><td><code>DOWNLINK_FREQ_HZ = 12e9</code></td></tr>
+  <tr><td>Wavelength</td><td>25 mm</td><td><code>DOWNLINK_WAVELENGTH_M = 0.025</code></td></tr>
+  <tr><td>Element spacing</td><td>12.5 mm (&lambda;/2)</td><td><code>ELEMENT_SPACING_M = 0.0125</code></td></tr>
+  <tr><td>Element gain</td><td>5.0 dBi</td><td><code>ELEMENT_MAX_GAIN_DBI = 5.0</code></td></tr>
+  <tr><td>Pattern exponent</td><td>1.35</td><td><code>ELEMENT_PATTERN_EXPONENT = 1.35</code></td></tr>
+  <tr><td>Taper efficiency</td><td>0.85</td><td><code>TAPER_EFFICIENCY = 0.85</code></td></tr>
+  <tr><td>Max scan angle</td><td>70&deg;</td><td><code>MAX_SCAN_ANGLE_DEG = 70</code></td></tr>
+  <tr><td>Boresight beamwidth</td><td>~2.5&deg;</td><td><code>BEAMWIDTH_BORESIGHT_DEG = 2.5</code></td></tr>
+</table>
+
+<h3>Complete Gain Budget at Boresight</h3>
+
+<!-- SVG: Gain budget waterfall -->
+<div class="diagram-wrapper">
+<svg viewBox="0 0 420 240" width="420" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="0" width="420" height="240" rx="8" fill="#111827" stroke="#1e293b"/>
+
+  <!-- Y axis (gain in dBi) -->
+  <line x1="60" y1="30" x2="60" y2="200" stroke="#8891a0" stroke-width="1"/>
+  <text x="15" y="120" text-anchor="middle" fill="#8891a0" font-size="10" transform="rotate(-90, 15, 120)">Gain (dBi)</text>
+
+  <!-- Grid lines -->
+  <line x1="60" y1="45" x2="400" y2="45" stroke="#1e293b" stroke-width="0.5"/>
+  <text x="55" y="49" text-anchor="end" fill="#8891a0" font-size="8">35</text>
+  <line x1="60" y1="75" x2="400" y2="75" stroke="#1e293b" stroke-width="0.5"/>
+  <text x="55" y="79" text-anchor="end" fill="#8891a0" font-size="8">30</text>
+  <line x1="60" y1="105" x2="400" y2="105" stroke="#1e293b" stroke-width="0.5"/>
+  <text x="55" y="109" text-anchor="end" fill="#8891a0" font-size="8">25</text>
+  <line x1="60" y1="135" x2="400" y2="135" stroke="#1e293b" stroke-width="0.5"/>
+  <text x="55" y="139" text-anchor="end" fill="#8891a0" font-size="8">20</text>
+  <line x1="60" y1="165" x2="400" y2="165" stroke="#1e293b" stroke-width="0.5"/>
+  <text x="55" y="169" text-anchor="end" fill="#8891a0" font-size="8">15</text>
+  <line x1="60" y1="195" x2="400" y2="195" stroke="#1e293b" stroke-width="0.5"/>
+  <text x="55" y="199" text-anchor="end" fill="#8891a0" font-size="8">10</text>
+
+  <!-- Bar 1: Element Gain -->
+  <rect x="80" y="165" width="55" height="30" rx="3" fill="#34d399" opacity="0.8"/>
+  <text x="107" y="182" text-anchor="middle" fill="#0a0e1a" font-size="10" font-weight="700">5.0</text>
+  <text x="107" y="215" text-anchor="middle" fill="#8891a0" font-size="8">Element</text>
+  <text x="107" y="226" text-anchor="middle" fill="#8891a0" font-size="8">Gain</text>
+
+  <!-- Arrow up: +30.8 dB from array factor -->
+  <rect x="155" y="45" width="55" height="6" rx="2" fill="#00e5ff" opacity="0.3"/>
+  <line x1="182" y1="165" x2="182" y2="51" stroke="#00e5ff" stroke-width="2" stroke-dasharray="4,2"/>
+  <text x="182" y="110" text-anchor="middle" fill="#00e5ff" font-size="9" font-weight="600">+30.8 dB</text>
+  <text x="182" y="122" text-anchor="middle" fill="#00e5ff" font-size="8">Array Factor</text>
+
+  <!-- Bar 2: After array factor -->
+  <rect x="155" y="52" width="55" height="143" rx="3" fill="#00e5ff" opacity="0.15"/>
+  <rect x="155" y="52" width="55" height="6" rx="3" fill="#00e5ff" opacity="0.6"/>
+  <text x="182" y="215" text-anchor="middle" fill="#8891a0" font-size="8">+Array</text>
+  <text x="182" y="226" text-anchor="middle" fill="#8891a0" font-size="8">Factor</text>
+
+  <!-- Bar 3: After taper loss -->
+  <rect x="230" y="56" width="55" height="6" rx="3" fill="#f59e0b" opacity="0.6"/>
+  <line x1="257" y1="52" x2="257" y2="56" stroke="#f59e0b" stroke-width="2"/>
+  <text x="257" y="78" text-anchor="middle" fill="#f59e0b" font-size="9" font-weight="600">-0.7 dB</text>
+  <text x="257" y="90" text-anchor="middle" fill="#f59e0b" font-size="8">Taper</text>
+  <text x="257" y="215" text-anchor="middle" fill="#8891a0" font-size="8">After</text>
+  <text x="257" y="226" text-anchor="middle" fill="#8891a0" font-size="8">Taper</text>
+
+  <!-- Final bar: Effective gain -->
+  <rect x="305" y="48" width="75" height="10" rx="3" fill="#f59e0b" opacity="0.8"/>
+  <text x="342" y="57" text-anchor="middle" fill="#0a0e1a" font-size="11" font-weight="800">35.1 dBi</text>
+  <text x="342" y="215" text-anchor="middle" fill="#f59e0b" font-size="9" font-weight="600">Effective</text>
+  <text x="342" y="226" text-anchor="middle" fill="#f59e0b" font-size="9" font-weight="600">Gain</text>
+</svg>
+</div>
+<p class="diagram-caption">Figure 2.5 &mdash; Gain budget at boresight. Element gain (5 dBi) + array factor (30.8 dB) - taper loss (0.7 dB) = 35.1 dBi effective.</p>
+
+<div class="warn-box">
+  <strong>Satellite vs. terminal:</strong> The simulator models the <em>satellite</em> antenna (downlink transmitter). The satellite's phased array may have a different element count than the user terminal, but the physics is the same. The code uses the same model for both, parameterized by the constants above.
+</div>
+
+
+<!-- ═══════════════════════════════════════════════
+     SECTION 9 — CODE CONNECTION
+     ═══════════════════════════════════════════════ -->
+<h2><span class="section-number">9</span>Code Connection</h2>
+
+<p>The phased array model is implemented across three files in <code>src/simulation/antenna/</code>:</p>
+
+<h3><code>element-pattern.ts</code></h3>
+
+<p>Contains the single-element cos<sup>q</sup> pattern:</p>
+
+<pre><code><span class="kw">export function</span> <span class="fn">elementGain_dBi</span>(theta_deg: <span class="type">number</span>): <span class="type">number</span>
+<span class="cmt">// Returns element gain in dBi at given off-boresight angle</span>
+<span class="cmt">// Uses ELEMENT_MAX_GAIN_DBI (5.0) and ELEMENT_PATTERN_EXPONENT (1.35)</span>
+<span class="cmt">// Floors at -50 dBi for |theta| >= 90 (back hemisphere)</span></code></pre>
+
+<h3><code>scan-loss.ts</code></h3>
+
+<p>Models the physics-based scan loss from projected aperture and active impedance mismatch:</p>
+
+<pre><code><span class="kw">export function</span> <span class="fn">scanLoss_dB</span>(theta_deg: <span class="type">number</span>): <span class="type">number</span>
+<span class="cmt">// Projected aperture: cos(theta)</span>
+<span class="cmt">// Impedance mismatch: (1 - |Gamma_active|^2)</span>
+<span class="cmt">// Combined: 10*log10(cos(theta) * (1-|Gamma|^2))</span>
+
+<span class="kw">export function</span> <span class="fn">activeReflectionCoefficient</span>(theta_deg: <span class="type">number</span>): <span class="type">number</span>
+<span class="cmt">// Nearest-neighbor mutual coupling model</span>
+<span class="cmt">// Returns |Gamma| from 0 to 1</span></code></pre>
+
+<h3><code>effective-gain.ts</code></h3>
+
+<p>Brings everything together into a single function called once per simulation timestep:</p>
+
+<pre><code><span class="kw">export function</span> <span class="fn">computeEffectiveGain</span>(
+  steeringAngle_deg: <span class="type">number</span>,
+  activeElements: <span class="type">number</span>,
+  randomSeed: <span class="type">number</span>,
+  options?: {
+    extraPointingError_deg?: <span class="type">number</span>;
+    subarrayHealth?: <span class="type">number</span>[];
+    <span class="cmt">// ...more options</span>
+  }
+): {
+  elementGain_dBi: <span class="type">number</span>;
+  arrayGain_dBi: <span class="type">number</span>;    <span class="cmt">// 10*log10(N) + element + taper</span>
+  scanLoss: <span class="type">number</span>;          <span class="cmt">// dB (negative)</span>
+  beamwidth: <span class="type">number</span>;         <span class="cmt">// degrees</span>
+  pointingError: <span class="type">number</span>;     <span class="cmt">// degrees (Rayleigh-distributed)</span>
+  pointingLoss: <span class="type">number</span>;      <span class="cmt">// dB (positive, to subtract)</span>
+  coherenceLoss_dB: <span class="type">number</span>; <span class="cmt">// dB (subarray non-uniformity)</span>
+  effectiveGain_dBi: <span class="type">number</span>;<span class="cmt">// final answer</span>
+}</code></pre>
+
+<p>The effective gain equation:</p>
+
+<div class="math-block">
+  G<sub>eff</sub> = G<sub>array</sub> + ScanLoss - PointingLoss - BeamShapeLoss - CoherenceLoss
+</div>
+
+<p>This is called from the main simulation engine once per second. The steering angle comes from the pass geometry (90&deg; &minus; elevation), the active element count comes from the fault model, and the pointing error is generated deterministically from a seeded PRNG (Mulberry32).</p>
+
+
+<!-- ═══════════════════════════════════════════════
+     REFERENCES
+     ═══════════════════════════════════════════════ -->
+<h2><span class="section-number">10</span>References</h2>
+
+<ul class="ref-list">
+  <li><strong>Balanis, Constantine A.</strong> &mdash; <em>Antenna Theory: Analysis and Design</em>, 4th edition (2016). Comprehensive treatment of array theory, element patterns, and mutual coupling.</li>
+  <li><strong>Hansen, Robert C.</strong> &mdash; <em>Phased Array Antennas</em>, 2nd edition (2009). Detailed coverage of scan loss, active impedance, and array design trade-offs.</li>
+  <li><strong>Mailloux, Robert J.</strong> &mdash; <em>Phased Array Antenna Handbook</em>, 3rd edition (2017). Practical design guidance for active electronically scanned arrays.</li>
+  <li><strong>SpaceX FCC Filing (Earth Station)</strong> &mdash; <a href="https://fcc.report/IBFS/SES-LIC-20190211-00151/1616678">User-terminal antenna gain: ~33.2 dBi receive, ~34.6 dBi transmit</a>.</li>
+  <li><strong>Starlink Teardown Analysis</strong> &mdash; Various published teardown photos and analyses of the Starlink user terminal revealing the ~1200-element flat-panel phased array construction.</li>
+  <li><strong>Rapp, C.</strong> &mdash; "Effects of HPA-nonlinearity on a 4-DPSK/OFDM signal for a digital sound broadcasting system" (1991). The Rapp model used for PA compression in the simulator.</li>
+</ul>
+
+
+<!-- ═══════════════════════════════════════════════
+     QUESTIONS
+     ═══════════════════════════════════════════════ -->
+<h2><span class="section-number">11</span>Review Questions</h2>
+
+<ol class="questions">
+  <li>
+    The array has 1200 elements at &lambda;/2 spacing (12.5 mm). Estimate the physical dimensions of a square array with this many elements. How does this compare to the known dimensions of the Starlink user terminal (~50 cm diameter circular panel)?
+  </li>
+  <li>
+    Calculate the total scan loss at a steering angle of 50&deg;, considering only the projected aperture effect (ignore impedance mismatch). Then compute it including the impedance mismatch from the code's model (assume |&Gamma;| &asymp; 0.15 at 50&deg;). How much does the impedance term contribute?
+  </li>
+  <li>
+    A satellite pass has a maximum elevation of 40&deg;. At AOS (elevation = 25&deg;), the steering angle is 65&deg;. At TCA (elevation = 40&deg;), the steering angle is 50&deg;. Calculate the difference in effective antenna gain between AOS and TCA, considering both the array factor (same) and scan loss (different). Assume no element failures.
+  </li>
+  <li>
+    The simulator uses a Rayleigh-distributed pointing error with &sigma; = 0.1&deg;. Why Rayleigh and not Gaussian? (Hint: think about what quantity is being modeled.) What is the probability that the pointing error exceeds 0.3&deg; (3&sigma;)?
+  </li>
+  <li>
+    Suppose 200 elements (out of 1200) fail completely. Calculate: (a) the gain loss from the reduced array factor, (b) the new boresight gain, and (c) qualitatively, what happens to the sidelobe level? Why might sidelobe degradation be a bigger concern than the gain loss for a satellite communications system?
+  </li>
+  <li>
+    The <code>activeReflectionCoefficient()</code> function models impedance mismatch using nearest-neighbor coupling. At boresight, all elements have the same phase, so the mutual coupling is symmetric. At a scan angle, the phase progression breaks this symmetry. Explain intuitively why this causes the active impedance to shift away from the matched condition, and why the effect gets worse at larger scan angles.
+  </li>
+</ol>
+
+
+<!-- ═══════════════════════════════════════════════
+     BOTTOM NAVIGATION
+     ═══════════════════════════════════════════════ -->
+<div class="bottom-nav">
+  <a href="unit-1-orbital-mechanics.html">&larr; Unit 1: Orbital Mechanics</a>
+  <a href="index.html">Course Index &rarr;</a>
+</div>
+
+</div><!-- .container -->
+</body>
+</html>

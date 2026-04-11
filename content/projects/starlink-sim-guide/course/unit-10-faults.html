@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unit 10: Fault Injection &amp; Hardware Degradation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:         #060a14;
+    --surface:    #0f1520;
+    --bg-code:    #111827;
+    --text:       #d8e0ec;
+    --text-dim:   #6a7a90;
+    --accent:     #00e5ff;
+    --accent-dim: rgba(0,229,255,0.08);
+    --secondary:  #f59e0b;
+    --success:    #34d399;
+    --error:      #f87171;
+    --purple:     #a78bfa;
+    --pink:       #f472b6;
+    --border:     #1e293b;
+    --radius:     8px;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Chakra Petch', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+  }
+
+  /* -- Navigation -------------------------------- */
+  nav.top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2rem;
+    font-size: 0.9rem;
+  }
+  nav.top a { color: var(--accent); text-decoration: none; transition: color 0.2s; }
+  nav.top a:hover { color: #5ef5ff; }
+
+  nav.bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.9rem;
+  }
+  nav.bottom a {
+    display: flex; align-items: center; gap: 0.4rem;
+    color: var(--accent); text-decoration: none;
+    padding: 0.5rem 1rem; border: 1px solid var(--border); border-radius: var(--radius);
+    transition: background 0.2s, border-color 0.2s;
+  }
+  nav.bottom a:hover { background: rgba(0,229,255,0.06); border-color: var(--accent); }
+
+  /* -- Header ------------------------------------ */
+  .unit-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #004d5e, #00333e);
+    color: var(--accent); font-size: 0.75rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    padding: 0.3em 0.8em; border-radius: 4px; margin-bottom: 0.75rem;
+  }
+
+  h1 {
+    font-family: 'Chakra Petch', system-ui, sans-serif;
+    font-size: 2.2rem; font-weight: 700; color: #fff;
+    letter-spacing: -0.02em; margin-bottom: 0.5rem; line-height: 1.2;
+  }
+  .subtitle { font-size: 1.05rem; color: var(--text-dim); margin-bottom: 2rem; font-weight: 300; }
+
+  h2 {
+    font-family: 'Chakra Petch', system-ui, sans-serif;
+    font-size: 1.5rem; font-weight: 700; color: #fff;
+    margin: 3rem 0 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--border);
+  }
+  h2 .sn { color: var(--accent); margin-right: 0.3em; font-family: 'JetBrains Mono', monospace; }
+
+  h3 {
+    font-family: 'Chakra Petch', system-ui, sans-serif;
+    font-size: 1.15rem; font-weight: 600; color: var(--accent); margin: 1.8rem 0 0.6rem;
+  }
+
+  p { margin-bottom: 1rem; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  strong { color: #fff; }
+  em { color: var(--text-dim); }
+  ul, ol { padding-left: 1.5em; margin-bottom: 1rem; }
+  li { margin-bottom: 0.5rem; }
+
+  /* -- Objectives -------------------------------- */
+  .objectives {
+    background: linear-gradient(135deg, #0c1a2e, #0f1f35);
+    border: 1px solid #1e3a5f; border-left: 4px solid var(--accent);
+    border-radius: var(--radius); padding: 1.5rem 1.5rem 1rem; margin: 1.5rem 0 2rem;
+  }
+  .objectives h3 { margin-top: 0; color: var(--accent); font-size: 1rem; text-transform: uppercase; letter-spacing: 0.08em; }
+  .objectives ul { list-style: none; padding: 0; }
+  .objectives li { padding: 0.3em 0 0.3em 1.5em; position: relative; }
+  .objectives li::before { content: '\2713'; position: absolute; left: 0; color: var(--success); font-weight: 700; }
+
+  /* -- Code blocks ------------------------------- */
+  pre {
+    background: var(--bg-code); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 1.2rem 1.5rem; overflow-x: auto; margin: 1rem 0 1.5rem; font-size: 0.88rem; line-height: 1.6;
+  }
+  code { font-family: 'JetBrains Mono', 'SF Mono', Consolas, monospace; font-size: 0.88em; }
+  pre code { color: var(--text); background: none; padding: 0; }
+  p code, li code, td code {
+    background: var(--bg-code); border: 1px solid var(--border);
+    padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.88em; color: var(--accent);
+  }
+  .kw { color: var(--accent); } .str { color: var(--success); } .num { color: var(--secondary); }
+  .cmt { color: var(--text-dim); font-style: italic; } .fn { color: var(--purple); } .type { color: var(--pink); }
+
+  /* -- Math blocks ------------------------------- */
+  .math-block {
+    background: var(--bg-code); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 1rem 1.5rem; margin: 1rem 0 1.5rem;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.95rem;
+    text-align: center; color: var(--secondary); letter-spacing: 0.02em; line-height: 1.8;
+  }
+
+  /* -- Info / warning / danger boxes ------------- */
+  .info-box {
+    background: rgba(0,229,255,0.06); border: 1px solid rgba(0,229,255,0.2);
+    border-radius: var(--radius); padding: 1rem 1.2rem; margin: 1rem 0 1.5rem; font-size: 0.93rem;
+  }
+  .info-box strong { color: var(--accent); }
+
+  .warn-box {
+    background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25);
+    border-radius: var(--radius); padding: 1rem 1.2rem; margin: 1rem 0 1.5rem; font-size: 0.93rem;
+  }
+  .warn-box strong { color: var(--secondary); }
+
+  .danger-box {
+    background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25);
+    border-radius: var(--radius); padding: 1rem 1.2rem; margin: 1rem 0 1.5rem; font-size: 0.93rem;
+  }
+  .danger-box strong { color: var(--error); }
+
+  /* -- Tables ------------------------------------ */
+  table {
+    width: 100%; border-collapse: collapse; margin: 1rem 0 1.5rem; font-size: 0.88rem;
+  }
+  th {
+    background: var(--bg-code); color: var(--accent); font-weight: 600;
+    text-align: left; padding: 0.7em 0.8em; border-bottom: 2px solid var(--border);
+  }
+  td { padding: 0.6em 0.8em; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:hover td { background: rgba(0,229,255,0.03); }
+
+  /* -- SVG diagrams ------------------------------ */
+  .diagram-wrapper { display: flex; justify-content: center; margin: 1.5rem 0; }
+  .diagram-wrapper svg { max-width: 100%; height: auto; }
+  .diagram-caption {
+    text-align: center; font-size: 0.85rem; color: var(--text-dim);
+    margin-top: -0.5rem; margin-bottom: 1.5rem; font-style: italic;
+  }
+
+  /* -- Fault card list --------------------------- */
+  .fault-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 1.2rem 1.4rem; margin-bottom: 1rem; border-left: 4px solid var(--accent);
+  }
+  .fault-card h4 {
+    font-family: 'Chakra Petch', sans-serif; font-size: 1.05rem; font-weight: 600;
+    color: #fff; margin-bottom: 0.4rem;
+  }
+  .fault-card .fault-num {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.8rem;
+    color: var(--accent); font-weight: 500; margin-right: 0.5em;
+  }
+  .fault-card p { font-size: 0.93rem; margin-bottom: 0.5rem; }
+  .fault-card .fault-meta { font-size: 0.82rem; color: var(--text-dim); }
+  .fc-antenna { border-left-color: #34d399; }
+  .fc-antenna .fault-num { color: #34d399; }
+  .fc-rf { border-left-color: #f59e0b; }
+  .fc-rf .fault-num { color: #f59e0b; }
+  .fc-power { border-left-color: #ef4444; }
+  .fc-power .fault-num { color: #ef4444; }
+  .fc-thermal { border-left-color: #f472b6; }
+  .fc-thermal .fault-num { color: #f472b6; }
+  .fc-compute { border-left-color: #a78bfa; }
+  .fc-compute .fault-num { color: #a78bfa; }
+  .fc-attitude { border-left-color: #60a5fa; }
+  .fc-attitude .fault-num { color: #60a5fa; }
+
+  /* -- Questions --------------------------------- */
+  .questions { counter-reset: question; list-style: none; padding: 0; }
+  .questions li {
+    counter-increment: question;
+    background: var(--bg-code); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 1rem 1.2rem; margin-bottom: 0.75rem; position: relative; padding-left: 3.5rem;
+  }
+  .questions li::before {
+    content: 'Q' counter(question); position: absolute; left: 1rem; top: 1rem;
+    color: var(--accent); font-weight: 700; font-size: 0.85rem; font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* -- References -------------------------------- */
+  .ref-list { list-style: none; padding: 0; }
+  .ref-list li { padding: 0.5em 0 0.5em 1.5em; position: relative; font-size: 0.93rem; }
+  .ref-list li::before { content: '\25B8'; position: absolute; left: 0; color: var(--accent); }
+
+  /* -- Responsive -------------------------------- */
+  @media (max-width: 640px) {
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.25rem; }
+    pre { font-size: 0.8rem; padding: 1rem; }
+    .container { padding: 1rem; }
+    table { font-size: 0.82rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- ============ TOP NAV ============ -->
+<nav class="top">
+  <a href="unit-9-oscillator.html">&larr; Unit 9</a>
+  <span style="color:var(--text-dim)">Unit 10 of 11</span>
+  <a href="unit-11-causality.html">Unit 11 &rarr;</a>
+</nav>
+
+<div class="unit-badge">Unit 10</div>
+<h1>Fault Injection &amp; Hardware Degradation</h1>
+<p class="subtitle">What breaks on a satellite and how faults are modeled in simulation.</p>
+
+<!-- ============ LEARNING OBJECTIVES ============ -->
+<div class="objectives">
+  <h3>Learning Objectives</h3>
+  <ul>
+    <li>Identify the 10 fault types modeled in the simulator and the physical mechanisms behind each</li>
+    <li>Map each fault to its affected subsystem and downstream metrics</li>
+    <li>Explain how fault severity, trigger time, and duration parameterize fault injection</li>
+    <li>Describe the four scenario presets (Clean, Degraded, Stressed, Failing) and what they inject</li>
+    <li>Trace a cascade from a single radiator fault through to goodput collapse</li>
+    <li>Predict qualitative system behavior under combined fault conditions</li>
+  </ul>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 1: Why Satellites Degrade -->
+<!-- ============================================================ -->
+<h2><span class="sn">10.1</span> Why Satellites Degrade</h2>
+
+<p>
+A satellite in Low Earth Orbit is an engineering system operating in one of the harshest environments humans have created machines for. There is no maintenance, no spare parts warehouse, and no technician who can swap a failed component. Every fault that occurs must be tolerated, compensated for, or accepted.
+</p>
+
+<p>The primary degradation mechanisms:</p>
+
+<ul>
+  <li><strong>Radiation damage:</strong> LEO satellites pass through the Van Allen belts and are exposed to galactic cosmic rays, solar proton events, and trapped electrons. Radiation causes single-event upsets (bit flips) in electronics, gradual degradation of semiconductor junctions, and darkening of solar cell cover glass.</li>
+  <li><strong>Thermal cycling:</strong> A LEO satellite completes an orbit every ~95 minutes, transitioning between full sunlight and eclipse every orbit. This creates thermal cycles of 100+&#176;C range on external surfaces. Repeated thermal expansion and contraction fatigues solder joints, bond wires, and mechanical connections.</li>
+  <li><strong>Atomic oxygen erosion:</strong> At 550 km altitude, residual atmospheric oxygen exists as highly reactive atomic oxygen (O). It erodes polymer-based thermal coatings, solar panel cover materials, and exposed cable insulation.</li>
+  <li><strong>Micrometeorite and debris impacts:</strong> Even tiny particles (&lt;1 mm) at orbital velocities (7.5 km/s) carry enormous kinetic energy. Impacts pit radiator surfaces (reducing emissivity), damage solar cells, and can sever antenna feed lines.</li>
+  <li><strong>Component aging:</strong> Electronic components degrade over time even without the space environment. Capacitors dry out, transistor parameters drift, crystal oscillators age. The space environment accelerates all of these.</li>
+</ul>
+
+<div class="info-box">
+  <strong>Design lifetime vs. reality:</strong> LEO broadband satellites are typically designed for 5-7 year lifetimes. Degradation is not binary -- components do not suddenly fail. Instead, performance gradually worsens: a PA that produced 10 W in year 1 might produce only 8 W in year 5. The simulator models this graceful degradation, not just on/off failures.
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 2: The 10 Fault Types -->
+<!-- ============================================================ -->
+<h2><span class="sn">10.2</span> The 10 Fault Types</h2>
+
+<p>
+The simulator models 10 distinct fault types, each representing a real failure mode observed or predicted in spacecraft. Each fault has a <strong>severity</strong> parameter (0.0 to 1.0) that scales its effect, a <strong>triggerTime</strong> (seconds relative to the pass start or TCA), and a <strong>duration</strong> (how long the fault persists).
+</p>
+
+<!-- Fault 1 -->
+<div class="fault-card fc-antenna">
+  <h4><span class="fault-num">#1</span> Element Failure</h4>
+  <p>Individual antenna array elements stop radiating. Caused by radiation damage to the element's T/R module, bond wire fatigue from thermal cycling, or power distribution failures.</p>
+  <p><strong>Severity</strong> = fraction of elements disabled (0.1 = 10% failed). A 1024-element array at severity 0.3 has 307 dead elements.</p>
+  <p class="fault-meta">Subsystem: Phased Array | Effect: Gain drops, sidelobe levels rise, beam shape degrades</p>
+</div>
+
+<!-- Fault 2 -->
+<div class="fault-card fc-rf">
+  <h4><span class="fault-num">#2</span> PA Degradation</h4>
+  <p>The power amplifier's 1 dB compression point (P1dB) drops and gain falls. This is the most common gradual degradation -- semiconductor performance worsens with accumulated radiation dose and thermal stress.</p>
+  <p><strong>Severity</strong> scales the P1dB reduction: at severity 0.5, P1dB drops by 50% of its margin (e.g., from 10 W to 7 W). Linear gain also falls, meaning less output for the same input drive.</p>
+  <p class="fault-meta">Subsystem: RF Chain | Effect: EIRP drops, operating point shifts, backoff changes</p>
+</div>
+
+<!-- Fault 3 -->
+<div class="fault-card fc-thermal">
+  <h4><span class="fault-num">#3</span> PA Thermal Runaway</h4>
+  <p>A positive feedback loop in the PA's thermal behavior: as the junction temperature rises, leakage current increases, which generates more heat, which raises the temperature further. The PA's heat generation spikes well above its nominal dissipation.</p>
+  <p><strong>Severity</strong> controls the magnitude of the heat spike. At severity 1.0, heat dissipation can double, overwhelming the thermal management system.</p>
+  <p class="fault-meta">Subsystem: Thermal + RF | Effect: PA junction temp spikes, thermal throttling activates, oscillator heats</p>
+</div>
+
+<!-- Fault 4 -->
+<div class="fault-card fc-rf">
+  <h4><span class="fault-num">#4</span> Oscillator Drift</h4>
+  <p>The frequency reference drifts beyond its normal temperature-compensated range. Caused by crystal aging (long-term), mechanical shock (acute), or TCXO compensation network degradation. The drift exceeds what the standard thermal model predicts.</p>
+  <p><strong>Severity</strong> adds an additional frequency offset on top of the thermal drift model. At severity 1.0, the additional offset can reach hundreds of kHz.</p>
+  <p class="fault-meta">Subsystem: RF Chain (Oscillator) | Effect: Frequency offset grows, PLL tracking error increases, EVM rises</p>
+</div>
+
+<!-- Fault 5 -->
+<div class="fault-card fc-rf">
+  <h4><span class="fault-num">#5</span> Oscillator Unlock</h4>
+  <p>The ground station's PLL loses lock entirely. This is a discrete event -- the receiver cannot coherently demodulate the signal. Caused by extreme temperature jumps, mechanical shock to the crystal, or combined Doppler + drift exceeding the PLL pull-in range (see Unit 9).</p>
+  <p><strong>Severity</strong> determines the phase noise penalty (+10 to +30 dB) and the reacquisition time. At severity 1.0, reacquisition takes 500+ ms.</p>
+  <p class="fault-meta">Subsystem: RF Chain (PLL) | Effect: Phase noise +20 dB, EVM spikes, effective link drops to zero during unlock</p>
+</div>
+
+<!-- Fault 6 -->
+<div class="fault-card fc-power">
+  <h4><span class="fault-num">#6</span> Solar Panel Damage</h4>
+  <p>Solar panel output drops due to micrometeorite impacts cracking cells, radiation-induced darkening of cover glass, or interconnect failures between cell strings.</p>
+  <p><strong>Severity</strong> = fraction of generation capacity lost. At severity 0.3, a 1000 W panel produces only 700 W in sunlight.</p>
+  <p class="fault-meta">Subsystem: Power | Effect: Available bus power drops, battery drains faster in sunlight, power modes may activate</p>
+</div>
+
+<!-- Fault 7 -->
+<div class="fault-card fc-power">
+  <h4><span class="fault-num">#7</span> Battery Degradation</h4>
+  <p>Battery capacity is reduced from its beginning-of-life value. Lithium-ion cells lose capacity through cycle aging (each charge/discharge cycle slightly reduces capacity), calendar aging, and thermal damage from operating outside optimal temperature ranges.</p>
+  <p><strong>Severity</strong> = fraction of capacity lost. At severity 0.4, a 100 Wh battery has only 60 Wh usable capacity. Eclipse duration that was safely buffered now causes brownout.</p>
+  <p class="fault-meta">Subsystem: Power | Effect: Eclipse endurance shrinks, power modes activate earlier, SoC drops faster</p>
+</div>
+
+<!-- Fault 8 -->
+<div class="fault-card fc-compute">
+  <h4><span class="fault-num">#8</span> Compute Overload</h4>
+  <p>The satellite's onboard processor experiences CPU contention, increasing the jitter in beam scheduling and modulation adaptation. Caused by radiation-induced single-event upsets requiring error correction, software anomalies, or concurrent processing demands.</p>
+  <p><strong>Severity</strong> scales the scheduling jitter. At severity 1.0, beam scheduling delays can reach several milliseconds, causing dropped slots and retransmissions.</p>
+  <p class="fault-meta">Subsystem: Compute | Effect: Scheduling jitter increases, beam dwell time varies, protocol efficiency drops</p>
+</div>
+
+<!-- Fault 9 -->
+<div class="fault-card fc-thermal">
+  <h4><span class="fault-num">#9</span> Radiator Degradation</h4>
+  <p>The spacecraft's radiator surfaces lose emissivity due to atomic oxygen erosion, micrometeorite pitting, and contamination from outgassing of other materials. Lower emissivity means less efficient radiative cooling.</p>
+  <p><strong>Severity</strong> = fractional reduction in effective emissivity. At severity 0.5, a radiator with emissivity 0.85 effectively operates at 0.425 -- roughly halving its cooling capacity.</p>
+  <p class="fault-meta">Subsystem: Thermal | Effect: All component temperatures rise, PA derates, oscillator drifts, battery ages faster</p>
+</div>
+
+<!-- Fault 10 -->
+<div class="fault-card fc-attitude">
+  <h4><span class="fault-num">#10</span> Attitude Glitch</h4>
+  <p>A sudden spike in pointing error. The satellite's attitude control system (reaction wheels + star trackers) momentarily loses accurate pointing. Caused by reaction wheel bearing anomalies, star tracker glitches (blinding from sun or debris reflection), or thruster firing transients.</p>
+  <p><strong>Severity</strong> scales the pointing error magnitude. At severity 1.0, pointing error can reach several degrees -- enough to move the beam off the ground station entirely for the duration of the glitch.</p>
+  <p class="fault-meta">Subsystem: Attitude Control | Effect: Effective steering angle increases, scan loss rises, gain drops sharply</p>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 3: Fault-Subsystem Matrix -->
+<!-- ============================================================ -->
+<h2><span class="sn">10.3</span> Fault-Subsystem Impact Matrix</h2>
+
+<p>
+Each fault affects specific subsystems and metrics. The following matrix shows the primary and secondary effects:
+</p>
+
+<!-- SVG: Fault matrix -->
+<div class="diagram-wrapper">
+<svg viewBox="0 0 820 520" xmlns="http://www.w3.org/2000/svg">
+  <rect width="820" height="520" fill="#111827" rx="8"/>
+
+  <text x="410" y="25" fill="#d8e0ec" font-size="13" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">Fault-to-Metric Impact Matrix</text>
+
+  <!-- Column headers -->
+  <text x="275" y="58" fill="#00e5ff" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle" transform="rotate(-35, 275, 58)">Antenna Gain</text>
+  <text x="340" y="58" fill="#00e5ff" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle" transform="rotate(-35, 340, 58)">EIRP</text>
+  <text x="400" y="58" fill="#00e5ff" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle" transform="rotate(-35, 400, 58)">EVM</text>
+  <text x="460" y="58" fill="#00e5ff" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle" transform="rotate(-35, 460, 58)">Phase Noise</text>
+  <text x="525" y="58" fill="#00e5ff" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle" transform="rotate(-35, 525, 58)">PA Temp</text>
+  <text x="585" y="58" fill="#00e5ff" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle" transform="rotate(-35, 585, 58)">Bus Power</text>
+  <text x="645" y="58" fill="#00e5ff" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle" transform="rotate(-35, 645, 58)">SNR</text>
+  <text x="705" y="58" fill="#00e5ff" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle" transform="rotate(-35, 705, 58)">Goodput</text>
+
+  <!-- Horizontal line under headers -->
+  <line x1="240" y1="72" x2="740" y2="72" stroke="#1e293b" stroke-width="1"/>
+
+  <!-- Row labels and dots -->
+  <!-- Row 1: Element Failure -->
+  <text x="230" y="95" fill="#34d399" font-size="11" font-family="Chakra Petch, sans-serif" text-anchor="end">#1 Element Failure</text>
+  <circle cx="275" cy="91" r="7" fill="#ef4444"/> <!-- Gain: primary -->
+  <circle cx="340" cy="91" r="7" fill="#ef4444"/> <!-- EIRP: primary -->
+  <circle cx="400" cy="91" r="5" fill="#f59e0b" opacity="0.6"/> <!-- EVM: secondary -->
+  <circle cx="645" cy="91" r="7" fill="#ef4444"/> <!-- SNR -->
+  <circle cx="705" cy="91" r="7" fill="#ef4444"/> <!-- Goodput -->
+
+  <!-- Row 2: PA Degradation -->
+  <text x="230" y="130" fill="#f59e0b" font-size="11" font-family="Chakra Petch, sans-serif" text-anchor="end">#2 PA Degradation</text>
+  <circle cx="340" cy="126" r="7" fill="#ef4444"/>
+  <circle cx="400" cy="126" r="5" fill="#f59e0b" opacity="0.6"/>
+  <circle cx="645" cy="126" r="7" fill="#ef4444"/>
+  <circle cx="705" cy="126" r="7" fill="#ef4444"/>
+
+  <!-- Row 3: PA Thermal Runaway -->
+  <text x="230" y="165" fill="#f472b6" font-size="11" font-family="Chakra Petch, sans-serif" text-anchor="end">#3 PA Thermal Runaway</text>
+  <circle cx="340" cy="161" r="7" fill="#ef4444"/>
+  <circle cx="400" cy="161" r="7" fill="#ef4444"/>
+  <circle cx="460" cy="161" r="5" fill="#f59e0b" opacity="0.6"/>
+  <circle cx="525" cy="161" r="7" fill="#ef4444"/>
+  <circle cx="645" cy="161" r="7" fill="#ef4444"/>
+  <circle cx="705" cy="161" r="7" fill="#ef4444"/>
+
+  <!-- Row 4: Oscillator Drift -->
+  <text x="230" y="200" fill="#f59e0b" font-size="11" font-family="Chakra Petch, sans-serif" text-anchor="end">#4 Oscillator Drift</text>
+  <circle cx="400" cy="196" r="7" fill="#ef4444"/>
+  <circle cx="460" cy="196" r="7" fill="#ef4444"/>
+  <circle cx="645" cy="196" r="5" fill="#f59e0b" opacity="0.6"/>
+  <circle cx="705" cy="196" r="5" fill="#f59e0b" opacity="0.6"/>
+
+  <!-- Row 5: Oscillator Unlock -->
+  <text x="230" y="235" fill="#f59e0b" font-size="11" font-family="Chakra Petch, sans-serif" text-anchor="end">#5 Oscillator Unlock</text>
+  <circle cx="400" cy="231" r="7" fill="#ef4444"/>
+  <circle cx="460" cy="231" r="7" fill="#ef4444"/>
+  <circle cx="645" cy="231" r="7" fill="#ef4444"/>
+  <circle cx="705" cy="231" r="7" fill="#ef4444"/>
+
+  <!-- Row 6: Solar Panel Damage -->
+  <text x="230" y="270" fill="#ef4444" font-size="11" font-family="Chakra Petch, sans-serif" text-anchor="end">#6 Solar Panel Damage</text>
+  <circle cx="340" cy="266" r="5" fill="#f59e0b" opacity="0.6"/>
+  <circle cx="585" cy="266" r="7" fill="#ef4444"/>
+  <circle cx="645" cy="266" r="5" fill="#f59e0b" opacity="0.6"/>
+  <circle cx="705" cy="266" r="5" fill="#f59e0b" opacity="0.6"/>
+
+  <!-- Row 7: Battery Degradation -->
+  <text x="230" y="305" fill="#ef4444" font-size="11" font-family="Chakra Petch, sans-serif" text-anchor="end">#7 Battery Degradation</text>
+  <circle cx="340" cy="301" r="5" fill="#f59e0b" opacity="0.6"/>
+  <circle cx="585" cy="301" r="7" fill="#ef4444"/>
+  <circle cx="645" cy="301" r="5" fill="#f59e0b" opacity="0.6"/>
+  <circle cx="705" cy="301" r="5" fill="#f59e0b" opacity="0.6"/>
+
+  <!-- Row 8: Compute Overload -->
+  <text x="230" y="340" fill="#a78bfa" font-size="11" font-family="Chakra Petch, sans-serif" text-anchor="end">#8 Compute Overload</text>
+  <circle cx="705" cy="336" r="5" fill="#f59e0b" opacity="0.6"/>
+
+  <!-- Row 9: Radiator Degradation -->
+  <text x="230" y="375" fill="#f472b6" font-size="11" font-family="Chakra Petch, sans-serif" text-anchor="end">#9 Radiator Degradation</text>
+  <circle cx="340" cy="371" r="5" fill="#f59e0b" opacity="0.6"/>
+  <circle cx="400" cy="371" r="5" fill="#f59e0b" opacity="0.6"/>
+  <circle cx="460" cy="371" r="5" fill="#f59e0b" opacity="0.6"/>
+  <circle cx="525" cy="371" r="7" fill="#ef4444"/>
+  <circle cx="645" cy="371" r="5" fill="#f59e0b" opacity="0.6"/>
+  <circle cx="705" cy="371" r="5" fill="#f59e0b" opacity="0.6"/>
+
+  <!-- Row 10: Attitude Glitch -->
+  <text x="230" y="410" fill="#60a5fa" font-size="11" font-family="Chakra Petch, sans-serif" text-anchor="end">#10 Attitude Glitch</text>
+  <circle cx="275" cy="406" r="7" fill="#ef4444"/>
+  <circle cx="340" cy="406" r="7" fill="#ef4444"/>
+  <circle cx="645" cy="406" r="7" fill="#ef4444"/>
+  <circle cx="705" cy="406" r="7" fill="#ef4444"/>
+
+  <!-- Vertical grid lines -->
+  <line x1="275" y1="72" x2="275" y2="425" stroke="#1e293b" stroke-width="0.5" stroke-dasharray="2,4"/>
+  <line x1="340" y1="72" x2="340" y2="425" stroke="#1e293b" stroke-width="0.5" stroke-dasharray="2,4"/>
+  <line x1="400" y1="72" x2="400" y2="425" stroke="#1e293b" stroke-width="0.5" stroke-dasharray="2,4"/>
+  <line x1="460" y1="72" x2="460" y2="425" stroke="#1e293b" stroke-width="0.5" stroke-dasharray="2,4"/>
+  <line x1="525" y1="72" x2="525" y2="425" stroke="#1e293b" stroke-width="0.5" stroke-dasharray="2,4"/>
+  <line x1="585" y1="72" x2="585" y2="425" stroke="#1e293b" stroke-width="0.5" stroke-dasharray="2,4"/>
+  <line x1="645" y1="72" x2="645" y2="425" stroke="#1e293b" stroke-width="0.5" stroke-dasharray="2,4"/>
+  <line x1="705" y1="72" x2="705" y2="425" stroke="#1e293b" stroke-width="0.5" stroke-dasharray="2,4"/>
+
+  <!-- Horizontal grid lines -->
+  <line x1="240" y1="110" x2="740" y2="110" stroke="#1e293b" stroke-width="0.5"/>
+  <line x1="240" y1="145" x2="740" y2="145" stroke="#1e293b" stroke-width="0.5"/>
+  <line x1="240" y1="180" x2="740" y2="180" stroke="#1e293b" stroke-width="0.5"/>
+  <line x1="240" y1="215" x2="740" y2="215" stroke="#1e293b" stroke-width="0.5"/>
+  <line x1="240" y1="250" x2="740" y2="250" stroke="#1e293b" stroke-width="0.5"/>
+  <line x1="240" y1="285" x2="740" y2="285" stroke="#1e293b" stroke-width="0.5"/>
+  <line x1="240" y1="320" x2="740" y2="320" stroke="#1e293b" stroke-width="0.5"/>
+  <line x1="240" y1="355" x2="740" y2="355" stroke="#1e293b" stroke-width="0.5"/>
+  <line x1="240" y1="390" x2="740" y2="390" stroke="#1e293b" stroke-width="0.5"/>
+
+  <!-- Legend -->
+  <rect x="270" y="448" width="280" height="45" rx="6" fill="#0f1520" stroke="#1e293b" stroke-width="1"/>
+  <circle cx="295" cy="465" r="6" fill="#ef4444"/>
+  <text x="308" y="469" fill="#d8e0ec" font-size="10" font-family="Chakra Petch, sans-serif">Primary effect (direct)</text>
+  <circle cx="295" cy="482" r="4.5" fill="#f59e0b" opacity="0.6"/>
+  <text x="308" y="486" fill="#d8e0ec" font-size="10" font-family="Chakra Petch, sans-serif">Secondary effect (through cascade)</text>
+</svg>
+</div>
+<div class="diagram-caption">Figure 10.1 -- Each row is a fault type; each column is a downstream metric. Red dots are direct effects; amber dots are cascade (indirect) effects. Note that Radiator Degradation has the widest secondary spread.</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 4: Fault Scheduling -->
+<!-- ============================================================ -->
+<h2><span class="sn">10.4</span> Fault Scheduling</h2>
+
+<p>
+Each fault in the simulator is defined by three parameters:
+</p>
+
+<table>
+  <thead>
+    <tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>triggerTime</code></td>
+      <td>number (seconds)</td>
+      <td>When the fault activates, relative to the pass start. Can also be specified relative to TCA (Time of Closest Approach). Negative values mean "before TCA."</td>
+    </tr>
+    <tr>
+      <td><code>duration</code></td>
+      <td>number (seconds)</td>
+      <td>How long the fault persists. Some faults are transient (attitude glitch: 2-10s), others are permanent for the pass (element failure: once elements die, they stay dead).</td>
+    </tr>
+    <tr>
+      <td><code>severity</code></td>
+      <td>number (0.0 -- 1.0)</td>
+      <td>Scales the fault's magnitude. 0.0 = no effect; 1.0 = maximum severity. The mapping from severity to physical effect varies per fault type.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Timing Relative to TCA</h3>
+
+<p>
+Faults can be timed relative to the pass structure. This matters because the satellite's geometry and thermal state vary throughout the pass:
+</p>
+
+<ul>
+  <li><strong>Early pass (AOS to TCA):</strong> Elevation is rising, slant range is decreasing, PA is warming up. Faults here hit while the link is improving, creating a tension between improving geometry and degrading hardware.</li>
+  <li><strong>Near TCA:</strong> The satellite is at peak elevation with minimum slant range. This is when throughput should be highest, so faults here have maximum impact on total data delivered.</li>
+  <li><strong>Late pass (TCA to LOS):</strong> Elevation is falling, PA has been hot for minutes. Thermal faults are most realistic here -- the hardware has been stressed longest.</li>
+</ul>
+
+<div class="info-box">
+  <strong>Design insight:</strong> The most realistic fault scenarios inject thermal-related faults (PA runaway, oscillator drift) in the second half of the pass, after the hardware has had time to heat up. Sudden faults (attitude glitch, PLL unlock) can occur anywhere but are most impactful near TCA.
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 5: The 4 Scenarios -->
+<!-- ============================================================ -->
+<h2><span class="sn">10.5</span> The Four Scenarios</h2>
+
+<p>
+The simulator provides four preset fault scenarios that represent increasingly degraded spacecraft conditions:
+</p>
+
+<h3>1. Clean</h3>
+<p>
+No faults injected. The satellite operates with all subsystems at nominal parameters. This is the baseline -- all performance variations come from orbital geometry, atmospheric conditions, and the natural thermal cycle of the pass. Use this scenario to understand the fundamental pass shape.
+</p>
+
+<h3>2. Degraded</h3>
+<p>
+Mild, realistic aging. Represents a satellite 2-3 years into its mission:
+</p>
+<ul>
+  <li><strong>Element failure</strong> -- severity 0.05 (5% of elements dead, permanent)</li>
+  <li><strong>PA degradation</strong> -- severity 0.15 (P1dB reduced by 15%)</li>
+  <li><strong>Solar panel damage</strong> -- severity 0.10 (10% capacity loss)</li>
+  <li><strong>Battery degradation</strong> -- severity 0.10 (10% capacity loss)</li>
+</ul>
+<p>
+The satellite still functions well but with reduced margins. The throughput curve is slightly lower than Clean, and thermal limits are reached earlier.
+</p>
+
+<h3>3. Stressed</h3>
+<p>
+A bad day on an aging satellite. Multiple subsystems are degraded, and active faults occur during the pass:
+</p>
+<ul>
+  <li>All Degraded faults, plus:</li>
+  <li><strong>Radiator degradation</strong> -- severity 0.25 (cooling efficiency down 25%)</li>
+  <li><strong>Oscillator drift</strong> -- severity 0.3, triggered at TCA+60s (thermal drift after peak heating)</li>
+  <li><strong>Attitude glitch</strong> -- severity 0.4, triggered at TCA-30s, duration 5s (transient pointing error)</li>
+</ul>
+<p>
+The attitude glitch near TCA causes a brief but dramatic throughput dip. The radiator degradation raises all temperatures, making the late-pass thermal situation significantly worse.
+</p>
+
+<h3>4. Failing</h3>
+<p>
+A cascade failure scenario that pushes the system to its limits:
+</p>
+<ul>
+  <li>All Stressed faults, plus:</li>
+  <li><strong>PA thermal runaway</strong> -- severity 0.7, triggered at TCA+90s (the PA's thermal control fails)</li>
+  <li><strong>Oscillator unlock</strong> -- severity 0.8, triggered at TCA+120s, duration 3s (PLL loses lock from thermal spike)</li>
+  <li><strong>Compute overload</strong> -- severity 0.5 (scheduling jitter from error correction load)</li>
+  <li><strong>Element failure</strong> -- increased to severity 0.15 (15% dead elements)</li>
+</ul>
+<p>
+This scenario produces a dramatic late-pass collapse: throughput plummets as the thermal runaway triggers oscillator problems, which compound with the already-degraded antenna and power subsystems.
+</p>
+
+<div class="warn-box">
+  <strong>Scenario design philosophy:</strong> Each scenario builds on the previous one. This lets you compare passes and see exactly which faults cause which degradation. Run all four scenarios on the same orbital pass and overlay the goodput curves -- the difference between each pair reveals the impact of the newly-added faults.
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 6: Cascade Effects -->
+<!-- ============================================================ -->
+<h2><span class="sn">10.6</span> Cascade Effects</h2>
+
+<p>
+The most important insight in fault modeling is that faults do not exist in isolation. A single fault in one subsystem propagates through the causal chain to affect multiple downstream metrics. The simulator's tick-by-tick computation captures these cascades naturally.
+</p>
+
+<h3>Example: Radiator Degradation Cascade</h3>
+
+<p>
+Consider a single fault: the radiator's emissivity drops by 40% (severity 0.4). Here is the cascade, step by step:
+</p>
+
+<!-- SVG: Cascade flow diagram -->
+<div class="diagram-wrapper">
+<svg viewBox="0 0 780 620" xmlns="http://www.w3.org/2000/svg">
+  <rect width="780" height="620" fill="#111827" rx="8"/>
+
+  <text x="390" y="25" fill="#d8e0ec" font-size="13" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">Radiator Degradation Cascade (Severity 0.4)</text>
+
+  <!-- Step 1: Root cause -->
+  <rect x="250" y="42" width="280" height="42" rx="6" fill="rgba(244,114,182,0.12)" stroke="#f472b6" stroke-width="2"/>
+  <text x="390" y="68" fill="#f472b6" font-size="13" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">Radiator Emissivity Drops 40%</text>
+
+  <line x1="390" y1="84" x2="390" y2="108" stroke="#6a7a90" stroke-width="1.5" marker-end="url(#arr10)"/>
+
+  <!-- Step 2: Thermal -->
+  <rect x="220" y="108" width="340" height="42" rx="6" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5"/>
+  <text x="390" y="127" fill="#ef4444" font-size="12" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">All Component Temperatures Rise</text>
+  <text x="390" y="142" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">+15-25&#176;C across thermal bus</text>
+
+  <!-- Branch left: PA path -->
+  <line x1="310" y1="150" x2="200" y2="180" stroke="#6a7a90" stroke-width="1.5" marker-end="url(#arr10)"/>
+  <!-- Branch right: Oscillator path -->
+  <line x1="470" y1="150" x2="580" y2="180" stroke="#6a7a90" stroke-width="1.5" marker-end="url(#arr10)"/>
+
+  <!-- PA branch -->
+  <rect x="90" y="180" width="220" height="42" rx="6" fill="rgba(245,158,11,0.1)" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="200" y="199" fill="#f59e0b" font-size="12" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">PA Derates (Thermal Throttle)</text>
+  <text x="200" y="214" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">Output power drops 2-4 dB</text>
+
+  <line x1="200" y1="222" x2="200" y2="256" stroke="#6a7a90" stroke-width="1.5" marker-end="url(#arr10)"/>
+
+  <rect x="100" y="256" width="200" height="42" rx="6" fill="rgba(245,158,11,0.08)" stroke="#f59e0b" stroke-width="1"/>
+  <text x="200" y="275" fill="#f59e0b" font-size="11" font-family="Chakra Petch, sans-serif" text-anchor="middle">EIRP Drops 2-4 dB</text>
+  <text x="200" y="290" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">Direct SNR impact</text>
+
+  <!-- Oscillator branch -->
+  <rect x="470" y="180" width="230" height="42" rx="6" fill="rgba(0,229,255,0.08)" stroke="#00e5ff" stroke-width="1.5"/>
+  <text x="585" y="199" fill="#00e5ff" font-size="12" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">Oscillator Frequency Drifts</text>
+  <text x="585" y="214" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">+150-400 kHz offset</text>
+
+  <line x1="585" y1="222" x2="585" y2="256" stroke="#6a7a90" stroke-width="1.5" marker-end="url(#arr10)"/>
+
+  <rect x="470" y="256" width="230" height="42" rx="6" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1"/>
+  <text x="585" y="275" fill="#a78bfa" font-size="11" font-family="Chakra Petch, sans-serif" text-anchor="middle">PLL Tracking Error Grows</text>
+  <text x="585" y="290" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">Phase noise +3-8 dB</text>
+
+  <line x1="585" y1="298" x2="585" y2="330" stroke="#6a7a90" stroke-width="1.5" marker-end="url(#arr10)"/>
+
+  <rect x="480" y="330" width="210" height="36" rx="6" fill="rgba(167,139,250,0.06)" stroke="#a78bfa" stroke-width="1"/>
+  <text x="585" y="353" fill="#a78bfa" font-size="11" font-family="Chakra Petch, sans-serif" text-anchor="middle">EVM Increases 2-5%</text>
+
+  <!-- Merge both paths -->
+  <line x1="200" y1="298" x2="200" y2="390" stroke="#6a7a90" stroke-width="1"/>
+  <line x1="585" y1="366" x2="585" y2="390" stroke="#6a7a90" stroke-width="1"/>
+  <line x1="200" y1="390" x2="585" y2="390" stroke="#6a7a90" stroke-width="1"/>
+  <line x1="390" y1="390" x2="390" y2="410" stroke="#6a7a90" stroke-width="1.5" marker-end="url(#arr10)"/>
+
+  <!-- Merged: SNR drops -->
+  <rect x="240" y="410" width="300" height="42" rx="6" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5"/>
+  <text x="390" y="429" fill="#ef4444" font-size="12" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">SNR Drops 5-12 dB</text>
+  <text x="390" y="444" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">EIRP loss + EVM penalty combined</text>
+
+  <line x1="390" y1="452" x2="390" y2="480" stroke="#6a7a90" stroke-width="1.5" marker-end="url(#arr10)"/>
+
+  <!-- ModCod drop -->
+  <rect x="230" y="480" width="320" height="42" rx="6" fill="rgba(167,139,250,0.1)" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="390" y="499" fill="#a78bfa" font-size="12" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="600">ModCod Falls: 16QAM 3/4 &rarr; QPSK 1/2</text>
+  <text x="390" y="514" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">Spectral efficiency drops ~4x</text>
+
+  <line x1="390" y1="522" x2="390" y2="550" stroke="#6a7a90" stroke-width="1.5" marker-end="url(#arr10)"/>
+
+  <!-- Goodput collapse -->
+  <rect x="220" y="550" width="340" height="45" rx="6" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="2"/>
+  <text x="390" y="571" fill="#ef4444" font-size="13" font-family="Chakra Petch, sans-serif" text-anchor="middle" font-weight="700">Goodput: 120 Mbps &rarr; 30 Mbps</text>
+  <text x="390" y="588" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">75% throughput loss from a single thermal fault</text>
+
+  <!-- Time annotation -->
+  <text x="55" y="68" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="end">t = 0</text>
+  <text x="55" y="134" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="end">t + 30s</text>
+  <text x="55" y="283" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="end">t + 60s</text>
+  <text x="55" y="435" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="end">t + 90s</text>
+  <text x="55" y="575" fill="#6a7a90" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="end">t + 120s</text>
+  <line x1="60" y1="48" x2="60" y2="590" stroke="#1e293b" stroke-width="1" stroke-dasharray="3,3"/>
+
+  <defs>
+    <marker id="arr10" viewBox="0 0 10 6" refX="10" refY="3" markerWidth="8" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,3 L0,6" fill="#6a7a90"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<div class="diagram-caption">Figure 10.2 -- A single radiator degradation fault cascades through two parallel paths (PA thermal throttle and oscillator drift), converging to produce a 75% goodput collapse over ~120 seconds.</div>
+
+<p>
+The key observation: <strong>no single metric tells the whole story.</strong> If you only monitor EIRP, you see a 3 dB drop and might expect a small throughput reduction. But the simultaneous EVM degradation from oscillator drift adds another 5-8 dB of effective SNR penalty. The combined effect is catastrophic.
+</p>
+
+<div class="danger-box">
+  <strong>This is why independent models fail.</strong> A model that computes throughput = f(elevation, EIRP) without thermal coupling would predict perhaps a 30% throughput reduction from the PA derate alone. The actual result is 75% because the thermal fault simultaneously degrades the oscillator path. Only a coupled simulation captures this.
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 7: Code Connection -->
+<!-- ============================================================ -->
+<h2><span class="sn">10.7</span> Code Connection</h2>
+
+<h3>src/simulation/faults/fault-scheduler.ts</h3>
+
+<p>
+The fault scheduler generates fault lists for each scenario preset. The <code>getScenarioFaults</code> function maps scenario names to fault configurations:
+</p>
+
+<pre><code><span class="kw">type</span> <span class="type">FaultType</span> =
+  | <span class="str">'elementFailure'</span>
+  | <span class="str">'paDegradation'</span>
+  | <span class="str">'paThermalRunaway'</span>
+  | <span class="str">'oscillatorDrift'</span>
+  | <span class="str">'oscillatorUnlock'</span>
+  | <span class="str">'solarPanelDamage'</span>
+  | <span class="str">'batteryDegradation'</span>
+  | <span class="str">'computeOverload'</span>
+  | <span class="str">'radiatorDegradation'</span>
+  | <span class="str">'attitudeGlitch'</span>;
+
+<span class="kw">interface</span> <span class="type">FaultConfig</span> {
+  type: <span class="type">FaultType</span>;
+  triggerTime: <span class="type">number</span>;    <span class="cmt">// seconds from pass start</span>
+  duration: <span class="type">number</span>;       <span class="cmt">// seconds (-1 = permanent)</span>
+  severity: <span class="type">number</span>;       <span class="cmt">// 0.0 to 1.0</span>
+}
+
+<span class="kw">function</span> <span class="fn">getScenarioFaults</span>(
+  <span class="type">scenario</span>: <span class="str">'clean'</span> | <span class="str">'degraded'</span> | <span class="str">'stressed'</span> | <span class="str">'failing'</span>,
+  <span class="type">tcaTime</span>: <span class="type">number</span>
+): <span class="type">FaultConfig</span>[] {
+  <span class="kw">if</span> (scenario === <span class="str">'clean'</span>) <span class="kw">return</span> [];
+
+  <span class="kw">const</span> faults: <span class="type">FaultConfig</span>[] = [];
+
+  <span class="cmt">// Degraded: permanent aging effects</span>
+  faults.<span class="fn">push</span>(
+    { type: <span class="str">'elementFailure'</span>,   triggerTime: <span class="num">0</span>, duration: <span class="num">-1</span>, severity: <span class="num">0.05</span> },
+    { type: <span class="str">'paDegradation'</span>,    triggerTime: <span class="num">0</span>, duration: <span class="num">-1</span>, severity: <span class="num">0.15</span> },
+    { type: <span class="str">'solarPanelDamage'</span>, triggerTime: <span class="num">0</span>, duration: <span class="num">-1</span>, severity: <span class="num">0.10</span> },
+    <span class="cmt">// ... additional faults per scenario</span>
+  );
+
+  <span class="kw">return</span> faults;
+}</code></pre>
+
+<h3>src/simulation/faults/fault-applicator.ts</h3>
+
+<p>
+The fault applicator takes the active faults at the current tick and modifies the relevant subsystem states:
+</p>
+
+<pre><code><span class="kw">function</span> <span class="fn">applyFaults</span>(
+  <span class="type">state</span>: <span class="type">SimulationState</span>,
+  <span class="type">activeFaults</span>: <span class="type">FaultConfig</span>[],
+  <span class="type">tickTime</span>: <span class="type">number</span>
+): <span class="type">SimulationState</span> {
+  <span class="kw">let</span> modified = { ...state };
+
+  <span class="kw">for</span> (<span class="kw">const</span> fault <span class="kw">of</span> activeFaults) {
+    <span class="kw">if</span> (tickTime < fault.triggerTime) <span class="kw">continue</span>;
+    <span class="kw">if</span> (fault.duration > <span class="num">0</span> &&
+        tickTime > fault.triggerTime + fault.duration) <span class="kw">continue</span>;
+
+    <span class="kw">switch</span> (fault.type) {
+      <span class="kw">case</span> <span class="str">'elementFailure'</span>:
+        modified.antenna.activeElements *=
+          (<span class="num">1</span> - fault.severity);
+        <span class="kw">break</span>;
+
+      <span class="kw">case</span> <span class="str">'radiatorDegradation'</span>:
+        modified.thermal.radiatorEmissivity *=
+          (<span class="num">1</span> - fault.severity);
+        <span class="kw">break</span>;
+
+      <span class="kw">case</span> <span class="str">'oscillatorUnlock'</span>:
+        modified.rf.pllLocked = <span class="num">false</span>;
+        modified.rf.phaseNoisePenalty +=
+          <span class="num">20</span> * fault.severity;
+        <span class="kw">break</span>;
+      <span class="cmt">// ... other fault types</span>
+    }
+  }
+  <span class="kw">return</span> modified;
+}</code></pre>
+
+<div class="info-box">
+  <strong>Order of application matters.</strong> Faults are applied at step 2 of the simulation tick loop (see Unit 11), <em>before</em> the thermal, oscillator, and RF chain computations. This means faults affect the current tick's calculations, not just the next tick. A radiator fault applied at t=100 affects the thermal computation at t=100.
+</div>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 8: References -->
+<!-- ============================================================ -->
+<h2><span class="sn">10.8</span> References</h2>
+
+<ul class="ref-list">
+  <li><strong>NASA</strong> -- <em>Fault Management Handbook</em>, NASA/SP-2016-6105 Rev 1. The definitive guide to spacecraft fault management philosophy, covering fault detection, isolation, and recovery (FDIR) methodologies.</li>
+  <li><strong>ESA</strong> -- <em>ECSS-Q-ST-30C: Space Product Assurance -- Dependability</em>. European standard for spacecraft reliability analysis, including failure mode and effects analysis (FMEA) and fault tree analysis (FTA).</li>
+  <li><strong>Wertz, J. R. &amp; Larson, W. J.</strong> -- <em>Space Mission Engineering: The New SMAD</em> (Microcosm Press, 2011). Chapters 19-20 cover spacecraft reliability, degradation models, and design-for-reliability practices.</li>
+  <li><strong>Maral, G. &amp; Bousquet, M.</strong> -- <em>Satellite Communications Systems</em>, 6th Edition (Wiley, 2020). Chapter 13 covers link availability and degradation budgets for communication satellites.</li>
+  <li><strong>Patel, M. R.</strong> -- <em>Spacecraft Power Systems</em> (CRC Press, 2004). Comprehensive treatment of solar array degradation, battery cycle life, and power bus fault modes.</li>
+</ul>
+
+
+<!-- ============================================================ -->
+<!-- SECTION 9: Self-Assessment Questions -->
+<!-- ============================================================ -->
+<h2><span class="sn">10.9</span> Self-Assessment Questions</h2>
+
+<ul class="questions">
+  <li>
+    A phased array has 1024 elements and suffers element failure with severity 0.12. How many elements remain active? If array gain scales approximately as 10 &times; log<sub>10</sub>(N<sub>active</sub> / N<sub>total</sub>) relative to the full array, what is the gain penalty in dB? Would this cause a ModCod change if the link margin was 3 dB?
+  </li>
+  <li>
+    Explain why Radiator Degradation (fault #9) has the widest secondary impact spread in the fault matrix, even though it does not directly affect any RF or antenna parameter. Trace the cascade path from reduced emissivity to each downstream metric.
+  </li>
+  <li>
+    The Stressed scenario adds an attitude glitch at TCA-30s with severity 0.4 and duration 5s. Why was this timing chosen? What makes a pointing error near TCA more damaging than the same error at AOS? Consider both the geometric and throughput perspectives.
+  </li>
+  <li>
+    Compare the PA Degradation fault (#2) and the PA Thermal Runaway fault (#3). Both affect the power amplifier, but through different mechanisms. How do their cascade paths differ? Which one is more likely to trigger oscillator problems, and why?
+  </li>
+  <li>
+    You are designing a new fault scenario to model a micrometeorite impact during a pass. Which 2-3 existing fault types would you combine, and what severity/timing would you use? Justify your choices based on the physical effects of a high-velocity particle impact.
+  </li>
+  <li>
+    In the Failing scenario, the PA Thermal Runaway triggers at TCA+90s and the Oscillator Unlock triggers at TCA+120s. Explain the 30-second gap between these events in terms of thermal propagation. What would happen if you moved the oscillator unlock to TCA+95s -- would the cascade be better or worse, and why?
+  </li>
+</ul>
+
+
+<!-- ============ BOTTOM NAV ============ -->
+<nav class="bottom">
+  <a href="unit-9-oscillator.html">&larr; Unit 9: Oscillators</a>
+  <a href="unit-11-causality.html">Unit 11: Cross-Layer Causality &rarr;</a>
+</nav>
+
+</div><!-- .container -->
+</body>
+</html>

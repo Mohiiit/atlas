@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hardware-First Satellite Communications — Course Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --font-body: 'Chakra Petch', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+  --bg: #060a14;
+  --bg2: #0a0f1c;
+  --surface: #0f1520;
+  --surface2: #141c2a;
+  --border: rgba(0, 229, 255, 0.08);
+  --border-bright: rgba(0, 229, 255, 0.18);
+  --text: #d8e0ec;
+  --text-dim: #6a7a90;
+  --accent: #00e5ff;
+  --accent-dim: rgba(0, 229, 255, 0.08);
+  --green: #22c55e;
+  --amber: #f59e0b;
+  --red: #ef4444;
+  --purple: #a78bfa;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-body);
+  line-height:1.7;
+  min-height:100vh;
+}
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:-1;
+  background:radial-gradient(ellipse 60% 40% at 50% 0%,rgba(0,229,255,0.04),transparent 70%),
+             radial-gradient(ellipse 50% 50% at 80% 80%,rgba(99,102,241,0.03),transparent 60%);
+}
+.wrap{max-width:920px;margin:0 auto;padding:0 24px;}
+
+/* ── HERO ── */
+.hero{padding:80px 0 48px;text-align:center;position:relative;}
+.hero-badge{display:inline-block;font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent);border:1px solid var(--border-bright);border-radius:20px;padding:4px 16px;margin-bottom:20px;background:var(--accent-dim);}
+.hero h1{font-size:clamp(28px,5vw,44px);font-weight:700;letter-spacing:-0.01em;line-height:1.15;color:#fff;margin-bottom:12px;}
+.hero h1 span{color:var(--accent);}
+.hero p.sub{font-size:17px;color:var(--text-dim);max-width:600px;margin:0 auto 32px;font-weight:300;}
+.hero-stats{display:flex;gap:32px;justify-content:center;flex-wrap:wrap;}
+.hero-stat{text-align:center;}
+.hero-stat .val{font-family:var(--font-mono);font-size:24px;font-weight:600;color:var(--accent);}
+.hero-stat .lbl{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em;}
+
+/* ── SECTIONS ── */
+section{padding:48px 0;}
+h2{font-size:22px;font-weight:600;color:#fff;margin-bottom:6px;letter-spacing:0.02em;}
+h2 .num{color:var(--accent);font-family:var(--font-mono);font-weight:500;margin-right:6px;}
+.section-sub{font-size:14px;color:var(--text-dim);margin-bottom:28px;}
+
+/* ── CAUSAL CHAIN ── */
+.chain{display:flex;align-items:center;justify-content:center;gap:0;flex-wrap:wrap;padding:32px 16px;background:var(--surface);border:1px solid var(--border);border-radius:12px;margin:28px 0;position:relative;overflow-x:auto;}
+.chain-node{padding:8px 14px;border-radius:8px;font-size:13px;font-weight:500;white-space:nowrap;border:1px solid var(--border-bright);}
+.chain-arrow{color:var(--accent);font-size:18px;padding:0 4px;flex-shrink:0;}
+.cn-orbit{background:rgba(99,102,241,0.1);border-color:rgba(99,102,241,0.25);color:#a5b4fc;}
+.cn-ant{background:rgba(34,197,94,0.08);border-color:rgba(34,197,94,0.2);color:var(--green);}
+.cn-rf{background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.2);color:var(--amber);}
+.cn-tp{background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.2);color:var(--red);}
+.cn-link{background:var(--accent-dim);border-color:var(--border-bright);color:var(--accent);}
+.cn-mod{background:rgba(167,139,250,0.08);border-color:rgba(167,139,250,0.2);color:var(--purple);}
+.cn-prot{background:rgba(244,114,182,0.08);border-color:rgba(244,114,182,0.2);color:#f472b6;}
+
+/* ── UNIT CARDS ── */
+.units{display:grid;gap:16px;}
+.unit-card{
+  display:grid;grid-template-columns:56px 1fr;gap:16px;
+  padding:20px;border-radius:12px;border:1px solid var(--border);
+  background:var(--surface);transition:border-color 0.3s,transform 0.2s;
+  text-decoration:none;color:inherit;
+}
+.unit-card:hover{border-color:var(--border-bright);transform:translateY(-2px);}
+.unit-num{
+  width:48px;height:48px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-mono);font-size:18px;font-weight:600;
+}
+.unit-card h3{font-size:16px;font-weight:600;color:#fff;margin-bottom:4px;}
+.unit-card p{font-size:13px;color:var(--text-dim);line-height:1.5;}
+.unit-topics{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+.unit-topics span{font-size:10px;padding:2px 8px;border-radius:4px;background:rgba(255,255,255,0.04);color:var(--text-dim);border:1px solid rgba(255,255,255,0.05);}
+.u1 .unit-num{background:rgba(99,102,241,0.12);color:#a5b4fc;}
+.u2 .unit-num{background:rgba(34,197,94,0.1);color:var(--green);}
+.u3 .unit-num{background:rgba(245,158,11,0.1);color:var(--amber);}
+.u4 .unit-num{background:rgba(239,68,68,0.1);color:var(--red);}
+.u5 .unit-num{background:var(--accent-dim);color:var(--accent);}
+.u6 .unit-num{background:rgba(167,139,250,0.1);color:var(--purple);}
+.u7 .unit-num{background:rgba(244,114,182,0.1);color:#f472b6;}
+
+/* ── PREREQS & OUTCOMES ── */
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:20px 0;}
+@media(max-width:640px){.info-grid{grid-template-columns:1fr;}}
+.info-card{padding:20px;border-radius:12px;border:1px solid var(--border);background:var(--surface);}
+.info-card h3{font-size:14px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px;}
+.info-card li{font-size:13px;color:var(--text-dim);margin-bottom:6px;padding-left:16px;position:relative;}
+.info-card li::before{content:'';position:absolute;left:0;top:8px;width:6px;height:6px;border-radius:50%;background:var(--accent);opacity:0.5;}
+.info-card ul{list-style:none;}
+
+/* ── FOOTER ── */
+.footer{padding:48px 0 32px;text-align:center;border-top:1px solid var(--border);}
+.footer a{color:var(--accent);text-decoration:none;font-weight:500;}
+.footer p{font-size:13px;color:var(--text-dim);margin-top:8px;}
+
+/* ── ANIM ── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+.anim{animation:fadeUp 0.5s ease-out both;animation-delay:calc(var(--i,0)*80ms);}
+@media(prefers-reduced-motion:reduce){.anim{animation:none;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ═══ HERO ═══ -->
+<header class="hero">
+  <div class="hero-badge anim" style="--i:0">Engineering Course</div>
+  <h1 class="anim" style="--i:1">Hardware-First<br><span>Satellite Communications</span></h1>
+  <p class="sub anim" style="--i:2">A deep-dive engineering guide to the Starlink Pass Simulator. Covers the full signal chain from orbital mechanics to packet delivery, modeling the spacecraft as hardware first and a network node second.</p>
+  <div class="hero-stats anim" style="--i:3">
+    <div class="hero-stat"><div class="val">9</div><div class="lbl">Units</div></div>
+    <div class="hero-stat"><div class="val">10</div><div class="lbl">Subsystems</div></div>
+    <div class="hero-stat"><div class="val">54</div><div class="lbl">Questions</div></div>
+    <div class="hero-stat"><div class="val">1s</div><div class="lbl">Resolution</div></div>
+  </div>
+</header>
+
+<!-- ═══ CAUSAL CHAIN ═══ -->
+<section>
+  <h2 class="anim" style="--i:4">The Causal Chain</h2>
+  <p class="section-sub anim" style="--i:5">Every metric is a downstream consequence of hardware state. Nothing is independent.</p>
+  <div class="chain anim" style="--i:6">
+    <div class="chain-node cn-orbit">Orbit</div><span class="chain-arrow">&rarr;</span>
+    <div class="chain-node cn-ant">Antenna</div><span class="chain-arrow">&rarr;</span>
+    <div class="chain-node cn-rf">RF Chain</div><span class="chain-arrow">&rarr;</span>
+    <div class="chain-node cn-tp">Thermal&thinsp;/&thinsp;Power</div><span class="chain-arrow">&rarr;</span>
+    <div class="chain-node cn-link">Link Budget</div><span class="chain-arrow">&rarr;</span>
+    <div class="chain-node cn-mod">Modulation</div><span class="chain-arrow">&rarr;</span>
+    <div class="chain-node cn-prot">Protocol</div><span class="chain-arrow">&rarr;</span>
+    <div class="chain-node" style="background:rgba(255,255,255,0.06);color:#fff;font-weight:700;border-color:rgba(255,255,255,0.15);">Goodput</div>
+  </div>
+</section>
+
+<!-- ═══ UNITS ═══ -->
+<section>
+  <h2 class="anim" style="--i:7">Course Units</h2>
+  <p class="section-sub anim" style="--i:8">Each unit covers one topic in depth. Theory, diagrams, code connections, references, and self-assessment questions.</p>
+  <div class="units">
+
+    <a href="unit-1-orbital-mechanics.html" class="unit-card u1 anim" style="--i:9">
+      <div class="unit-num">01</div>
+      <div>
+        <h3>Orbital Mechanics &amp; Satellite Passes</h3>
+        <p>How satellites orbit Earth, what TLEs encode, how SGP4 propagation works, and why LEO passes last only minutes. The foundation for everything else.</p>
+        <div class="unit-topics"><span>TLE Format</span><span>SGP4</span><span>Elevation &amp; Azimuth</span><span>Doppler</span><span>AOS / TCA / LOS</span></div>
+      </div>
+    </a>
+
+    <a href="unit-2-phased-array.html" class="unit-card u2 anim" style="--i:10">
+      <div class="unit-num">02</div>
+      <div>
+        <h3>Phased Array Antennas</h3>
+        <p>How Starlink steers its beam without moving parts. Element patterns, array factors, scan loss, mutual coupling, and why gain degrades at high steering angles.</p>
+        <div class="unit-topics"><span>Beam Steering</span><span>Element Pattern</span><span>Scan Loss</span><span>Mutual Coupling</span><span>Element Failures</span></div>
+      </div>
+    </a>
+
+    <a href="unit-3-rf-chain.html" class="unit-card u3 anim" style="--i:11">
+      <div class="unit-num">03</div>
+      <div>
+        <h3>RF Transmit Chain</h3>
+        <p>The power amplifier's nonlinear compression (Rapp model), oscillator phase noise, EVM, and how thermal effects degrade the transmitted signal.</p>
+        <div class="unit-topics"><span>Rapp PA Model</span><span>AM/AM &amp; AM/PM</span><span>Backoff</span><span>Phase Noise</span><span>EVM</span><span>Tracking Loops</span></div>
+      </div>
+    </a>
+
+    <a href="unit-4-thermal.html" class="unit-card u4 anim" style="--i:12">
+      <div class="unit-num">04</div>
+      <div>
+        <h3>Spacecraft Thermal Management</h3>
+        <p>How heat flows in the vacuum of space. Lumped thermal models, Stefan-Boltzmann radiative cooling, solar loading, eclipse transitions, and thermal throttling.</p>
+        <div class="unit-topics"><span>Lumped Thermal</span><span>Stefan-Boltzmann</span><span>5-Node Model</span><span>Solar Loading</span><span>Thermal Throttling</span></div>
+      </div>
+    </a>
+
+    <a href="unit-5-power.html" class="unit-card u5 anim" style="--i:13">
+      <div class="unit-num">05</div>
+      <div>
+        <h3>Satellite Power Systems</h3>
+        <p>Solar panels, battery management, eclipse cycling, power modes, and how energy constraints limit the transmitter.</p>
+        <div class="unit-topics"><span>Solar Panels</span><span>Battery SoC</span><span>Eclipse</span><span>Power Modes</span><span>Load Shedding</span></div>
+      </div>
+    </a>
+
+    <a href="unit-6-link-budget.html" class="unit-card u5 anim" style="--i:14">
+      <div class="unit-num">06</div>
+      <div>
+        <h3>The Satellite Link Budget</h3>
+        <p>The central calculation: every gain and loss from transmitter to receiver. EIRP, free-space path loss, atmospheric attenuation, polarization, G/T, and margin.</p>
+        <div class="unit-topics"><span>EIRP</span><span>FSPL</span><span>Atmospheric Loss</span><span>Polarization</span><span>G/T</span><span>C/N</span><span>SNR Margin</span></div>
+      </div>
+    </a>
+
+    <a href="unit-7-modulation.html" class="unit-card u6 anim" style="--i:15">
+      <div class="unit-num">07</div>
+      <div>
+        <h3>Digital Modulation &amp; Protocol Stack</h3>
+        <p>QPSK through 64QAM, BER curves, adaptive modulation, FEC coding, ARQ retransmissions, and goodput.</p>
+        <div class="unit-topics"><span>QPSK / QAM</span><span>BER &amp; erfc</span><span>DVB-S2X</span><span>Adaptive ModCod</span><span>ARQ</span><span>Goodput</span></div>
+      </div>
+    </a>
+
+    <a href="unit-8-oscillator.html" class="unit-card u3 anim" style="--i:16">
+      <div class="unit-num">08</div>
+      <div>
+        <h3>Oscillators, Phase Noise &amp; Tracking</h3>
+        <p>How the satellite's frequency reference works, why TCXO drifts with temperature, phase noise spectra, and PLL tracking dynamics.</p>
+        <div class="unit-topics"><span>TCXO</span><span>Phase Noise</span><span>PLL</span><span>Frequency Drift</span><span>Lock / Unlock</span></div>
+      </div>
+    </a>
+
+    <a href="unit-9-faults.html" class="unit-card u7 anim" style="--i:17">
+      <div class="unit-num">09</div>
+      <div>
+        <h3>Fault Injection &amp; Cross-Layer Causality</h3>
+        <p>Why independent throughput curves are wrong. How hardware faults cascade through the signal chain, and how to trace a throughput collapse to its hardware root cause.</p>
+        <div class="unit-topics"><span>Fault Types</span><span>Cascade Effects</span><span>Root Cause</span><span>The Tick Loop</span><span>Debugging Throughput</span></div>
+      </div>
+    </a>
+
+  </div>
+</section>
+
+<!-- ═══ PREREQS & OUTCOMES ═══ -->
+<section>
+  <div class="info-grid">
+    <div class="info-card anim" style="--i:16">
+      <h3>Prerequisites</h3>
+      <ul>
+        <li>Basic understanding of electromagnetic waves</li>
+        <li>Comfort with dB notation (dBm, dBW, dBi)</li>
+        <li>Familiarity with digital communications concepts</li>
+        <li>Ability to read TypeScript code</li>
+      </ul>
+    </div>
+    <div class="info-card anim" style="--i:17">
+      <h3>After This Course</h3>
+      <ul>
+        <li>Read a TLE and predict satellite passes</li>
+        <li>Explain phased array beam steering</li>
+        <li>Trace PA compression through to BER</li>
+        <li>Calculate a complete link budget</li>
+        <li>Debug throughput from hardware root cause</li>
+        <li>Design fault scenarios and predict cascades</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ ABOUT ═══ -->
+<section>
+  <h2 class="anim" style="--i:18">About the Simulator</h2>
+  <p class="section-sub">10 subsystem models computed every second of simulated time. Open-source educational simulator.</p>
+  <div class="info-grid" style="grid-template-columns:1fr 1fr 1fr;">
+    <div class="info-card" style="text-align:center;">
+      <div style="font-family:var(--font-mono);font-size:20px;color:var(--accent);font-weight:600;">STARLINK-1008</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">Real TLE from CelesTrak</div>
+    </div>
+    <div class="info-card" style="text-align:center;">
+      <div style="font-family:var(--font-mono);font-size:20px;color:var(--green);font-weight:600;">Three.js</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">3D Globe Visualization</div>
+    </div>
+    <div class="info-card" style="text-align:center;">
+      <div style="font-family:var(--font-mono);font-size:20px;color:var(--amber);font-weight:600;">TypeScript</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">Next.js 16 + Zustand</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ FOOTER ═══ -->
+<footer class="footer">
+  <a href="https://github.com/mohiiit/starlink-pass-sim" target="_blank">github.com/mohiiit/starlink-pass-sim</a>
+  <p>Hardware-First Satellite Communications Guide</p>
+</footer>
+
+</div>
+</body>
+</html>
