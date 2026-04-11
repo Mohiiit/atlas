@@ -326,6 +326,38 @@ svg text{font-family:var(--font-body),system-ui,sans-serif;}
   <strong>Analogy to electrical circuits:</strong> A lumped thermal model is exactly analogous to an RC circuit. Temperature is voltage, heat flow is current, thermal mass is capacitance, thermal conductance is 1/resistance. The thermal ODE is the same as the capacitor charging equation. Engineers who understand RC circuits already understand thermal modeling -- it is the same math.
 </div>
 
+<h3>The Thermal-Electrical Analogy in Detail</h3>
+
+<table>
+  <tr><th>Thermal Domain</th><th>Electrical Domain</th><th>Units</th></tr>
+  <tr><td>Temperature T</td><td>Voltage V</td><td>Degrees C / Volts</td></tr>
+  <tr><td>Heat flow Q</td><td>Current I</td><td>Watts / Amperes</td></tr>
+  <tr><td>Thermal mass C</td><td>Capacitance C</td><td>J/deg C / Farads</td></tr>
+  <tr><td>Thermal resistance R = 1/G</td><td>Resistance R</td><td>deg C/W / Ohms</td></tr>
+  <tr><td>Heat generation</td><td>Current source</td><td>Watts / Amperes</td></tr>
+  <tr><td>Radiative cooling (T^4)</td><td>No direct analog (nonlinear)</td><td>--</td></tr>
+</table>
+
+<p>The analogy breaks down for radiation, which is strongly nonlinear (T^4). There is no common electrical component with a V^4 characteristic. This nonlinearity is what makes spacecraft thermal analysis more challenging than simple RC circuit analysis. The simulator handles it by evaluating the radiative term at each time step using the current temperature, then treating it as a constant heat sink for that step (explicit linearization).</p>
+
+<h3>When Lumped Models Fail</h3>
+
+<p>The lumped parameter approach works when the temperature gradient <em>within</em> each node is small compared to the gradient <em>between</em> nodes. This is quantified by the Biot number: Bi = h*L/k, where h is the heat transfer coefficient, L is the characteristic length, and k is the thermal conductivity. For Bi << 1, the lumped model is valid.</p>
+
+<p>For our PA junction node: the GaN die is small (~3 mm) and highly conductive, so the temperature is nearly uniform across the die. Bi << 1 -- the lumped model is excellent. For the array panel: it is large (~1 m) with modest conductivity (aluminum), but the heat input is distributed. The lumped model is approximate but acceptable for a real-time simulator. A detailed thermal model might use 100+ nodes for the array panel alone, but this would be computationally expensive and not necessary for understanding the system-level behavior.</p>
+
+<h3>Thermal Resistance Networks</h3>
+
+<p>The conductance values in the simulator encode the combined thermal resistance of the physical heat path. For example, the PA-to-Array conductance of G = 2.0 W/C represents:</p>
+
+<ul>
+  <li>Junction-to-case resistance of the GaN die (~5 C/W)</li>
+  <li>Thermal interface material (TIM) between the package and the mounting pad (~2 C/W)</li>
+  <li>Spreading resistance in the array panel structure (~3 C/W)</li>
+</ul>
+
+<p>Total resistance: 5 + 2 + 3 = 10 C/W, giving G = 1/R = 0.1 W/C per die. With multiple PA dies (or accounting for the fact that the simulator uses a simplified model), the aggregate conductance is approximately 2.0 W/C.</p>
+
 <!-- ════════════════════════════════════════════════════════ -->
 <!-- SECTION 5: The 5-Node Model -->
 <!-- ════════════════════════════════════════════════════════ -->
@@ -541,6 +573,65 @@ svg text{font-family:var(--font-body),system-ui,sans-serif;}
 
 <p>At 80 C (delta = 55 C): drift = 0.5 * 55 + 0.01 * 3025 = 27.5 + 30.25 = 57.75 ppm = 693 kHz at 12 GHz. This approaches the PLL unlock threshold. Above 80 C, the oscillator may lose lock entirely, causing signal dropout regardless of link budget margin.</p>
 
+<h3>Thermal Derating: A Comprehensive View</h3>
+
+<p>The table below summarizes all temperature-dependent effects modeled in the simulator. Notice that every effect gets worse with increasing temperature -- there are no beneficial thermal effects in the RF chain.</p>
+
+<table>
+  <tr><th>Component</th><th>Parameter</th><th>Rate</th><th>At T_PA = 85 C (delta = 60 C)</th><th>Effect</th></tr>
+  <tr><td>PA</td><td>P1dB</td><td>-0.02 dB/C</td><td>-1.2 dB</td><td>PA compresses earlier, reducing max clean output power</td></tr>
+  <tr><td>PA</td><td>Gain</td><td>-0.015 dB/C</td><td>-0.9 dB</td><td>Less amplification; output power drops for same input</td></tr>
+  <tr><td>PA</td><td>Efficiency</td><td>-0.003/C</td><td>-0.18 (27% reduction)</td><td>More waste heat per watt of RF; positive feedback on temperature</td></tr>
+  <tr><td>Oscillator</td><td>Frequency</td><td>0.5 ppm/C</td><td>+30 ppm = 360 kHz</td><td>Carrier offset requires tracking loop compensation</td></tr>
+  <tr><td>Oscillator</td><td>Phase noise</td><td>degrades with T</td><td>~2 dB increase</td><td>Higher EVM floor, reduced SNR for high-order modulation</td></tr>
+</table>
+
+<h3>The Design Temperature Budget</h3>
+
+<p>Spacecraft thermal engineers allocate a "temperature budget" to each component, specifying the maximum allowable temperature under worst-case conditions (end of life, maximum solar loading, highest power mode). For the PA junction, a typical budget might look like:</p>
+
+<table>
+  <tr><th>Contribution</th><th>Temperature Rise (C)</th></tr>
+  <tr><td>Base plate (radiator average)</td><td>30</td></tr>
+  <tr><td>Conduction through structure to array panel</td><td>+10</td></tr>
+  <tr><td>Conduction from array panel to PA package</td><td>+15</td></tr>
+  <tr><td>Junction-to-case thermal resistance</td><td>+20</td></tr>
+  <tr><td><strong>Total junction temperature</strong></td><td><strong>75 C (nominal)</strong></td></tr>
+  <tr><td>End-of-life degradation margin</td><td>+10</td></tr>
+  <tr><td><strong>Worst case</strong></td><td><strong>85 C = throttle threshold</strong></td></tr>
+</table>
+
+<p>This budget shows why the 85 C throttle threshold exists: it represents the junction temperature at which the thermal design margin is completely consumed. Running hotter than 85 C means operating outside the qualified temperature range, risking accelerated aging and potential device failure.</p>
+
+<h3>Arrhenius Acceleration and Component Lifetime</h3>
+
+<p>The lifetime of semiconductor devices decreases exponentially with temperature, following the Arrhenius equation:</p>
+
+<div class="math-block">
+  Lifetime factor = exp( E_a / k_B * (1/T_2 - 1/T_1) )
+</div>
+
+<p>where E_a is the activation energy of the dominant failure mechanism and k_B is Boltzmann's constant. A commonly cited rule of thumb for GaN devices: every 10 C increase in junction temperature halves the device lifetime.</p>
+
+<p>At 75 C junction (nominal design), a GaN PA might have a mean time to failure (MTTF) of 10 million hours (~1140 years). At 85 C: MTTF drops to 5 million hours. At 95 C: 2.5 million hours. At 105 C: 1.25 million hours (~143 years). Even at elevated temperatures, the absolute MTTF is long -- but a satellite constellation with thousands of PAs will see statistical failures much sooner than the mean.</p>
+
+<p>This is another reason for thermal throttling: not just immediate performance, but long-term reliability. Running the PA at 95 C for even a short time accumulates damage that shortens the satellite's useful life.</p>
+
+<h3>Heat Pipes and Advanced Thermal Control</h3>
+
+<p>Real satellite thermal control systems often include heat pipes -- sealed tubes containing a two-phase working fluid that efficiently transports heat over long distances with very low temperature drop. A heat pipe can have an effective thermal conductivity thousands of times higher than solid copper.</p>
+
+<p>In the simulator's 5-node model, heat pipes are implicitly represented by the conductance values. The G = 5.0 W/C conductance from the Array Panel to the Radiator is higher than it would be for simple aluminum conduction, representing the use of embedded heat pipes in the array structure. If a thermal fault degrades this conductance (simulating a heat pipe dryout, for example), the entire thermal balance shifts and the PA junction heats up more rapidly.</p>
+
+<p>Other thermal control technologies used in real spacecraft but not explicitly modeled in the simulator include:</p>
+
+<ul>
+  <li><strong>Multi-layer insulation (MLI):</strong> Blankets of aluminized Mylar that reduce radiative heat exchange between spacecraft surfaces and the environment. Effective emissivity can be as low as 0.01.</li>
+  <li><strong>Louvers:</strong> Mechanical shutters over radiator surfaces that open when the spacecraft is warm and close when cold, regulating the effective emissivity.</li>
+  <li><strong>Phase change materials (PCM):</strong> Substances that absorb heat by melting (storing latent heat) during peak power periods and release it when power drops. Acts as thermal capacitance.</li>
+  <li><strong>Thermoelectric coolers (TEC):</strong> Peltier devices that actively pump heat from sensitive components (like the oscillator) to maintain a stable temperature.</li>
+</ul>
+
 <!-- ════════════════════════════════════════════════════════ -->
 <!-- SECTION 9: Eclipse Transitions -->
 <!-- ════════════════════════════════════════════════════════ -->
@@ -556,6 +647,32 @@ svg text{font-family:var(--font-body),system-ui,sans-serif;}
 </ul>
 
 <p>Eclipse exit is more abrupt and more stressful: the full solar flux hits the spacecraft suddenly, and the radiator and array panel begin absorbing 150 W that was not there a second ago. The thermal transient from eclipse exit is typically the time when temperatures are most likely to spike and approach throttling thresholds.</p>
+
+<h3>Eclipse Frequency and Duration</h3>
+
+<p>For the Starlink orbit (550 km altitude, 53 degrees inclination), the eclipse fraction varies with the angle between the orbital plane and the sun vector. At certain times of year, the orbital plane can be nearly perpendicular to the sun line, meaning every orbit passes through Earth's shadow. At other times, the satellite may be in continuous sunlight.</p>
+
+<p>Maximum eclipse duration occurs when the satellite passes through the center of Earth's shadow. For 550 km altitude:</p>
+
+<div class="math-block">
+  Eclipse half-angle: alpha = arcsin(R_E / (R_E + h)) = arcsin(6371/6921) = 66.8 deg
+  <br>Maximum eclipse fraction: 2 * alpha / 360 = 133.6 / 360 = 37.1%
+  <br>Maximum eclipse duration: 0.371 * 93.8 min = ~34.8 minutes
+</div>
+
+<p>During the worst-case eclipse, the spacecraft loses all 150 W of solar input for 35 minutes, then regains it abruptly. The thermal model must handle these transients without allowing temperatures to exceed limits in either direction -- not just overheating, but also under-cooling (some components have minimum operating temperatures).</p>
+
+<h3>Thermal Inertia as a Design Tool</h3>
+
+<p>The large thermal mass of the radiator (C = 500 J/C) is not an accident -- it is a deliberate design choice. During eclipse, the radiator continues radiating to space even though solar input has stopped. Its temperature drops slowly thanks to its high thermal mass. When the sun returns, the radiator absorbs the solar pulse gradually. Without this thermal inertia, temperature swings would be much more severe.</p>
+
+<p>Engineers sometimes add dedicated thermal mass (phase change materials, thermal storage units) specifically to buffer transient heat loads. The principle is the same as a capacitor in an electrical circuit: absorb short-duration spikes so that the steady-state system can handle the average load.</p>
+
+<h3>Multi-Orbit Thermal Evolution</h3>
+
+<p>Over multiple orbits, the thermal state reaches a periodic steady state -- temperatures oscillate around an average value with each eclipse cycle. The PA junction, with its tiny thermal mass, closely tracks the fast variations. The radiator, with its massive thermal inertia, barely fluctuates. The time to reach periodic steady state depends on the slowest time constant in the system: for the radiator, tau = C/G_total is on the order of 100 seconds, but the radiative cooling introduces nonlinearity that can extend settling to 30-60 minutes (several orbits).</p>
+
+<p>The simulator typically runs for a single pass (~8 minutes), which is short enough that orbital thermal cycling is not a major factor. However, the initial temperatures are set to represent a satellite that has already reached periodic steady state during a sunlit phase -- hence the relatively warm initial values (30-55 degrees C).</p>
 
 <!-- ════════════════════════════════════════════════════════ -->
 <!-- SECTION 10: Code Connection -->

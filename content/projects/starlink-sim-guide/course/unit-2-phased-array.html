@@ -399,6 +399,24 @@ svg text{font-family:var(--font-body),system-ui,sans-serif;}
 
 <p>If the spacing were larger -- say d = lambda (25 mm) -- then scanning to just 30 degrees would produce a grating lobe at sin(theta_g) = 0.5 + 1 = 1.5... still invisible. But at d = 0.8*lambda, a scan to 40 degrees produces sin(theta_g) = sin(40) + 1/0.8 = 0.643 + 1.25 = 1.89... still fine. The problem begins with spacings above lambda, where grating lobes enter the visible hemisphere during large scans. The lambda/2 rule provides a universal safety guarantee for all scan angles up to 90 degrees.</p>
 
+<h3>Phase Shifter Resolution</h3>
+
+<p>In practice, the phase shift at each element is applied by a digital phase shifter -- a component that can set the phase to one of 2^b discrete values, where b is the number of bits. Common values are 5-bit (32 states, 11.25 degree resolution) and 6-bit (64 states, 5.625 degree resolution).</p>
+
+<p>The quantization error from finite phase shifter resolution has two effects: (1) a slight reduction in directivity (because the beam is not steered to exactly the desired angle), and (2) increased sidelobes from the periodic quantization error. For a 6-bit phase shifter, the quantization loss is about 0.2 dB and the sidelobe degradation is negligible. For a 5-bit shifter, the loss increases to about 0.5 dB.</p>
+
+<p>The simulator does not model phase shifter quantization directly (it uses continuous phase shifts), but the pointing jitter model partially captures this effect through the quantization contribution to pointing error.</p>
+
+<h3>Frequency Dependence</h3>
+
+<p>The phase shift required for a given scan angle depends on frequency through the wavenumber k = 2*pi*f/c. If the array is designed to steer to angle theta_s at the center frequency f_0, then at a different frequency f within the bandwidth, the actual beam direction shifts to:</p>
+
+<div class="math-block">
+  sin(theta_actual) = sin(theta_s) * f_0 / f
+</div>
+
+<p>This effect is called <em>beam squint</em>. For a 250 MHz bandwidth centered at 12 GHz, the fractional frequency range is +/- 1.04%, which causes a beam squint of about 0.6 degrees at 60-degree scan. This is smaller than the beamwidth at that scan angle (5 degrees), so it does not cause significant loss for narrowband signals. However, for very wideband signals, true-time-delay steering (instead of phase shifting) would be needed to avoid squint.</p>
+
 <!-- ════════════════════════════════════════════════════════ -->
 <!-- SECTION 4: Array Factor and Total Gain -->
 <!-- ════════════════════════════════════════════════════════ -->
@@ -715,6 +733,28 @@ svg text{font-family:var(--font-body),system-ui,sans-serif;}
 <h3>index.ts -- Per-Tick Entry Point</h3>
 
 <p>The <code>computeAntennaState()</code> function is called once per simulation tick. It clamps steering angle to the maximum (70 degrees), clamps active elements, and returns the complete <code>AntennaState</code> including beam quality percentage and a steering-limited flag that warns when the satellite is being asked to steer beyond its physical capability.</p>
+
+<h3>The Full Signal Chain for One Element</h3>
+
+<p>To put the antenna model in context, here is the signal chain for a single transmit element in the phased array:</p>
+
+<ol>
+  <li><strong>Digital beamformer:</strong> Computes the required amplitude and phase for this element based on the desired beam direction and taper window. Outputs a digital I/Q sample.</li>
+  <li><strong>DAC:</strong> Converts the digital sample to an analog baseband signal.</li>
+  <li><strong>Upconverter:</strong> Mixes the baseband signal with the local oscillator to produce the 12 GHz RF signal.</li>
+  <li><strong>Phase shifter:</strong> Applies the scan-dependent phase shift (the progressive delay that steers the beam).</li>
+  <li><strong>Variable attenuator:</strong> Sets the amplitude taper for this element's position in the Taylor window.</li>
+  <li><strong>Power amplifier (T/R module):</strong> Amplifies the signal to the required transmit power level.</li>
+  <li><strong>Patch antenna:</strong> Radiates the amplified signal into free space with the cos^q(theta) element pattern.</li>
+</ol>
+
+<p>Each element has its own T/R (transmit/receive) module containing steps 3-6. This is what makes phased arrays expensive and complex: for 1200 elements, you need 1200 T/R modules, each containing an upconverter, phase shifter, attenuator, and PA. The element failure model in the simulator corresponds to a T/R module failure -- when a module fails, that element contributes zero signal to the array.</p>
+
+<h3>Receive Mode</h3>
+
+<p>The phased array also operates in receive mode (the ground terminal receiving the satellite downlink). In receive mode, the signal chain is reversed: each element receives a signal through its patch antenna, amplifies it with a low-noise amplifier (LNA), applies the scan-dependent phase shift, and feeds the result to the digital beamformer, which coherently sums all element signals.</p>
+
+<p>The receiver gain computation is nearly identical to the transmitter, with the same scan loss and beamwidth formulas. The main difference is that the receiver noise temperature depends on the scan angle: at low elevation angles, the element pattern points more toward the warm Earth (255 K noise temperature) rather than cold sky, increasing the system noise temperature and degrading G/T.</p>
 
 <!-- ════════════════════════════════════════════════════════ -->
 <!-- SECTION 9: External References -->
