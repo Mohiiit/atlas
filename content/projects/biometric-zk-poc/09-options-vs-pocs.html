@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ch.09 - Options vs POCs</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root { --bg: #08080f; --surface: #111119; --surface2: #1a1a25; --border: #2a2a3a; --text: #e8e8f0; --text-dim: #8888a0; --orange: #ff6b35; --teal: #4ecdc4; --purple: #7c3aed; --blue: #3b82f6; --green: #10b981; --red: #ef4444; --amber: #f59e0b; }
+  body { font-family: 'SF Pro Display', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+  .nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(8,8,15,0.9); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 0.8rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+  .nav a { color: var(--text-dim); text-decoration: none; font-size: 0.85rem; } .nav a:hover { color: var(--orange); }
+  .nav .chapter { color: var(--orange); font-weight: 600; font-size: 0.85rem; }
+  .hero { padding: 8rem 2rem 4rem; max-width: 1100px; margin: 0 auto; }
+  .hero .badge { display: inline-flex; gap: 0.5rem; padding: 0.4rem 1rem; background: rgba(255,107,53,0.12); border: 1px solid rgba(255,107,53,0.28); border-radius: 8px; font-size: 0.8rem; color: var(--orange); margin-bottom: 1rem; }
+  .hero h1 { font-size: 2.65rem; font-weight: 700; line-height: 1.15; margin-bottom: 1rem; }
+  .hero .subtitle { font-size: 1.1rem; color: var(--text-dim); max-width: 780px; }
+  .content { max-width: 1100px; margin: 0 auto; padding: 0 2rem; }
+  .sep { height: 1px; background: linear-gradient(90deg, transparent, var(--border), transparent); margin: 3rem 0; }
+  h2 { font-size: 1.55rem; font-weight: 700; margin-bottom: 1rem; }
+  h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem; }
+  p { margin-bottom: 1rem; font-size: 0.95rem; }
+  code { font-family: 'SF Mono', monospace; background: rgba(255,107,53,0.1); color: var(--orange); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.85rem; }
+  .callout { background: rgba(78,205,196,0.08); border-left: 3px solid var(--teal); border-radius: 0 10px 10px 0; padding: 1.2rem 1.5rem; margin: 1.5rem 0; }
+  .callout.warn { background: rgba(245,158,11,0.08); border-left-color: var(--amber); }
+  .callout.red { background: rgba(239,68,68,0.08); border-left-color: var(--red); }
+  .callout h4 { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.4rem; } .callout p { margin: 0; font-size: 0.9rem; }
+  .diagram { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin: 2rem 0; overflow-x: auto; }
+  .diagram svg { width: 100%; height: auto; display: block; min-width: 920px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 1rem; margin: 1rem 0 0; color: var(--text-dim); font-size: 0.85rem; }
+  .legend span { display: inline-flex; align-items: center; gap: 0.4rem; }
+  .dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+  .dot.green { background: var(--green); } .dot.amber { background: var(--amber); } .dot.red { background: var(--red); } .dot.blue { background: var(--blue); }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.2rem; margin: 1.5rem 0; }
+  @media (max-width: 850px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.4rem; }
+  .card h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.5rem; }
+  .card p { font-size: 0.88rem; color: var(--text-dim); margin: 0; }
+  .card.a { border-color: rgba(16,185,129,0.45); } .card.a h4 { color: var(--green); }
+  .card.b { border-color: rgba(59,130,246,0.45); } .card.b h4 { color: var(--blue); }
+  .card.c { border-color: rgba(124,58,237,0.45); } .card.c h4 { color: var(--purple); }
+  .mini-list { margin: 0.9rem 0 0 1rem; color: var(--text-dim); font-size: 0.86rem; line-height: 1.55; }
+  .mini-list li { margin-bottom: 0.45rem; }
+  .path-strip { display: grid; grid-template-columns: 1fr auto 1fr auto 1.15fr; gap: 0.65rem; align-items: stretch; margin: 1.3rem 0; }
+  @media (max-width: 900px) { .path-strip { grid-template-columns: 1fr; } .path-arrow { display: none; } }
+  .path-step { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; min-height: 112px; }
+  .path-step .label { display: block; font-family: 'SF Mono', monospace; font-size: 0.72rem; color: var(--text-dim); margin-bottom: 0.35rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  .path-step strong { display: block; font-size: 0.94rem; margin-bottom: 0.25rem; }
+  .path-step small { display: block; color: var(--text-dim); font-size: 0.78rem; line-height: 1.45; }
+  .path-arrow { color: var(--orange); font-family: 'SF Mono', monospace; align-self: center; opacity: 0.8; }
+  .effort { display: inline-block; margin-top: 0.55rem; padding: 0.18rem 0.5rem; border-radius: 999px; border: 1px solid var(--border); font-size: 0.72rem; color: var(--text-dim); }
+  .effort.low { color: var(--green); border-color: rgba(16,185,129,0.45); background: rgba(16,185,129,0.08); }
+  .effort.mid { color: var(--amber); border-color: rgba(245,158,11,0.45); background: rgba(245,158,11,0.08); }
+  .effort.high { color: var(--red); border-color: rgba(239,68,68,0.45); background: rgba(239,68,68,0.08); }
+  .data-table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.9rem; }
+  .data-table th { text-align: left; padding: 0.8rem; background: var(--surface2); color: var(--orange); font-weight: 600; font-size: 0.8rem; }
+  .data-table td { padding: 0.8rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .data-table td:first-child { font-family: 'SF Mono', monospace; color: var(--teal); font-size: 0.85rem; }
+  .status { font-weight: 600; white-space: nowrap; }
+  .status.done { color: var(--green); } .status.partial { color: var(--amber); } .status.missing { color: var(--red); }
+  footer { padding: 3rem 2rem; text-align: center; border-top: 1px solid var(--border); margin-top: 4rem; }
+  .nav-footer { display: flex; justify-content: space-between; max-width: 1100px; margin: 0 auto; padding: 2rem; }
+  .nav-footer a { color: var(--orange); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <a href="08-first-principles.html">&larr; First Principles</a>
+  <span class="chapter">Chapter 09 &mdash; Options vs POCs</span>
+  <a href="index.html">Back to Overview &rarr;</a>
+</div>
+
+<div class="hero">
+  <div class="badge">Decision Map &middot; Option A/B/C vs Actual POC-A/B/C</div>
+  <h1>Where the New v1 Options<br>Match the Existing POCs</h1>
+  <div class="subtitle">The confusing part is that "Option B" and "POC-B" sound related, but they are different layers. Options A/B/C describe the <strong>on-chain claim boundary</strong>. POCs A/B/C describe the <strong>things we already built</strong>.</div>
+</div>
+
+<div class="content">
+
+<div class="callout warn">
+  <h4>Short answer</h4>
+  <p>Current <strong>POC-B is not Option B</strong>. Current POC-B proves the raw biometric P-256 signature inside ZK, so it is closest to <strong>Option A</strong>. v1 <strong>Option B</strong> would instead prove that our backend signed a validated credential bundle.</p>
+</div>
+
+<div class="sep"></div>
+
+<h2>Gap Map</h2>
+<p>Each row starts with the desired option, points to the closest POC we already have, and then names the smallest gap we need to close.</p>
+
+<div class="diagram">
+  <svg viewBox="0 0 1080 780" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Gap map from desired Options A B C to current POCs and required changes">
+    <defs>
+      <marker id="gapArrow" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8" fill="#ff6b35"/></marker>
+    </defs>
+
+    <rect x="0" y="0" width="1080" height="780" rx="18" fill="#111119"/>
+    <text x="30" y="42" fill="#ff6b35" font-size="15" font-weight="700" font-family="monospace">GAP MAP: desired option &rarr; closest current POC &rarr; smallest missing delta</text>
+
+    <text x="38" y="88" fill="#8888a0" font-size="12" font-weight="700" font-family="monospace">DESIRED STATE</text>
+    <text x="398" y="88" fill="#8888a0" font-size="12" font-weight="700" font-family="monospace">CLOSEST CURRENT POC</text>
+    <text x="758" y="88" fill="#8888a0" font-size="12" font-weight="700" font-family="monospace">GAP TO CLOSE</text>
+
+    <!-- Option A row -->
+    <rect x="24" y="108" width="1032" height="178" rx="16" fill="rgba(16,185,129,0.035)" stroke="rgba(16,185,129,0.35)"/>
+    <rect x="38" y="128" width="300" height="138" rx="12" fill="rgba(16,185,129,0.08)" stroke="#10b981"/>
+    <text x="58" y="158" fill="#10b981" font-size="16" font-weight="700" font-family="monospace">Option A target</text>
+    <text x="58" y="188" fill="#e8e8f0" font-size="13" font-family="monospace">Circuit directly verifies</text>
+    <text x="58" y="210" fill="#e8e8f0" font-size="13" font-family="monospace">raw biometric P-256</text>
+    <text x="58" y="232" fill="#8888a0" font-size="12" font-family="monospace">for wallet + freshness epoch</text>
+
+    <line x1="354" y1="197" x2="390" y2="197" stroke="#ff6b35" stroke-width="2" marker-end="url(#gapArrow)"/>
+
+    <rect x="398" y="128" width="300" height="138" rx="12" fill="rgba(78,205,196,0.055)" stroke="rgba(78,205,196,0.55)"/>
+    <text x="418" y="158" fill="#4ecdc4" font-size="16" font-weight="700" font-family="monospace">POC-B today</text>
+    <text x="418" y="188" fill="#e8e8f0" font-size="13" font-family="monospace">Noir proves raw P-256</text>
+    <text x="418" y="210" fill="#e8e8f0" font-size="13" font-family="monospace">signature inside ZK</text>
+    <text x="418" y="232" fill="#8888a0" font-size="12" font-family="monospace">proving currently off-device</text>
+
+    <line x1="714" y1="197" x2="750" y2="197" stroke="#ff6b35" stroke-width="2" marker-end="url(#gapArrow)"/>
+
+    <rect x="758" y="128" width="278" height="138" rx="12" fill="rgba(245,158,11,0.08)" stroke="#f59e0b"/>
+    <text x="778" y="158" fill="#f59e0b" font-size="16" font-weight="700" font-family="monospace">Small / medium</text>
+    <text x="778" y="188" fill="#e8e8f0" font-size="13" font-family="monospace">Bind challenge to</text>
+    <text x="778" y="210" fill="#e8e8f0" font-size="13" font-family="monospace">wallet + epoch</text>
+    <text x="778" y="232" fill="#8888a0" font-size="12" font-family="monospace">Move prover to iPad if strict</text>
+
+    <!-- Option B row -->
+    <rect x="24" y="318" width="1032" height="178" rx="16" fill="rgba(59,130,246,0.035)" stroke="rgba(59,130,246,0.35)"/>
+    <rect x="38" y="338" width="300" height="138" rx="12" fill="rgba(59,130,246,0.08)" stroke="#3b82f6"/>
+    <text x="58" y="368" fill="#3b82f6" font-size="16" font-weight="700" font-family="monospace">Option B target</text>
+    <text x="58" y="398" fill="#e8e8f0" font-size="13" font-family="monospace">Circuit verifies backend</text>
+    <text x="58" y="420" fill="#e8e8f0" font-size="13" font-family="monospace">issuer signature over</text>
+    <text x="58" y="442" fill="#8888a0" font-size="12" font-family="monospace">validated wallet + epoch bundle</text>
+
+    <line x1="354" y1="407" x2="390" y2="407" stroke="#ff6b35" stroke-width="2" marker-end="url(#gapArrow)"/>
+
+    <rect x="398" y="338" width="300" height="138" rx="12" fill="rgba(78,205,196,0.055)" stroke="rgba(78,205,196,0.55)"/>
+    <text x="418" y="368" fill="#4ecdc4" font-size="16" font-weight="700" font-family="monospace">Relay + POC-B today</text>
+    <text x="418" y="398" fill="#e8e8f0" font-size="13" font-family="monospace">Relay validates Apple proof</text>
+    <text x="418" y="420" fill="#e8e8f0" font-size="13" font-family="monospace">but circuit still proves</text>
+    <text x="418" y="442" fill="#8888a0" font-size="12" font-family="monospace">raw P-256, not issuer signature</text>
+
+    <line x1="714" y1="407" x2="750" y2="407" stroke="#ff6b35" stroke-width="2" marker-end="url(#gapArrow)"/>
+
+    <rect x="758" y="338" width="278" height="138" rx="12" fill="rgba(245,158,11,0.08)" stroke="#f59e0b"/>
+    <text x="778" y="368" fill="#f59e0b" font-size="16" font-weight="700" font-family="monospace">Medium</text>
+    <text x="778" y="398" fill="#e8e8f0" font-size="13" font-family="monospace">Add issuer key + signed</text>
+    <text x="778" y="420" fill="#e8e8f0" font-size="13" font-family="monospace">canonical bundle</text>
+    <text x="778" y="442" fill="#8888a0" font-size="12" font-family="monospace">Replace circuit, pin issuer PK</text>
+
+    <!-- Option C row -->
+    <rect x="24" y="528" width="1032" height="178" rx="16" fill="rgba(124,58,237,0.035)" stroke="rgba(124,58,237,0.35)"/>
+    <rect x="38" y="548" width="300" height="138" rx="12" fill="rgba(124,58,237,0.08)" stroke="#7c3aed"/>
+    <text x="58" y="578" fill="#a78bfa" font-size="16" font-weight="700" font-family="monospace">Option C target</text>
+    <text x="58" y="608" fill="#e8e8f0" font-size="13" font-family="monospace">On-chain claim is membership</text>
+    <text x="58" y="630" fill="#e8e8f0" font-size="13" font-family="monospace">in a daily fresh-wallet</text>
+    <text x="58" y="652" fill="#8888a0" font-size="12" font-family="monospace">Merkle root</text>
+
+    <line x1="354" y1="617" x2="390" y2="617" stroke="#ff6b35" stroke-width="2" marker-end="url(#gapArrow)"/>
+
+    <rect x="398" y="548" width="300" height="138" rx="12" fill="rgba(78,205,196,0.055)" stroke="rgba(78,205,196,0.55)"/>
+    <text x="418" y="578" fill="#4ecdc4" font-size="16" font-weight="700" font-family="monospace">POC-C today</text>
+    <text x="418" y="608" fill="#e8e8f0" font-size="13" font-family="monospace">Merkle tree = registered</text>
+    <text x="418" y="630" fill="#e8e8f0" font-size="13" font-family="monospace">biometric key set</text>
+    <text x="418" y="652" fill="#8888a0" font-size="12" font-family="monospace">still proves raw P-256 in ZK</text>
+
+    <line x1="714" y1="617" x2="750" y2="617" stroke="#ff6b35" stroke-width="2" marker-end="url(#gapArrow)"/>
+
+    <rect x="758" y="548" width="278" height="138" rx="12" fill="rgba(239,68,68,0.08)" stroke="#ef4444"/>
+    <text x="778" y="578" fill="#ef4444" font-size="16" font-weight="700" font-family="monospace">Medium / high</text>
+    <text x="778" y="608" fill="#e8e8f0" font-size="13" font-family="monospace">Change root to fresh</text>
+    <text x="778" y="630" fill="#e8e8f0" font-size="13" font-family="monospace">wallet set + publish roots</text>
+    <text x="778" y="652" fill="#8888a0" font-size="12" font-family="monospace">Move biometric check pre-insert</text>
+
+    <text x="30" y="746" fill="#8888a0" font-size="12" font-family="monospace">Fastest clean v1 target: Option B from Relay + POC-B. Strongest trust claim: Option A from POC-B. Scale/batching path: Option C from POC-C.</text>
+  </svg>
+  <div class="legend">
+    <span><span class="dot green"></span>Desired Option A path</span>
+    <span><span class="dot blue"></span>Desired Option B path</span>
+    <span><span class="dot red"></span>Largest remaining gap</span>
+    <span><span class="dot amber"></span>Concrete implementation delta</span>
+  </div>
+</div>
+
+<div class="sep"></div>
+
+<h2>The Core Difference</h2>
+<p>The clean way to separate them is this:</p>
+
+<div class="grid">
+  <div class="card a">
+    <h4>Option A / Current POC-B</h4>
+    <p>The proof says: "a real P-256 biometric signature exists." The biometric signature itself is inside the ZK witness.</p>
+  </div>
+  <div class="card b">
+    <h4>Option B</h4>
+    <p>The proof says: "Pinocchio backend signed this wallet as fresh." The backend already checked the biometric proof before signing.</p>
+  </div>
+  <div class="card c">
+    <h4>Option C / Partial POC-C overlap</h4>
+    <p>The proof says: "this item is in a Merkle set." In Option C the set is fresh wallets; in POC-C the set is registered biometric keys.</p>
+  </div>
+</div>
+
+<div class="sep"></div>
+
+<h2>Gap Table</h2>
+
+<table class="data-table">
+  <tr>
+    <th>Target</th>
+    <th>Closest current POC</th>
+    <th>What matches</th>
+    <th>What is missing / different</th>
+    <th>Status</th>
+  </tr>
+  <tr>
+    <td>Option A</td>
+    <td>POC-B</td>
+    <td>Raw P-256 biometric signature is verified inside a ZK proof. Public key and signature are hidden.</td>
+    <td>POC-B still uses a relay/operator for proving. If the strict goal is client-side proving, proving needs to move to the device.</td>
+    <td class="status done">Strong match</td>
+  </tr>
+  <tr>
+    <td>Option A without ZK</td>
+    <td>POC-A</td>
+    <td>Same raw P-256 signature verification idea.</td>
+    <td>No ZK. Public key and signature are visible on-chain.</td>
+    <td class="status partial">Partial</td>
+  </tr>
+  <tr>
+    <td>Option B</td>
+    <td>None exact</td>
+    <td>The relay already validates App Attest and P-256 signature, which is the first half of Option B.</td>
+    <td>No backend issuer key, no backend-signed bundle, no issuer-signature circuit, no verifier contract keyed to <code>BACKEND_ISSUER_PK</code>.</td>
+    <td class="status missing">Missing</td>
+  </tr>
+  <tr>
+    <td>Option C</td>
+    <td>POC-C</td>
+    <td>Uses Merkle membership and nullifier concepts.</td>
+    <td>Option C's set is a daily fresh-wallet root. POC-C's set is registered biometric public keys and still proves raw P-256 signature inside ZK.</td>
+    <td class="status partial">Partial</td>
+  </tr>
+</table>
+
+<div class="sep"></div>
+
+<h2>Minimal Change Paths</h2>
+<p>Read this as: <strong>the option is the desired state</strong>, and the POC is the closest thing we already have. The point is not which POC has the same name; it is which POC needs the least change to reach the option.</p>
+
+<div class="path-strip">
+  <div class="path-step">
+    <span class="label">Desired state</span>
+    <strong>Option A</strong>
+    <small>Circuit directly verifies the raw biometric P-256 signature.</small>
+  </div>
+  <div class="path-arrow">&rarr;</div>
+  <div class="path-step">
+    <span class="label">Start from</span>
+    <strong>POC-B</strong>
+    <small>Already proves P-256 inside Noir and submits the result to Madara.</small>
+  </div>
+  <div class="path-arrow">&rarr;</div>
+  <div class="path-step">
+    <span class="label">Minimal change</span>
+    <strong>Bind message to wallet + epoch</strong>
+    <small>Add strict wallet/freshness binding. Move proving onto iPad only if true client-side proving is mandatory.</small>
+    <span class="effort mid">small to medium</span>
+  </div>
+</div>
+
+<div class="path-strip">
+  <div class="path-step">
+    <span class="label">Desired state</span>
+    <strong>Option B</strong>
+    <small>Circuit verifies a backend issuer signature over a validated credential bundle.</small>
+  </div>
+  <div class="path-arrow">&rarr;</div>
+  <div class="path-step">
+    <span class="label">Start from</span>
+    <strong>Relay + POC-B</strong>
+    <small>The relay already validates the Apple/device proof before an on-chain update.</small>
+  </div>
+  <div class="path-arrow">&rarr;</div>
+  <div class="path-step">
+    <span class="label">Minimal change</span>
+    <strong>Add issuer key + issuer-signature circuit</strong>
+    <small>Backend signs <code>walletAddress, freshnessEpoch</code>; circuit verifies that signature instead of raw P-256.</small>
+    <span class="effort mid">medium</span>
+  </div>
+</div>
+
+<div class="path-strip">
+  <div class="path-step">
+    <span class="label">Desired state</span>
+    <strong>Option C</strong>
+    <small>On-chain claim is membership in a daily signed fresh-wallet set.</small>
+  </div>
+  <div class="path-arrow">&rarr;</div>
+  <div class="path-step">
+    <span class="label">Start from</span>
+    <strong>POC-C</strong>
+    <small>Already has Merkle membership and nullifier mechanics.</small>
+  </div>
+  <div class="path-arrow">&rarr;</div>
+  <div class="path-step">
+    <span class="label">Minimal change</span>
+    <strong>Change root meaning</strong>
+    <small>Root becomes daily fresh wallets, not registered biometric keys. Raw P-256 validation moves before root insertion.</small>
+    <span class="effort high">medium to high</span>
+  </div>
+</div>
+
+<table class="data-table">
+  <tr>
+    <th>Desired option</th>
+    <th>Nearest current POC</th>
+    <th>Minimum changes to reach it</th>
+    <th>What changes in the claim</th>
+    <th>Demo recommendation</th>
+  </tr>
+  <tr>
+    <td>Option A</td>
+    <td>POC-B</td>
+    <td>Bind the signed message/challenge to wallet address and freshness epoch. Keep App Attest validation as the registry gate. If the phrase "client-side proof" is interpreted strictly, move Noir/BB proving from operator machine to the iPad.</td>
+    <td>From "there exists a valid biometric signature for this hash" to "there exists a valid biometric signature for this wallet and epoch."</td>
+    <td>Best if we want the strongest trust claim and can tolerate expensive proving.</td>
+  </tr>
+  <tr>
+    <td>Option B</td>
+    <td>Relay + POC-B pipeline</td>
+    <td>Add backend issuer key. After validating App Attest and P-256, sign a canonical bundle such as <code>bundleVersion, walletAddress, freshnessEpoch</code>. Replace the POC-B raw P-256 circuit with an issuer-signature circuit and pin <code>BACKEND_ISSUER_PK</code> in the verifier path.</td>
+    <td>From "ZK checked the biometric signature" to "ZK checked Pinocchio signed a credential after validating the biometric/device proof."</td>
+    <td>Best v1 path: cheaper circuit, cleaner demo, explicit operator trust.</td>
+  </tr>
+  <tr>
+    <td>Option C</td>
+    <td>POC-C</td>
+    <td>Change the Merkle tree from "registered biometric public keys" to "fresh wallet addresses for this epoch." Add root publication/authorization. Remove raw P-256 from the circuit if following pure Option C; biometric validation happens before wallet insertion into the daily set.</td>
+    <td>From "this hidden registered key signed this message" to "this wallet is included in the current fresh-human set."</td>
+    <td>Best for batching and scale, but not the shortest path for the next live demo.</td>
+  </tr>
+</table>
+
+<div class="callout warn">
+  <h4>Practical recommendation</h4>
+  <p>If the goal is the cleanest v1 demo, evolve the current relay + POC-B flow into <strong>Option B</strong>. It keeps the iPad biometric/App Attest story, makes backend trust explicit, and avoids paying for raw P-256 verification inside the circuit.</p>
+</div>
+
+<div class="sep"></div>
+
+<h2>Why Option B Feels Like POC-B</h2>
+<p>They feel similar because both use the same outer flow:</p>
+
+<div class="callout">
+  <h4>Shared outer flow</h4>
+  <p>iPad creates biometric proof &rarr; relay validates it &rarr; operator/prover creates calldata &rarr; Madara transaction updates state.</p>
+</div>
+
+<p>But the <strong>cryptographic claim</strong> is different:</p>
+
+<table class="data-table">
+  <tr><th>Question</th><th>Current POC-B</th><th>v1 Option B</th></tr>
+  <tr><td>What does ZK verify?</td><td>Raw P-256 biometric signature.</td><td>Backend issuer signature over wallet + epoch.</td></tr>
+  <tr><td>Who is trusted for biometric validation?</td><td>Circuit verifies the biometric signature; backend also checks it as defense-in-depth.</td><td>Backend is trusted to validate biometric evidence correctly before signing.</td></tr>
+  <tr><td>What is the expensive part?</td><td>P-256 verification inside the proof.</td><td>Mostly just issuer signature verification.</td></tr>
+  <tr><td>What is the demo story?</td><td>"We proved the biometric signature in ZK."</td><td>"We proved Pinocchio's trusted issuer attested this wallet as fresh."</td></tr>
+</table>
+
+<div class="callout red">
+  <h4>One-sentence correction</h4>
+  <p>Option B is operationally similar to POC-B, but cryptographically different. POC-B trusts the ZK circuit to verify P-256. Option B trusts the backend issuer key to summarize that validation.</p>
+</div>
+
+<div class="sep"></div>
+
+<h2>If We Wanted to Build True Option B</h2>
+<p>The delta from the current POC is small in product flow but meaningful in cryptography:</p>
+
+<table class="data-table">
+  <tr><th>Step</th><th>Required change</th></tr>
+  <tr><td>Backend</td><td>Add <code>BACKEND_ISSUER_SK</code> and sign canonical bundles: <code>bundleVersion, walletAddress, freshnessEpoch</code>.</td></tr>
+  <tr><td>Circuit</td><td>Replace raw P-256 verification with issuer-signature verification over the bundle hash.</td></tr>
+  <tr><td>Contract</td><td>Store or embed <code>BACKEND_ISSUER_PK</code>; accept proof only if issuer signature verifies.</td></tr>
+  <tr><td>UI copy</td><td>Change "Proving P-256 biometric signature" to "Proving backend-signed validated credential."</td></tr>
+  <tr><td>Trust model</td><td>Clearly state: dApps trust Pinocchio's backend issuer key for v1.</td></tr>
+</table>
+
+</div>
+
+<div class="nav-footer">
+  <a href="08-first-principles.html">&larr; First Principles</a>
+  <a href="index.html">Back to Overview &rarr;</a>
+</div>
+<footer><p>Biometric ZK Identity &mdash; Karnot Research &middot; Options vs POCs</p></footer>
+</body>
+</html>

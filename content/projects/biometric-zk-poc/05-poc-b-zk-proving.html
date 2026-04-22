@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ch.05 - POC-B: ZK Proof Pipeline</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root { --bg: #08080f; --surface: #111119; --surface2: #1a1a25; --border: #2a2a3a; --text: #e8e8f0; --text-dim: #8888a0; --orange: #ff6b35; --teal: #4ecdc4; --purple: #7c3aed; --blue: #3b82f6; --green: #10b981; --red: #ef4444; }
+  body { font-family: 'SF Pro Display', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+  .nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(8,8,15,0.9); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 0.8rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+  .nav a { color: var(--text-dim); text-decoration: none; font-size: 0.85rem; } .nav a:hover { color: var(--orange); }
+  .nav .chapter { color: var(--blue); font-weight: 600; font-size: 0.85rem; }
+  .hero { padding: 8rem 2rem 4rem; max-width: 900px; margin: 0 auto; }
+  .hero .badge { display: inline-flex; gap: 0.5rem; padding: 0.4rem 1rem; background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); border-radius: 8px; font-size: 0.8rem; color: var(--blue); margin-bottom: 1rem; }
+  .hero h1 { font-size: 2.5rem; font-weight: 700; line-height: 1.15; margin-bottom: 1rem; }
+  .hero .subtitle { font-size: 1.1rem; color: var(--text-dim); }
+  .content { max-width: 900px; margin: 0 auto; padding: 0 2rem; }
+  .sep { height: 1px; background: linear-gradient(90deg, transparent, var(--border), transparent); margin: 3rem 0; }
+  h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem; }
+  h3 { font-size: 1.15rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--blue); }
+  p { margin-bottom: 1rem; font-size: 0.95rem; }
+  code { font-family: 'SF Mono', monospace; background: rgba(255,107,53,0.1); color: var(--orange); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.85rem; }
+  .code-block { font-family: 'SF Mono', monospace; background: #0d0d18; border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem; margin: 1rem 0; font-size: 0.82rem; line-height: 1.65; overflow-x: auto; color: #c8c8d8; white-space: pre; }
+  .callout { background: rgba(59,130,246,0.08); border-left: 3px solid var(--blue); border-radius: 0 10px 10px 0; padding: 1.2rem 1.5rem; margin: 1.5rem 0; }
+  .callout.key { background: rgba(124,58,237,0.08); border-left-color: var(--purple); }
+  .callout h4 { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.4rem; } .callout p { margin: 0; font-size: 0.9rem; }
+  .diagram { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; margin: 2rem 0; overflow-x: auto; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin: 2rem 0; }
+  @media (max-width: 700px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.2rem; text-align: center; }
+  .stat .val { font-size: 1.5rem; font-weight: 700; color: var(--blue); }
+  .stat .label { font-size: 0.8rem; color: var(--text-dim); margin-top: 0.3rem; }
+  .pipeline { display: flex; align-items: stretch; gap: 0; margin: 2rem 0; overflow-x: auto; padding-bottom: 1rem; }
+  .pipe-stage { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.2rem; min-width: 170px; flex: 1; position: relative; }
+  .pipe-stage h4 { font-size: 0.85rem; font-weight: 700; margin-bottom: 0.4rem; }
+  .pipe-stage p { font-size: 0.78rem; color: var(--text-dim); margin: 0; }
+  .pipe-stage .tool { font-size: 0.7rem; color: var(--blue); font-family: 'SF Mono', monospace; margin-top: 0.4rem; }
+  .pipe-arrow { display: flex; align-items: center; justify-content: center; color: var(--blue); font-size: 1.5rem; padding: 0 0.3rem; flex-shrink: 0; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin: 1.5rem 0; }
+  @media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
+  .col-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
+  .col-card h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.5rem; }
+  .col-card p { font-size: 0.9rem; color: var(--text-dim); margin: 0; }
+  .data-table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.9rem; }
+  .data-table th { text-align: left; padding: 0.8rem; background: var(--surface2); color: var(--blue); font-weight: 600; font-size: 0.8rem; }
+  .data-table td { padding: 0.8rem; border-bottom: 1px solid var(--border); }
+  .data-table td:first-child { font-family: 'SF Mono', monospace; color: var(--orange); font-size: 0.85rem; }
+  footer { padding: 3rem 2rem; text-align: center; border-top: 1px solid var(--border); margin-top: 4rem; }
+  .nav-footer { display: flex; justify-content: space-between; max-width: 900px; margin: 0 auto; padding: 2rem; }
+  .nav-footer a { color: var(--orange); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <a href="04-poc-a-native.html">&larr; POC-A</a>
+  <span class="chapter">Chapter 05 &mdash; POC-B: ZK Proof Pipeline</span>
+  <a href="06-poc-c-anonymous.html">Next: POC-C &rarr;</a>
+</div>
+
+<div class="hero">
+  <div class="badge">Account #1 &middot; UltraKeccakZKHonk &middot; Medium Complexity</div>
+  <h1>POC-B: ZK Proof of<br>Biometric Signature</h1>
+  <div class="subtitle">A Noir circuit proves "I know a P-256 key and valid signature over this message" &mdash; the key and signature are hidden inside the ZK proof. Only the message hash is public.</div>
+</div>
+
+<div class="content">
+
+<div class="stats">
+  <div class="stat"><div class="val">~200M</div><div class="label">Sierra Gas</div></div>
+  <div class="stat"><div class="val">~3KB</div><div class="label">Proof Size</div></div>
+  <div class="stat"><div class="val">5-20s</div><div class="label">Proving Time</div></div>
+  <div class="stat"><div class="val">1</div><div class="label">Public Input</div></div>
+</div>
+
+<div class="callout">
+  <h4>Start from first principles?</h4>
+  <p>If the ZK terminology feels too compressed, read the <a href="08-first-principles.html" style="color: var(--orange);">First Principles Guide</a> first. It explains POC-B by comparing it directly to POC-A and POC-C.</p>
+</div>
+
+<div class="sep"></div>
+
+<div class="callout key">
+  <h4>Naming Note</h4>
+  <p>This page describes the already-built <strong>POC-B</strong>: raw P-256 biometric signature verification inside a ZK proof. That is closest to the v1 interface doc's <strong>Option A</strong> claim shape. It is not the preferred v1 <strong>Option B</strong>, where the circuit verifies a backend-signed credential bundle.</p>
+</div>
+
+<div class="sep"></div>
+
+<h2>The Key Insight</h2>
+<p>In POC-A, the public key <code>(qx, qy)</code> is visible on-chain. In POC-B, we wrap the signature verification inside a <strong>zero-knowledge proof</strong>. The proof demonstrates:</p>
+
+<div class="callout key">
+  <h4>ZK Statement</h4>
+  <p>"I know a P-256 public key (qx, qy) and a valid ECDSA signature (r, s) such that ECDSA_verify(msg_hash, r, s, qx, qy) = true" &mdash; <strong>without revealing qx, qy, r, or s</strong>.</p>
+</div>
+
+<div class="two-col">
+  <div class="col-card" style="border-color: var(--green);">
+    <h4 style="color: var(--green);">Public Inputs (visible on-chain)</h4>
+    <p>Only the <code>hashed_message</code> &mdash; the SHA-256 of the challenge. This is 32 bytes.</p>
+  </div>
+  <div class="col-card" style="border-color: var(--purple);">
+    <h4 style="color: var(--purple);">Private Witnesses (hidden in proof)</h4>
+    <p><code>pub_key_x</code> (32B), <code>pub_key_y</code> (32B), <code>signature</code> (64B) &mdash; total 128 bytes never revealed.</p>
+  </div>
+</div>
+
+<div class="sep"></div>
+
+<h2>Proving Pipeline</h2>
+<p>The operator runs this 5-step pipeline to transform a ProofPackage into an on-chain verified credential.</p>
+
+<div class="pipeline">
+  <div class="pipe-stage">
+    <h4>1. Witness</h4>
+    <p>Python script converts ProofPackage JSON to Noir's Prover.toml format. Canonicalizes s-value.</p>
+    <div class="tool">prover_toml_from_app_proof.py</div>
+  </div>
+  <div class="pipe-arrow">&rarr;</div>
+  <div class="pipe-stage">
+    <h4>2. Compile</h4>
+    <p>Noir circuit compiled to ACIR bytecode. Witness executed to produce assignment.</p>
+    <div class="tool">nargo compile + execute</div>
+  </div>
+  <div class="pipe-arrow">&rarr;</div>
+  <div class="pipe-stage">
+    <h4>3. Prove</h4>
+    <p>Barretenberg generates UltraKeccakZKHonk proof. ~3KB output.</p>
+    <div class="tool">bb prove_ultra_keccak_zk_honk</div>
+  </div>
+  <div class="pipe-arrow">&rarr;</div>
+  <div class="pipe-stage">
+    <h4>4. Calldata</h4>
+    <p>Garaga converts proof to Cairo-compatible calldata format.</p>
+    <div class="tool">garaga calldata</div>
+  </div>
+  <div class="pipe-arrow">&rarr;</div>
+  <div class="pipe-stage">
+    <h4>5. Submit</h4>
+    <p>Transaction invokes protocol contract on Madara.</p>
+    <div class="tool">sncast invoke</div>
+  </div>
+</div>
+
+<div class="sep"></div>
+
+<h2>Stage 1: Witness Preparation</h2>
+<p>The Python script reads the ProofPackage and writes a <code>Prover.toml</code> file that Noir can consume.</p>
+
+<div class="code-block">
+# prover_toml_from_app_proof.py - Key transformation
+
+# Read ProofPackage JSON
+proof = json.load(open("latest-proof-package.json"))
+
+# Extract and format values as byte arrays
+msg_hash = bytes.fromhex(proof["challengeHashHex"])  # 32 bytes
+qx = bytes.fromhex(proof["publicKeyXHex"])            # 32 bytes
+qy = bytes.fromhex(proof["publicKeyYHex"])            # 32 bytes
+r  = bytes.fromhex(proof["signatureRHex"])             # 32 bytes
+s  = bytes.fromhex(proof["signatureSHex"])             # 32 bytes
+
+# CRITICAL: Canonicalize s-value for the Noir circuit
+P256_ORDER = 0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551
+s_int = int.from_bytes(s, 'big')
+if s_int > P256_ORDER // 2:
+    s_int = P256_ORDER - s_int   # Low-s canonical form
+    s = s_int.to_bytes(32, 'big')
+
+# Combine r + s into 64-byte signature array
+signature = r + s  # [r0, r1, ..., r31, s0, s1, ..., s31]
+
+# Write Prover.toml
+# hashed_message = [0xca, 0x97, 0x81, ...]  (pub input)
+# pub_key_x = [0x3a, 0xb2, ...]             (private witness)
+# pub_key_y = [0x7f, 0x1c, ...]             (private witness)
+# signature = [0xd4, 0x2e, ...]             (private witness)</div>
+
+<div class="callout">
+  <h4>Why canonicalize s?</h4>
+  <p>ECDSA signatures have a malleability property: if <code>(r, s)</code> is valid, so is <code>(r, ORDER - s)</code>. The Noir circuit's <code>verify_signature</code> function expects the "low-s" canonical form. Without this step, valid signatures from the Secure Enclave may fail verification in the circuit.</p>
+</div>
+
+<div class="sep"></div>
+
+<h2>Stage 2: The Noir Circuit</h2>
+<p>The core circuit is surprisingly concise &mdash; Noir's standard library handles P-256 ECDSA via Barretenberg's custom gates.</p>
+
+<div class="code-block">
+// poc-b/biometric_circuit/src/main.nr
+
+fn main(
+    // Public input: the challenge message hash (visible on-chain)
+    hashed_message: pub [u8; 32],
+
+    // Private witnesses: the device key and signature (hidden in proof)
+    pub_key_x: [u8; 32],
+    pub_key_y: [u8; 32],
+    signature: [u8; 64],   // r (32 bytes) || s (32 bytes)
+) {
+    // Verify the P-256 ECDSA signature.
+    // std::ecdsa_secp256r1 is a Barretenberg black-box function -
+    // it uses custom gates, not field-emulated arithmetic,
+    // so it is fast even for a foreign field like P-256.
+    let valid = std::ecdsa_secp256r1::verify_signature(
+        pub_key_x,
+        pub_key_y,
+        signature,
+        hashed_message,
+    );
+
+    // This assertion is the heart of the ZK proof:
+    // the proof is only valid if the signature is valid.
+    assert(valid, "P256 signature verification failed");
+}</div>
+
+<div class="callout">
+  <h4>Custom Gates for P-256</h4>
+  <p>Noir doesn't emulate P-256 arithmetic in its native field (BN254). Instead, Barretenberg provides dedicated <strong>custom gates</strong> for secp256r1 operations. This makes the circuit much smaller and faster to prove than a naive field-emulation approach.</p>
+</div>
+
+<div class="sep"></div>
+
+<h2>Stage 3: Barretenberg Proof Generation</h2>
+
+<div class="code-block">
+# Compile the circuit to ACIR bytecode
+nargo compile
+# Output: target/biometric_circuit.json (circuit bytecode + ABI)
+
+# Execute the circuit with witness to produce the assignment
+nargo execute
+# Output: target/biometric_circuit.gz (witness assignment)
+
+# Generate the UltraKeccakZKHonk proof
+bb prove_ultra_keccak_zk_honk \
+  -b target/biometric_circuit.json \
+  -w target/biometric_circuit.gz \
+  -o target/proof
+
+# Generate the verification key
+bb write_vk_ultra_keccak_zk_honk \
+  -b target/biometric_circuit.json \
+  -o target/vk
+
+# Verify locally before spending gas
+bb verify_ultra_keccak_zk_honk \
+  -k target/vk \
+  -p target/proof</div>
+
+<table class="data-table">
+  <tr><th>Artifact</th><th>Size</th><th>Purpose</th></tr>
+  <tr><td>proof</td><td>~2800-3000 bytes</td><td>ZK proof sent to chain</td></tr>
+  <tr><td>vk</td><td>~800 bytes</td><td>Verification key (compiled into Cairo verifier)</td></tr>
+  <tr><td>public_inputs</td><td>32 bytes</td><td>The hashed_message (only public data)</td></tr>
+</table>
+
+<div class="sep"></div>
+
+<h2>Stage 4: Garaga Calldata Generation</h2>
+<p>Garaga is the bridge from Barretenberg's proof format to Cairo's calldata format. It generates a complete Cairo verifier project from the verification key.</p>
+
+<div class="code-block">
+# Generate the Cairo verifier project from the VK
+garaga gen \
+  --system ultra_keccak_zk_honk \
+  --vk biometric_circuit/target/vk \
+  --project-name biometric_honk_verifier
+
+# This creates:
+# biometric_honk_verifier/
+#   src/honk_verifier.cairo          - The verifier contract
+#   src/honk_verifier_circuits.cairo  - Circuit-specific constants
+#   src/honk_verifier_constants.cairo - VK constants baked in
+#   Scarb.toml
+
+# Generate calldata for a specific proof
+garaga calldata \
+  --system ultra_keccak_zk_honk \
+  --vk target/vk \
+  --proof target/proof \
+  --public-inputs target/public_inputs
+# Output: felt252 array ready for sncast invoke</div>
+
+<div class="sep"></div>
+
+<h2>Stage 5: On-Chain Verification</h2>
+<p>The protocol contract wraps the Garaga-generated Honk verifier and records the credential.</p>
+
+<div class="code-block">
+// poc-b/protocol/src/lib.cairo
+
+fn submit_biometric_proof(
+    ref self: ContractState,
+    wallet: ContractAddress,
+    full_proof_with_hints: Span&lt;felt252&gt;,  // Garaga calldata
+) -> u256 {
+    // 1. Call the Honk verifier (Garaga-generated contract)
+    let verifier = IHonkVerifierDispatcher {
+        contract_address: self.verifier_address.read()
+    };
+
+    // verify_ultra_keccak_zk_honk_proof returns Option&lt;Span&lt;u256&gt;&gt;
+    // The Span contains the public inputs if verification succeeds
+    let result = verifier.verify_ultra_keccak_zk_honk_proof(
+        full_proof_with_hints
+    );
+    assert(result.is_some(), 'ZK proof verification failed');
+
+    // 2. Extract the message hash from public inputs
+    let public_inputs = result.unwrap();
+    let message_hash = *public_inputs.at(0);  // First 256 bits
+
+    // 3. Record the credential with 24-hour TTL
+    let now = get_block_timestamp();
+    self.last_verified_at.write(wallet, now);
+    self.expires_at.write(wallet, now + 86400);  // 24 hours
+
+    self.emit(HumannessRefreshed { wallet, message_hash, ... });
+    message_hash
+}</div>
+
+<div class="sep"></div>
+
+<h2>What Changed vs POC-A</h2>
+
+<div class="two-col">
+  <div class="col-card">
+    <h4>POC-A (Native)</h4>
+    <p>Contract receives <code>(msg_hash, r, s, qx, qy)</code> in plaintext. Does ECDSA verification directly. Public key is fully exposed on-chain.</p>
+  </div>
+  <div class="col-card" style="border-color: var(--blue);">
+    <h4 style="color: var(--blue);">POC-B (ZK)</h4>
+    <p>Contract receives a ZK proof blob. Garaga verifier checks the proof. Only <code>msg_hash</code> is visible. The public key and signature exist only inside the proof &mdash; never on-chain.</p>
+  </div>
+</div>
+
+<div class="sep"></div>
+
+<h2>How This Relates to the New v1 Option B</h2>
+<p>The current POC proves the Apple biometric signature directly. The preferred v1 architecture moves the claim boundary: the backend validates the Apple evidence first, then signs a compact credential bundle that the circuit verifies cheaply.</p>
+
+<div class="two-col">
+  <div class="col-card" style="border-color: var(--blue);">
+    <h4 style="color: var(--blue);">Current POC-B</h4>
+    <p>ZK proves: <code>ECDSA_P256_verify(msg_hash, r, s, qx, qy) == true</code>. Stronger claim, heavier proof. Backend validates too, but the circuit still proves the raw biometric signature.</p>
+  </div>
+  <div class="col-card" style="border-color: var(--green);">
+    <h4 style="color: var(--green);">Preferred v1 Option B</h4>
+    <p>ZK proves: <code>Verify(BACKEND_ISSUER_PK, H(wallet, epoch), issuerSignature) == true</code>. Cheaper proof, clearer demo path, but the backend issuer key becomes trusted.</p>
+  </div>
+</div>
+
+<div class="callout">
+  <h4>Practical takeaway</h4>
+  <p>We already proved the harder raw-signature path. Moving to preferred v1 Option B is mostly a trust-boundary change: replace the P-256 witness circuit with a backend-issuer-signature circuit and make the signed bundle the artifact that crosses into the prover.</p>
+</div>
+
+<div class="sep"></div>
+
+<!-- DEEP PRIVACY ANALYSIS -->
+<h2>Deep Dive: What Exactly Does POC-B Leak?</h2>
+<p>POC-B hides the <em>device key</em>, but privacy is not just about key hiding. Let's walk through exactly what an on-chain observer sees and why POC-B is <strong>pseudonymous, not anonymous</strong>.</p>
+
+<h3>Scenario: Alice Uses POC-B Twice</h3>
+<p>Alice has an iPhone with a biometric key. She submits two proofs on different days.</p>
+
+<div class="diagram">
+  <svg viewBox="0 0 820 420" xmlns="http://www.w3.org/2000/svg">
+    <!-- Transaction 1 -->
+    <rect x="20" y="20" width="380" height="170" rx="14" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1"/>
+    <text x="40" y="50" fill="#3b82f6" font-size="12" font-weight="700" font-family="monospace">TRANSACTION 1 (Monday)</text>
+    <text x="40" y="75" fill="#ff6b35" font-size="10" font-family="monospace">submit_biometric_proof(</text>
+    <text x="60" y="95" fill="#8888a0" font-size="10" font-family="monospace">wallet: 0xAlice_Wallet_123...</text>
+    <text x="60" y="115" fill="#8888a0" font-size="10" font-family="monospace">proof:  [3KB ZK proof blob]</text>
+    <text x="40" y="135" fill="#ff6b35" font-size="10" font-family="monospace">)</text>
+    <text x="40" y="165" fill="#10b981" font-size="10" font-family="monospace">Public input: msg_hash_monday = 0xa7f3...</text>
+    <text x="40" y="180" fill="#10b981" font-size="10" font-family="monospace">Result: is_human(0xAlice...) = true</text>
+
+    <!-- Transaction 2 -->
+    <rect x="20" y="210" width="380" height="170" rx="14" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1"/>
+    <text x="40" y="240" fill="#3b82f6" font-size="12" font-weight="700" font-family="monospace">TRANSACTION 2 (Tuesday)</text>
+    <text x="40" y="265" fill="#ff6b35" font-size="10" font-family="monospace">submit_biometric_proof(</text>
+    <text x="60" y="285" fill="#8888a0" font-size="10" font-family="monospace">wallet: 0xAlice_Wallet_123...</text>
+    <text x="60" y="305" fill="#8888a0" font-size="10" font-family="monospace">proof:  [3KB ZK proof blob]</text>
+    <text x="40" y="325" fill="#ff6b35" font-size="10" font-family="monospace">)</text>
+    <text x="40" y="355" fill="#10b981" font-size="10" font-family="monospace">Public input: msg_hash_tuesday = 0xb2c4...</text>
+    <text x="40" y="370" fill="#10b981" font-size="10" font-family="monospace">Result: is_human(0xAlice...) = true</text>
+
+    <!-- Observer analysis -->
+    <rect x="440" y="20" width="360" height="380" rx="14" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1.5"/>
+    <text x="460" y="50" fill="#ef4444" font-size="12" font-weight="700" font-family="monospace">WHAT AN OBSERVER SEES</text>
+
+    <text x="460" y="80" fill="#ef4444" font-size="10" font-weight="600" font-family="monospace">Visible:</text>
+    <text x="460" y="100" fill="#e8e8f0" font-size="10" font-family="monospace">1. Same wallet 0xAlice... both times</text>
+    <text x="460" y="120" fill="#e8e8f0" font-size="10" font-family="monospace">2. Two different msg_hash values</text>
+    <text x="460" y="140" fill="#e8e8f0" font-size="10" font-family="monospace">3. Both proofs verified successfully</text>
+    <text x="460" y="160" fill="#e8e8f0" font-size="10" font-family="monospace">4. Timestamps of each transaction</text>
+
+    <text x="460" y="195" fill="#10b981" font-size="10" font-weight="600" font-family="monospace">Hidden:</text>
+    <text x="460" y="215" fill="#8888a0" font-size="10" font-family="monospace">- Which device key signed</text>
+    <text x="460" y="235" fill="#8888a0" font-size="10" font-family="monospace">- The actual signature (r, s)</text>
+    <text x="460" y="255" fill="#8888a0" font-size="10" font-family="monospace">- The public key (qx, qy)</text>
+
+    <rect x="460" y="280" width="320" height="100" rx="10" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-dasharray="4,2"/>
+    <text x="475" y="305" fill="#ef4444" font-size="11" font-weight="700" font-family="monospace">THE LEAK:</text>
+    <text x="475" y="325" fill="#e8e8f0" font-size="10" font-family="monospace">The wallet address is the SAME</text>
+    <text x="475" y="345" fill="#e8e8f0" font-size="10" font-family="monospace">in both transactions. Both actions</text>
+    <text x="475" y="365" fill="#e8e8f0" font-size="10" font-family="monospace">are trivially linked to "Alice".</text>
+  </svg>
+</div>
+
+<h3>Why Does the Wallet Address Leak?</h3>
+<p>The ZK proof hides the <em>cryptographic identity</em> (device key), but the proof is submitted as a Starknet transaction. Every transaction on Starknet has:</p>
+
+<div class="code-block">
+// What's in a Starknet transaction:
+
+Transaction {
+    sender:    0xAlice_Wallet_123,    // <-- THE LEAK: wallet is always visible
+    function:  "submit_biometric_proof",
+    calldata:  [
+        wallet_address,               // <-- Explicitly passed as argument too
+        ...proof_blob...              // ZK proof (opaque blob, hides key + sig)
+    ],
+    signature: [...],                 // Starknet account signature (NOT the P-256 sig)
+    nonce:     42,
+    max_fee:   ...
+}
+
+// Even though the P-256 key is hidden inside the ZK proof,
+// the WALLET ADDRESS ties all actions together.</div>
+
+<div class="callout key">
+  <h4>The Core Problem</h4>
+  <p>POC-B proves: <em>"Some valid biometric key signed this message for wallet 0xAlice..."</em><br>
+  An observer knows the <strong>wallet identity</strong> but not the <strong>device identity</strong>. If Alice uses the same wallet for other on-chain actions (DeFi, NFTs, etc.), her biometric proofs can be correlated with all of those.</p>
+</div>
+
+<h3>What If Alice Uses a Fresh Wallet?</h3>
+<p>Alice could create a new wallet for each proof. But then:</p>
+
+<div class="two-col">
+  <div class="col-card" style="border-color: var(--red);">
+    <h4 style="color: var(--red);">Problem 1: Gas Funding</h4>
+    <p>The fresh wallet needs gas to submit the transaction. If Alice funds it from her main wallet, the transfer creates an on-chain link between the fresh wallet and her identity. Even using a mixer or bridge leaves metadata traces.</p>
+  </div>
+  <div class="col-card" style="border-color: var(--red);">
+    <h4 style="color: var(--red);">Problem 2: Relay Knows</h4>
+    <p>The relay server receives the full ProofPackage (including the public key) before generating the ZK proof. The relay itself can link the wallet to the device. You're trusting the relay not to log or leak this mapping.</p>
+  </div>
+</div>
+
+<p>This is precisely why POC-C exists. It eliminates both problems by removing the wallet from the equation entirely.</p>
+
+<div class="sep"></div>
+
+<h3>POC-B Privacy Scorecard</h3>
+
+<table class="data-table">
+  <tr><th>Question</th><th>Answer</th></tr>
+  <tr><td>Can an observer see which device key signed?</td><td style="color: var(--green);">No &mdash; hidden in ZK proof</td></tr>
+  <tr><td>Can an observer link two actions to the same wallet?</td><td style="color: var(--red);">Yes &mdash; same wallet address in both transactions</td></tr>
+  <tr><td>Can the relay link a device key to a wallet?</td><td style="color: var(--red);">Yes &mdash; relay sees the full ProofPackage</td></tr>
+  <tr><td>Can someone extract the key from the ZK proof?</td><td style="color: var(--green);">No &mdash; zero-knowledge property of HONK</td></tr>
+  <tr><td>Can a verifier replay the proof for a different wallet?</td><td style="color: var(--green);">No &mdash; proof is bound to the message hash</td></tr>
+  <tr><td>Does the biometric ever leave the device?</td><td style="color: var(--green);">No &mdash; never leaves the Secure Enclave</td></tr>
+</table>
+
+<div class="sep"></div>
+
+<h3>Tough Questions You Might Get Asked</h3>
+
+<div class="step-card">
+  <div class="step-header">
+    <div class="step-num">Q</div>
+    <h3 style="color: var(--text);">"Can someone brute-force the public key from the proof?"</h3>
+  </div>
+  <div class="step-body">
+    <p><strong>No.</strong> The ZK proof's zero-knowledge property mathematically guarantees that no information about the witness (public key, signature) leaks from the proof. This isn't security-by-obscurity &mdash; it's a cryptographic guarantee of the HONK proof system. A computationally bounded attacker cannot extract the private witness from the proof.</p>
+    <p>The proof only proves <em>existence</em>: "there exists a valid key and signature satisfying the circuit constraints." It reveals nothing about <em>which</em> key or signature.</p>
+  </div>
+</div>
+
+<div class="step-card">
+  <div class="step-header">
+    <div class="step-num">Q</div>
+    <h3 style="color: var(--text);">"If I have a list of known public keys, can I figure out which one made this proof?"</h3>
+  </div>
+  <div class="step-body">
+    <p><strong>No.</strong> Even if you know all possible public keys in the world, you cannot determine which one was used to generate a POC-B proof. The proof does not leak any partial information (like a hash of the key) that would allow elimination.</p>
+    <p>This is the <em>whole point</em> of zero-knowledge: the verifier learns nothing beyond the truth of the statement.</p>
+  </div>
+</div>
+
+<div class="step-card">
+  <div class="step-header">
+    <div class="step-num">Q</div>
+    <h3 style="color: var(--text);">"Then why isn't POC-B fully private?"</h3>
+  </div>
+  <div class="step-body">
+    <p>Because privacy isn't just about the cryptographic proof. The <strong>transaction itself</strong> reveals the wallet address, and the proof is <strong>bound to that wallet</strong>. The ZK proof is perfectly zero-knowledge, but the <em>infrastructure around it</em> (Starknet accounts, gas payments, relay communication) creates linkability.</p>
+    <p>Think of it like wearing a mask (ZK proof hides your face) but carrying your name badge (wallet address). The mask is perfect, but the badge gives you away.</p>
+  </div>
+</div>
+
+</div>
+
+<div class="nav-footer">
+  <a href="04-poc-a-native.html">&larr; POC-A</a>
+  <a href="06-poc-c-anonymous.html">Next: POC-C Anonymous &rarr;</a>
+</div>
+<footer><p>Biometric ZK Identity &mdash; Karnot Research</p></footer>
+</body>
+</html>

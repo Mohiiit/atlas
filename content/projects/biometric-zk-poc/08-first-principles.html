@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ch.08 - First Principles Guide</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root { --bg: #08080f; --surface: #111119; --surface2: #1a1a25; --border: #2a2a3a; --text: #e8e8f0; --text-dim: #8888a0; --orange: #ff6b35; --teal: #4ecdc4; --purple: #7c3aed; --blue: #3b82f6; --green: #10b981; --red: #ef4444; }
+  body { font-family: 'SF Pro Display', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+  .nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(8,8,15,0.9); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 0.8rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+  .nav a { color: var(--text-dim); text-decoration: none; font-size: 0.85rem; } .nav a:hover { color: var(--orange); }
+  .nav .chapter { color: var(--orange); font-weight: 600; font-size: 0.85rem; }
+  .hero { padding: 8rem 2rem 4rem; max-width: 1000px; margin: 0 auto; }
+  .hero .badge { display: inline-flex; gap: 0.5rem; padding: 0.4rem 1rem; background: rgba(255,107,53,0.12); border: 1px solid rgba(255,107,53,0.28); border-radius: 8px; font-size: 0.8rem; color: var(--orange); margin-bottom: 1rem; }
+  .hero h1 { font-size: 2.6rem; font-weight: 700; line-height: 1.15; margin-bottom: 1rem; }
+  .hero .subtitle { font-size: 1.1rem; color: var(--text-dim); max-width: 760px; }
+  .content { max-width: 1000px; margin: 0 auto; padding: 0 2rem; }
+  .sep { height: 1px; background: linear-gradient(90deg, transparent, var(--border), transparent); margin: 3rem 0; }
+  h2 { font-size: 1.55rem; font-weight: 700; margin-bottom: 1rem; }
+  h3 { font-size: 1.15rem; font-weight: 600; margin: 1.4rem 0 0.6rem; color: var(--teal); }
+  p { margin-bottom: 1rem; font-size: 0.95rem; }
+  code { font-family: 'SF Mono', monospace; background: rgba(255,107,53,0.1); color: var(--orange); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.85rem; }
+  .callout { background: rgba(78,205,196,0.08); border-left: 3px solid var(--teal); border-radius: 0 10px 10px 0; padding: 1.2rem 1.5rem; margin: 1.5rem 0; }
+  .callout.warn { background: rgba(255,107,53,0.08); border-left-color: var(--orange); }
+  .callout.red { background: rgba(239,68,68,0.08); border-left-color: var(--red); }
+  .callout h4 { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.4rem; } .callout p { margin: 0; font-size: 0.9rem; }
+  .diagram { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; margin: 2rem 0; overflow-x: auto; }
+  .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.2rem; margin: 1.5rem 0; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin: 1.5rem 0; }
+  @media (max-width: 800px) { .three-col, .two-col { grid-template-columns: 1fr; } }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.4rem; }
+  .card h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.5rem; }
+  .card p { font-size: 0.88rem; color: var(--text-dim); margin: 0; }
+  .card.a { border-color: rgba(16,185,129,0.45); } .card.a h4 { color: var(--green); }
+  .card.b { border-color: rgba(59,130,246,0.45); } .card.b h4 { color: var(--blue); }
+  .card.c { border-color: rgba(124,58,237,0.45); } .card.c h4 { color: var(--purple); }
+  .data-table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.9rem; }
+  .data-table th { text-align: left; padding: 0.8rem; background: var(--surface2); color: var(--orange); font-weight: 600; font-size: 0.8rem; }
+  .data-table td { padding: 0.8rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .data-table td:first-child { font-family: 'SF Mono', monospace; color: var(--teal); font-size: 0.85rem; }
+  .flow { display: grid; gap: 0.8rem; margin: 1.5rem 0; }
+  .flow-step { display: grid; grid-template-columns: 44px 1fr; gap: 1rem; align-items: start; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; }
+  .num { width: 36px; height: 36px; border-radius: 10px; background: rgba(255,107,53,0.14); color: var(--orange); display: flex; align-items: center; justify-content: center; font-weight: 700; }
+  .flow-step h4 { font-size: 0.95rem; margin-bottom: 0.25rem; }
+  .flow-step p { font-size: 0.88rem; color: var(--text-dim); margin: 0; }
+  .qa { display: grid; gap: 0.9rem; margin: 1.5rem 0; }
+  .qa .card h4 { color: var(--text); }
+  footer { padding: 3rem 2rem; text-align: center; border-top: 1px solid var(--border); margin-top: 4rem; }
+  .nav-footer { display: flex; justify-content: space-between; max-width: 1000px; margin: 0 auto; padding: 2rem; }
+  .nav-footer a { color: var(--orange); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <a href="07-privacy-spectrum.html">&larr; Privacy Spectrum</a>
+  <span class="chapter">Chapter 08 &mdash; First Principles</span>
+  <a href="09-options-vs-pocs.html">Options vs POCs &rarr;</a>
+</div>
+
+<div class="hero">
+  <div class="badge">Primer &middot; POC-A / POC-B / POC-C</div>
+  <h1>Understanding the Three POCs<br>from First Principles</h1>
+  <div class="subtitle">Start with the simplest question: how can a smart contract believe that a real device just performed a biometric-gated action, without learning more than it needs?</div>
+</div>
+
+<div class="content">
+
+<h2>1. Why This Exists</h2>
+<p>A dApp may want to ask: <strong>"Is this action backed by a fresh human-presence signal?"</strong> In this POC, the human-presence signal is not a face image or fingerprint. It is a cryptographic signature produced by a Secure Enclave key that only signs after Face ID or Touch ID succeeds.</p>
+
+<p>Non-crypto analogy: imagine a nightclub wristband. The door staff check your ID once, then put a wristband on you. Later, the bartender does not re-check your full ID; they only check whether the wristband is valid. Our POCs explore three ways to build that wristband for on-chain systems.</p>
+
+<div class="callout">
+  <h4>The core object</h4>
+  <p>The raw biometric never leaves the device. The thing that leaves the device is a signature. The signature says: "the biometric-gated key inside this device signed this challenge."</p>
+</div>
+
+<div class="sep"></div>
+
+<h2>2. Term Unpacking</h2>
+
+<table class="data-table">
+  <tr><th>Term</th><th>Plain meaning</th><th>In this POC</th></tr>
+  <tr><td>Challenge</td><td>A fresh sentence to sign so old answers cannot be reused.</td><td>The relay issues a one-time string. The iPad signs it.</td></tr>
+  <tr><td>P-256 signature</td><td>A cryptographic stamp made by a private key.</td><td>The Secure Enclave signs the challenge with ECDSA P-256.</td></tr>
+  <tr><td>Public key</td><td>The public identity of the signing key.</td><td><code>(qx, qy)</code>, the P-256 public key coordinates.</td></tr>
+  <tr><td>ZK proof</td><td>A proof that a statement is true without revealing the private inputs.</td><td>Used in POC-B and POC-C to hide the public key and signature from chain observers.</td></tr>
+  <tr><td>Merkle root</td><td>A short fingerprint of a set.</td><td>POC-C stores a root representing a set of registered device keys.</td></tr>
+  <tr><td>Nullifier</td><td>A public "already used" marker that does not directly reveal who used it.</td><td>POC-C consumes one nullifier so the same proof cannot be replayed.</td></tr>
+</table>
+
+<div class="sep"></div>
+
+<h2>3. Running Example</h2>
+<p>We will use the same character throughout: Bob has an iPad. The app creates a Secure Enclave key. Bob taps "Run Live Demo." Face ID succeeds. The iPad signs a relay-issued challenge:</p>
+
+<div class="two-col">
+  <div class="card">
+    <h4>Private values</h4>
+    <p>Bob's private Secure Enclave key, the signature witness, and in ZK paths the hidden key coordinates.</p>
+  </div>
+  <div class="card">
+    <h4>Public values</h4>
+    <p>The challenge hash, transaction data, and whatever the contract stores or emits.</p>
+  </div>
+</div>
+
+<div class="diagram">
+  <svg viewBox="0 0 900 260" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+        <path d="M0,0 L8,3 L0,6" fill="#ff6b35" opacity="0.8"/>
+      </marker>
+    </defs>
+    <rect x="20" y="40" width="160" height="150" rx="14" fill="rgba(255,107,53,0.08)" stroke="#ff6b35"/>
+    <text x="42" y="70" fill="#ff6b35" font-size="12" font-family="monospace" font-weight="700">iPad</text>
+    <text x="42" y="100" fill="#8888a0" font-size="10" font-family="monospace">Face ID succeeds</text>
+    <text x="42" y="122" fill="#8888a0" font-size="10" font-family="monospace">SE signs challenge</text>
+    <text x="42" y="150" fill="#e8e8f0" font-size="10" font-family="monospace">(r,s), (qx,qy)</text>
+    <line x1="180" y1="115" x2="290" y2="115" stroke="#ff6b35" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr)"/>
+    <rect x="290" y="40" width="180" height="150" rx="14" fill="rgba(78,205,196,0.08)" stroke="#4ecdc4"/>
+    <text x="314" y="70" fill="#4ecdc4" font-size="12" font-family="monospace" font-weight="700">Relay</text>
+    <text x="314" y="100" fill="#8888a0" font-size="10" font-family="monospace">Checks challenge</text>
+    <text x="314" y="122" fill="#8888a0" font-size="10" font-family="monospace">Checks App Attest</text>
+    <text x="314" y="144" fill="#8888a0" font-size="10" font-family="monospace">Checks P-256 sig</text>
+    <line x1="470" y1="115" x2="580" y2="115" stroke="#4ecdc4" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr)"/>
+    <rect x="580" y="40" width="140" height="150" rx="14" fill="rgba(59,130,246,0.08)" stroke="#3b82f6"/>
+    <text x="604" y="70" fill="#3b82f6" font-size="12" font-family="monospace" font-weight="700">Operator</text>
+    <text x="604" y="104" fill="#8888a0" font-size="10" font-family="monospace">Creates proof</text>
+    <text x="604" y="126" fill="#8888a0" font-size="10" font-family="monospace">Makes calldata</text>
+    <line x1="720" y1="115" x2="805" y2="115" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr)"/>
+    <rect x="805" y="40" width="75" height="150" rx="14" fill="rgba(124,58,237,0.08)" stroke="#7c3aed"/>
+    <text x="821" y="70" fill="#7c3aed" font-size="12" font-family="monospace" font-weight="700">Chain</text>
+    <text x="821" y="105" fill="#8888a0" font-size="9" font-family="monospace">Verify</text>
+    <text x="821" y="127" fill="#8888a0" font-size="9" font-family="monospace">Record</text>
+  </svg>
+</div>
+
+<div class="sep"></div>
+
+<h2>4. The Three POCs</h2>
+<p>Each POC answers the same question differently: <strong>what should be visible to the chain?</strong></p>
+
+<div class="three-col">
+  <div class="card a">
+    <h4>POC-A: show everything</h4>
+    <p>Send the public key and signature directly to the contract. The chain checks the math itself. Fastest and easiest, but public key privacy is zero.</p>
+  </div>
+  <div class="card b">
+    <h4>POC-B: hide key and signature</h4>
+    <p>Put the P-256 verification inside a ZK proof. The chain sees proof + message hash, not <code>(qx, qy, r, s)</code>. Wallet is still visible.</p>
+  </div>
+  <div class="card c">
+    <h4>POC-C: hide which registered key</h4>
+    <p>Add a Merkle membership proof and a nullifier. The chain sees that one registered key acted, but does not receive a wallet parameter.</p>
+  </div>
+</div>
+
+<div class="sep"></div>
+
+<h2>5. Mechanism Walkthrough</h2>
+
+<h3>POC-A: Direct Verification</h3>
+<div class="flow">
+  <div class="flow-step"><div class="num">1</div><div><h4>Bob signs</h4><p>The iPad creates <code>signature = ECDSA_P256_sign(challenge)</code>.</p></div></div>
+  <div class="flow-step"><div class="num">2</div><div><h4>Contract receives raw data</h4><p>Madara receives <code>msg_hash, r, s, qx, qy</code> in calldata.</p></div></div>
+  <div class="flow-step"><div class="num">3</div><div><h4>Contract verifies</h4><p>Cairo's <code>secp256r1</code> syscall checks whether the signature is valid for the public key.</p></div></div>
+  <div class="flow-step"><div class="num">4</div><div><h4>Credential recorded</h4><p>If valid, the contract writes <code>expires_at[wallet] = now + 24h</code>.</p></div></div>
+</div>
+
+<h3>POC-B: ZK-Wrapped P-256 Verification</h3>
+<div class="flow">
+  <div class="flow-step"><div class="num">1</div><div><h4>Bob signs exactly as before</h4><p>The device proof is the same kind of P-256 signature.</p></div></div>
+  <div class="flow-step"><div class="num">2</div><div><h4>Operator builds witness</h4><p>The witness contains hidden <code>qx, qy, r, s</code>. The public input is only <code>msg_hash</code>.</p></div></div>
+  <div class="flow-step"><div class="num">3</div><div><h4>Noir proves the statement</h4><p>The proof says: "there exists a valid P-256 signature for this hash" without revealing which key signed.</p></div></div>
+  <div class="flow-step"><div class="num">4</div><div><h4>Contract verifies proof</h4><p>The Garaga verifier checks the HONK proof and records humanness for the wallet.</p></div></div>
+</div>
+
+<h3>POC-C: ZK + Set Membership + Nullifier</h3>
+<div class="flow">
+  <div class="flow-step"><div class="num">1</div><div><h4>Build a registered-key set</h4><p>The server builds a Merkle tree whose leaves are hashes of registered public keys.</p></div></div>
+  <div class="flow-step"><div class="num">2</div><div><h4>Bob proves membership privately</h4><p>The circuit proves Bob's hidden key is one leaf in the tree, without revealing which leaf.</p></div></div>
+  <div class="flow-step"><div class="num">3</div><div><h4>Bob proves signature validity</h4><p>The same hidden key must also verify the biometric P-256 signature.</p></div></div>
+  <div class="flow-step"><div class="num">4</div><div><h4>Contract consumes nullifier</h4><p>The nullifier prevents replay. In the current POC it is derived from the hidden leaf and message hash.</p></div></div>
+</div>
+
+<div class="sep"></div>
+
+<h2>6. Privacy: Where It Actually Comes From</h2>
+
+<table class="data-table">
+  <tr><th>Question</th><th>POC-A</th><th>POC-B</th><th>POC-C</th></tr>
+  <tr><td>Can chain see device key?</td><td>Yes, <code>qx,qy</code> are public.</td><td>No, key is in ZK witness.</td><td>No, key is in ZK witness.</td></tr>
+  <tr><td>Can chain see signature?</td><td>Yes, <code>r,s</code> are public.</td><td>No, signature is in ZK witness.</td><td>No, signature is in ZK witness.</td></tr>
+  <tr><td>Can chain link action to wallet?</td><td>Yes.</td><td>Yes, wallet is passed to <code>is_human</code> flow.</td><td>No direct wallet parameter in the anonymous protocol.</td></tr>
+  <tr><td>What still leaks?</td><td>Device key, wallet, timing.</td><td>Wallet and timing.</td><td>Merkle root, nullifier, timing. Relay still sees proof package in current demo.</td></tr>
+  <tr><td>Main caveat</td><td>No public-key privacy.</td><td>Not anonymous because wallet remains visible.</td><td>Current nullifier is not a production-grade private-secret design.</td></tr>
+</table>
+
+<div class="callout warn">
+  <h4>Common misconception</h4>
+  <p>POC-B is not the same as v1 Option B. Current POC-B proves the raw biometric P-256 signature in ZK. v1 Option B would prove a backend issuer signature over a validated bundle.</p>
+</div>
+
+<div class="sep"></div>
+
+<h2>7. Worked Examples</h2>
+
+<div class="two-col">
+  <div class="card">
+    <h4>Example 1: Bob acts twice in POC-B</h4>
+    <p>Monday proof: wallet <code>0xBob</code>, hidden key, message hash <code>0xaaa</code>. Tuesday proof: same wallet <code>0xBob</code>, hidden key, message hash <code>0xbbb</code>. Observer cannot see the key, but the same wallet links both actions.</p>
+  </div>
+  <div class="card">
+    <h4>Example 2: Bob acts twice in POC-C</h4>
+    <p>Monday proof: root <code>R</code>, nullifier <code>N1</code>. Tuesday proof: root <code>R</code>, nullifier <code>N2</code>. No wallet parameter appears. A chain observer sees two registered-user actions, not Bob's wallet.</p>
+  </div>
+</div>
+
+<div class="callout red">
+  <h4>Failure scenario</h4>
+  <p>If Bob reuses the same POC-C message, the circuit derives the same nullifier. The registry already consumed it, so the second transaction reverts with "Nullifier already used."</p>
+</div>
+
+<div class="sep"></div>
+
+<h2>8. Failure Modes</h2>
+
+<div class="three-col">
+  <div class="card a">
+    <h4>POC-A failure</h4>
+    <p>Wrong calldata ordering or high/low <code>u256</code> split makes a valid signature fail on-chain. Privacy failure is inherent: key and signature are public.</p>
+  </div>
+  <div class="card b">
+    <h4>POC-B failure</h4>
+    <p>If the s-value is not canonicalized to low-s, the Noir signature check may fail. If the wallet is reused, the privacy story is only pseudonymous.</p>
+  </div>
+  <div class="card c">
+    <h4>POC-C failure</h4>
+    <p>Wrong Merkle path, stale root, or reused nullifier causes rejection. If leaves are publicly mapped to users, anonymity weakens.</p>
+  </div>
+</div>
+
+<div class="sep"></div>
+
+<h2>9. Check Your Understanding</h2>
+
+<div class="qa">
+  <div class="card"><h4>Q1. What is the minimum thing the iPad must produce?</h4><p>A biometric-gated P-256 signature over a fresh challenge.</p></div>
+  <div class="card"><h4>Q2. Why is POC-A easiest to debug?</h4><p>Because the chain receives the raw public key and signature, so there is no ZK witness/proof layer hiding what went wrong.</p></div>
+  <div class="card"><h4>Q3. Why is POC-B private but not anonymous?</h4><p>It hides the device key and signature, but the wallet address remains visible and linkable.</p></div>
+  <div class="card"><h4>Q4. What does POC-C add on top of POC-B?</h4><p>Merkle set membership and a nullifier, so the contract can accept "someone in this registered set acted once" without a wallet parameter.</p></div>
+  <div class="card"><h4>Q5. Why is v1 Option B cheaper than current POC-B?</h4><p>Because the circuit would verify a backend issuer signature, not the raw Apple P-256 biometric signature.</p></div>
+</div>
+
+<div class="sep"></div>
+
+<h2>10. Glossary Links</h2>
+<p>Read these next if a term still feels fuzzy: <a href="01-device-proof.html" style="color: var(--orange);">Device Proof Creation</a>, <a href="02-app-attestation.html" style="color: var(--orange);">App Attestation</a>, <a href="05-poc-b-zk-proving.html" style="color: var(--orange);">POC-B ZK Proof Pipeline</a>, and <a href="06-poc-c-anonymous.html" style="color: var(--orange);">POC-C Anonymous Proofs</a>.</p>
+
+</div>
+
+<div class="nav-footer">
+  <a href="07-privacy-spectrum.html">&larr; Privacy Spectrum</a>
+  <a href="09-options-vs-pocs.html">Options vs POCs &rarr;</a>
+</div>
+<footer><p>Biometric ZK Identity &mdash; Karnot Research &middot; First Principles Guide</p></footer>
+</body>
+</html>

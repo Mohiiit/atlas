@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Biometric ZK Identity - Architecture Overview</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #08080f; --surface: #111119; --surface2: #1a1a25;
+    --border: #2a2a3a; --text: #e8e8f0; --text-dim: #8888a0;
+    --orange: #ff6b35; --teal: #4ecdc4; --purple: #7c3aed;
+    --blue: #3b82f6; --green: #10b981; --red: #ef4444;
+    --orange-glow: rgba(255,107,53,0.15); --teal-glow: rgba(78,205,196,0.15);
+  }
+  body { font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; overflow-x: hidden; }
+
+  /* Hero */
+  .hero { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 2rem; position: relative; overflow: hidden; }
+  .hero::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle at 30% 40%, rgba(255,107,53,0.08) 0%, transparent 50%), radial-gradient(circle at 70% 60%, rgba(78,205,196,0.06) 0%, transparent 50%), radial-gradient(circle at 50% 50%, rgba(124,58,237,0.04) 0%, transparent 50%); animation: heroGlow 20s ease-in-out infinite; }
+  @keyframes heroGlow { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-3%, -2%); } }
+  .hero-badge { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1.2rem; background: var(--surface); border: 1px solid var(--border); border-radius: 99px; font-size: 0.85rem; color: var(--teal); margin-bottom: 2rem; position: relative; z-index: 1; }
+  .hero-badge::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--teal); animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .hero h1 { font-size: clamp(2.5rem, 6vw, 4.5rem); font-weight: 700; line-height: 1.1; margin-bottom: 1.5rem; position: relative; z-index: 1; }
+  .hero h1 .gradient { background: linear-gradient(135deg, var(--orange) 0%, var(--teal) 50%, var(--purple) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .hero p { font-size: 1.25rem; color: var(--text-dim); max-width: 700px; position: relative; z-index: 1; margin-bottom: 3rem; }
+
+  /* Core claim */
+  .core-claim { background: linear-gradient(135deg, var(--surface) 0%, var(--surface2) 100%); border: 1px solid var(--border); border-radius: 16px; padding: 2rem 3rem; max-width: 800px; margin: 0 auto 4rem; position: relative; z-index: 1; }
+  .core-claim::before { content: '"'; position: absolute; top: -10px; left: 20px; font-size: 4rem; color: var(--orange); opacity: 0.5; }
+  .core-claim p { font-size: 1.1rem; font-style: italic; color: var(--text); }
+  .core-claim .highlight { color: var(--orange); font-weight: 600; font-style: normal; }
+
+  /* Section */
+  section { padding: 4rem 2rem; max-width: 1200px; margin: 0 auto; }
+  .section-label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 3px; color: var(--orange); margin-bottom: 0.5rem; }
+  .section-title { font-size: 2.2rem; font-weight: 700; margin-bottom: 1rem; }
+  .section-subtitle { font-size: 1.1rem; color: var(--text-dim); margin-bottom: 3rem; max-width: 600px; }
+
+  /* Architecture SVG */
+  .arch-container { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 3rem; margin: 3rem 0; overflow-x: auto; }
+  .arch-container svg { width: 100%; max-width: 1100px; margin: 0 auto; display: block; }
+  .arch-container svg text { font-family: 'SF Mono', 'Fira Code', monospace; }
+
+  /* POC Cards */
+  .poc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; margin-top: 2rem; }
+  .poc-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; transition: all 0.3s; cursor: pointer; text-decoration: none; color: inherit; display: block; position: relative; overflow: hidden; }
+  .poc-card:hover { transform: translateY(-4px); border-color: var(--orange); }
+  .poc-card::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: 16px 16px 0 0; }
+  .poc-card.poc-a::after { background: linear-gradient(90deg, var(--green), var(--teal)); }
+  .poc-card.poc-b::after { background: linear-gradient(90deg, var(--blue), var(--purple)); }
+  .poc-card.poc-c::after { background: linear-gradient(90deg, var(--purple), var(--orange)); }
+  .poc-card .poc-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.2rem; }
+  .poc-card .poc-letter { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: 700; }
+  .poc-a .poc-letter { background: rgba(16,185,129,0.15); color: var(--green); }
+  .poc-b .poc-letter { background: rgba(59,130,246,0.15); color: var(--blue); }
+  .poc-c .poc-letter { background: rgba(124,58,237,0.15); color: var(--purple); }
+  .poc-card h3 { font-size: 1.2rem; font-weight: 600; }
+  .poc-card .poc-desc { color: var(--text-dim); font-size: 0.95rem; margin-bottom: 1.2rem; }
+  .poc-meta { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .poc-tag { padding: 0.3rem 0.7rem; border-radius: 6px; font-size: 0.75rem; font-weight: 500; }
+  .tag-zk { background: rgba(124,58,237,0.15); color: #a78bfa; }
+  .tag-gas { background: rgba(255,107,53,0.12); color: var(--orange); }
+  .tag-privacy { background: rgba(78,205,196,0.12); color: var(--teal); }
+  .tag-complexity { background: rgba(136,136,160,0.15); color: var(--text-dim); }
+
+  /* Deep dive nav */
+  .deep-dive-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.2rem; margin-top: 2rem; }
+  .dd-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.8rem; text-decoration: none; color: inherit; transition: all 0.3s; display: flex; flex-direction: column; gap: 0.8rem; }
+  .dd-card:hover { border-color: var(--teal); transform: translateY(-2px); }
+  .dd-card .dd-num { font-size: 0.75rem; font-weight: 700; color: var(--orange); text-transform: uppercase; letter-spacing: 2px; }
+  .dd-card h3 { font-size: 1.1rem; font-weight: 600; }
+  .dd-card p { font-size: 0.9rem; color: var(--text-dim); }
+  .dd-card .dd-arrow { margin-top: auto; color: var(--teal); font-size: 1.2rem; transition: transform 0.3s; }
+  .dd-card:hover .dd-arrow { transform: translateX(6px); }
+
+  /* Flow section */
+  .flow-steps { display: flex; flex-direction: column; gap: 0; margin: 2rem 0; position: relative; }
+  .flow-steps::before { content: ''; position: absolute; left: 28px; top: 40px; bottom: 40px; width: 2px; background: linear-gradient(to bottom, var(--orange), var(--teal), var(--purple)); }
+  .flow-step { display: flex; gap: 1.5rem; padding: 1.2rem 0; position: relative; }
+  .flow-dot { width: 58px; min-width: 58px; height: 58px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; z-index: 1; flex-shrink: 0; }
+  .flow-step:nth-child(1) .flow-dot { background: linear-gradient(135deg, #1a1a25, #222235); border: 2px solid var(--orange); }
+  .flow-step:nth-child(2) .flow-dot { background: linear-gradient(135deg, #1a1a25, #222235); border: 2px solid #f59e0b; }
+  .flow-step:nth-child(3) .flow-dot { background: linear-gradient(135deg, #1a1a25, #222235); border: 2px solid var(--teal); }
+  .flow-step:nth-child(4) .flow-dot { background: linear-gradient(135deg, #1a1a25, #222235); border: 2px solid var(--blue); }
+  .flow-step:nth-child(5) .flow-dot { background: linear-gradient(135deg, #1a1a25, #222235); border: 2px solid var(--purple); }
+  .flow-step:nth-child(6) .flow-dot { background: linear-gradient(135deg, #1a1a25, #222235); border: 2px solid var(--green); }
+  .flow-content { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; flex: 1; }
+  .flow-content h4 { font-size: 1rem; font-weight: 600; margin-bottom: 0.3rem; }
+  .flow-content .flow-tech { font-size: 0.85rem; color: var(--text-dim); margin-bottom: 0.5rem; }
+  .flow-content .flow-detail { font-size: 0.9rem; color: var(--text-dim); }
+  .flow-content code { background: rgba(255,107,53,0.1); color: var(--orange); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.8rem; font-family: 'SF Mono', monospace; }
+
+  /* Tool stack */
+  .tool-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin: 2rem 0; }
+  .tool-chip { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.2rem; text-align: center; }
+  .tool-chip .tool-name { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.2rem; }
+  .tool-chip .tool-ver { font-size: 0.75rem; color: var(--text-dim); }
+  .tool-chip .tool-role { font-size: 0.75rem; color: var(--teal); margin-top: 0.3rem; }
+
+  /* Footer */
+  footer { padding: 3rem 2rem; text-align: center; border-top: 1px solid var(--border); margin-top: 4rem; }
+  footer p { color: var(--text-dim); font-size: 0.85rem; }
+
+  /* Separator */
+  .sep { height: 1px; background: linear-gradient(90deg, transparent, var(--border), transparent); margin: 4rem 0; }
+</style>
+</head>
+<body>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="hero-badge">Karnot Research</div>
+  <h1>Biometric ZK Identity<br><span class="gradient">POC Architecture</span></h1>
+  <p>Three parallel approaches to proving phone biometric verification on Madara &mdash; from native signature verification to progressively more private ZK proofs.</p>
+
+  <div class="core-claim">
+    <p>A phone user authenticated via their device biometric (Face ID / fingerprint), and we can prove this on-chain &mdash; <span class="highlight">with varying degrees of privacy</span>.</p>
+  </div>
+</div>
+
+<!-- High-Level Architecture -->
+<section>
+  <div class="section-label">System Architecture</div>
+  <div class="section-title">End-to-End Flow</div>
+  <div class="section-subtitle">From biometric touch to on-chain verified credential &mdash; every component in the pipeline.</div>
+
+  <div class="arch-container">
+    <svg viewBox="0 0 1100 520" xmlns="http://www.w3.org/2000/svg">
+      <!-- Background grid -->
+      <defs>
+        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+          <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1a1a2a" stroke-width="0.5"/>
+        </pattern>
+        <linearGradient id="gOrange" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#ff6b35;stop-opacity:0.2"/>
+          <stop offset="100%" style="stop-color:#ff6b35;stop-opacity:0.05"/>
+        </linearGradient>
+        <linearGradient id="gTeal" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#4ecdc4;stop-opacity:0.2"/>
+          <stop offset="100%" style="stop-color:#4ecdc4;stop-opacity:0.05"/>
+        </linearGradient>
+        <linearGradient id="gPurple" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#7c3aed;stop-opacity:0.2"/>
+          <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:0.05"/>
+        </linearGradient>
+        <linearGradient id="gBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:0.2"/>
+          <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:0.05"/>
+        </linearGradient>
+        <marker id="arrowOrange" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <path d="M0,0 L8,3 L0,6" fill="#ff6b35" opacity="0.7"/>
+        </marker>
+        <marker id="arrowTeal" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <path d="M0,0 L8,3 L0,6" fill="#4ecdc4" opacity="0.7"/>
+        </marker>
+        <marker id="arrowPurple" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <path d="M0,0 L8,3 L0,6" fill="#7c3aed" opacity="0.7"/>
+        </marker>
+      </defs>
+      <rect width="1100" height="520" fill="url(#grid)"/>
+
+      <!-- Layer 1: iOS Device -->
+      <rect x="30" y="30" width="230" height="200" rx="16" fill="url(#gOrange)" stroke="#ff6b35" stroke-width="1.5" opacity="0.9"/>
+      <text x="50" y="60" fill="#ff6b35" font-size="11" font-weight="700" letter-spacing="2">iOS DEVICE</text>
+      <rect x="50" y="78" width="190" height="36" rx="8" fill="#111119" stroke="#2a2a3a"/>
+      <text x="65" y="100" fill="#e8e8f0" font-size="12">Secure Enclave (SEP)</text>
+      <rect x="50" y="124" width="190" height="36" rx="8" fill="#111119" stroke="#2a2a3a"/>
+      <text x="65" y="146" fill="#e8e8f0" font-size="12">Face ID / Touch ID</text>
+      <rect x="50" y="170" width="190" height="36" rx="8" fill="#111119" stroke="#2a2a3a"/>
+      <text x="65" y="192" fill="#e8e8f0" font-size="12">P-256 ECDSA Signing</text>
+      <text x="60" y="225" fill="#8888a0" font-size="10">ProofPackage JSON output</text>
+
+      <!-- Arrow 1 -->
+      <line x1="260" y1="130" x2="340" y2="130" stroke="#ff6b35" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arrowOrange)"/>
+      <text x="270" y="118" fill="#ff6b35" font-size="9" opacity="0.8">HTTPS POST</text>
+
+      <!-- Layer 2: Relay Backend -->
+      <rect x="350" y="30" width="230" height="200" rx="16" fill="url(#gTeal)" stroke="#4ecdc4" stroke-width="1.5" opacity="0.9"/>
+      <text x="370" y="60" fill="#4ecdc4" font-size="11" font-weight="700" letter-spacing="2">RELAY / REGISTRY</text>
+      <rect x="370" y="78" width="190" height="36" rx="8" fill="#111119" stroke="#2a2a3a"/>
+      <text x="385" y="100" fill="#e8e8f0" font-size="12">App Attest Validation</text>
+      <rect x="370" y="124" width="190" height="36" rx="8" fill="#111119" stroke="#2a2a3a"/>
+      <text x="385" y="146" fill="#e8e8f0" font-size="12">P-256 Sig Verification</text>
+      <rect x="370" y="170" width="190" height="36" rx="8" fill="#111119" stroke="#2a2a3a"/>
+      <text x="385" y="192" fill="#e8e8f0" font-size="12">Credential Registry</text>
+      <text x="380" y="225" fill="#8888a0" font-size="10">Python Flask server</text>
+
+      <!-- Arrow 2 -->
+      <line x1="580" y1="130" x2="660" y2="130" stroke="#4ecdc4" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arrowTeal)"/>
+      <text x="590" y="118" fill="#4ecdc4" font-size="9" opacity="0.8">Spawn process</text>
+
+      <!-- Layer 3: Operator / Prover -->
+      <rect x="670" y="30" width="230" height="200" rx="16" fill="url(#gBlue)" stroke="#3b82f6" stroke-width="1.5" opacity="0.9"/>
+      <text x="690" y="60" fill="#3b82f6" font-size="11" font-weight="700" letter-spacing="2">OPERATOR / PROVER</text>
+      <rect x="690" y="78" width="190" height="36" rx="8" fill="#111119" stroke="#2a2a3a"/>
+      <text x="705" y="100" fill="#e8e8f0" font-size="12">Noir Circuit Compile</text>
+      <rect x="690" y="124" width="190" height="36" rx="8" fill="#111119" stroke="#2a2a3a"/>
+      <text x="705" y="146" fill="#e8e8f0" font-size="12">Barretenberg Prove</text>
+      <rect x="690" y="170" width="190" height="36" rx="8" fill="#111119" stroke="#2a2a3a"/>
+      <text x="705" y="192" fill="#e8e8f0" font-size="12">Garaga Calldata Gen</text>
+      <text x="700" y="225" fill="#8888a0" font-size="10">nargo + bb + garaga CLI</text>
+
+      <!-- Arrow 3 -->
+      <path d="M 900 130 Q 960 130, 960 280" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="6,3" fill="none" marker-end="url(#arrowPurple)"/>
+      <text x="910" y="200" fill="#3b82f6" font-size="9" opacity="0.8" transform="rotate(90,925,200)">sncast invoke</text>
+
+      <!-- Layer 4: Madara Chain -->
+      <rect x="670" y="290" width="400" height="200" rx="16" fill="url(#gPurple)" stroke="#7c3aed" stroke-width="1.5" opacity="0.9"/>
+      <text x="690" y="320" fill="#7c3aed" font-size="11" font-weight="700" letter-spacing="2">MADARA (STARKNET DEVNET)</text>
+
+      <!-- Three contract boxes -->
+      <rect x="690" y="340" width="115" height="60" rx="8" fill="#111119" stroke="#10b981" stroke-width="1"/>
+      <text x="700" y="362" fill="#10b981" font-size="9" font-weight="600">POC-A</text>
+      <text x="700" y="378" fill="#8888a0" font-size="9">Native P-256</text>
+      <text x="700" y="392" fill="#8888a0" font-size="8">Verifier</text>
+
+      <rect x="820" y="340" width="115" height="60" rx="8" fill="#111119" stroke="#3b82f6" stroke-width="1"/>
+      <text x="830" y="362" fill="#3b82f6" font-size="9" font-weight="600">POC-B</text>
+      <text x="830" y="378" fill="#8888a0" font-size="9">Honk Verifier</text>
+      <text x="830" y="392" fill="#8888a0" font-size="8">+ Protocol</text>
+
+      <rect x="950" y="340" width="115" height="60" rx="8" fill="#111119" stroke="#7c3aed" stroke-width="1"/>
+      <text x="960" y="362" fill="#7c3aed" font-size="9" font-weight="600">POC-C</text>
+      <text x="960" y="378" fill="#8888a0" font-size="9">Honk + Registry</text>
+      <text x="960" y="392" fill="#8888a0" font-size="8">+ Nullifier</text>
+
+      <!-- Result -->
+      <rect x="690" y="420" width="370" height="50" rx="10" fill="#111119" stroke="#10b981" stroke-width="1" stroke-dasharray="4,2"/>
+      <text x="790" y="445" fill="#10b981" font-size="13" font-weight="600" text-anchor="middle">is_human(wallet) = true</text>
+      <text x="790" y="462" fill="#8888a0" font-size="10" text-anchor="middle">24-hour TTL credential</text>
+
+      <!-- dApp query arrow -->
+      <rect x="350" y="370" width="200" height="70" rx="12" fill="url(#gTeal)" stroke="#4ecdc4" stroke-width="1" opacity="0.7"/>
+      <text x="370" y="395" fill="#4ecdc4" font-size="10" font-weight="600">Sample dApp</text>
+      <text x="370" y="412" fill="#8888a0" font-size="9">Queries is_human()</text>
+      <text x="370" y="426" fill="#8888a0" font-size="9">credential_times()</text>
+      <line x1="550" y1="405" x2="670" y2="445" stroke="#4ecdc4" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrowTeal)"/>
+
+      <!-- Data labels -->
+      <rect x="30" y="270" width="300" height="130" rx="12" fill="var(--surface)" stroke="var(--border)" opacity="0.7"/>
+      <text x="50" y="295" fill="#ff6b35" font-size="10" font-weight="600">DATA FLOWING THROUGH PIPELINE</text>
+      <text x="50" y="316" fill="#8888a0" font-size="10">challenge_hash  SHA-256 of nonce</text>
+      <text x="50" y="334" fill="#8888a0" font-size="10">r, s            ECDSA signature</text>
+      <text x="50" y="352" fill="#8888a0" font-size="10">qx, qy          P-256 public key</text>
+      <text x="50" y="370" fill="#8888a0" font-size="10">attestation     App Attest object</text>
+      <text x="50" y="388" fill="#8888a0" font-size="10">proof           HONK ZK proof (B,C)</text>
+    </svg>
+  </div>
+</section>
+
+<div class="sep"></div>
+
+<!-- Three POCs -->
+<section>
+  <div class="section-label">Three Paths</div>
+  <div class="section-title">Privacy Spectrum</div>
+  <div class="section-subtitle">Same biometric input, three different privacy guarantees. Each POC uses its own Madara devnet account.</div>
+
+  <div class="poc-grid">
+    <a href="04-poc-a-native.html" class="poc-card poc-a">
+      <div class="poc-header">
+        <div class="poc-letter">A</div>
+        <h3>Native secp256r1</h3>
+      </div>
+      <p class="poc-desc">Raw P-256 signature components (r, s) and public key (qx, qy) are submitted on-chain in plaintext. Cairo verifies the ECDSA math directly.</p>
+      <div class="poc-meta">
+        <span class="poc-tag tag-privacy">Hardware-only privacy</span>
+        <span class="poc-tag tag-zk">No ZK</span>
+        <span class="poc-tag tag-gas">~27M L2 gas</span>
+        <span class="poc-tag tag-complexity">Low complexity</span>
+      </div>
+    </a>
+
+    <a href="05-poc-b-zk-proving.html" class="poc-card poc-b">
+      <div class="poc-header">
+        <div class="poc-letter">B</div>
+        <h3>Noir + Garaga ZK</h3>
+      </div>
+      <p class="poc-desc">A ZK proof proves "I know a valid P-256 signature over this message" &mdash; the public key and signature are hidden inside the proof witness. This is the built POC-B, not v1 Option B.</p>
+      <div class="poc-meta">
+        <span class="poc-tag tag-privacy">Pubkey hidden in ZK</span>
+        <span class="poc-tag tag-zk">UltraKeccakZKHonk</span>
+        <span class="poc-tag tag-gas">~200M Sierra gas</span>
+        <span class="poc-tag tag-complexity">Medium</span>
+      </div>
+    </a>
+
+    <a href="06-poc-c-anonymous.html" class="poc-card poc-c">
+      <div class="poc-header">
+        <div class="poc-letter">C</div>
+        <h3>Merkle + Nullifier</h3>
+      </div>
+      <p class="poc-desc">On-chain anonymity: proves set membership in a registered user group + nullifier prevents replay &mdash; two proofs from the same user cannot be linked by chain observers.</p>
+      <div class="poc-meta">
+        <span class="poc-tag tag-privacy">On-chain unlinkable</span>
+        <span class="poc-tag tag-zk">ZK + Merkle set</span>
+        <span class="poc-tag tag-gas">~220M Sierra gas</span>
+        <span class="poc-tag tag-complexity">High</span>
+      </div>
+    </a>
+  </div>
+</section>
+
+<div class="sep"></div>
+
+<!-- Claim Boundary -->
+<section>
+  <div class="section-label">v1 Decision</div>
+  <div class="section-title">On-Chain Claim Boundary</div>
+  <div class="section-subtitle">The built POCs prove raw biometric signatures. The preferred v1 interface can shift the trust boundary to a backend-signed credential bundle.</div>
+
+  <div class="poc-grid">
+    <div class="poc-card poc-a">
+      <div class="poc-header">
+        <div class="poc-letter">A</div>
+        <h3>Raw P-256 in Circuit</h3>
+      </div>
+      <p class="poc-desc">The circuit verifies Apple's biometric P-256 signature directly. Strongest on-chain claim, highest proving cost. Current POC-B is closest to this.</p>
+      <div class="poc-meta">
+        <span class="poc-tag tag-privacy">Least backend trust</span>
+        <span class="poc-tag tag-gas">Heaviest proof</span>
+      </div>
+    </div>
+
+    <div class="poc-card poc-b">
+      <div class="poc-header">
+        <div class="poc-letter">B</div>
+        <h3>Backend-Signed Bundle</h3>
+      </div>
+      <p class="poc-desc">The backend validates App Attest + P-256, then signs wallet + epoch. The circuit verifies the backend issuer signature. This is the preferred v1 direction.</p>
+      <div class="poc-meta">
+        <span class="poc-tag tag-zk">Cheap circuit</span>
+        <span class="poc-tag tag-complexity">Trusted issuer key</span>
+      </div>
+    </div>
+
+    <div class="poc-card poc-c">
+      <div class="poc-header">
+        <div class="poc-letter">C</div>
+        <h3>Daily Fresh-Set Root</h3>
+      </div>
+      <p class="poc-desc">The backend publishes a signed Merkle root of fresh wallets for the day. Cheapest at scale, but adds batching and root-publication complexity.</p>
+      <div class="poc-meta">
+        <span class="poc-tag tag-privacy">Batchable</span>
+        <span class="poc-tag tag-gas">Cheapest at scale</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="sep"></div>
+
+<!-- E2E Flow -->
+<section>
+  <div class="section-label">Step by Step</div>
+  <div class="section-title">Complete Pipeline (POC-B as Reference)</div>
+  <div class="section-subtitle">The full journey of the current POC-B proof from biometric gesture to on-chain credential. Preferred v1 Option B would replace the raw P-256 proof with a backend-issuer-signature proof.</div>
+
+  <div class="flow-steps">
+    <div class="flow-step">
+      <div class="flow-dot">1</div>
+      <div class="flow-content">
+        <h4>Biometric Capture</h4>
+        <div class="flow-tech">iOS Secure Enclave + CryptoKit</div>
+        <div class="flow-detail">The app requests a one-time challenge from the relay. User authenticates with Face ID / Touch ID. The Secure Enclave uses a <code>P-256</code> keypair with <code>.biometryCurrentSet</code> access control to sign the challenge. The private key <strong>never leaves the hardware</strong>.</div>
+      </div>
+    </div>
+
+    <div class="flow-step">
+      <div class="flow-dot">2</div>
+      <div class="flow-content">
+        <h4>Proof Package Assembly</h4>
+        <div class="flow-tech">BiometricProofService.swift</div>
+        <div class="flow-detail">The app bundles: challenge ID, challenge hash, public key coords <code>(qx, qy)</code>, DER signature parsed into <code>(r, s)</code>, App Attest attestation/assertion data, and key backend identifier. This JSON package is POST'd to the relay at <code>/demo/start</code>.</div>
+      </div>
+    </div>
+
+    <div class="flow-step">
+      <div class="flow-dot">3</div>
+      <div class="flow-content">
+        <h4>Relay Validation</h4>
+        <div class="flow-tech">Python Flask &mdash; server.py + app_attest.py</div>
+        <div class="flow-detail">The relay consumes the one-time challenge and performs two checks: (1) <strong>App Attest</strong> &mdash; validates Apple's certificate chain or refresh assertion, checks RP ID hash, and verifies the environment. (2) <strong>Signature</strong> &mdash; reconstructs the P-256 public key and verifies the ECDSA signature over the fresh challenge.</div>
+      </div>
+    </div>
+
+    <div class="flow-step">
+      <div class="flow-dot">4</div>
+      <div class="flow-content">
+        <h4>ZK Proof Generation</h4>
+        <div class="flow-tech">Noir + Barretenberg + Garaga</div>
+        <div class="flow-detail">The current operator writes the raw P-256 witness to <code>Prover.toml</code>, compiles with <code>nargo</code>, generates a HONK proof, and converts it to Cairo calldata with <code>garaga calldata</code>. In preferred v1 Option B, this stage would prove a backend issuer signature instead.</div>
+      </div>
+    </div>
+
+    <div class="flow-step">
+      <div class="flow-dot">5</div>
+      <div class="flow-content">
+        <h4>On-Chain Submission</h4>
+        <div class="flow-tech">sncast invoke &rarr; Madara</div>
+        <div class="flow-detail">The operator calls <code>submit_biometric_proof(wallet, full_proof_with_hints)</code>. The protocol contract dispatches to the Garaga-generated Honk verifier. If verification passes, it extracts the message hash from public inputs and records <code>expires_at[wallet] = now + 24h</code>.</div>
+      </div>
+    </div>
+
+    <div class="flow-step">
+      <div class="flow-dot">6</div>
+      <div class="flow-content">
+        <h4>Credential Active</h4>
+        <div class="flow-tech">Cairo Storage &mdash; 24h TTL</div>
+        <div class="flow-detail">Any dApp can now query <code>is_human(wallet)</code> which returns <code>true</code> if the credential hasn't expired. The contract emits a <code>HumannessRefreshed</code> event. The sample dApp reads this via Starknet JSON-RPC calls.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="sep"></div>
+
+<!-- Deep Dive Navigation -->
+<section>
+  <div class="section-label">Deep Dives</div>
+  <div class="section-title">Explore Each Component</div>
+  <div class="section-subtitle">Click any card to dive deep into how that part of the system works.</div>
+
+  <div class="deep-dive-grid">
+    <a href="01-device-proof.html" class="dd-card">
+      <div class="dd-num">Chapter 01</div>
+      <h3>Device Proof Creation</h3>
+      <p>Secure Enclave key generation, biometric gating, ECDSA signing, DER parsing, and ProofPackage assembly.</p>
+      <div class="dd-arrow">&rarr;</div>
+    </a>
+
+    <a href="02-app-attestation.html" class="dd-card">
+      <div class="dd-num">Chapter 02</div>
+      <h3>App Attestation</h3>
+      <p>How Apple App Attest proves the request came from a genuine, unmodified app on a real device.</p>
+      <div class="dd-arrow">&rarr;</div>
+    </a>
+
+    <a href="03-relay-registry.html" class="dd-card">
+      <div class="dd-num">Chapter 03</div>
+      <h3>Relay & Registry</h3>
+      <p>Server-side validation, credential enrollment, signature verification, and operator orchestration.</p>
+      <div class="dd-arrow">&rarr;</div>
+    </a>
+
+    <a href="04-poc-a-native.html" class="dd-card">
+      <div class="dd-num">Chapter 04</div>
+      <h3>POC-A: Native P-256</h3>
+      <p>Direct on-chain ECDSA verification using Cairo's secp256r1 syscall. No ZK, full transparency.</p>
+      <div class="dd-arrow">&rarr;</div>
+    </a>
+
+    <a href="05-poc-b-zk-proving.html" class="dd-card">
+      <div class="dd-num">Chapter 05</div>
+      <h3>POC-B: ZK Proof Pipeline</h3>
+      <p>Noir circuit design, Barretenberg proving, Garaga calldata generation, and on-chain Honk verification.</p>
+      <div class="dd-arrow">&rarr;</div>
+    </a>
+
+    <a href="06-poc-c-anonymous.html" class="dd-card">
+      <div class="dd-num">Chapter 06</div>
+      <h3>POC-C: Anonymous Proofs</h3>
+      <p>Merkle tree set membership, nullifier-based replay protection, and on-chain unlinkable biometric actions.</p>
+      <div class="dd-arrow">&rarr;</div>
+    </a>
+
+    <a href="07-privacy-spectrum.html" class="dd-card">
+      <div class="dd-num">Chapter 07</div>
+      <h3>Privacy Spectrum</h3>
+      <p>Side-by-side comparison of what each POC reveals, hides, proves, and costs.</p>
+      <div class="dd-arrow">&rarr;</div>
+    </a>
+
+    <a href="08-first-principles.html" class="dd-card">
+      <div class="dd-num">Chapter 08</div>
+      <h3>First Principles Guide</h3>
+      <p>Beginner-friendly explanation of why each POC exists, what it proves, what it hides, and where privacy actually comes from.</p>
+      <div class="dd-arrow">&rarr;</div>
+    </a>
+
+    <a href="09-options-vs-pocs.html" class="dd-card">
+      <div class="dd-num">Chapter 09</div>
+      <h3>Options vs POCs</h3>
+      <p>Visual map showing how v1 Option A/B/C relate to actual POC-A/B/C, including what matches and what is still missing.</p>
+      <div class="dd-arrow">&rarr;</div>
+    </a>
+  </div>
+</section>
+
+<div class="sep"></div>
+
+<!-- Tool Stack -->
+<section>
+  <div class="section-label">Infrastructure</div>
+  <div class="section-title">Tool Stack</div>
+  <div class="tool-row">
+    <div class="tool-chip">
+      <div class="tool-name">nargo</div>
+      <div class="tool-ver">1.0.0-beta.3</div>
+      <div class="tool-role">Circuit compiler</div>
+    </div>
+    <div class="tool-chip">
+      <div class="tool-name">bb</div>
+      <div class="tool-ver">0.86.0-starknet.1</div>
+      <div class="tool-role">Proof backend</div>
+    </div>
+    <div class="tool-chip">
+      <div class="tool-name">garaga</div>
+      <div class="tool-ver">latest</div>
+      <div class="tool-role">Cairo calldata</div>
+    </div>
+    <div class="tool-chip">
+      <div class="tool-name">scarb</div>
+      <div class="tool-ver">2.9.2</div>
+      <div class="tool-role">Cairo build</div>
+    </div>
+    <div class="tool-chip">
+      <div class="tool-name">starkli</div>
+      <div class="tool-ver">latest</div>
+      <div class="tool-role">Deploy + call</div>
+    </div>
+    <div class="tool-chip">
+      <div class="tool-name">sncast</div>
+      <div class="tool-ver">latest</div>
+      <div class="tool-role">Invoke transactions</div>
+    </div>
+    <div class="tool-chip">
+      <div class="tool-name">Madara</div>
+      <div class="tool-ver">devnet</div>
+      <div class="tool-role">L2 chain</div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p>Biometric ZK Identity &mdash; Karnot Research &middot; Client-Side Proving POC Suite</p>
+</footer>
+
+</body>
+</html>

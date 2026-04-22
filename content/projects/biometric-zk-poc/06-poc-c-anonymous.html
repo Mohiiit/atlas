@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ch.06 - POC-C: Anonymous Proofs</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root { --bg: #08080f; --surface: #111119; --surface2: #1a1a25; --border: #2a2a3a; --text: #e8e8f0; --text-dim: #8888a0; --orange: #ff6b35; --teal: #4ecdc4; --purple: #7c3aed; --blue: #3b82f6; --green: #10b981; --red: #ef4444; }
+  body { font-family: 'SF Pro Display', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+  .nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(8,8,15,0.9); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 0.8rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+  .nav a { color: var(--text-dim); text-decoration: none; font-size: 0.85rem; } .nav a:hover { color: var(--orange); }
+  .nav .chapter { color: var(--purple); font-weight: 600; font-size: 0.85rem; }
+  .hero { padding: 8rem 2rem 4rem; max-width: 900px; margin: 0 auto; }
+  .hero .badge { display: inline-flex; gap: 0.5rem; padding: 0.4rem 1rem; background: rgba(124,58,237,0.15); border: 1px solid rgba(124,58,237,0.3); border-radius: 8px; font-size: 0.8rem; color: var(--purple); margin-bottom: 1rem; }
+  .hero h1 { font-size: 2.5rem; font-weight: 700; line-height: 1.15; margin-bottom: 1rem; }
+  .hero .subtitle { font-size: 1.1rem; color: var(--text-dim); max-width: 650px; }
+  .content { max-width: 900px; margin: 0 auto; padding: 0 2rem; }
+  .sep { height: 1px; background: linear-gradient(90deg, transparent, var(--border), transparent); margin: 3rem 0; }
+  h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem; }
+  h3 { font-size: 1.15rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--purple); }
+  p { margin-bottom: 1rem; font-size: 0.95rem; }
+  code { font-family: 'SF Mono', monospace; background: rgba(255,107,53,0.1); color: var(--orange); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.85rem; }
+  .code-block { font-family: 'SF Mono', monospace; background: #0d0d18; border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem; margin: 1rem 0; font-size: 0.82rem; line-height: 1.65; overflow-x: auto; color: #c8c8d8; white-space: pre; }
+  .callout { background: rgba(124,58,237,0.08); border-left: 3px solid var(--purple); border-radius: 0 10px 10px 0; padding: 1.2rem 1.5rem; margin: 1.5rem 0; }
+  .callout.green { background: rgba(16,185,129,0.08); border-left-color: var(--green); }
+  .callout h4 { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.4rem; } .callout p { margin: 0; font-size: 0.9rem; }
+  .diagram { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; margin: 2rem 0; overflow-x: auto; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin: 2rem 0; }
+  @media (max-width: 700px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.2rem; text-align: center; }
+  .stat .val { font-size: 1.5rem; font-weight: 700; color: var(--purple); }
+  .stat .label { font-size: 0.8rem; color: var(--text-dim); margin-top: 0.3rem; }
+  .three-proofs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.2rem; margin: 2rem 0; }
+  @media (max-width: 700px) { .three-proofs { grid-template-columns: 1fr; } }
+  .proof-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; text-align: center; }
+  .proof-box .num { font-size: 1.8rem; font-weight: 700; margin-bottom: 0.5rem; }
+  .proof-box h4 { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.3rem; }
+  .proof-box p { font-size: 0.82rem; color: var(--text-dim); margin: 0; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin: 1.5rem 0; }
+  @media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
+  .col-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
+  .col-card h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.5rem; }
+  .col-card p { font-size: 0.9rem; color: var(--text-dim); margin: 0; }
+  .data-table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.9rem; }
+  .data-table th { text-align: left; padding: 0.8rem; background: var(--surface2); color: var(--purple); font-weight: 600; font-size: 0.8rem; }
+  .data-table td { padding: 0.8rem; border-bottom: 1px solid var(--border); }
+  .data-table td:first-child { font-family: 'SF Mono', monospace; color: var(--orange); font-size: 0.85rem; }
+  footer { padding: 3rem 2rem; text-align: center; border-top: 1px solid var(--border); margin-top: 4rem; }
+  .nav-footer { display: flex; justify-content: space-between; max-width: 900px; margin: 0 auto; padding: 2rem; }
+  .nav-footer a { color: var(--orange); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <a href="05-poc-b-zk-proving.html">&larr; POC-B</a>
+  <span class="chapter">Chapter 06 &mdash; POC-C: Anonymous Proofs</span>
+  <a href="07-privacy-spectrum.html">Next: Privacy Spectrum &rarr;</a>
+</div>
+
+<div class="hero">
+  <div class="badge">Account #2 &middot; ZK + Merkle + Nullifier &middot; High Complexity</div>
+  <h1>POC-C: Anonymous<br>Biometric Proofs</h1>
+  <div class="subtitle">The strongest on-chain privacy path in the POC suite. It proves set membership without revealing identity and prevents replay without linking actions. Inspired by Semaphore, Tornado Cash, and zkPassport.</div>
+</div>
+
+<div class="content">
+
+<div class="stats">
+  <div class="stat"><div class="val">~220M</div><div class="label">Sierra Gas</div></div>
+  <div class="stat"><div class="val">3</div><div class="label">Public Inputs</div></div>
+  <div class="stat"><div class="val">Depth 2</div><div class="label">Merkle Tree</div></div>
+  <div class="stat"><div class="val">On-Chain</div><div class="label">Unlinkability</div></div>
+</div>
+
+<div class="callout">
+  <h4>Start from first principles?</h4>
+  <p>If Merkle roots and nullifiers feel abstract, read the <a href="08-first-principles.html" style="color: var(--orange);">First Principles Guide</a> first. It explains POC-C as "one registered key acted once" before getting into the circuit.</p>
+</div>
+
+<div class="sep"></div>
+
+<h2>The Three Simultaneous Proofs</h2>
+<p>POC-C's Noir circuit proves three things at once &mdash; and this combination is what makes it anonymous to on-chain observers:</p>
+
+<div class="three-proofs">
+  <div class="proof-box" style="border-color: var(--green);">
+    <div class="num" style="color: var(--green);">1</div>
+    <h4 style="color: var(--green);">Signature Validity</h4>
+    <p>"I know a valid P-256 ECDSA signature over this message, made with some public key PK."</p>
+  </div>
+  <div class="proof-box" style="border-color: var(--blue);">
+    <div class="num" style="color: var(--blue);">2</div>
+    <h4 style="color: var(--blue);">Set Membership</h4>
+    <p>"PK is a member of the registered key set (Merkle root R)." Proved via authentication path without revealing PK.</p>
+  </div>
+  <div class="proof-box" style="border-color: var(--purple);">
+    <div class="num" style="color: var(--purple);">3</div>
+    <h4 style="color: var(--purple);">Nullifier</h4>
+    <p>"This proof is bound to this specific message and cannot be replayed." In the current POC, it is computed as BLAKE2s(leaf, message_hash).</p>
+  </div>
+</div>
+
+<div class="callout green">
+  <h4>Privacy Guarantee</h4>
+  <p>Two proofs from the <strong>same user</strong>, for <strong>different actions</strong>, cannot be linked to each other on-chain. The nullifier ties a proof to a specific action, but the nullifier itself does not reveal the user's identity.</p>
+</div>
+
+<div class="callout">
+  <h4>Current POC Caveat</h4>
+  <p>The current relay still receives the full ProofPackage before generating the proof. Also, the current nullifier is derived from the hidden leaf and message hash, not from a separate private nullifier secret. So the anonymity described here is the on-chain property of this demo. A production anonymous design should use a commitment/nullifier-secret model or device-side proving.</p>
+</div>
+
+<div class="sep"></div>
+
+<h2>Merkle Tree Construction</h2>
+<p>The anonymity set is a Merkle tree of public keys. Each leaf is a hash of a registered user's P-256 public key.</p>
+
+<div class="diagram">
+  <svg viewBox="0 0 820 340" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+        <path d="M0,0 L8,3 L0,6" fill="#7c3aed" opacity="0.7"/>
+      </marker>
+    </defs>
+
+    <!-- Root -->
+    <rect x="330" y="20" width="160" height="50" rx="10" fill="rgba(124,58,237,0.15)" stroke="#7c3aed" stroke-width="2"/>
+    <text x="365" y="42" fill="#7c3aed" font-size="11" font-weight="700" font-family="monospace">ROOT</text>
+    <text x="345" y="60" fill="#8888a0" font-size="9" font-family="monospace">pub input (on-chain)</text>
+
+    <!-- Level 1 -->
+    <line x1="410" y1="70" x2="250" y2="115" stroke="#7c3aed" stroke-width="1" opacity="0.5"/>
+    <line x1="410" y1="70" x2="570" y2="115" stroke="#7c3aed" stroke-width="1" opacity="0.5"/>
+
+    <rect x="170" y="115" width="160" height="45" rx="10" fill="rgba(59,130,246,0.1)" stroke="#3b82f6"/>
+    <text x="190" y="142" fill="#3b82f6" font-size="10" font-family="monospace">H(leaf0, leaf1)</text>
+
+    <rect x="490" y="115" width="160" height="45" rx="10" fill="rgba(59,130,246,0.1)" stroke="#3b82f6"/>
+    <text x="510" y="142" fill="#3b82f6" font-size="10" font-family="monospace">H(leaf2, leaf3)</text>
+    <text x="510" y="155" fill="#8888a0" font-size="8" font-family="monospace">sibling in path</text>
+
+    <!-- Level 2: Leaves -->
+    <line x1="250" y1="160" x2="130" y2="205" stroke="#3b82f6" stroke-width="1" opacity="0.5"/>
+    <line x1="250" y1="160" x2="340" y2="205" stroke="#3b82f6" stroke-width="1" opacity="0.5"/>
+    <line x1="570" y1="160" x2="470" y2="205" stroke="#3b82f6" stroke-width="1" opacity="0.5"/>
+    <line x1="570" y1="160" x2="660" y2="205" stroke="#3b82f6" stroke-width="1" opacity="0.5"/>
+
+    <rect x="60" y="205" width="140" height="45" rx="8" fill="rgba(136,136,160,0.08)" stroke="#555"/>
+    <text x="80" y="225" fill="#8888a0" font-size="10" font-family="monospace">leaf 0</text>
+    <text x="80" y="240" fill="#555" font-size="8" font-family="monospace">H(qx0, qy0)</text>
+
+    <rect x="270" y="205" width="140" height="45" rx="8" fill="rgba(255,107,53,0.15)" stroke="#ff6b35" stroke-width="2"/>
+    <text x="290" y="225" fill="#ff6b35" font-size="10" font-weight="700" font-family="monospace">leaf 1 (PROVER)</text>
+    <text x="290" y="240" fill="#ff6b35" font-size="8" font-family="monospace">H(qx1, qy1)</text>
+
+    <rect x="400" y="205" width="140" height="45" rx="8" fill="rgba(136,136,160,0.08)" stroke="#555"/>
+    <text x="420" y="225" fill="#8888a0" font-size="10" font-family="monospace">leaf 2</text>
+    <text x="420" y="240" fill="#555" font-size="8" font-family="monospace">H(qx2, qy2)</text>
+
+    <rect x="590" y="205" width="140" height="45" rx="8" fill="rgba(136,136,160,0.08)" stroke="#555"/>
+    <text x="610" y="225" fill="#8888a0" font-size="10" font-family="monospace">leaf 3</text>
+    <text x="610" y="240" fill="#555" font-size="8" font-family="monospace">H(qx3, qy3)</text>
+
+    <!-- Authentication path highlight -->
+    <rect x="60" y="280" width="250" height="45" rx="8" fill="rgba(78,205,196,0.08)" stroke="#4ecdc4" stroke-dasharray="4,2"/>
+    <text x="80" y="300" fill="#4ecdc4" font-size="10" font-weight="600" font-family="monospace">Auth Path for Prover:</text>
+    <text x="80" y="315" fill="#8888a0" font-size="9" font-family="monospace">[leaf0_sibling, H(leaf2,leaf3)]</text>
+
+    <!-- Nullifier -->
+    <rect x="490" y="280" width="250" height="45" rx="8" fill="rgba(124,58,237,0.08)" stroke="#7c3aed" stroke-dasharray="4,2"/>
+    <text x="510" y="300" fill="#7c3aed" font-size="10" font-weight="600" font-family="monospace">Nullifier:</text>
+    <text x="510" y="315" fill="#8888a0" font-size="9" font-family="monospace">H(leaf, message_hash)</text>
+  </svg>
+</div>
+
+<div class="code-block">
+# build_merkle.py / build_witness_from_app_proof.py
+
+TREE_DEPTH = 2   # 4 leaves = 2^2 users
+PROVER_INDEX = 1  # Our prover is at index 1
+
+# Hash function: BLAKE2s (matching Noir's std::hash::blake2s)
+def hash_pair(a: int, b: int) -> int:
+    combined = a.to_bytes(32, 'big') + b.to_bytes(32, 'big')
+    return int.from_bytes(hashlib.blake2s(combined).digest(), 'big')
+
+def pubkey_to_leaf(qx: int, qy: int) -> int:
+    return hash_pair(qx, qy)
+
+# Build the tree bottom-up
+leaves = [pubkey_to_leaf(k["qx"], k["qy"]) for k in keys]
+# Level 0: [leaf0, leaf1, leaf2, leaf3]
+# Level 1: [H(leaf0, leaf1), H(leaf2, leaf3)]
+# Level 2: [H(level1[0], level1[1])] = ROOT
+
+# Extract authentication path for leaf at index 1
+# path    = [leaf0 (sibling), H(leaf2,leaf3) (sibling)]
+# indices = [1, 0]  -- leaf1 is RIGHT child, then LEFT child</div>
+
+<div class="sep"></div>
+
+<h2>The Circuit: Three Proofs in One</h2>
+
+<div class="code-block">
+// poc-c/biometric_anon_circuit/src/main.nr
+
+fn main(
+    // --- Public inputs (visible on-chain) ---
+    hashed_message: pub [u8; 32],  // SHA-256 of challenge
+    merkle_root:    pub Field,      // 31-byte truncation of BLAKE2s Merkle root
+    nullifier:      pub Field,      // 31-byte truncation of BLAKE2s(leaf, message)
+
+    // --- Private witnesses (hidden) ---
+    pub_key_x:       [u8; 32],       // Device P-256 public key X
+    pub_key_y:       [u8; 32],       // Device P-256 public key Y
+    signature:       [u8; 64],       // ECDSA (r||low-s)
+    merkle_path:     [[u8; 32]; DEPTH], // Sibling hashes
+    path_indices:    [u8; DEPTH],       // 0=left, 1=right at each level
+) {
+    // PROOF 1: Verify the P-256 ECDSA signature
+    let sig_valid = std::ecdsa_secp256r1::verify_signature(
+        pub_key_x, pub_key_y, signature, hashed_message,
+    );
+    assert(sig_valid, "P256 signature verification failed");
+
+    // PROOF 2: Verify Merkle set membership
+    let leaf = hash_pair(pub_key_x, pub_key_y);
+    let computed_root = merkle_root_from_path(leaf, merkle_path, path_indices);
+    assert(hash_to_field(computed_root) == merkle_root, "Merkle root mismatch");
+
+    // PROOF 3: Verify nullifier prevents replay for this message
+    let computed_nullifier = hash_pair(leaf, hashed_message);
+    assert(hash_to_field(computed_nullifier) == nullifier, "Nullifier mismatch");
+}
+
+fn hash_pair(left: [u8; 32], right: [u8; 32]) -> [u8; 32] {
+    let mut input: [u8; 64] = [0; 64];
+    for i in 0..32 {
+        input[i] = left[i];
+        input[i + 32] = right[i];
+    }
+    std::hash::blake2s(input)
+}
+
+fn merkle_root_from_path(
+    leaf: [u8; 32],
+    path: [[u8; 32]; DEPTH],
+    indices: [u8; DEPTH],
+) -> [u8; 32] {
+    let mut current = leaf;
+    for level in 0..DEPTH {
+        let sibling = path[level];
+        if indices[level] == 1 {
+            current = hash_pair(sibling, current);
+        } else {
+            current = hash_pair(current, sibling);
+        }
+    }
+    current
+}</div>
+
+<div class="sep"></div>
+
+<h2>Nullifier: Preventing Double-Spend</h2>
+<p>The nullifier is the key to preventing replay attacks while maintaining anonymity.</p>
+
+<div class="two-col">
+  <div class="col-card">
+    <h4>How the current POC works</h4>
+    <p>The current POC computes <code>nullifier = H(leaf, hashed_message)</code>, where <code>leaf = H(qx, qy)</code>. The leaf is hidden inside the proof witness, so chain observers do not see which registered key produced the nullifier.</p>
+  </div>
+  <div class="col-card">
+    <h4>On-chain tracking</h4>
+    <p>The <code>AnonRegistry</code> contract stores used nullifiers. Before accepting a proof, it checks <code>is_nullifier_used(nullifier)</code>. If already used, the transaction reverts. This prevents replay without exposing which leaf produced the original proof.</p>
+  </div>
+</div>
+
+<div class="callout">
+  <h4>Production note</h4>
+  <p>If the full leaf set is public, observers could test known leaves against public message hashes. A stronger production design should derive nullifiers from a private per-user secret or commitment, not only from the public-key leaf.</p>
+</div>
+
+<div class="sep"></div>
+
+<h2>On-Chain Contracts</h2>
+
+<h3>AnonRegistry (Nullifier Tracker)</h3>
+<div class="code-block">
+// poc-c/anon_registry/src/lib.cairo
+
+fn consume_nullifier(ref self: ContractState, nullifier: u256) {
+    assert(get_caller_address() == self.protocol_contract.read(), 'Only protocol');
+    assert(!self.nullifiers.read(nullifier), 'Nullifier already used');
+    self.nullifiers.write(nullifier, true);
+}
+
+fn is_nullifier_used(self: @ContractState, nullifier: u256) -> bool {
+    self.nullifiers.read(nullifier)
+}
+
+fn current_root(self: @ContractState) -> u256 {
+    self.root.read()  // Set during deployment, updateable by owner
+}</div>
+
+<h3>AnonProtocol (Proof Verifier + Coordinator)</h3>
+<div class="code-block">
+// poc-c/anon_protocol/src/lib.cairo
+
+fn submit_anon_biometric_proof(
+    ref self: ContractState,
+    full_proof_with_hints: Span&lt;felt252&gt;,
+) -> bool {
+    // 1. Verify ZK proof via Garaga Honk verifier
+    let result = verifier.verify_ultra_keccak_zk_honk_proof(proof);
+    let public_inputs = result.unwrap();
+
+    // 2. Extract public inputs
+    // public_inputs layout (each 256 bits):
+    //   [0..31]  hashed_message  (32 bytes)
+    //   [32]     merkle_root     (field, 31 bytes)
+    //   [33]     nullifier       (field, 31 bytes)
+
+    // 3. Verify merkle root matches registry
+    let root = extract_field(public_inputs, 32);
+    let registry = IAnonRegistryDispatcher { ... };
+    assert(root == registry.current_root(), 'Root mismatch');
+
+    // 4. Consume the nullifier (prevents replay)
+    let nullifier = extract_field(public_inputs, 33);
+    registry.consume_nullifier(nullifier);
+
+    self.emit(AnonActionVerified { ... });
+    true
+}</div>
+
+<div class="sep"></div>
+
+<h2>Public Inputs Summary</h2>
+
+<table class="data-table">
+  <tr><th>Input</th><th>Visibility</th><th>Purpose</th></tr>
+  <tr><td>hashed_message</td><td>On-chain (public)</td><td>Binds proof to specific challenge/action</td></tr>
+  <tr><td>merkle_root</td><td>On-chain (public)</td><td>Identifies which set of registered users</td></tr>
+  <tr><td>nullifier</td><td>On-chain (public)</td><td>Prevents double-use of same proof</td></tr>
+  <tr><td>pub_key_x/y</td><td>Hidden (witness)</td><td>Device identity &mdash; never revealed</td></tr>
+  <tr><td>signature</td><td>Hidden (witness)</td><td>ECDSA signature &mdash; never revealed</td></tr>
+  <tr><td>merkle_path</td><td>Hidden (witness)</td><td>Authentication path &mdash; never revealed</td></tr>
+  <tr><td>path_indices</td><td>Hidden (witness)</td><td>Shows how to reconstruct the root from the hidden leaf</td></tr>
+</table>
+
+<div class="callout">
+  <h4>Similar Patterns in Production</h4>
+  <p>This POC uses the same broad family of ideas as <strong>Semaphore</strong> and <strong>Tornado Cash</strong>: Merkle membership plus nullifier-based replay prevention. The production versions of those systems use stronger commitment/secret material than this POC's public-key leaf design.</p>
+</div>
+
+<div class="sep"></div>
+
+<!-- DEEP PRIVACY WALKTHROUGH -->
+<h2>Deep Dive: How Exactly Does POC-C Achieve Anonymity?</h2>
+<p>Let's walk through a concrete scenario with real (simplified) numbers to make the privacy properties crystal clear.</p>
+
+<h3>Setup: Four Users Register</h3>
+<p>Four people enroll their devices. The server builds a Merkle tree from their public keys:</p>
+
+<div class="diagram">
+  <svg viewBox="0 0 820 480" xmlns="http://www.w3.org/2000/svg">
+    <!-- Registration phase -->
+    <text x="20" y="25" fill="#7c3aed" font-size="13" font-weight="700" font-family="monospace">ENROLLMENT PHASE</text>
+
+    <!-- Four users -->
+    <rect x="20" y="45" width="175" height="60" rx="8" fill="#111119" stroke="#8888a0"/>
+    <text x="35" y="67" fill="#8888a0" font-size="10" font-family="monospace">User 0: Alice</text>
+    <text x="35" y="85" fill="#555" font-size="9" font-family="monospace">pubkey: (0xa1.., 0xa2..)</text>
+
+    <rect x="215" y="45" width="175" height="60" rx="8" fill="#111119" stroke="#ff6b35" stroke-width="2"/>
+    <text x="230" y="67" fill="#ff6b35" font-size="10" font-weight="700" font-family="monospace">User 1: Bob (PROVER)</text>
+    <text x="230" y="85" fill="#ff6b35" font-size="9" font-family="monospace">pubkey: (0xb1.., 0xb2..)</text>
+
+    <rect x="420" y="45" width="175" height="60" rx="8" fill="#111119" stroke="#8888a0"/>
+    <text x="435" y="67" fill="#8888a0" font-size="10" font-family="monospace">User 2: Carol</text>
+    <text x="435" y="85" fill="#555" font-size="9" font-family="monospace">pubkey: (0xc1.., 0xc2..)</text>
+
+    <rect x="615" y="45" width="175" height="60" rx="8" fill="#111119" stroke="#8888a0"/>
+    <text x="630" y="67" fill="#8888a0" font-size="10" font-family="monospace">User 3: Dave</text>
+    <text x="630" y="85" fill="#555" font-size="9" font-family="monospace">pubkey: (0xd1.., 0xd2..)</text>
+
+    <!-- Leaves -->
+    <text x="20" y="135" fill="#3b82f6" font-size="11" font-weight="700" font-family="monospace">MERKLE TREE (built from hashed public keys)</text>
+
+    <rect x="40" y="155" width="135" height="40" rx="8" fill="#111119" stroke="#555"/>
+    <text x="50" y="175" fill="#8888a0" font-size="9" font-family="monospace">leaf0 = H(a1,a2)</text>
+    <text x="50" y="190" fill="#555" font-size="8" font-family="monospace">= 0x7a3f...</text>
+
+    <rect x="220" y="155" width="135" height="40" rx="8" fill="#111119" stroke="#ff6b35" stroke-width="1.5"/>
+    <text x="230" y="175" fill="#ff6b35" font-size="9" font-family="monospace">leaf1 = H(b1,b2)</text>
+    <text x="230" y="190" fill="#ff6b35" font-size="8" font-family="monospace">= 0x2e8c...</text>
+
+    <rect x="430" y="155" width="135" height="40" rx="8" fill="#111119" stroke="#555"/>
+    <text x="440" y="175" fill="#8888a0" font-size="9" font-family="monospace">leaf2 = H(c1,c2)</text>
+    <text x="440" y="190" fill="#555" font-size="8" font-family="monospace">= 0x91d2...</text>
+
+    <rect x="620" y="155" width="135" height="40" rx="8" fill="#111119" stroke="#555"/>
+    <text x="630" y="175" fill="#8888a0" font-size="9" font-family="monospace">leaf3 = H(d1,d2)</text>
+    <text x="630" y="190" fill="#555" font-size="8" font-family="monospace">= 0xf4a7...</text>
+
+    <!-- Level 1 -->
+    <line x1="107" y1="195" x2="200" y2="230" stroke="#3b82f6" stroke-width="1" opacity="0.4"/>
+    <line x1="287" y1="195" x2="200" y2="230" stroke="#3b82f6" stroke-width="1" opacity="0.4"/>
+    <line x1="497" y1="195" x2="600" y2="230" stroke="#3b82f6" stroke-width="1" opacity="0.4"/>
+    <line x1="687" y1="195" x2="600" y2="230" stroke="#3b82f6" stroke-width="1" opacity="0.4"/>
+
+    <rect x="130" y="225" width="170" height="40" rx="8" fill="#111119" stroke="#3b82f6"/>
+    <text x="140" y="245" fill="#3b82f6" font-size="9" font-family="monospace">node_L = H(leaf0, leaf1)</text>
+    <text x="140" y="260" fill="#555" font-size="8" font-family="monospace">= 0x55bb...</text>
+
+    <rect x="500" y="225" width="200" height="40" rx="8" fill="rgba(78,205,196,0.1)" stroke="#4ecdc4" stroke-dasharray="3,2"/>
+    <text x="510" y="245" fill="#4ecdc4" font-size="9" font-family="monospace">node_R = H(leaf2, leaf3)</text>
+    <text x="510" y="260" fill="#4ecdc4" font-size="8" font-family="monospace">= 0xcc11... (sibling in path)</text>
+
+    <!-- Root -->
+    <line x1="215" y1="265" x2="400" y2="300" stroke="#7c3aed" stroke-width="1" opacity="0.5"/>
+    <line x1="600" y1="265" x2="400" y2="300" stroke="#7c3aed" stroke-width="1" opacity="0.5"/>
+
+    <rect x="300" y="295" width="200" height="45" rx="10" fill="rgba(124,58,237,0.15)" stroke="#7c3aed" stroke-width="2"/>
+    <text x="320" y="318" fill="#7c3aed" font-size="11" font-weight="700" font-family="monospace">ROOT = 0xdead...</text>
+    <text x="320" y="335" fill="#8888a0" font-size="9" font-family="monospace">Stored on-chain in Registry</text>
+
+    <!-- Bob's auth path -->
+    <rect x="20" y="370" width="780" height="95" rx="12" fill="rgba(255,107,53,0.05)" stroke="#ff6b35" stroke-dasharray="4,2"/>
+    <text x="40" y="395" fill="#ff6b35" font-size="11" font-weight="700" font-family="monospace">BOB'S AUTHENTICATION PATH (private witness)</text>
+    <text x="40" y="418" fill="#e8e8f0" font-size="10" font-family="monospace">merkle_path  = [leaf0 (0x7a3f...), node_R (0xcc11...)]</text>
+    <text x="40" y="438" fill="#e8e8f0" font-size="10" font-family="monospace">path_indices = [1, 0]  // Bob is RIGHT child of node_L, then LEFT child of root</text>
+    <text x="40" y="455" fill="#8888a0" font-size="9" font-family="monospace">Verification: H(leaf0, leaf1) = node_L, then H(node_L, node_R) should == ROOT</text>
+  </svg>
+</div>
+
+<h3>Action: Bob Submits an Anonymous Proof</h3>
+<p>Bob wants to prove he's a registered user without revealing that he's <em>Bob</em>. Here's what happens:</p>
+
+<div class="step-card">
+  <div class="step-header">
+    <div class="step-num">1</div>
+    <h3 style="color: var(--text);">Inside the ZK Circuit (Private)</h3>
+  </div>
+  <div class="step-body">
+    <p>The Noir circuit receives Bob's private witness and verifies three things in zero-knowledge:</p>
+    <div class="code-block">
+// INSIDE THE ZK CIRCUIT (none of this is visible to anyone)
+
+// Check 1: "I have a valid signature"
+ECDSA_verify(msg_hash, r_bob, s_bob, qx_bob, qy_bob) == true  ✓
+
+// Check 2: "My key is in the registered set"
+leaf = H(qx_bob, qy_bob) = 0x2e8c...
+step1 = H(leaf0, leaf)     = H(0x7a3f, 0x2e8c) = 0x55bb... = node_L  ✓
+step2 = H(node_L, node_R)  = H(0x55bb, 0xcc11) = 0xdead... = ROOT    ✓
+
+// Check 3: "This nullifier is correctly computed"
+nullifier = H(leaf_bob, msg_hash) = 0x4444...                          ✓</div>
+    <p>The circuit outputs only three values: <code>msg_hash</code>, <code>merkle_root</code>, and <code>nullifier</code>. Everything else stays hidden.</p>
+  </div>
+</div>
+
+<div class="step-card">
+  <div class="step-header">
+    <div class="step-num">2</div>
+    <h3 style="color: var(--text);">What Appears On-Chain (Public)</h3>
+  </div>
+  <div class="step-body">
+    <div class="code-block">
+// THE ENTIRE ON-CHAIN FOOTPRINT:
+
+Transaction {
+    // Note: this can be submitted by ANY account (operator, relayer)
+    // It does NOT need to be Bob's wallet
+    sender:   0xOperator_Address,    // The relay/operator, NOT Bob
+    function: "submit_anon_biometric_proof",
+    calldata: [
+        ...proof_blob...,            // Opaque ZK proof (~3KB)
+    ]
+}
+
+// Public inputs extracted by the verifier contract:
+msg_hash:    0xa7f3...   // Which challenge was signed
+merkle_root: 0xdead...   // Which user set (all 4 users share this)
+nullifier:   0x4444...   // Unique to this hidden leaf + message hash
+
+// THAT'S IT. No wallet. No key. No signature. No identity.</div>
+
+    <div class="callout green">
+      <h4>Key Difference from POC-B</h4>
+      <p>In POC-B, the transaction included <code>wallet: 0xAlice_Wallet_123</code> as a parameter. In POC-C, <strong>there is no wallet parameter</strong>. The proof is submitted by the operator on behalf of <em>someone in the set</em>. The contract doesn't know or care who.</p>
+    </div>
+  </div>
+</div>
+
+<div class="step-card">
+  <div class="step-header">
+    <div class="step-num">3</div>
+    <h3 style="color: var(--text);">What an Observer Sees</h3>
+  </div>
+  <div class="step-body">
+    <p>An on-chain observer (blockchain explorer, analytics firm, etc.) sees:</p>
+    <div class="two-col">
+      <div class="col-card" style="border-color: var(--green);">
+        <h4 style="color: var(--green);">All they know</h4>
+        <p>"<em>One of the 4 registered users</em> signed a message with a valid biometric key. The action is identified by nullifier 0x4444... and cannot be repeated."</p>
+      </div>
+      <div class="col-card" style="border-color: var(--purple);">
+        <h4 style="color: var(--purple);">What they don't know</h4>
+        <p>"Was it Alice, Bob, Carol, or Dave? Which device key was used? What was the signature? Where in the tree is this user?"</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="sep"></div>
+
+<h3>The Unlinkability Test: Bob Acts Twice</h3>
+<p>Now Bob performs a <em>second</em> action (different action_id). Let's see what changes:</p>
+
+<div class="diagram">
+  <svg viewBox="0 0 820 340" xmlns="http://www.w3.org/2000/svg">
+    <!-- Action 1 -->
+    <rect x="20" y="20" width="380" height="130" rx="14" fill="rgba(124,58,237,0.06)" stroke="#7c3aed"/>
+    <text x="40" y="48" fill="#7c3aed" font-size="12" font-weight="700" font-family="monospace">ACTION 1: Vote on Proposal #7</text>
+    <text x="40" y="75" fill="#e8e8f0" font-size="10" font-family="monospace">msg_hash:    0xa7f3...</text>
+    <text x="40" y="95" fill="#e8e8f0" font-size="10" font-family="monospace">merkle_root: 0xdead... (same set)</text>
+    <text x="40" y="115" fill="#ff6b35" font-size="10" font-weight="600" font-family="monospace">nullifier:   0x4444...</text>
+    <text x="40" y="140" fill="#8888a0" font-size="9" font-family="monospace">H(leaf_bob, msg_hash_vote_7)</text>
+
+    <!-- Action 2 -->
+    <rect x="20" y="170" width="380" height="130" rx="14" fill="rgba(124,58,237,0.06)" stroke="#7c3aed"/>
+    <text x="40" y="198" fill="#7c3aed" font-size="12" font-weight="700" font-family="monospace">ACTION 2: Vote on Proposal #8</text>
+    <text x="40" y="225" fill="#e8e8f0" font-size="10" font-family="monospace">msg_hash:    0xb2c4...</text>
+    <text x="40" y="245" fill="#e8e8f0" font-size="10" font-family="monospace">merkle_root: 0xdead... (same set)</text>
+    <text x="40" y="265" fill="#ff6b35" font-size="10" font-weight="600" font-family="monospace">nullifier:   0x7777...</text>
+    <text x="40" y="290" fill="#8888a0" font-size="9" font-family="monospace">H(leaf_bob, msg_hash_vote_8)</text>
+
+    <!-- Analysis -->
+    <rect x="440" y="20" width="360" height="280" rx="14" fill="rgba(16,185,129,0.06)" stroke="#10b981" stroke-width="1.5"/>
+    <text x="460" y="48" fill="#10b981" font-size="12" font-weight="700" font-family="monospace">WHY THESE CAN'T BE LINKED</text>
+
+    <text x="460" y="80" fill="#e8e8f0" font-size="10" font-family="monospace">Different nullifiers:</text>
+    <text x="460" y="100" fill="#ff6b35" font-size="10" font-family="monospace">  0x4444... (action 1)</text>
+    <text x="460" y="120" fill="#ff6b35" font-size="10" font-family="monospace">  0x7777... (action 2)</text>
+
+    <text x="460" y="150" fill="#e8e8f0" font-size="10" font-family="monospace">The nullifier is H(leaf, message).</text>
+    <text x="460" y="170" fill="#e8e8f0" font-size="10" font-family="monospace">Different actions produce</text>
+    <text x="460" y="190" fill="#e8e8f0" font-size="10" font-family="monospace">completely different nullifiers.</text>
+
+    <text x="460" y="220" fill="#e8e8f0" font-size="10" font-family="monospace">Without knowing Bob's hidden leaf,</text>
+    <text x="460" y="240" fill="#e8e8f0" font-size="10" font-family="monospace">the chain observer cannot tell</text>
+    <text x="460" y="260" fill="#e8e8f0" font-size="10" font-family="monospace">that 0x4444 and 0x7777 came</text>
+    <text x="460" y="280" fill="#10b981" font-size="11" font-weight="700" font-family="monospace">from the same person.</text>
+  </svg>
+</div>
+
+<div class="callout">
+  <h4>Same hidden leaf, same message = same nullifier (prevents replay)</h4>
+  <p>If Bob tries to submit the same message again, the circuit would produce the same nullifier <code>0x4444...</code> because <code>H(leaf_bob, msg_hash_vote_7)</code> is deterministic. The AnonRegistry contract would reject it: "Nullifier already used." This prevents replay while preserving on-chain anonymity in the demo.</p>
+</div>
+
+<div class="sep"></div>
+
+<h3>Tough Questions You Might Get Asked</h3>
+
+<div class="step-card">
+  <div class="step-header">
+    <div class="step-num">Q</div>
+    <h3 style="color: var(--text);">"With only 4 users, can't you just try all 4 keys and see which one makes a valid proof?"</h3>
+  </div>
+  <div class="step-body">
+    <p><strong>In the current POC, this depends on whether the leaf set is public.</strong> The circuit hides Bob's public key and Merkle path, but the nullifier is derived from <code>H(leaf, message_hash)</code>. If an observer already knows every leaf, they can test leaves against public message hashes.</p>
+    <p>They still cannot forge a valid proof without the private key, because the ZK proof also verifies a real ECDSA signature. But for production-grade anonymity, the leaf/nullifier design should include a separate private secret or commitment.</p>
+    <p>The anonymity set size (4 users here) does affect the <em>practical</em> anonymity &mdash; a larger set makes statistical analysis harder. In production, this would be thousands or millions of keys.</p>
+  </div>
+</div>
+
+<div class="step-card">
+  <div class="step-header">
+    <div class="step-num">Q</div>
+    <h3 style="color: var(--text);">"How does the contract know the prover is actually in the set, not just fabricating a Merkle proof?"</h3>
+  </div>
+  <div class="step-body">
+    <p>The circuit enforces this cryptographically:</p>
+    <p>1. The prover must provide a <strong>valid ECDSA signature</strong> (proving they own a real P-256 key, not a random number)</p>
+    <p>2. The <strong>same key</strong> that signed must hash to a leaf that's in the Merkle tree (the circuit computes the leaf from the key coords, not from user input)</p>
+    <p>3. The authentication path must reconstruct to the <strong>on-chain root</strong> (which is stored in the AnonRegistry contract)</p>
+    <p>Fabricating any of these would mean either breaking ECDSA, finding a SHA-256 collision, or forging a Merkle proof &mdash; all computationally infeasible.</p>
+  </div>
+</div>
+
+<div class="step-card">
+  <div class="step-header">
+    <div class="step-num">Q</div>
+    <h3 style="color: var(--text);">"The relay sees the proof before it goes on-chain. Doesn't the relay know who Bob is?"</h3>
+  </div>
+  <div class="step-body">
+    <p><strong>This is a valid concern.</strong> In the current POC, the relay receives the full ProofPackage (including public key) and generates the ZK proof server-side. So yes, the relay knows the mapping.</p>
+    <p>In production, the proving would happen <strong>on the device itself</strong> (using Mopro/Swoir for mobile ZK proving). The device would send only the finished ZK proof to the relay &mdash; the relay would never see the public key, signature, or Merkle path. The relay would only see the opaque proof blob + public inputs.</p>
+    <p>Client-side proving is flagged as a stretch goal in the POC docs. The current architecture is relay-proven for simplicity, with the understanding that device-side proving is the production path.</p>
+  </div>
+</div>
+
+<div class="step-card">
+  <div class="step-header">
+    <div class="step-num">Q</div>
+    <h3 style="color: var(--text);">"What happens when a new user joins? Does the Merkle root change?"</h3>
+  </div>
+  <div class="step-body">
+    <p><strong>Yes.</strong> When a new user enrolls, their public key becomes a new leaf, the tree is rebuilt, and a new root is posted to the AnonRegistry contract on-chain. All existing users' authentication paths change (they get new siblings at some levels).</p>
+    <p>The contract stores the current root. Proofs generated with an old root will fail verification after the root is updated. In production, you'd either batch enrollments or support multiple valid roots with a transition window.</p>
+  </div>
+</div>
+
+<div class="step-card">
+  <div class="step-header">
+    <div class="step-num">Q</div>
+    <h3 style="color: var(--text);">"How is this different from Tornado Cash?"</h3>
+  </div>
+  <div class="step-body">
+    <p>Same cryptographic pattern, different domain:</p>
+    <p><strong>Tornado Cash:</strong> Merkle tree of <em>deposit commitments</em>. Proves "I deposited funds" without revealing which deposit. Nullifier prevents double-withdrawal.</p>
+    <p><strong>POC-C:</strong> Merkle tree of <em>biometric public keys</em>. Proves "I'm a registered human with a valid biometric" without revealing which human. Nullifier prevents double-action.</p>
+    <p>The math is identical. The <em>leaves</em> are different (deposit hashes vs public key hashes), but the Merkle proof + nullifier mechanism is the same proven construction.</p>
+  </div>
+</div>
+
+</div>
+
+<div class="nav-footer">
+  <a href="05-poc-b-zk-proving.html">&larr; POC-B</a>
+  <a href="07-privacy-spectrum.html">Next: Privacy Spectrum &rarr;</a>
+</div>
+<footer><p>Biometric ZK Identity &mdash; Karnot Research</p></footer>
+</body>
+</html>
